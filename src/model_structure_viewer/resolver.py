@@ -12,7 +12,9 @@ from typing import Any
 from .schemas import HfSearchResult, ModelEntry
 from .settings import AppSettings
 
-METADATA_ALLOW_RE = re.compile(r"^(README\.md|config\.json|configuration_.*\.py)$")
+METADATA_ALLOW_RE = re.compile(
+    r"^(README\.md|config\.json|(configuration|modeling|tokenization)_.*\.py)$"
+)
 WEIGHT_SUFFIXES = (
     ".safetensors",
     ".bin",
@@ -32,6 +34,7 @@ class SourceResolutionError(RuntimeError):
 class ResolvedConfig:
     config: dict[str, Any]
     source: dict[str, Any]
+    local_dir: Path | None = None
 
 
 class ModelSourceResolver:
@@ -81,29 +84,37 @@ class ModelSourceResolver:
             )
 
         if config_path:
-            return self._resolve_config_path(config_path, detail_level)
+            resolved = self._resolve_config_path(config_path, detail_level)
+            self._maybe_fetch_remote_code(resolved, model_id=model_id, revision=revision)
+            return resolved
 
         if not model_id:
             raise SourceResolutionError("model_id, config_path, or config_json is required.")
 
         effective_policy = "offline" if self.settings.offline else cache_policy
+        resolved: ResolvedConfig
         if source == "local":
-            return self._resolve_local_model(model_id, detail_level)
-        if source == "hf":
+            resolved = self._resolve_local_model(model_id, detail_level)
+        elif source == "hf":
             if effective_policy == "offline":
                 raise SourceResolutionError("source=hf cannot run with offline cache policy.")
-            return self._resolve_hf_model(model_id, revision, cache_policy, detail_level)
-        if source == "auto":
+            resolved = self._resolve_hf_model(model_id, revision, cache_policy, detail_level)
+        elif source == "auto":
+            local = None
             if effective_policy != "refresh":
                 local = self._try_local_model(model_id, detail_level)
-                if local is not None:
-                    return local
-            if effective_policy == "offline":
+            if local is not None:
+                resolved = local
+            elif effective_policy == "offline":
                 expected = self.local_config_path(model_id)
                 raise SourceResolutionError(f"Local config not found and offline is enabled: {expected}")
-            return self._resolve_hf_model(model_id, revision, cache_policy, detail_level)
+            else:
+                resolved = self._resolve_hf_model(model_id, revision, cache_policy, detail_level)
+        else:
+            raise SourceResolutionError(f"Unsupported source: {source}")
 
-        raise SourceResolutionError(f"Unsupported source: {source}")
+        self._maybe_fetch_remote_code(resolved, model_id=model_id, revision=revision)
+        return resolved
 
     def local_config_path(self, model_id: str) -> Path:
         parts = [part for part in model_id.split("/") if part]
@@ -116,6 +127,7 @@ class ModelSourceResolver:
         return ResolvedConfig(
             config=self._load_json(path),
             source={"kind": "local file", "config_path": str(path), "detail_level": detail_level},
+            local_dir=path.parent,
         )
 
     def _try_local_model(self, model_id: str, detail_level: str) -> ResolvedConfig | None:
@@ -130,6 +142,7 @@ class ModelSourceResolver:
                 "config_path": str(path),
                 "detail_level": detail_level,
             },
+            local_dir=path.parent,
         )
 
     def _resolve_local_model(self, model_id: str, detail_level: str) -> ResolvedConfig:
@@ -165,6 +178,7 @@ class ModelSourceResolver:
                 "cache_path": str(config_path),
                 "detail_level": detail_level,
             },
+            local_dir=cache_dir,
         )
 
     def search_hf_models(self, query: str, limit: int = 10) -> list[HfSearchResult]:
@@ -213,6 +227,96 @@ class ModelSourceResolver:
             except SourceResolutionError:
                 continue
             target.write_text(text, encoding="utf-8")
+
+    def _maybe_fetch_remote_code(
+        self,
+        resolved: ResolvedConfig,
+        *,
+        model_id: str | None,
+        revision: str,
+    ) -> None:
+        if resolved.local_dir is None or model_id is None:
+            return
+        if self.settings.offline or not self.settings.auto_fetch_remote_code:
+            return
+        info = self.ensure_remote_code(
+            model_id=model_id,
+            revision=revision,
+            local_dir=resolved.local_dir,
+            config=resolved.config,
+        )
+        if info.get("fetched") or info.get("errors"):
+            resolved.source["remote_code_fetch"] = info
+
+    def ensure_remote_code(
+        self,
+        *,
+        model_id: str,
+        revision: str,
+        local_dir: Path,
+        config: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Best-effort: download modeling_*.py / configuration_*.py / tokenization_*.py.
+
+        Only fetches files referenced in ``auto_map`` (and same-prefix metadata files
+        on the repository root) when they are missing locally. Honors offline mode and
+        the auto_fetch_remote_code setting via the caller.
+        """
+        modules = self._auto_map_modules(config)
+        if not modules:
+            return {"fetched": [], "errors": [], "skipped": "no_auto_map"}
+
+        tree_paths = [item.get("path", "") for item in self._tree(model_id, revision)]
+        root_files = {p for p in tree_paths if p and "/" not in p}
+        if not root_files:
+            return {"fetched": [], "errors": [], "skipped": "empty_tree"}
+
+        wanted: list[str] = []
+        for module in modules:
+            filename = f"{module}.py"
+            if filename in root_files:
+                wanted.append(filename)
+        # Pull same-prefix configuration_/tokenization_/modeling_ helpers so that
+        # imports inside modeling_*.py succeed.
+        for filename in sorted(root_files):
+            if not METADATA_ALLOW_RE.match(filename):
+                continue
+            if filename == "config.json" or filename == "README.md":
+                continue
+            if filename.endswith(WEIGHT_SUFFIXES):
+                continue
+            if filename not in wanted:
+                wanted.append(filename)
+
+        fetched: list[str] = []
+        errors: list[dict[str, str]] = []
+        for filename in wanted:
+            target = local_dir / filename
+            if target.exists():
+                continue
+            try:
+                text = self._download_text(model_id, filename, revision)
+            except SourceResolutionError as exc:
+                errors.append({"file": filename, "reason": str(exc)})
+                continue
+            target.write_text(text, encoding="utf-8")
+            fetched.append(filename)
+        return {"fetched": fetched, "errors": errors}
+
+    @staticmethod
+    def _auto_map_modules(config: dict[str, Any]) -> list[str]:
+        auto_map = config.get("auto_map") or {}
+        if not isinstance(auto_map, dict):
+            return []
+        modules: set[str] = set()
+        for value in auto_map.values():
+            candidates = value if isinstance(value, list) else [value]
+            for item in candidates:
+                if isinstance(item, str) and "." in item:
+                    module = item.split(".", 1)[0]
+                    if module and "/" not in module and "\\" not in module:
+                        modules.add(module)
+        return sorted(modules)
 
     def _tree(self, model_id: str, revision: str) -> list[dict[str, Any]]:
         encoded = urllib.parse.quote(model_id, safe="/")

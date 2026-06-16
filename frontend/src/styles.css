@@ -2,6 +2,14 @@
   color: #17202c;
   background: #edf2f6;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 15px;
+  --node-radius: 10px;
+  --node-shadow: 0 4px 10px rgba(36, 52, 72, 0.1);
+  --diagram-arrow: #8a96a5;
+  --diagram-bg: #f8fbfd;
 }
 
 * {
@@ -216,10 +224,31 @@ textarea {
 .diagram-scroll {
   width: 100%;
   min-height: 470px;
+  max-height: calc(100vh - 280px);
   overflow: auto;
   border: 1px solid #dbe4ec;
   border-radius: 8px;
-  background: #f8fbfd;
+  background: var(--diagram-bg);
+}
+
+.diagram-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.diagram-scroll::-webkit-scrollbar-thumb {
+  background: rgba(120, 138, 158, 0.35);
+  border-radius: 8px;
+}
+
+.diagram-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 138, 158, 0.55);
+}
+
+.diagram-zoom {
+  display: inline-block;
+  transform-origin: top left;
+  will-change: transform;
 }
 
 .diagram-svg {
@@ -228,7 +257,66 @@ textarea {
 
 .diagram-node {
   stroke-width: 1.5;
-  filter: drop-shadow(0 4px 8px rgba(36, 52, 72, 0.08));
+  filter: drop-shadow(var(--node-shadow));
+}
+
+.diagram-node-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px 14px;
+  gap: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: #17202c;
+}
+
+.diagram-node-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.diagram-node-header .diagram-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #17202c;
+}
+
+.diagram-node-header .diagram-repeat {
+  flex: 0 0 auto;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: #245d86;
+  background: rgba(50, 120, 183, 0.12);
+  border-radius: 999px;
+  padding: 2px 8px;
+  letter-spacing: 0.02em;
+}
+
+.diagram-meta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.diagram-meta li {
+  font-size: var(--font-size-xs);
+  color: #526172;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .diagram-node.model {
@@ -276,16 +364,16 @@ textarea {
   stroke: #9ca8b6;
 }
 
-.diagram-title {
+/* Legacy SVG text styles retained for non-diagram callers. */
+.svg-legacy-title {
   fill: #17202c;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: 700;
 }
 
-.diagram-meta,
-.diagram-repeat {
+.svg-legacy-meta {
   fill: #526172;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .module-card {

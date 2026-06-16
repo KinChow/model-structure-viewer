@@ -21,6 +21,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", default=None, help="Model root directory.")
     parser.add_argument("--endpoint", default=None, help="Hugging Face endpoint.")
     parser.add_argument("--offline", action="store_true", help="Disable remote HF access.")
+    parser.add_argument(
+        "--no-auto-fetch-remote-code",
+        dest="no_auto_fetch_remote_code",
+        action="store_true",
+        help="Do not auto-download modeling_*.py / configuration_*.py from HF.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     list_parser = subparsers.add_parser("list", help="List local models.")
@@ -55,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         model_root=args.root,
         hf_endpoint=args.endpoint,
         offline=args.offline,
+        auto_fetch_remote_code=False if getattr(args, "no_auto_fetch_remote_code", False) else None,
     )
     try:
         return args.func(args, settings)
@@ -96,7 +103,12 @@ def cmd_inspect(args: argparse.Namespace, settings: AppSettings) -> int:
         cache_policy=args.cache_policy,
         detail_level=args.detail_level,
     )
-    structure = build_model_structure(resolved.config, source=resolved.source, detail_level=args.detail_level)
+    structure = build_model_structure(
+        resolved.config,
+        source=resolved.source,
+        detail_level=args.detail_level,
+        local_dir=resolved.local_dir,
+    )
     print(export_structure(structure, args.format), end="")
     return 0
 

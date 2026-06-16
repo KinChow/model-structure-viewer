@@ -38,6 +38,7 @@ class StructureRequest(BaseModel):
     hf_endpoint: str | None = None
     model_root: str | None = None
     offline: bool = False
+    auto_fetch_remote_code: bool | None = None
 
 
 class ExportRequest(BaseModel):
@@ -50,6 +51,7 @@ class SettingsPayload(BaseModel):
     hf_endpoint: str | None = None
     cache_policy: CachePolicy | None = None
     offline: bool | None = None
+    auto_fetch_remote_code: bool | None = None
 
 
 class ModelEntry(BaseModel):

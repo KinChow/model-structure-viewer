@@ -400,59 +400,74 @@ function StructureDiagram({ structure, zoom }) {
   const height = Math.max(430, ...nodes.map((node) => node.y + node.height + 40));
   return (
     <div className="diagram-scroll">
-      <svg
-        className="diagram-svg"
-        viewBox={`0 0 ${width} ${height}`}
-        width={width * zoom}
-        height={height * zoom}
-        role="img"
-        aria-label="Model architecture diagram"
+      <div
+        className="diagram-zoom"
+        style={{ transform: `scale(${zoom})`, width, height }}
       >
-        <defs>
-          <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 Z" fill="#7b8794" />
-          </marker>
-        </defs>
-        {nodes.flatMap((node) =>
-          node.children.map((child) => {
-            const target = nodes.find((item) => item.path === child);
-            if (!target) return null;
-            return (
-              <path
-                key={`${node.path}-${child}`}
-                d={`M ${node.x + node.width} ${node.y + node.height / 2} C ${node.x + node.width + 36} ${
-                  node.y + node.height / 2
-                }, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`}
-                fill="none"
-                stroke="#8a96a5"
-                strokeWidth="1.5"
-                markerEnd="url(#arrow)"
+        <svg
+          className="diagram-svg"
+          viewBox={`0 0 ${width} ${height}`}
+          width={width}
+          height={height}
+          role="img"
+          aria-label="Model architecture diagram"
+        >
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="var(--diagram-arrow)" />
+            </marker>
+          </defs>
+          {nodes.flatMap((node) =>
+            node.children.map((child) => {
+              const target = nodes.find((item) => item.path === child);
+              if (!target) return null;
+              return (
+                <path
+                  key={`${node.path}-${child}`}
+                  d={`M ${node.x + node.width} ${node.y + node.height / 2} C ${node.x + node.width + 36} ${
+                    node.y + node.height / 2
+                  }, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`}
+                  fill="none"
+                  stroke="var(--diagram-arrow)"
+                  strokeWidth="1.5"
+                  markerEnd="url(#arrow)"
+                />
+              );
+            })
+          )}
+          {nodes.map((node) => (
+            <g key={node.path} transform={`translate(${node.x}, ${node.y})`}>
+              <rect
+                width={node.width}
+                height={node.height}
+                rx="10"
+                className={`diagram-node ${node.typeClass}`}
               />
-            );
-          })
-        )}
-        {nodes.map((node) => (
-          <g key={node.path} transform={`translate(${node.x}, ${node.y})`}>
-            <rect
-              width={node.width}
-              height={node.height}
-              rx="8"
-              className={`diagram-node ${node.typeClass}`}
-            />
-            <text x="14" y="24" className="diagram-title">
-              {truncate(node.name, 30)}
-            </text>
-            <text x="14" y="43" className="diagram-meta">
-              {node.meta}
-            </text>
-            {node.repeat && (
-              <text x={node.width - 16} y="24" textAnchor="end" className="diagram-repeat">
-                x{node.repeat}
-              </text>
-            )}
-          </g>
-        ))}
-      </svg>
+              <foreignObject x="0" y="0" width={node.width} height={node.height}>
+                <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content">
+                  <div className="diagram-node-header">
+                    <span className="diagram-title" title={node.fullName}>
+                      {node.displayName}
+                    </span>
+                    {node.repeat && (
+                      <span className="diagram-repeat">×{node.repeat}</span>
+                    )}
+                  </div>
+                  {node.metaLines.length > 0 && (
+                    <ul className="diagram-meta">
+                      {node.metaLines.map((line) => (
+                        <li key={line} title={line}>
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </foreignObject>
+            </g>
+          ))}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -508,25 +523,35 @@ function EmptyState() {
   );
 }
 
+const NODE_WIDTH = 220;
+const NODE_HEIGHTS = [56, 76, 96]; // 0 / 1 / 2 meta lines
+const NODE_GAP_Y = 18;
+const NODE_GAP_X = 60;
+const LAYOUT_TOP = 28;
+const LAYOUT_LEFT = 28;
+
 function layoutDiagram(root) {
   const levels = [];
-  const paths = new Map();
+  const items = [];
   function visit(node, depth, path) {
     if (!levels[depth]) levels[depth] = [];
+    const metaLines = metaForNode(node);
+    const height = NODE_HEIGHTS[Math.min(metaLines.length, NODE_HEIGHTS.length - 1)];
     const item = {
       node,
       path,
       depth,
       children: [],
-      width: 210,
-      height: 70,
+      width: NODE_WIDTH,
+      height,
       typeClass: typeClass(node.type),
       repeat: node.repeat,
-      name: node.name,
-      meta: metaForNode(node),
+      fullName: node.name,
+      displayName: node.name,
+      metaLines,
     };
     levels[depth].push(item);
-    paths.set(path, item);
+    items.push(item);
     node.children?.forEach((child, index) => {
       const childPath = `${path}.${index}`;
       item.children.push(childPath);
@@ -534,28 +559,37 @@ function layoutDiagram(root) {
     });
   }
   visit(root, 0, "root");
-  const result = [];
+
+  const columnHeights = levels.map((level) =>
+    level.reduce((acc, item) => acc + item.height + NODE_GAP_Y, -NODE_GAP_Y)
+  );
+  const maxColumnHeight = Math.max(0, ...columnHeights);
+
   levels.forEach((level, depth) => {
-    const totalHeight = level.length * 92;
-    const startY = Math.max(26, (430 - totalHeight) / 2 + 26);
-    level.forEach((item, index) => {
-      item.x = 28 + depth * 260;
-      item.y = startY + index * 92;
-      result.push(item);
+    const columnHeight = columnHeights[depth];
+    const startY = LAYOUT_TOP + Math.max(0, (maxColumnHeight - columnHeight) / 2);
+    let cursorY = startY;
+    level.forEach((item) => {
+      item.x = LAYOUT_LEFT + depth * (NODE_WIDTH + NODE_GAP_X);
+      item.y = cursorY;
+      cursorY += item.height + NODE_GAP_Y;
     });
   });
-  return result;
+  return items;
 }
 
 function metaForNode(node) {
   const attrs = node.attributes || {};
-  const pieces = [];
-  if (attrs.shape) pieces.push(attrs.shape);
-  if (attrs.hidden_size) pieces.push(`hidden ${attrs.hidden_size}`);
-  if (attrs.num_attention_heads || attrs.attention_heads) pieces.push(`heads ${attrs.num_attention_heads || attrs.attention_heads}`);
-  if (attrs.routed_experts || attrs.num_local_experts) pieces.push(`experts ${attrs.routed_experts || attrs.num_local_experts}`);
-  if (attrs.range) pieces.push(attrs.range);
-  return pieces.slice(0, 2).join(" · ") || node.type;
+  const lines = [];
+  if (attrs.shape) lines.push(String(attrs.shape));
+  if (attrs.hidden_size) lines.push(`hidden ${attrs.hidden_size}`);
+  const heads = attrs.num_attention_heads || attrs.attention_heads;
+  if (heads) lines.push(`heads ${heads}`);
+  const experts = attrs.routed_experts || attrs.num_local_experts;
+  if (experts) lines.push(`experts ${experts}`);
+  if (attrs.range) lines.push(String(attrs.range));
+  if (lines.length === 0 && node.type) lines.push(node.type);
+  return lines.slice(0, 2);
 }
 
 function typeClass(type) {
@@ -574,11 +608,6 @@ function formatValue(value) {
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "boolean") return value ? "true" : "false";
   return String(value);
-}
-
-function truncate(value, limit) {
-  if (!value) return "";
-  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
 }
 
 export default App;

@@ -73,7 +73,9 @@ Open `http://localhost:5173`. The Vite dev server proxies API calls to `http://l
 - `auto`: prefer local cache, then Hugging Face
 - `config`: use pasted or uploaded JSON
 
-Allowed HF metadata cache files are `config.json`, `README.md`, and `configuration_*.py`. Weight files such as `.safetensors`, `.bin`, `.gguf`, `.pt`, and `.onnx` are never cached by this tool.
+Allowed HF metadata cache files are `config.json`, `README.md`, `configuration_*.py`, `modeling_*.py`, and `tokenization_*.py`. Weight files such as `.safetensors`, `.bin`, `.gguf`, `.pt`, and `.onnx` are never cached by this tool.
+
+When `config.json` declares `auto_map` (e.g. DeepSeek-V3, MiniMax-M3) and the matching `modeling_*.py` / `configuration_*.py` files are missing in the local cache, the resolver auto-downloads them from the same HF revision so the structure builder can introspect the live `nn.Module` tree (Plan A). Disable with `MSV_AUTO_FETCH_REMOTE_CODE=0`, the `--no-auto-fetch-remote-code` CLI flag, or `auto_fetch_remote_code: false` in the settings payload. Auto-fetch is always skipped in offline mode and for `source=config`.
 
 ## Test
 

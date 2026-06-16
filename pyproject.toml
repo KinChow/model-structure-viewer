@@ -13,6 +13,9 @@ dependencies = [
   "fastapi>=0.110",
   "uvicorn[standard]>=0.27",
   "pydantic>=2.6",
+  "transformers>=4.40",
+  "accelerate>=0.27",
+  "torch>=2.1",
 ]
 
 [project.optional-dependencies]

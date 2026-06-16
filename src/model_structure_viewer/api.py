@@ -33,6 +33,7 @@ def health() -> dict[str, object]:
         "hf_endpoint": settings.hf_endpoint,
         "cache_policy": settings.cache_policy,
         "offline": settings.offline,
+        "auto_fetch_remote_code": settings.auto_fetch_remote_code,
     }
 
 
@@ -49,6 +50,7 @@ def update_settings(payload: SettingsPayload) -> dict[str, object]:
         hf_endpoint=payload.hf_endpoint,
         cache_policy=payload.cache_policy,
         offline=payload.offline,
+        auto_fetch_remote_code=payload.auto_fetch_remote_code,
     )
     return get_settings()
 
@@ -81,6 +83,7 @@ def structure(payload: StructureRequest) -> dict[str, object]:
         hf_endpoint=payload.hf_endpoint,
         cache_policy=payload.cache_policy,
         offline=payload.offline,
+        auto_fetch_remote_code=payload.auto_fetch_remote_code,
     )
     resolver = ModelSourceResolver(request_settings)
     try:
@@ -97,6 +100,7 @@ def structure(payload: StructureRequest) -> dict[str, object]:
             resolved.config,
             source=resolved.source,
             detail_level=payload.detail_level,
+            local_dir=resolved.local_dir,
         )
         return model_structure.model_dump()
     except SourceResolutionError as exc:

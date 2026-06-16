@@ -4,10 +4,11 @@ import argparse
 import json
 import sys
 
+from .api import build_structure_response
 from .exporters import export_structure
 from .resolver import ModelSourceResolver, SourceResolutionError
+from .schemas import StructureRequest
 from .settings import AppSettings
-from .structure import build_model_structure
 
 
 def add_common_options(parser: argparse.ArgumentParser) -> None:
@@ -86,7 +87,6 @@ def cmd_search(args: argparse.Namespace, settings: AppSettings) -> int:
 
 
 def cmd_inspect(args: argparse.Namespace, settings: AppSettings) -> int:
-    resolver = ModelSourceResolver(settings)
     config_json = None
     source = args.source
     if args.config and source == "config":
@@ -94,7 +94,7 @@ def cmd_inspect(args: argparse.Namespace, settings: AppSettings) -> int:
             config_json = json.load(handle)
     if args.config and source == "auto" and not args.model:
         source = "local"
-    resolved = resolver.resolve(
+    payload = StructureRequest(
         source=source,
         model_id=args.model,
         config_path=args.config if source != "config" else None,
@@ -103,12 +103,7 @@ def cmd_inspect(args: argparse.Namespace, settings: AppSettings) -> int:
         cache_policy=args.cache_policy,
         detail_level=args.detail_level,
     )
-    structure = build_model_structure(
-        resolved.config,
-        source=resolved.source,
-        detail_level=args.detail_level,
-        local_dir=resolved.local_dir,
-    )
+    structure = build_structure_response(payload, settings)
     print(export_structure(structure, args.format), end="")
     return 0
 

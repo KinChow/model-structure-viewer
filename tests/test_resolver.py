@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 
 from model_structure_viewer.errors import RemoteError
+from model_structure_viewer.resolve.hf_client import HuggingFaceClient
+from model_structure_viewer.resolve.remote_code import RemoteCodeFetcher
 from model_structure_viewer.resolver import ModelSourceResolver, SourceResolutionError
 from model_structure_viewer.settings import AppSettings
 
@@ -80,8 +82,8 @@ def test_ensure_remote_code_downloads_auto_map_modules(tmp_path, monkeypatch):
         downloads.append(filename)
         return f"# fake {filename}\n"
 
-    monkeypatch.setattr(ModelSourceResolver, "_tree", fake_tree, raising=True)
-    monkeypatch.setattr(ModelSourceResolver, "_download_text", fake_download_text, raising=True)
+    monkeypatch.setattr(HuggingFaceClient, "list_tree", fake_tree, raising=True)
+    monkeypatch.setattr(HuggingFaceClient, "download_text", fake_download_text, raising=True)
 
     resolved = resolver.resolve(source="local", model_id=model_id)
 
@@ -109,13 +111,13 @@ def test_ensure_remote_code_skips_existing_files(tmp_path, monkeypatch):
     ]
     downloads: list[str] = []
 
-    monkeypatch.setattr(ModelSourceResolver, "_tree", lambda self, mid, rev: tree)
+    monkeypatch.setattr(HuggingFaceClient, "list_tree", lambda self, mid, rev: tree)
 
     def fake_download_text(self, mid, filename, rev):
         downloads.append(filename)
         return f"# fetched {filename}"
 
-    monkeypatch.setattr(ModelSourceResolver, "_download_text", fake_download_text)
+    monkeypatch.setattr(HuggingFaceClient, "download_text", fake_download_text)
 
     resolver.resolve(source="local", model_id=model_id)
     assert downloads == ["configuration_deepseek.py"]
@@ -128,8 +130,8 @@ def test_ensure_remote_code_records_errors_and_continues(tmp_path, monkeypatch):
     resolver = _stub_resolver(tmp_path)
 
     monkeypatch.setattr(
-        ModelSourceResolver,
-        "_tree",
+        HuggingFaceClient,
+        "list_tree",
         lambda self, mid, rev: [
             {"path": "modeling_deepseek.py"},
             {"path": "configuration_deepseek.py"},
@@ -141,7 +143,7 @@ def test_ensure_remote_code_records_errors_and_continues(tmp_path, monkeypatch):
             raise RemoteError("HTTP 404")
         return "# ok"
 
-    monkeypatch.setattr(ModelSourceResolver, "_download_text", fake_download_text)
+    monkeypatch.setattr(HuggingFaceClient, "download_text", fake_download_text)
 
     resolved = resolver.resolve(source="local", model_id=model_id)
     info = resolved.source["remote_code_fetch"]
@@ -159,8 +161,8 @@ def test_ensure_remote_code_disabled_when_flag_false(tmp_path, monkeypatch):
     def boom(*a, **kw):
         raise AssertionError("network must not be touched")
 
-    monkeypatch.setattr(ModelSourceResolver, "_tree", boom)
-    monkeypatch.setattr(ModelSourceResolver, "_download_text", boom)
+    monkeypatch.setattr(HuggingFaceClient, "list_tree", boom)
+    monkeypatch.setattr(HuggingFaceClient, "download_text", boom)
 
     resolved = resolver.resolve(source="local", model_id=model_id)
     assert "remote_code_fetch" not in resolved.source
@@ -174,8 +176,8 @@ def test_ensure_remote_code_disabled_in_offline(tmp_path, monkeypatch):
     def boom(*a, **kw):
         raise AssertionError("offline must not call HF")
 
-    monkeypatch.setattr(ModelSourceResolver, "_tree", boom)
-    monkeypatch.setattr(ModelSourceResolver, "_download_text", boom)
+    monkeypatch.setattr(HuggingFaceClient, "list_tree", boom)
+    monkeypatch.setattr(HuggingFaceClient, "download_text", boom)
 
     resolved = resolver.resolve(source="local", model_id=model_id)
     assert "remote_code_fetch" not in resolved.source
@@ -188,8 +190,8 @@ def test_source_config_does_not_trigger_remote_fetch(monkeypatch, tmp_path):
     def boom(*a, **kw):
         raise AssertionError("source=config must not fetch")
 
-    monkeypatch.setattr(ModelSourceResolver, "_tree", boom)
-    monkeypatch.setattr(ModelSourceResolver, "_download_text", boom)
+    monkeypatch.setattr(HuggingFaceClient, "list_tree", boom)
+    monkeypatch.setattr(HuggingFaceClient, "download_text", boom)
 
     resolved = resolver.resolve(source="config", config_json=config)
     assert resolved.local_dir is None
@@ -205,7 +207,7 @@ def test_auto_map_modules_handles_list_and_invalid():
             "Empty": "",
         }
     }
-    assert ModelSourceResolver._auto_map_modules(config) == [
+    assert RemoteCodeFetcher._auto_map_modules(config) == [
         "configuration_x",
         "modeling_extra",
         "modeling_x",

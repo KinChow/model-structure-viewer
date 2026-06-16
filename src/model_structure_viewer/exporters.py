@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from typing import Callable
@@ -44,7 +45,7 @@ def export_mermaid(structure: ModelStructure) -> str:
     lines = ["flowchart TD"]
     _walk_tree(
         structure.root,
-        on_node=lambda nid, node: lines.append(f'  {nid}["{_escape(_label(node))}"]'),
+        on_node=lambda nid, node: lines.append(f'  {nid}["{_escape_mermaid(_label(node))}"]'),
         on_edge=lambda src, dst: lines.append(f"  {src} --> {dst}"),
     )
     return "\n".join(lines) + "\n"
@@ -59,7 +60,7 @@ def export_dot(structure: ModelStructure) -> str:
     ]
     _walk_tree(
         structure.root,
-        on_node=lambda nid, node: lines.append(f'  {nid} [label="{_escape(_label(node))}"];'),
+        on_node=lambda nid, node: lines.append(f'  {nid} [label="{_escape_dot(_label(node))}"];'),
         on_edge=lambda src, dst: lines.append(f"  {src} -> {dst};"),
     )
     lines.append("}")
@@ -76,11 +77,39 @@ def _label(node: StructureNode) -> str:
 
 
 def _safe_id(value: str) -> str:
-    value = re.sub(r"[^A-Za-z0-9_]", "_", value)
-    if not value or value[0].isdigit():
-        value = f"n_{value}"
-    return value
+    """Build a graph-safe node id that is unique per source path.
+
+    Slug-only ids collapse for non-ASCII names (e.g. CJK), case variants
+    (``LMHead`` vs ``lm_head``), and any path that maps to the same ascii
+    skeleton. Appending a short content hash keeps the slug human-readable
+    while guaranteeing uniqueness across the original ``value``.
+    """
+    slug = re.sub(r"[^A-Za-z0-9_]", "_", value).strip("_")
+    digest = hashlib.sha1(value.encode("utf-8")).hexdigest()[:6]
+    if not slug:
+        return f"n_{digest}"
+    if slug[0].isdigit():
+        slug = f"n_{slug}"
+    return f"{slug}_{digest}"
 
 
-def _escape(value: str) -> str:
+_MERMAID_ESCAPES = {
+    "\\": "\\\\",
+    '"': '\\"',
+    "|": "\\|",
+    "{": "\\{",
+    "}": "\\}",
+    "<": "&lt;",
+    ">": "&gt;",
+}
+
+
+def _escape_mermaid(value: str) -> str:
+    out = []
+    for ch in value:
+        out.append(_MERMAID_ESCAPES.get(ch, ch))
+    return "".join(out)
+
+
+def _escape_dot(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')

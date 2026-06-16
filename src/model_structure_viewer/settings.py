@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any, Callable
 
 DEFAULT_MODEL_ROOT = Path("/Users/zhouzijian01/Desktop/workspace/models")
 DEFAULT_HF_ENDPOINT = "https://huggingface.co"
@@ -12,6 +13,24 @@ DEFAULT_AUTO_FETCH_REMOTE_CODE = True
 
 def _parse_bool(value: str) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
+
+
+# Each entry maps an override field to (skip_predicate, transform).
+# ``skip_predicate(value)`` returns True when the override should be ignored,
+# preserving the historical semantics:
+#   * ``None`` is always treated as "no change"
+#   * string fields additionally treat ``""`` as "no change"
+#   * bool / Path / non-string values only skip on ``None``
+_skip_none: Callable[[Any], bool] = lambda v: v is None
+_skip_falsy_str: Callable[[Any], bool] = lambda v: not v  # None or ""
+
+_OVERRIDE_TRANSFORMS: dict[str, tuple[Callable[[Any], bool], Callable[[Any], Any]]] = {
+    "model_root": (_skip_none, lambda v: Path(v).expanduser()),
+    "hf_endpoint": (_skip_falsy_str, lambda v: v.rstrip("/")),
+    "cache_policy": (_skip_falsy_str, lambda v: v),
+    "offline": (_skip_none, lambda v: v),
+    "auto_fetch_remote_code": (_skip_none, lambda v: v),
+}
 
 
 @dataclass
@@ -43,15 +62,17 @@ class AppSettings:
         offline: bool | None = None,
         auto_fetch_remote_code: bool | None = None,
     ) -> "AppSettings":
+        candidates = {
+            "model_root": model_root,
+            "hf_endpoint": hf_endpoint,
+            "cache_policy": cache_policy,
+            "offline": offline,
+            "auto_fetch_remote_code": auto_fetch_remote_code,
+        }
         changes: dict[str, object] = {}
-        if model_root is not None:
-            changes["model_root"] = Path(model_root).expanduser()
-        if hf_endpoint:
-            changes["hf_endpoint"] = hf_endpoint.rstrip("/")
-        if cache_policy:
-            changes["cache_policy"] = cache_policy
-        if offline is not None:
-            changes["offline"] = offline
-        if auto_fetch_remote_code is not None:
-            changes["auto_fetch_remote_code"] = auto_fetch_remote_code
+        for field, value in candidates.items():
+            skip, transform = _OVERRIDE_TRANSFORMS[field]
+            if skip(value):
+                continue
+            changes[field] = transform(value)
         return replace(self, **changes)

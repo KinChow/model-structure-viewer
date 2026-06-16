@@ -4,10 +4,10 @@ import argparse
 import json
 import sys
 
-from .api import build_structure_response
 from .exporters import export_structure
 from .resolver import ModelSourceResolver, SourceResolutionError
 from .schemas import StructureRequest
+from .service import build_structure_response
 from .settings import AppSettings
 
 

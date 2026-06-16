@@ -10,44 +10,12 @@ from fastapi.staticfiles import StaticFiles
 from .errors import ViewerError
 from .exporters import export_structure
 from .resolver import ModelSourceResolver
-from .schemas import ExportRequest, ModelStructure, SettingsPayload, StructureRequest
+from .schemas import ExportRequest, SettingsPayload, StructureRequest
+from .service import build_structure_response
 from .settings import AppSettings
-from .structure import build_model_structure
 
 
-def build_structure_response(
-    payload: StructureRequest,
-    base_settings: AppSettings,
-) -> ModelStructure:
-    """Shared helper used by the HTTP route and the CLI ``inspect`` command.
-
-    Applies per-request overrides to ``base_settings``, resolves the model
-    config, and runs the structure builder. Raises :class:`ViewerError` on
-    resolution failures so the caller can map them to HTTP / exit codes.
-    """
-    request_settings = base_settings.with_overrides(
-        model_root=payload.model_root,
-        hf_endpoint=payload.hf_endpoint,
-        cache_policy=payload.cache_policy,
-        offline=payload.offline,
-        auto_fetch_remote_code=payload.auto_fetch_remote_code,
-    )
-    resolver = ModelSourceResolver(request_settings)
-    resolved = resolver.resolve(
-        source=payload.source,
-        model_id=payload.model_id,
-        config_path=payload.config_path,
-        config_json=payload.config_json,
-        revision=payload.revision,
-        cache_policy=payload.cache_policy,
-        detail_level=payload.detail_level,
-    )
-    return build_model_structure(
-        resolved.config,
-        source=resolved.source,
-        detail_level=payload.detail_level,
-        local_dir=resolved.local_dir,
-    )
+__all__ = ["app", "build_structure_response", "get_settings", "set_settings"]
 
 
 # Module-level holder so cli.cmd_serve can inject overrides before uvicorn starts,

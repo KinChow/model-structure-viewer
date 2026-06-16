@@ -27,8 +27,24 @@ def _walk_tree(
     on_node: NodeVisitor,
     on_edge: EdgeVisitor,
 ) -> None:
+    used: set[str] = set()
+
+    def assign_id(path: str) -> str:
+        slug = _slug(path)
+        digest = hashlib.sha1(path.encode("utf-8")).hexdigest()[:6]
+        candidate = slug or f"n_{digest}"
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+        # Collision: fall back to slug + hash so the id stays unique while
+        # remaining readable. ``digest`` is derived from the full path, so two
+        # different paths cannot produce the same disambiguated id.
+        disambiguated = f"{candidate}_{digest}"
+        used.add(disambiguated)
+        return disambiguated
+
     def visit(node: StructureNode, parent_id: str | None, path: str) -> None:
-        node_id = _safe_id(path or node.id)
+        node_id = assign_id(path or node.id)
         on_node(node_id, node)
         if parent_id is not None:
             on_edge(parent_id, node_id)
@@ -76,21 +92,14 @@ def _label(node: StructureNode) -> str:
     return " ".join(parts)
 
 
-def _safe_id(value: str) -> str:
-    """Build a graph-safe node id that is unique per source path.
-
-    Slug-only ids collapse for non-ASCII names (e.g. CJK), case variants
-    (``LMHead`` vs ``lm_head``), and any path that maps to the same ascii
-    skeleton. Appending a short content hash keeps the slug human-readable
-    while guaranteeing uniqueness across the original ``value``.
-    """
+def _slug(value: str) -> str:
+    """Build a graph-safe slug. Empty when the input has no ASCII alnum chars."""
     slug = re.sub(r"[^A-Za-z0-9_]", "_", value).strip("_")
-    digest = hashlib.sha1(value.encode("utf-8")).hexdigest()[:6]
     if not slug:
-        return f"n_{digest}"
+        return ""
     if slug[0].isdigit():
         slug = f"n_{slug}"
-    return f"{slug}_{digest}"
+    return slug
 
 
 _MERMAID_ESCAPES = {

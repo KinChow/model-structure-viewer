@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from .keys import MODULE_ATTR_WHITELIST
+
 # Ordered: more specific patterns first. Each tuple is (keywords, node_type).
 _TYPE_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
     (("ModuleList", "ModuleDict", "Sequential"), "module-list"),
@@ -29,31 +31,6 @@ _ATTENTION_KIND = (
     ("Flash", "Flash Attention"),
     ("GQA", "Grouped Query Attention"),
     ("MQA", "Multi-Query Attention"),
-)
-
-_ATTR_WHITELIST = (
-    "hidden_size",
-    "num_attention_heads",
-    "num_key_value_heads",
-    "num_heads",
-    "head_dim",
-    "intermediate_size",
-    "num_local_experts",
-    "num_experts_per_tok",
-    "n_routed_experts",
-    "n_shared_experts",
-    "moe_intermediate_size",
-    "vocab_size",
-    "embedding_dim",
-    "embed_dim",
-    "patch_size",
-    "image_size",
-    "rope_theta",
-    "q_lora_rank",
-    "kv_lora_rank",
-    "qk_nope_head_dim",
-    "qk_rope_head_dim",
-    "v_head_dim",
 )
 
 _KEYWORD_TO_FAMILY = (
@@ -97,11 +74,11 @@ def extract_attributes(module: Any) -> dict[str, Any]:
     attrs: dict[str, Any] = {}
     config = getattr(module, "config", None)
     if config is not None:
-        for key in _ATTR_WHITELIST:
+        for key in MODULE_ATTR_WHITELIST:
             value = getattr(config, key, None)
             if _is_scalar(value):
                 attrs[key] = value
-    for key in _ATTR_WHITELIST:
+    for key in MODULE_ATTR_WHITELIST:
         if key in attrs:
             continue
         value = getattr(module, key, None)

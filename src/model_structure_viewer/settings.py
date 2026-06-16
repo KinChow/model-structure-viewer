@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 DEFAULT_MODEL_ROOT = Path("/Users/zhouzijian01/Desktop/workspace/models")
@@ -43,14 +43,15 @@ class AppSettings:
         offline: bool | None = None,
         auto_fetch_remote_code: bool | None = None,
     ) -> "AppSettings":
-        return AppSettings(
-            model_root=Path(model_root).expanduser() if model_root is not None else self.model_root,
-            hf_endpoint=(hf_endpoint.rstrip("/") if hf_endpoint else self.hf_endpoint),
-            cache_policy=cache_policy or self.cache_policy,
-            offline=self.offline if offline is None else offline,
-            auto_fetch_remote_code=(
-                self.auto_fetch_remote_code
-                if auto_fetch_remote_code is None
-                else auto_fetch_remote_code
-            ),
-        )
+        changes: dict[str, object] = {}
+        if model_root is not None:
+            changes["model_root"] = Path(model_root).expanduser()
+        if hf_endpoint:
+            changes["hf_endpoint"] = hf_endpoint.rstrip("/")
+        if cache_policy:
+            changes["cache_policy"] = cache_policy
+        if offline is not None:
+            changes["offline"] = offline
+        if auto_fetch_remote_code is not None:
+            changes["auto_fetch_remote_code"] = auto_fetch_remote_code
+        return replace(self, **changes)

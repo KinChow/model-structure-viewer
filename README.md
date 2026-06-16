@@ -77,6 +77,24 @@ Allowed HF metadata cache files are `config.json`, `README.md`, `configuration_*
 
 When `config.json` declares `auto_map` (e.g. DeepSeek-V3, MiniMax-M3) and the matching `modeling_*.py` / `configuration_*.py` files are missing in the local cache, the resolver auto-downloads them from the same HF revision so the structure builder can introspect the live `nn.Module` tree (Plan A). Disable with `MSV_AUTO_FETCH_REMOTE_CODE=0`, the `--no-auto-fetch-remote-code` CLI flag, or `auto_fetch_remote_code: false` in the settings payload. Auto-fetch is always skipped in offline mode and for `source=config`.
 
+### API error semantics
+
+All API errors flow through a single `ViewerError` hierarchy and map to HTTP status codes via a FastAPI exception handler:
+
+- `400 Bad Request` (`ConfigError`): invalid request payload — missing `model_id`, unsupported `source`, malformed config JSON, or an offline-only request that requires HF.
+- `404 Not Found` (`NotFoundError`): the local config file or model directory does not exist under `MODEL_ROOT`.
+- `502 Bad Gateway` (`RemoteError`): Hugging Face fetch failed (HTTP error, network error, or non-JSON response).
+- `500 Internal Server Error`: any other `ViewerError` subclass without a more specific status.
+
+Error responses use the shape `{"detail": "<message>"}`.
+
+### Summary fields
+
+The `summary` block on every `ModelStructure` payload includes two diagnostic fields in addition to the model-shape numbers:
+
+- `summary.strategy`: `"meta-introspect"` when Plan A succeeded (live `nn.Module` tree on the meta device), or `"config-fallback"` when the resolver fell back to Plan C (config-only construction).
+- `summary.fallback_reason`: only present when `strategy == "config-fallback"`; a short human-readable reason such as `"meta-instantiation-failed"` or `"auto-map missing"`. The same value is mirrored on `source.fallback_reason` for backward compatibility.
+
 ## Test
 
 ```bash

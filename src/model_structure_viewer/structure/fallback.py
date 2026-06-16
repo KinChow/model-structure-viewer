@@ -1,12 +1,16 @@
 """Config-only fallback path (Plan C). Used when meta introspection fails."""
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ..schemas import ModelStructure, StructureNode
+from .keys import FALLBACK_HIGHLIGHT_KEYS, make_extra_config
 from .summary import extract_summary, infer_model_family
 
-_MAX_DEPTH = 8
+_LOG = logging.getLogger(__name__)
+
+_MAX_NESTED_CONFIG_DEPTH = 8
 
 _KNOWN_NESTED = {
     "text_config": ("text", "decoder"),
@@ -16,22 +20,6 @@ _KNOWN_NESTED = {
     "encoder_config": ("encoder", "encoder"),
     "decoder_config": ("decoder", "decoder"),
 }
-
-_HIGHLIGHT_KEYS = (
-    "model_type",
-    "hidden_size",
-    "num_hidden_layers",
-    "num_layers",
-    "num_attention_heads",
-    "num_key_value_heads",
-    "intermediate_size",
-    "vocab_size",
-    "max_position_embeddings",
-    "tie_word_embeddings",
-    "hidden_act",
-    "patch_size",
-    "image_size",
-)
 
 
 def build_from_config(
@@ -61,21 +49,26 @@ def build_from_config(
         enriched_source["fallback_reason"] = fallback_reason
     enriched_source.setdefault("strategy", "config-fallback")
 
+    if fallback_reason:
+        _LOG.info("Config-fallback structure built (reason=%s)", fallback_reason)
+
     return ModelStructure(
         summary=extract_summary(
             config,
             model_family=family,
             confidence="low",
             extra={"note": "Config-derived structure; introspection unavailable."},
+            strategy="config-fallback",
+            fallback_reason=fallback_reason,
         ),
         source=enriched_source,
         root=root,
-        extra_config=_extra_config(config),
+        extra_config=make_extra_config(config),
     )
 
 
 def _build_children(config: dict[str, Any], *, depth: int) -> list[StructureNode]:
-    if depth > _MAX_DEPTH:
+    if depth > _MAX_NESTED_CONFIG_DEPTH:
         return []
     children: list[StructureNode] = []
     for key, (node_id, node_type) in _KNOWN_NESTED.items():
@@ -97,7 +90,7 @@ def _build_children(config: dict[str, Any], *, depth: int) -> list[StructureNode
 
 
 def _pick(config: dict[str, Any]) -> dict[str, Any]:
-    return {key: config[key] for key in _HIGHLIGHT_KEYS if config.get(key) is not None}
+    return {key: config[key] for key in FALLBACK_HIGHLIGHT_KEYS if config.get(key) is not None}
 
 
 def _leaf(node_id: str, name: str, node_type: str, config: dict[str, Any]) -> StructureNode:
@@ -108,14 +101,3 @@ def _leaf(node_id: str, name: str, node_type: str, config: dict[str, Any]) -> St
         attributes=_pick(config),
         confidence="low",
     )
-
-
-def _extra_config(config: dict[str, Any]) -> dict[str, Any]:
-    skip = set(_KNOWN_NESTED) | {
-        "model_type",
-        "architectures",
-        "auto_map",
-        "torch_dtype",
-        "transformers_version",
-    }
-    return {key: value for key, value in config.items() if key not in skip}

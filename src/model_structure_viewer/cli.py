@@ -117,7 +117,7 @@ def cmd_serve(args: argparse.Namespace, settings: AppSettings) -> int:
     import uvicorn
     from . import api
 
-    api.settings = settings
+    api.set_settings(settings)
     uvicorn.run(api.app, host=args.host, port=args.port)
     return 0
 

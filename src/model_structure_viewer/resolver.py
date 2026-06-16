@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import urllib.error
 import urllib.parse
@@ -9,8 +10,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .errors import ConfigError, NotFoundError, RemoteError, ViewerError
 from .schemas import HfSearchResult, ModelEntry
 from .settings import AppSettings
+
+_LOG = logging.getLogger(__name__)
 
 METADATA_ALLOW_RE = re.compile(
     r"^(README\.md|config\.json|(configuration|modeling|tokenization)_.*\.py)$"
@@ -26,8 +30,9 @@ WEIGHT_SUFFIXES = (
 )
 
 
-class SourceResolutionError(RuntimeError):
-    pass
+# Backward-compatible alias: external callers that catch SourceResolutionError
+# now catch the broader ViewerError hierarchy.
+SourceResolutionError = ViewerError
 
 
 @dataclass
@@ -77,7 +82,7 @@ class ModelSourceResolver:
     ) -> ResolvedConfig:
         if source == "config":
             if config_json is None:
-                raise SourceResolutionError("source=config requires config_json.")
+                raise ConfigError("source=config requires config_json.")
             return ResolvedConfig(
                 config=config_json,
                 source={"kind": "uploaded config", "detail_level": detail_level},
@@ -89,7 +94,7 @@ class ModelSourceResolver:
             return resolved
 
         if not model_id:
-            raise SourceResolutionError("model_id, config_path, or config_json is required.")
+            raise ConfigError("model_id, config_path, or config_json is required.")
 
         effective_policy = "offline" if self.settings.offline else cache_policy
         resolved: ResolvedConfig
@@ -97,7 +102,7 @@ class ModelSourceResolver:
             resolved = self._resolve_local_model(model_id, detail_level)
         elif source == "hf":
             if effective_policy == "offline":
-                raise SourceResolutionError("source=hf cannot run with offline cache policy.")
+                raise ConfigError("source=hf cannot run with offline cache policy.")
             resolved = self._resolve_hf_model(model_id, revision, cache_policy, detail_level)
         elif source == "auto":
             local = None
@@ -107,11 +112,11 @@ class ModelSourceResolver:
                 resolved = local
             elif effective_policy == "offline":
                 expected = self.local_config_path(model_id)
-                raise SourceResolutionError(f"Local config not found and offline is enabled: {expected}")
+                raise NotFoundError(f"Local config not found and offline is enabled: {expected}")
             else:
                 resolved = self._resolve_hf_model(model_id, revision, cache_policy, detail_level)
         else:
-            raise SourceResolutionError(f"Unsupported source: {source}")
+            raise ConfigError(f"Unsupported source: {source}")
 
         self._maybe_fetch_remote_code(resolved, model_id=model_id, revision=revision)
         return resolved
@@ -123,7 +128,7 @@ class ModelSourceResolver:
     def _resolve_config_path(self, config_path: str, detail_level: str) -> ResolvedConfig:
         path = Path(config_path).expanduser()
         if not path.exists():
-            raise SourceResolutionError(f"Config file not found: {path}")
+            raise NotFoundError(f"Config file not found: {path}")
         return ResolvedConfig(
             config=self._load_json(path),
             source={"kind": "local file", "config_path": str(path), "detail_level": detail_level},
@@ -149,7 +154,7 @@ class ModelSourceResolver:
         resolved = self._try_local_model(model_id, detail_level)
         if resolved is None:
             expected = self.local_config_path(model_id)
-            raise SourceResolutionError(f"Local model config not found: {expected}")
+            raise NotFoundError(f"Local model config not found: {expected}")
         return resolved
 
     def _resolve_hf_model(
@@ -183,12 +188,12 @@ class ModelSourceResolver:
 
     def search_hf_models(self, query: str, limit: int = 10) -> list[HfSearchResult]:
         if self.settings.offline:
-            raise SourceResolutionError("HF search is disabled in offline mode.")
+            raise ConfigError("HF search is disabled in offline mode.")
         params = urllib.parse.urlencode({"search": query, "limit": str(limit)})
         url = f"{self.settings.hf_endpoint}/api/models?{params}"
         payload = self._http_json(url)
         if not isinstance(payload, list):
-            raise SourceResolutionError("Unexpected HF search response.")
+            raise RemoteError("Unexpected HF search response.")
         results: list[HfSearchResult] = []
         for item in payload:
             model_id = item.get("modelId") or item.get("id")
@@ -207,7 +212,7 @@ class ModelSourceResolver:
 
     def get_remote_config(self, model_id: str, revision: str = "main") -> dict[str, Any]:
         if self.settings.offline:
-            raise SourceResolutionError("HF config lookup is disabled in offline mode.")
+            raise ConfigError("HF config lookup is disabled in offline mode.")
         return self._download_json(model_id, "config.json", revision)
 
     def _cache_metadata_files(self, model_id: str, revision: str, cache_dir: Path) -> None:
@@ -224,7 +229,7 @@ class ModelSourceResolver:
                 continue
             try:
                 text = self._download_text(model_id, file_path, revision)
-            except SourceResolutionError:
+            except RemoteError:
                 continue
             target.write_text(text, encoding="utf-8")
 
@@ -296,11 +301,15 @@ class ModelSourceResolver:
                 continue
             try:
                 text = self._download_text(model_id, filename, revision)
-            except SourceResolutionError as exc:
+            except RemoteError as exc:
                 errors.append({"file": filename, "reason": str(exc)})
                 continue
             target.write_text(text, encoding="utf-8")
             fetched.append(filename)
+        if fetched:
+            _LOG.info("Fetched remote code for %s: %s", model_id, fetched)
+        if errors:
+            _LOG.warning("Remote code fetch errors for %s: %s", model_id, errors)
         return {"fetched": fetched, "errors": errors}
 
     @staticmethod
@@ -324,7 +333,7 @@ class ModelSourceResolver:
         url = f"{self.settings.hf_endpoint}/api/models/{encoded}/tree/{rev}?recursive=true"
         try:
             payload = self._http_json(url)
-        except SourceResolutionError:
+        except RemoteError:
             return []
         return payload if isinstance(payload, list) else []
 
@@ -333,9 +342,9 @@ class ModelSourceResolver:
         try:
             payload = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise SourceResolutionError(f"Remote file is not valid JSON: {filename}") from exc
+            raise RemoteError(f"Remote file is not valid JSON: {filename}") from exc
         if not isinstance(payload, dict):
-            raise SourceResolutionError(f"Remote JSON is not an object: {filename}")
+            raise RemoteError(f"Remote JSON is not an object: {filename}")
         return payload
 
     def _download_text(self, model_id: str, filename: str, revision: str) -> str:
@@ -343,27 +352,26 @@ class ModelSourceResolver:
         rev = urllib.parse.quote(revision, safe="")
         file_name = urllib.parse.quote(filename, safe="/")
         url = f"{self.settings.hf_endpoint}/{encoded}/resolve/{rev}/{file_name}"
-        try:
-            with urllib.request.urlopen(self._request(url), timeout=30) as response:
-                return response.read().decode("utf-8")
-        except urllib.error.HTTPError as exc:
-            raise SourceResolutionError(f"HF file not found: {model_id}/{filename} ({exc.code})") from exc
-        except urllib.error.URLError as exc:
-            raise SourceResolutionError(f"HF request failed: {exc.reason}") from exc
+        return self._request_text(url, context=f"{model_id}/{filename}")
 
     def _http_json(self, url: str) -> Any:
+        text = self._request_text(url, context=url)
         try:
-            with urllib.request.urlopen(self._request(url), timeout=30) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            raise SourceResolutionError(f"HF API request failed with HTTP {exc.code}: {url}") from exc
-        except urllib.error.URLError as exc:
-            raise SourceResolutionError(f"HF API request failed: {exc.reason}") from exc
+            return json.loads(text)
         except json.JSONDecodeError as exc:
-            raise SourceResolutionError(f"HF API returned invalid JSON: {url}") from exc
+            raise RemoteError(f"HF API returned invalid JSON: {url}") from exc
+
+    def _request_text(self, url: str, *, context: str) -> str:
+        try:
+            with urllib.request.urlopen(self._build_request(url), timeout=30) as response:
+                return response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            raise RemoteError(f"HF request failed for {context} (HTTP {exc.code})") from exc
+        except urllib.error.URLError as exc:
+            raise RemoteError(f"HF request failed for {context}: {exc.reason}") from exc
 
     @staticmethod
-    def _request(url: str) -> urllib.request.Request:
+    def _build_request(url: str) -> urllib.request.Request:
         return urllib.request.Request(
             url,
             headers={
@@ -377,7 +385,7 @@ class ModelSourceResolver:
         with path.open("r", encoding="utf-8") as handle:
             payload = json.load(handle)
         if not isinstance(payload, dict):
-            raise SourceResolutionError(f"Config JSON must be an object: {path}")
+            raise ConfigError(f"Config JSON must be an object: {path}")
         return payload
 
     @staticmethod

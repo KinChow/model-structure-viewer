@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from model_structure_viewer.errors import RemoteError
 from model_structure_viewer.resolver import ModelSourceResolver, SourceResolutionError
 from model_structure_viewer.settings import AppSettings
 
@@ -137,7 +138,7 @@ def test_ensure_remote_code_records_errors_and_continues(tmp_path, monkeypatch):
 
     def fake_download_text(self, mid, filename, rev):
         if filename == "modeling_deepseek.py":
-            raise SourceResolutionError("HTTP 404")
+            raise RemoteError("HTTP 404")
         return "# ok"
 
     monkeypatch.setattr(ModelSourceResolver, "_download_text", fake_download_text)

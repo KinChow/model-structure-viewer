@@ -1,16 +1,20 @@
 """Plan A: instantiate the model on the meta device and walk nn.Module tree."""
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
+from ..errors import IntrospectionError
 from ..schemas import ModelStructure, StructureNode
 from . import fold, semantics
+from .keys import make_extra_config
 from .summary import extract_summary, infer_model_family
 
+_LOG = logging.getLogger(__name__)
 
-class IntrospectionError(RuntimeError):
-    """Raised when meta-model introspection cannot proceed."""
+
+__all__ = ["build_from_meta_model", "IntrospectionError"]
 
 
 def build_from_meta_model(
@@ -33,6 +37,7 @@ def build_from_meta_model(
         with init_empty_weights():
             model = AutoModel.from_config(hf_config, trust_remote_code=True)
     except Exception as exc:  # noqa: BLE001  - third-party can raise anything
+        _LOG.info("AutoModel.from_config failed for %s: %s", config.get("model_type"), exc)
         raise IntrospectionError(f"AutoModel.from_config failed: {exc}") from exc
 
     raw_root = _walk(model, attribute_name="", path="root")
@@ -44,6 +49,7 @@ def build_from_meta_model(
         model_family=family,
         confidence="high",
         extra={"backbone_class": type(model).__name__},
+        strategy="meta-introspect",
     )
     enriched_source = dict(source)
     enriched_source.setdefault("strategy", "meta-introspect")
@@ -52,7 +58,7 @@ def build_from_meta_model(
         summary=summary,
         source=enriched_source,
         root=folded_root,
-        extra_config=_extra_config(config),
+        extra_config=make_extra_config(config),
     )
 
 
@@ -92,24 +98,11 @@ def _walk(module: Any, *, attribute_name: str, path: str) -> StructureNode:
         id=path,
         name=display,
         type=node_type,
-        attributes=_clean(attrs),
+        attributes=_drop_none(attrs),
         confidence="high",
         children=children,
     )
 
 
-def _clean(values: dict[str, Any]) -> dict[str, Any]:
+def _drop_none(values: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in values.items() if v is not None}
-
-
-def _extra_config(config: dict[str, Any]) -> dict[str, Any]:
-    skip = {
-        "model_type",
-        "architectures",
-        "auto_map",
-        "torch_dtype",
-        "transformers_version",
-        "text_config",
-        "vision_config",
-    }
-    return {k: v for k, v in config.items() if k not in skip}

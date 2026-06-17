@@ -21,8 +21,8 @@ function ModuleCards({
   const isSelected = selectedPath === path;
   const isMatch = matched.has(path);
   const isDimmed = searchActive && !isMatch;
-  const isLayerGroup = node.type === "layer-group";
-  const isExpanded = isLayerGroup ? expanded.has(path) : true;
+  const isCollapsible = node.children?.length > 0;
+  const isExpanded = isCollapsible ? expanded.has(path) : true;
   const className = node.attributes?.class;
 
   const classes = [
@@ -48,7 +48,7 @@ function ModuleCards({
         </div>
         <div className="card-actions">
           {node.repeat && <b>x {node.repeat}</b>}
-          {isLayerGroup && (
+          {isCollapsible && (
             <button
               className="layer-group-toggle card"
               onClick={(e) => {
@@ -62,7 +62,7 @@ function ModuleCards({
         </div>
       </header>
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} />
-      {node.children?.length > 0 && (!isLayerGroup || isExpanded) && (
+      {isCollapsible && isExpanded && (
         <div className="module-children">
           {node.children.map((child, index) => (
             <ModuleCards

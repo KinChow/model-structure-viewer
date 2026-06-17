@@ -16,8 +16,8 @@ export function layoutDiagram(root, expandedGroups) {
     if (!levels[depth]) levels[depth] = [];
     const metaLines = metaForNode(node);
     const height = NODE_HEIGHTS[Math.min(metaLines.length, NODE_HEIGHTS.length - 1)];
-    const isLayerGroup = node.type === "layer-group";
-    const isExpanded = isLayerGroup ? expanded.has(path) : true;
+    const isCollapsible = node.children?.length > 0;
+    const isExpanded = isCollapsible ? expanded.has(path) : true;
     const item = {
       node,
       path,
@@ -30,12 +30,12 @@ export function layoutDiagram(root, expandedGroups) {
       fullName: node.name,
       displayName: node.name,
       metaLines,
-      isLayerGroup,
+      isCollapsible,
       isExpanded,
     };
     levels[depth].push(item);
     items.push(item);
-    const shouldRecurse = !isLayerGroup || isExpanded;
+    const shouldRecurse = !isCollapsible || isExpanded;
     if (shouldRecurse) {
       node.children?.forEach((child, index) => {
         const childPath = `${path}.${index}`;

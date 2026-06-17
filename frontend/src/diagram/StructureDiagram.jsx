@@ -86,7 +86,7 @@ function StructureDiagram({
                       {node.repeat && (
                         <span className="diagram-repeat">×{node.repeat}</span>
                       )}
-                      {showGroupToggle && node.isLayerGroup && (
+                      {showGroupToggle && node.isCollapsible && (
                         <button
                           className="layer-group-toggle"
                           onClick={(e) => {

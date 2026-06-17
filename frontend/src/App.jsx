@@ -31,10 +31,14 @@ function findNodeByPath(root, path) {
   return current;
 }
 
-function collectLayerGroupPaths(root) {
+function hasChildren(node) {
+  return node.children?.length > 0;
+}
+
+function collectCollapsiblePaths(root) {
   const paths = new Set();
   function visit(node, path) {
-    if (node.type === "layer-group") paths.add(path);
+    if (hasChildren(node)) paths.add(path);
     node.children?.forEach((child, index) => {
       visit(child, `${path}.${index}`);
     });
@@ -48,15 +52,15 @@ function parentPath(path) {
   return idx === -1 ? null : path.slice(0, idx);
 }
 
-function ancestorLayerGroups(root, path) {
-  const groups = [];
+function ancestorCollapsiblePaths(root, path) {
+  const paths = [];
   let current = parentPath(path);
   while (current) {
     const node = findNodeByPath(root, current);
-    if (node && node.type === "layer-group") groups.push(current);
+    if (node && hasChildren(node)) paths.push(current);
     current = parentPath(current);
   }
-  return groups;
+  return paths;
 }
 
 function App() {
@@ -75,14 +79,14 @@ function App() {
   const [zoom, setZoom] = useState(1);
   const [parseError, setParseError] = useState("");
   const [selectedNodePath, setSelectedNodePath] = useState(null);
-  const [layersExpandedGroups, setLayersExpandedGroups] = useState(() => new Set());
+  const [layersExpandedPaths, setLayersExpandedPaths] = useState(() => new Set());
   const [searchTerm, setSearchTerm] = useState("");
 
   const error = parseError || structureError || hf.error || settingsError || exporter.error;
   const sourceLabel = structure?.source?.kind || "not loaded";
   const rawJson = useMemo(() => (structure ? JSON.stringify(structure, null, 2) : ""), [structure]);
-  const allLayerGroupPaths = useMemo(
-    () => collectLayerGroupPaths(structure?.root),
+  const allCollapsiblePaths = useMemo(
+    () => collectCollapsiblePaths(structure?.root),
     [structure]
   );
 
@@ -96,15 +100,15 @@ function App() {
     if (!searchActive || matchedPaths.size === 0 || !structure) return;
     const toAdd = [];
     matchedPaths.forEach((path) => {
-      ancestorLayerGroups(structure.root, path).forEach((groupPath) => toAdd.push(groupPath));
+      ancestorCollapsiblePaths(structure.root, path).forEach((collapsiblePath) => toAdd.push(collapsiblePath));
     });
     if (toAdd.length === 0) return;
-    setLayersExpandedGroups((prev) => {
+    setLayersExpandedPaths((prev) => {
       const next = new Set(prev);
       let changed = false;
-      toAdd.forEach((groupPath) => {
-        if (!next.has(groupPath)) {
-          next.add(groupPath);
+      toAdd.forEach((collapsiblePath) => {
+        if (!next.has(collapsiblePath)) {
+          next.add(collapsiblePath);
           changed = true;
         }
       });
@@ -122,8 +126,8 @@ function App() {
     setDrawerOpen(false);
   }
 
-  function handleToggleLayerGroup(path) {
-    setLayersExpandedGroups((prev) => {
+  function handleToggleLayerPath(path) {
+    setLayersExpandedPaths((prev) => {
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
@@ -132,11 +136,11 @@ function App() {
   }
 
   function handleExpandAllLayers() {
-    setLayersExpandedGroups(new Set(allLayerGroupPaths));
+    setLayersExpandedPaths(new Set(allCollapsiblePaths));
   }
 
   function handleCollapseAllLayers() {
-    setLayersExpandedGroups(new Set());
+    setLayersExpandedPaths(new Set());
   }
 
   function handleOpenDrawer() {
@@ -175,7 +179,7 @@ function App() {
       setActiveTab("Architecture");
       setZoom(1);
       setSelectedNodePath(null);
-      setLayersExpandedGroups(new Set());
+      setLayersExpandedPaths(new Set());
       setSearchTerm("");
     }
   }
@@ -221,7 +225,7 @@ function App() {
               onZoomChange={setZoom}
               selectedPath={selectedNodePath}
               matchedPaths={matchedPaths}
-              expandedGroups={allLayerGroupPaths}
+              expandedGroups={allCollapsiblePaths}
               searchActive={searchActive}
               hitCount={matchedPaths.size}
               onSelectNode={handleSelectNode}
@@ -232,10 +236,10 @@ function App() {
               structure={structure}
               selectedPath={selectedNodePath}
               matchedPaths={matchedPaths}
-              expandedGroups={layersExpandedGroups}
+              expandedGroups={layersExpandedPaths}
               searchActive={searchActive}
               onSelectNode={handleSelectNode}
-              onToggleGroup={handleToggleLayerGroup}
+              onToggleGroup={handleToggleLayerPath}
               onExpandAllGroups={handleExpandAllLayers}
               onCollapseAllGroups={handleCollapseAllLayers}
             />

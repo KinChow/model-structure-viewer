@@ -11,6 +11,7 @@ from .summary import extract_summary, infer_model_family
 _LOG = logging.getLogger(__name__)
 
 _MAX_NESTED_CONFIG_DEPTH = 8
+_LAYER_COUNT_KEYS = ("num_hidden_layers", "num_layers", "n_layer", "num_layers")
 
 _KNOWN_NESTED = {
     "text_config": ("text", "decoder"),
@@ -27,12 +28,18 @@ def build_from_config(
     *,
     source: dict[str, Any],
     fallback_reason: str | None = None,
+    fallback_strategy: str = "config-fallback",
+    diagnostics: dict[str, Any] | None = None,
 ) -> ModelStructure:
     """Build a low-confidence ModelStructure purely from a config dict."""
     family = infer_model_family(config) or "generic"
     children = _build_children(config, depth=1)
     if not children:
-        children.append(_leaf("config", "Configuration", "config", config))
+        decoder = _top_level_decoder(config)
+        if decoder is not None:
+            children.append(decoder)
+        else:
+            children.append(_leaf("config", "Configuration", "config", config))
 
     root = StructureNode(
         id="model",
@@ -47,7 +54,11 @@ def build_from_config(
     enriched_source = dict(source)
     if fallback_reason:
         enriched_source["fallback_reason"] = fallback_reason
-    enriched_source.setdefault("strategy", "config-fallback")
+    if diagnostics:
+        merged_diagnostics = dict(enriched_source.get("diagnostics") or {})
+        merged_diagnostics.update(diagnostics)
+        enriched_source["diagnostics"] = merged_diagnostics
+    enriched_source["strategy"] = fallback_strategy
 
     if fallback_reason:
         _LOG.info("Config-fallback structure built (reason=%s)", fallback_reason)
@@ -58,7 +69,7 @@ def build_from_config(
             model_family=family,
             confidence="low",
             extra={"note": "Config-derived structure; introspection unavailable."},
-            strategy="config-fallback",
+            strategy=fallback_strategy,
             fallback_reason=fallback_reason,
         ),
         source=enriched_source,
@@ -87,6 +98,21 @@ def _build_children(config: dict[str, Any], *, depth: int) -> list[StructureNode
                 )
             )
     return children
+
+
+def _top_level_decoder(config: dict[str, Any]) -> StructureNode | None:
+    layer_count = next((config[key] for key in _LAYER_COUNT_KEYS if config.get(key) is not None), None)
+    if layer_count is None:
+        return None
+    return StructureNode(
+        id="decoder",
+        name="Decoder Layers",
+        type="decoder",
+        repeat=layer_count,
+        attributes=_pick(config),
+        source_fields=[key for key in _LAYER_COUNT_KEYS if config.get(key) is not None],
+        confidence="low",
+    )
 
 
 def _pick(config: dict[str, Any]) -> dict[str, Any]:

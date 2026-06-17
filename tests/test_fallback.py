@@ -97,3 +97,19 @@ def test_fallback_reason_propagates_to_summary_and_source():
     )
     assert structure.summary.get("fallback_reason") == "meta-instantiation-failed"
     assert structure.source["fallback_reason"] == "meta-instantiation-failed"
+
+
+def test_fallback_accepts_strategy_and_diagnostics_without_breaking_contract():
+    structure = build_from_config(
+        {"model_type": "x", "num_hidden_layers": 2},
+        source={"kind": "test"},
+        fallback_reason="meta-instantiation-failed",
+        fallback_strategy="model-aware-fallback",
+        diagnostics={"failure_kind": "model_init_failed"},
+    )
+
+    assert structure.summary["strategy"] == "model-aware-fallback"
+    assert structure.source["strategy"] == "model-aware-fallback"
+    assert structure.source["diagnostics"] == {"failure_kind": "model_init_failed"}
+    assert structure.root.children
+    assert structure.extra_config is not None

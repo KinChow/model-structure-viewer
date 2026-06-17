@@ -47,6 +47,27 @@ _KEYWORD_TO_FAMILY = (
     ("head", "output"),
 )
 
+_LEAF_ATTR_KEYS: tuple[str, ...] = (
+    "in_features",
+    "out_features",
+    "bias",
+    "num_embeddings",
+    "embedding_dim",
+    "padding_idx",
+    "p",
+    "inplace",
+    "normalized_shape",
+    "eps",
+    "elementwise_affine",
+    "in_channels",
+    "out_channels",
+    "kernel_size",
+    "stride",
+    "padding",
+    "approximate",
+    "negative_slope",
+)
+
 
 def classify(module: Any) -> str:
     """Return a semantic node type for a torch nn.Module."""
@@ -86,6 +107,7 @@ def extract_attributes(module: Any) -> dict[str, Any]:
             attrs[key] = value
 
     class_name = type(module).__name__
+    _extract_leaf_module_attributes(module, attrs)
     kind = attention_kind(class_name)
     if kind:
         attrs.setdefault("kind", kind)
@@ -108,6 +130,26 @@ def family(node_type: str, class_name: str) -> str:
         if keyword in lowered:
             return fam
     return node_type
+
+
+def _extract_leaf_module_attributes(module: Any, attrs: dict[str, Any]) -> None:
+    for key in _LEAF_ATTR_KEYS:
+        if key in attrs or not hasattr(module, key):
+            continue
+        value = getattr(module, key)
+        safe_value = _safe_leaf_value(key, value)
+        if safe_value is not None:
+            attrs[key] = safe_value
+
+
+def _safe_leaf_value(key: str, value: Any) -> Any:
+    if key == "bias":
+        return value is not None
+    if _is_scalar(value):
+        return value
+    if isinstance(value, (tuple, list)) and all(_is_scalar(item) for item in value):
+        return list(value)
+    return None
 
 
 def _is_scalar(value: Any) -> bool:

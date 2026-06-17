@@ -30,6 +30,41 @@ def test_classify_module_list():
     assert semantics.classify(module) == "module-list"
 
 
+def test_extract_linear_leaf_module_parameters():
+    module = _FakeModule("Linear", in_features=7168, out_features=1536, bias=None)
+    attrs = semantics.extract_attributes(module)
+    assert attrs["in_features"] == 7168
+    assert attrs["out_features"] == 1536
+    assert attrs["bias"] is False
+
+
+def test_extract_leaf_module_bias_presence():
+    module = _FakeModule("Linear", in_features=1536, out_features=7168, bias=object())
+    attrs = semantics.extract_attributes(module)
+    assert attrs["bias"] is True
+
+
+def test_extract_leaf_module_scalar_parameters():
+    module = _FakeModule("Dropout", p=0.1, inplace=False)
+    attrs = semantics.extract_attributes(module)
+    assert attrs["p"] == 0.1
+    assert attrs["inplace"] is False
+
+
+def test_extract_leaf_module_tuple_parameters():
+    module = _FakeModule("LayerNorm", normalized_shape=(7168,), eps=1e-6)
+    attrs = semantics.extract_attributes(module)
+    assert attrs["normalized_shape"] == [7168]
+    assert attrs["eps"] == 1e-6
+
+
+def test_extract_leaf_module_skips_complex_objects():
+    module = _FakeModule("Conv2d", kernel_size=(3, 3), weight=object())
+    attrs = semantics.extract_attributes(module)
+    assert attrs["kernel_size"] == [3, 3]
+    assert "weight" not in attrs
+
+
 def _layer(class_name: str, idx: int) -> StructureNode:
     return StructureNode(
         id=f"root.layers.{idx}",

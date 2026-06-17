@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ from ..errors import IntrospectionError
 from ..schemas import ModelStructure, StructureNode
 from . import fold, semantics
 from .keys import make_extra_config
+from .repair.runtime import RuntimePatch
 from .summary import extract_summary, infer_model_family
 
 _LOG = logging.getLogger(__name__)
@@ -22,23 +24,25 @@ def build_from_meta_model(
     *,
     source: dict[str, Any],
     local_dir: Path | None = None,
+    config_overrides: dict[str, Any] | None = None,
+    runtime_patch: RuntimePatch | None = None,
 ) -> ModelStructure:
     """Construct a ModelStructure by walking the live nn.Module tree on meta device."""
     try:
-        import torch  # noqa: F401  (ensures torch is importable before init_empty_weights)
-        from accelerate import init_empty_weights
-        from transformers import AutoConfig, AutoModel
+        AutoConfig, AutoModel, init_empty_weights = _import_introspection_deps()
     except ImportError as exc:
         raise IntrospectionError(f"Missing optional dependency: {exc}") from exc
 
-    hf_config = _load_config(AutoConfig, config, local_dir)
+    patch_context = runtime_patch.activate() if runtime_patch is not None else nullcontext()
+    with patch_context:
+        hf_config = _load_config(AutoConfig, config, local_dir, config_overrides=config_overrides)
 
-    try:
-        with init_empty_weights():
-            model = AutoModel.from_config(hf_config, trust_remote_code=True)
-    except Exception as exc:  # noqa: BLE001  - third-party can raise anything
-        _LOG.info("AutoModel.from_config failed for %s: %s", config.get("model_type"), exc)
-        raise IntrospectionError(f"AutoModel.from_config failed: {exc}") from exc
+        try:
+            with init_empty_weights():
+                model = AutoModel.from_config(hf_config, trust_remote_code=True)
+        except Exception as exc:  # noqa: BLE001  - third-party can raise anything
+            _LOG.info("AutoModel.from_config failed for %s: %s", config.get("model_type"), exc)
+            raise IntrospectionError(f"AutoModel.from_config failed: {exc}") from exc
 
     raw_root = _walk(model, attribute_name="", path="root")
     folded_root = fold.collapse(raw_root)
@@ -62,10 +66,26 @@ def build_from_meta_model(
     )
 
 
-def _load_config(AutoConfig: Any, config: dict[str, Any], local_dir: Path | None) -> Any:
+def _import_introspection_deps() -> tuple[Any, Any, Any]:
+    import torch  # noqa: F401  (ensures torch is importable before init_empty_weights)
+    from accelerate import init_empty_weights
+    from transformers import AutoConfig, AutoModel
+
+    return AutoConfig, AutoModel, init_empty_weights
+
+
+def _load_config(
+    AutoConfig: Any,
+    config: dict[str, Any],
+    local_dir: Path | None,
+    *,
+    config_overrides: dict[str, Any] | None = None,
+) -> Any:
     if local_dir is not None and local_dir.exists():
         try:
-            return AutoConfig.from_pretrained(str(local_dir), trust_remote_code=True)
+            hf_config = AutoConfig.from_pretrained(str(local_dir), trust_remote_code=True)
+            _apply_config_overrides(hf_config, config_overrides)
+            return hf_config
         except Exception as exc:  # noqa: BLE001
             raise IntrospectionError(f"AutoConfig.from_pretrained failed: {exc}") from exc
 
@@ -77,9 +97,16 @@ def _load_config(AutoConfig: Any, config: dict[str, Any], local_dir: Path | None
             "Config requires custom remote code (auto_map) but no local model directory is available."
         )
     try:
-        return AutoConfig.for_model(model_type, **{k: v for k, v in config.items() if k != "model_type"})
+        hf_config = AutoConfig.for_model(model_type, **{k: v for k, v in config.items() if k != "model_type"})
+        _apply_config_overrides(hf_config, config_overrides)
+        return hf_config
     except Exception as exc:  # noqa: BLE001
         raise IntrospectionError(f"AutoConfig.for_model failed: {exc}") from exc
+
+
+def _apply_config_overrides(hf_config: Any, config_overrides: dict[str, Any] | None) -> None:
+    for key, value in (config_overrides or {}).items():
+        setattr(hf_config, key, value)
 
 
 def _walk(module: Any, *, attribute_name: str, path: str) -> StructureNode:

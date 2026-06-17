@@ -93,7 +93,8 @@ function StructureDiagram({
                             e.stopPropagation();
                             onToggleGroup && onToggleGroup(node.path);
                           }}
-                          title={node.isExpanded ? "Collapse layers" : "Expand layers"}
+                          title={node.isExpanded ? "Collapse" : "Expand"}
+                          aria-label={node.isExpanded ? "Collapse" : "Expand"}
                         >
                           {node.isExpanded ? "−" : "+"}
                         </button>

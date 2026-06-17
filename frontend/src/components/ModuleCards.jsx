@@ -55,8 +55,10 @@ function ModuleCards({
                 e.stopPropagation();
                 onToggleGroup && onToggleGroup(path);
               }}
+              title={isExpanded ? "Collapse" : "Expand"}
+              aria-label={isExpanded ? "Collapse" : "Expand"}
             >
-              {isExpanded ? "Collapse" : "Expand"}
+              {isExpanded ? "−" : "+"}
             </button>
           )}
         </div>

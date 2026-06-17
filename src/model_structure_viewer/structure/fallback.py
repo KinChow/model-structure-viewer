@@ -11,7 +11,7 @@ from .summary import extract_summary, infer_model_family
 _LOG = logging.getLogger(__name__)
 
 _MAX_NESTED_CONFIG_DEPTH = 8
-_LAYER_COUNT_KEYS = ("num_hidden_layers", "num_layers", "n_layer", "num_layers")
+_LAYER_COUNT_KEYS = ("num_hidden_layers", "num_layers", "n_layer", "n_layers")
 
 _KNOWN_NESTED = {
     "text_config": ("text", "decoder"),

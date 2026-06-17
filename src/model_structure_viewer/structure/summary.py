@@ -29,7 +29,7 @@ def extract_summary(
     text_cfg = config.get("text_config") if isinstance(config.get("text_config"), dict) else config
     if isinstance(text_cfg, dict):
         for key in SUMMARY_TEXT_KEYS:
-            target = "text_layers" if key == "num_hidden_layers" else key
+            target = _summary_text_target(key)
             _put(summary, target, text_cfg.get(key))
 
     vision_cfg = config.get("vision_config")
@@ -66,6 +66,18 @@ def _put(target: dict[str, Any], key: str, value: Any) -> None:
     if value is None or key in target:
         return
     target[key] = value
+
+
+def _summary_text_target(key: str) -> str:
+    aliases = {
+        "dim": "hidden_size",
+        "inter_dim": "intermediate_size",
+        "n_heads": "num_attention_heads",
+        "n_layers": "text_layers",
+        "num_hidden_layers": "text_layers",
+        "num_layers": "text_layers",
+    }
+    return aliases.get(key, key)
 
 
 def _first(value: Any) -> Any:

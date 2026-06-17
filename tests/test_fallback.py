@@ -99,6 +99,27 @@ def test_fallback_reason_propagates_to_summary_and_source():
     assert structure.source["fallback_reason"] == "meta-instantiation-failed"
 
 
+def test_fallback_uses_inference_config_aliases_for_summary_and_decoder():
+    structure = build_from_config(
+        {
+            "n_layers": 61,
+            "dim": 7168,
+            "n_heads": 128,
+            "inter_dim": 18432,
+            "vocab_size": 129280,
+        },
+        source={"kind": "test"},
+    )
+
+    assert structure.summary["text_layers"] == 61
+    assert structure.summary["hidden_size"] == 7168
+    assert structure.summary["num_attention_heads"] == 128
+    assert structure.summary["intermediate_size"] == 18432
+    decoder = next(child for child in structure.root.children if child.type == "decoder")
+    assert decoder.repeat == 61
+    assert decoder.attributes["n_layers"] == 61
+
+
 def test_fallback_accepts_strategy_and_diagnostics_without_breaking_contract():
     structure = build_from_config(
         {"model_type": "x", "num_hidden_layers": 2},

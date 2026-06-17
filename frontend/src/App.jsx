@@ -72,6 +72,7 @@ function App() {
 
   const [source, setSource] = useState("auto");
   const [modelId, setModelId] = useState("deepseek-ai/DeepSeek-V3.1");
+  const [selectedConfigPath, setSelectedConfigPath] = useState("");
   const [revision, setRevision] = useState("main");
   const [configText, setConfigText] = useState("");
   const [activeTab, setActiveTab] = useState("Architecture");
@@ -126,6 +127,16 @@ function App() {
     setDrawerOpen(false);
   }
 
+  function handleSourceChange(value) {
+    setSource(value);
+    setSelectedConfigPath("");
+  }
+
+  function handleModelIdChange(value) {
+    setModelId(value);
+    setSelectedConfigPath("");
+  }
+
   function handleToggleLayerPath(path) {
     setLayersExpandedPaths((prev) => {
       const next = new Set(prev);
@@ -164,7 +175,8 @@ function App() {
     }
     const payload = {
       source,
-      model_id: source === "config" ? null : modelId.trim(),
+      model_id: source === "config" || selectedConfigPath ? null : modelId.trim(),
+      config_path: source === "config" ? null : selectedConfigPath || null,
       config_json: configJson,
       revision,
       cache_policy: settings.offline ? "offline" : settings.cache_policy,
@@ -195,9 +207,9 @@ function App() {
       <Header
         sourceLabel={sourceLabel}
         source={source}
-        onSourceChange={setSource}
+        onSourceChange={handleSourceChange}
         modelId={modelId}
-        onModelIdChange={setModelId}
+        onModelIdChange={handleModelIdChange}
         cachePolicy={settings.cache_policy}
         onCachePolicyChange={(value) => setSettings({ ...settings, cache_policy: value })}
         onOpenDrawer={handleOpenDrawer}
@@ -266,9 +278,10 @@ function App() {
             onConfigTextChange={setConfigText}
             models={models}
             onRefreshModels={refreshModels}
-            onPickLocalModel={(id) => {
-              setModelId(id);
-              setSource("auto");
+            onPickLocalModel={(entry) => {
+              setModelId(entry.model_id);
+              setSelectedConfigPath(entry.load_by === "config_path" ? entry.config_path : "");
+              setSource("local");
               setDrawerOpen(false);
             }}
             searchQuery={hf.query}
@@ -278,6 +291,7 @@ function App() {
             searchDisabled={settings.offline}
             onPickHfModel={(id) => {
               setModelId(id);
+              setSelectedConfigPath("");
               setSource("hf");
               setDrawerOpen(false);
             }}

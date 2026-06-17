@@ -28,6 +28,79 @@ def test_list_and_resolve_local_model(tmp_path):
     assert resolved.source["kind"] == "local cache"
 
 
+def test_list_local_models_includes_standalone_model_json_and_skips_non_model_configs(tmp_path):
+    standard_dir = tmp_path / "MiniMaxAI" / "MiniMax-M3"
+    standard_dir.mkdir(parents=True)
+    (standard_dir / "config.json").write_text(FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
+
+    standalone_dir = tmp_path / "kimi"
+    standalone_dir.mkdir()
+    kimi_config = {
+        "model_type": "kimi_k2",
+        "architectures": ["DeepseekV3ForCausalLM"],
+        "num_hidden_layers": 61,
+        "hidden_size": 7168,
+        "num_attention_heads": 64,
+    }
+    standalone_path = standalone_dir / "Kimi-K2-Instruct-config.json"
+    standalone_path.write_text(json.dumps(kimi_config), encoding="utf-8")
+
+    (standalone_dir / "tokenizer_config.json").write_text(
+        json.dumps({"model_type": "not_a_model_structure"}), encoding="utf-8"
+    )
+    (standalone_dir / "generation_config.json").write_text(
+        json.dumps({"architectures": ["Ignored"]}), encoding="utf-8"
+    )
+    (standalone_dir / "model.safetensors.index.json").write_text(
+        json.dumps({"metadata": {}, "weight_map": {}}), encoding="utf-8"
+    )
+    inference_dir = tmp_path / "deepseek-ai" / "DeepSeek-V4-Pro" / "inference"
+    inference_dir.mkdir(parents=True)
+    (inference_dir / "config.json").write_text(
+        json.dumps({"n_layers": 61, "dim": 7168, "n_heads": 128}), encoding="utf-8"
+    )
+    hidden_dir = tmp_path / ".venv" / "FakeModel"
+    hidden_dir.mkdir(parents=True)
+    (hidden_dir / "config.json").write_text(json.dumps(kimi_config), encoding="utf-8")
+
+    resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
+    entries = {entry.model_id: entry for entry in resolver.list_local_models()}
+
+    assert set(entries) == {"MiniMaxAI/MiniMax-M3", "kimi/Kimi-K2-Instruct-config"}
+    assert entries["MiniMaxAI/MiniMax-M3"].load_by == "model_id"
+    assert entries["kimi/Kimi-K2-Instruct-config"].load_by == "config_path"
+    assert entries["kimi/Kimi-K2-Instruct-config"].config_path == str(standalone_path)
+
+
+def test_resolve_config_path_supports_standalone_model_json(tmp_path):
+    config_path = tmp_path / "kimi" / "Kimi-K2-Instruct-config.json"
+    config_path.parent.mkdir()
+    config_path.write_text(
+        json.dumps({"model_type": "kimi_k2", "num_hidden_layers": 61, "hidden_size": 7168}),
+        encoding="utf-8",
+    )
+
+    resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
+    resolved = resolver.resolve(source="local", config_path=str(config_path), detail_level="compressed")
+
+    assert resolved.config["model_type"] == "kimi_k2"
+    assert resolved.source["kind"] == "local file"
+    assert resolved.local_dir == config_path.parent
+
+
+def test_local_model_cache_accepts_string_model_root(tmp_path):
+    model_dir = tmp_path / "Org" / "Model"
+    model_dir.mkdir(parents=True)
+    (model_dir / "config.json").write_text(
+        json.dumps({"model_type": "tiny", "num_hidden_layers": 1, "hidden_size": 8}),
+        encoding="utf-8",
+    )
+
+    resolver = ModelSourceResolver(AppSettings(model_root=str(tmp_path), offline=True))
+
+    assert [entry.model_id for entry in resolver.list_local_models()] == ["Org/Model"]
+
+
 def test_auto_offline_fails_when_local_missing(tmp_path):
     resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
     with pytest.raises(SourceResolutionError):

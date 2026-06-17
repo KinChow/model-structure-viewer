@@ -39,8 +39,9 @@ function Drawer({
         <button onClick={onRefreshModels}>Refresh</button>
         <div className="compact-list">
           {models.map((entry) => (
-            <button key={entry.model_id} onClick={() => onPickLocalModel(entry.model_id)}>
-              {entry.model_id}
+            <button key={entry.config_path} onClick={() => onPickLocalModel(entry)}>
+              <strong>{entry.model_id}</strong>
+              <span>{entry.load_by === "config_path" ? "config file" : "model cache"}</span>
             </button>
           ))}
         </div>

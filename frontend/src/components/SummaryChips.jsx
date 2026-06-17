@@ -6,7 +6,7 @@ function SummaryChips({ structure, sourceLabel }) {
     ["Layers", summary.text_layers],
     ["Hidden", summary.hidden_size],
     ["Heads", summary.num_attention_heads],
-    ["Experts", summary.num_local_experts],
+    ["Experts", summary.num_local_experts ?? summary.n_routed_experts],
     ["Context", summary.max_position_embeddings],
     ["Source", sourceLabel],
   ];

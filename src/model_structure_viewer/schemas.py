@@ -59,6 +59,7 @@ class ModelEntry(BaseModel):
     config_path: str
     has_readme: bool = False
     has_remote_config_code: bool = False
+    load_by: Literal["model_id", "config_path"] = "model_id"
 
 
 class HfSearchResult(BaseModel):

@@ -17,8 +17,16 @@ def _structure(strategy):
 def test_builder_retries_once_after_matching_repair(monkeypatch):
     calls = []
 
-    def fake_meta(config, *, source, local_dir, config_overrides=None, runtime_patch=None):
-        calls.append((config, source, config_overrides, runtime_patch))
+    def fake_meta(
+        config,
+        *,
+        source,
+        local_dir,
+        config_overrides=None,
+        runtime_patch=None,
+        config_normalizer=None,
+    ):
+        calls.append((config, source, config_overrides, runtime_patch, config_normalizer))
         if len(calls) == 1:
             raise IntrospectionError(
                 "AutoModel.from_config failed: cannot import name 'is_torch_fx_available'"
@@ -33,6 +41,7 @@ def test_builder_retries_once_after_matching_repair(monkeypatch):
     assert calls[1][2] == {}
     assert calls[1][3] is not None
     assert calls[1][3].name == "deepseek_torch_fx_compat"
+    assert calls[1][4] is None
     assert result.summary["strategy"] == "repaired-meta-introspect"
     assert result.source["strategy"] == "repaired-meta-introspect"
     assert result.source["diagnostics"]["failure_kind"] == "remote_import_compat"
@@ -42,7 +51,15 @@ def test_builder_retries_once_after_matching_repair(monkeypatch):
 
 
 def test_builder_falls_back_when_no_repair_strategy(monkeypatch):
-    def fake_meta(config, *, source, local_dir, config_overrides=None, runtime_patch=None):
+    def fake_meta(
+        config,
+        *,
+        source,
+        local_dir,
+        config_overrides=None,
+        runtime_patch=None,
+        config_normalizer=None,
+    ):
         raise IntrospectionError("something unexpected happened")
 
     monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
@@ -59,7 +76,7 @@ def test_builder_falls_back_when_no_repair_strategy(monkeypatch):
     assert result.source["diagnostics"]["repair_status"] == "not_attempted"
 
 
-def test_builder_passes_config_overrides_to_repair_retry(monkeypatch):
+def test_builder_passes_minimax_normalizer_to_repair_retry(monkeypatch):
     calls = []
     config = {
         "model_type": "minimax_m3",
@@ -67,8 +84,16 @@ def test_builder_passes_config_overrides_to_repair_retry(monkeypatch):
         "img_token_compression_config": {"temporal_patch_size": 4},
     }
 
-    def fake_meta(config, *, source, local_dir, config_overrides=None, runtime_patch=None):
-        calls.append((config, source, config_overrides, runtime_patch))
+    def fake_meta(
+        config,
+        *,
+        source,
+        local_dir,
+        config_overrides=None,
+        runtime_patch=None,
+        config_normalizer=None,
+    ):
+        calls.append((config, source, config_overrides, runtime_patch, config_normalizer))
         if len(calls) == 1:
             raise IntrospectionError("AutoModel.from_config failed: object has no attribute 'temporal_patch_size'")
         return _structure("meta-introspect")
@@ -80,16 +105,63 @@ def test_builder_passes_config_overrides_to_repair_retry(monkeypatch):
     assert len(calls) == 2
     assert calls[1][2] == {"temporal_patch_size": 4}
     assert calls[1][3] is None
+    assert calls[1][4] is not None
+    assert calls[1][4].name == "minimax_config_normalizer"
     assert result.summary["strategy"] == "repaired-meta-introspect"
     assert result.source["diagnostics"]["config_overrides"] == ["temporal_patch_size"]
+    assert result.source["diagnostics"]["config_normalizer"] == "minimax_config_normalizer"
 
+
+def test_builder_preserves_minimax_normalizer_diagnostics_after_retry_failure(monkeypatch):
+    calls = []
+    config = {
+        "model_type": "minimax_m3",
+        "architectures": ["MiniMaxM3ForCausalLM"],
+        "img_token_compression_config": {"temporal_patch_size": 4},
+    }
+
+    def fake_meta(
+        config,
+        *,
+        source,
+        local_dir,
+        config_overrides=None,
+        runtime_patch=None,
+        config_normalizer=None,
+    ):
+        calls.append((source, config_overrides, runtime_patch, config_normalizer))
+        if len(calls) == 1:
+            raise IntrospectionError("AutoModel.from_config failed: object has no attribute 'temporal_patch_size'")
+        raise IntrospectionError("AutoModel.from_config failed: object has no attribute 'another_field'")
+
+    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+
+    result = builder.build_model_structure(config, source={}, local_dir=None)
+
+    assert len(calls) == 2
+    assert calls[1][1] == {"temporal_patch_size": 4}
+    assert calls[1][2] is None
+    assert calls[1][3] is not None
+    assert calls[1][3].name == "minimax_config_normalizer"
+    assert result.summary["strategy"] == "config-fallback"
+    assert result.source["diagnostics"]["repair_strategy"] == "minimax_config_adapter"
+    assert result.source["diagnostics"]["repair_status"] == "failed"
+    assert result.source["diagnostics"]["config_normalizer"] == "minimax_config_normalizer"
 
 
 def test_builder_falls_back_after_repair_retry_failure(monkeypatch):
     calls = []
 
-    def fake_meta(config, *, source, local_dir, config_overrides=None, runtime_patch=None):
-        calls.append((source, config_overrides, runtime_patch))
+    def fake_meta(
+        config,
+        *,
+        source,
+        local_dir,
+        config_overrides=None,
+        runtime_patch=None,
+        config_normalizer=None,
+    ):
+        calls.append((source, config_overrides, runtime_patch, config_normalizer))
         raise IntrospectionError(
             "AutoModel.from_config failed: cannot import name 'is_torch_fx_available'"
         )
@@ -102,6 +174,7 @@ def test_builder_falls_back_after_repair_retry_failure(monkeypatch):
     assert calls[1][1] == {}
     assert calls[1][2] is not None
     assert calls[1][2].name == "deepseek_torch_fx_compat"
+    assert calls[1][3] is None
     assert result.summary["strategy"] == "config-fallback"
     assert result.source["diagnostics"]["repair_strategy"] == "deepseek_import_compat"
     assert result.source["diagnostics"]["repair_status"] == "failed"

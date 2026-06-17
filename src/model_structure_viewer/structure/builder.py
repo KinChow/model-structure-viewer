@@ -96,6 +96,7 @@ def _recover_from_introspection_error(
             local_dir=repair_result.local_dir,
             config_overrides=repair_result.config_overrides,
             runtime_patch=repair_result.runtime_patch,
+            config_normalizer=repair_result.config_normalizer,
         )
         return _mark_repaired(structure, repair_result, failure_kind)
     except IntrospectionError as retry_exc:

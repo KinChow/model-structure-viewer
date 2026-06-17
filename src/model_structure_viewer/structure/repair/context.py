@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .errors import IntrospectionFailureKind
-from .runtime import RuntimePatch
+from .runtime import ConfigNormalizer, RuntimePatch
 
 
 @dataclass(frozen=True)
@@ -25,3 +25,4 @@ class RepairResult:
     diagnostics: dict[str, Any] = field(default_factory=dict)
     runtime_patch: RuntimePatch | None = None
     config_overrides: dict[str, Any] = field(default_factory=dict)
+    config_normalizer: ConfigNormalizer | None = None

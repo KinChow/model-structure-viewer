@@ -87,11 +87,14 @@ def test_minimax_strategy_copies_nested_temporal_patch_size_to_top_level():
     assert "temporal_patch_size" not in config
     assert result.config["temporal_patch_size"] == 4
     assert result.config_overrides == {"temporal_patch_size": 4}
+    assert result.config_normalizer is not None
+    assert result.config_normalizer.name == "minimax_config_normalizer"
     assert result.diagnostics == {
         "repair_strategy": "minimax_config_adapter",
         "repair_status": "prepared",
         "patched_fields": ["temporal_patch_size"],
         "config_overrides": ["temporal_patch_size"],
+        "config_normalizer": "minimax_config_normalizer",
     }
 
 

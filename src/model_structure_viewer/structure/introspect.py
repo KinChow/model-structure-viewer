@@ -10,7 +10,7 @@ from ..errors import IntrospectionError
 from ..schemas import ModelStructure, StructureNode
 from . import fold, semantics
 from .keys import make_extra_config
-from .repair.runtime import RuntimePatch
+from .repair.runtime import ConfigNormalizer, RuntimePatch
 from .summary import extract_summary, infer_model_family
 
 _LOG = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ def build_from_meta_model(
     local_dir: Path | None = None,
     config_overrides: dict[str, Any] | None = None,
     runtime_patch: RuntimePatch | None = None,
+    config_normalizer: ConfigNormalizer | None = None,
 ) -> ModelStructure:
     """Construct a ModelStructure by walking the live nn.Module tree on meta device."""
     try:
@@ -36,6 +37,7 @@ def build_from_meta_model(
     patch_context = runtime_patch.activate() if runtime_patch is not None else nullcontext()
     with patch_context:
         hf_config = _load_config(AutoConfig, config, local_dir, config_overrides=config_overrides)
+        normalizer_diagnostics = _apply_config_normalizer(hf_config, config_normalizer)
 
         try:
             with init_empty_weights():
@@ -58,6 +60,10 @@ def build_from_meta_model(
     enriched_source = dict(source)
     enriched_source.setdefault("strategy", "meta-introspect")
     enriched_source["backbone_class"] = type(model).__name__
+    if normalizer_diagnostics:
+        diagnostics = dict(enriched_source.get("diagnostics") or {})
+        diagnostics.update(normalizer_diagnostics)
+        enriched_source["diagnostics"] = diagnostics
     return ModelStructure(
         summary=summary,
         source=enriched_source,
@@ -107,6 +113,15 @@ def _load_config(
 def _apply_config_overrides(hf_config: Any, config_overrides: dict[str, Any] | None) -> None:
     for key, value in (config_overrides or {}).items():
         setattr(hf_config, key, value)
+
+
+def _apply_config_normalizer(
+    hf_config: Any,
+    config_normalizer: ConfigNormalizer | None,
+) -> dict[str, Any]:
+    if config_normalizer is None:
+        return {}
+    return config_normalizer.normalize(hf_config)
 
 
 def _walk(module: Any, *, attribute_name: str, path: str) -> StructureNode:

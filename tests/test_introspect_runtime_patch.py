@@ -4,6 +4,22 @@ from types import SimpleNamespace
 from model_structure_viewer.structure import introspect
 
 
+class RecordingNormalizer:
+    name = "recording_normalizer"
+
+    def __init__(self):
+        self.called = False
+
+    def normalize(self, hf_config):
+        self.called = True
+        hf_config.normalized_before_model = True
+        return {
+            "config_normalizer": self.name,
+            "normalized_fields": ["temporal_patch_size"],
+            "normalized_targets": ["vision_config"],
+        }
+
+
 class RecordingPatch:
     name = "recording"
 
@@ -65,3 +81,37 @@ def test_build_from_meta_model_activates_runtime_patch(monkeypatch):
     assert patch.was_active_during_call is True
     assert patch.active is False
     assert structure.summary["strategy"] == "meta-introspect"
+
+
+def test_build_from_meta_model_applies_config_normalizer_before_model_init(monkeypatch):
+    normalizer = RecordingNormalizer()
+    seen = {}
+
+    class AutoConfig:
+        @staticmethod
+        def for_model(model_type, **kwargs):
+            return SimpleNamespace(model_type=model_type)
+
+    class AutoModel:
+        @staticmethod
+        def from_config(config, trust_remote_code):
+            seen["normalized_before_model"] = getattr(config, "normalized_before_model", False)
+            return SimpleNamespace(named_children=lambda: [])
+
+    @contextmanager
+    def init_empty_weights():
+        yield
+
+    monkeypatch.setattr(introspect, "_import_introspection_deps", lambda: (AutoConfig, AutoModel, init_empty_weights))
+
+    structure = introspect.build_from_meta_model(
+        {"model_type": "demo"},
+        source={},
+        config_normalizer=normalizer,
+    )
+
+    assert normalizer.called is True
+    assert seen["normalized_before_model"] is True
+    assert structure.source["diagnostics"]["config_normalizer"] == "recording_normalizer"
+    assert structure.source["diagnostics"]["normalized_fields"] == ["temporal_patch_size"]
+    assert structure.source["diagnostics"]["normalized_targets"] == ["vision_config"]

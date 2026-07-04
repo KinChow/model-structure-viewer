@@ -1,5 +1,8 @@
+import { structureStatus } from "../diagnostics";
+
 function SummaryChips({ structure, sourceLabel }) {
   const summary = structure?.summary || {};
+  const status = structureStatus(structure);
   const chips = [
     ["Model", summary.model_family || summary.model_type],
     ["Architecture", summary.architecture],
@@ -9,11 +12,12 @@ function SummaryChips({ structure, sourceLabel }) {
     ["Experts", summary.num_local_experts ?? summary.n_routed_experts],
     ["Context", summary.max_position_embeddings],
     ["Source", sourceLabel],
+    ["Status", status.label, status.tone, status.detail],
   ];
   return (
     <div className="summary-chips">
-      {chips.map(([label, value]) => (
-        <span className="chip" key={label}>
+      {chips.map(([label, value, tone, title]) => (
+        <span className={`chip ${tone || ""}`.trim()} key={label} title={title || undefined}>
           <b>{label}</b>
           {value ?? "-"}
         </span>

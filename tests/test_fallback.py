@@ -140,6 +140,30 @@ def test_fallback_uses_inference_config_aliases_for_summary_and_decoder():
     assert decoder.attributes["n_layers"] == 61
 
 
+def test_fallback_decoder_layers_expand_to_config_placeholder_group():
+    structure = build_from_config(
+        {
+            "model_type": "deepseek_v3",
+            "architectures": ["DeepseekV3ForCausalLM"],
+            "num_hidden_layers": 61,
+            "hidden_size": 7168,
+            "num_attention_heads": 128,
+        },
+        source={"kind": "test"},
+    )
+
+    decoder = next(child for child in structure.root.children if child.type == "decoder")
+
+    assert decoder.children
+    layer_group = decoder.children[0]
+    assert layer_group.type == "layer-group"
+    assert layer_group.name == "0 (DeepseekV3DecoderLayer) x61"
+    assert layer_group.repeat == 61
+    assert layer_group.attributes["class"] == "DeepseekV3DecoderLayer"
+    assert layer_group.attributes["range"] == "0..60"
+    assert layer_group.confidence == "low"
+
+
 def test_fallback_accepts_strategy_and_diagnostics_without_breaking_contract():
     structure = build_from_config(
         {"model_type": "x", "num_hidden_layers": 2},

@@ -45,6 +45,51 @@ def test_collapse_does_not_fold_different_classes():
         assert child.type == "module"
 
 
+def test_collapse_repeated_layer_pattern_with_separator():
+    children = (
+        [_layer("GlmMoeDsaDecoderLayer", i) for i in range(3)]
+        + [_layer("DenseTransitionLayer", 3)]
+        + [_layer("GlmMoeDsaDecoderLayer", i) for i in range(4, 7)]
+        + [_layer("DenseTransitionLayer", 7)]
+    )
+    parent = StructureNode(id="root.layers", name="layers", type="module-list", children=children)
+
+    folded = collapse(parent)
+
+    assert len(folded.children) == 1
+    group = folded.children[0]
+    assert group.type == "layer-pattern-group"
+    assert group.repeat == 2
+    assert group.attributes["pattern"] == "GlmMoeDsaDecoderLayer x3 + DenseTransitionLayer"
+    assert group.attributes["range"] == "0..7"
+    assert len(group.children) == 2
+    assert group.children[0].repeat == 3
+    assert group.children[1].attributes["class"] == "DenseTransitionLayer"
+
+
+def test_collapse_repeated_layer_pattern_preserves_incomplete_tail():
+    children = (
+        [_layer("GlmMoeDsaDecoderLayer", i) for i in range(3)]
+        + [_layer("DenseTransitionLayer", 3)]
+        + [_layer("GlmMoeDsaDecoderLayer", i) for i in range(4, 7)]
+        + [_layer("DenseTransitionLayer", 7)]
+        + [_layer("GlmMoeDsaDecoderLayer", i) for i in range(8, 11)]
+    )
+    parent = StructureNode(id="root.layers", name="layers", type="module-list", children=children)
+
+    folded = collapse(parent)
+
+    assert len(folded.children) == 2
+    pattern = folded.children[0]
+    tail = folded.children[1]
+    assert pattern.type == "layer-pattern-group"
+    assert pattern.repeat == 2
+    assert pattern.attributes["range"] == "0..7"
+    assert tail.type == "layer-group"
+    assert tail.repeat == 3
+    assert tail.attributes["range"] == "8..10"
+
+
 def test_collapse_recurses_into_nested_module_list():
     inner = StructureNode(
         id="root.outer.0.inner",

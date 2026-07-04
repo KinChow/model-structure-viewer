@@ -120,7 +120,33 @@ def _top_level_decoder(config: dict[str, Any]) -> StructureNode | None:
         attributes=_pick(config),
         source_fields=[key for key in _LAYER_COUNT_KEYS if config.get(key) is not None],
         confidence="low",
+        children=[_decoder_layer_placeholder(config, layer_count)],
     )
+
+
+def _decoder_layer_placeholder(config: dict[str, Any], layer_count: Any) -> StructureNode:
+    layer_count_int = layer_count if isinstance(layer_count, int) and layer_count > 0 else 1
+    class_name = _decoder_layer_class(config)
+    return StructureNode(
+        id="decoder.0",
+        name=f"0 ({class_name}) x{layer_count_int}",
+        type="layer-group",
+        repeat=layer_count_int,
+        attributes={**_pick(config), "class": class_name, "range": f"0..{layer_count_int - 1}"},
+        source_fields=[key for key in _LAYER_COUNT_KEYS if config.get(key) is not None],
+        confidence="low",
+    )
+
+
+def _decoder_layer_class(config: dict[str, Any]) -> str:
+    architectures = config.get("architectures")
+    architecture = architectures[0] if isinstance(architectures, list) and architectures else None
+    if isinstance(architecture, str) and architecture.endswith("ForCausalLM"):
+        return f"{architecture.removesuffix('ForCausalLM')}DecoderLayer"
+    model_type = str(config.get("model_type") or "config")
+    parts = [part for part in model_type.replace("-", "_").split("_") if part]
+    prefix = "".join(part.capitalize() for part in parts) or "Config"
+    return f"{prefix}DecoderLayer"
 
 
 def _pick(config: dict[str, Any]) -> dict[str, Any]:

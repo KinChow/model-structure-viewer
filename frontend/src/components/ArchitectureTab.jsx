@@ -17,6 +17,8 @@ function ArchitectureTab({
   structure,
   zoom,
   onZoomChange,
+  fitNonce,
+  onFit,
   selectedPath,
   matchedPaths,
   expandedGroups,
@@ -35,7 +37,7 @@ function ArchitectureTab({
         </h2>
         <div className="toolbar-actions">
           <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
-          <button onClick={() => onZoomChange(1)}>Fit</button>
+          <button onClick={onFit}>Fit</button>
           <button onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
           <button onClick={() => downloadSvg(structure)} disabled={!structure}>
             SVG
@@ -46,6 +48,7 @@ function ArchitectureTab({
         <StructureDiagram
           structure={structure}
           zoom={zoom}
+          fitNonce={fitNonce}
           selectedPath={selectedPath}
           matchedPaths={matchedPaths}
           expandedGroups={expandedGroups}

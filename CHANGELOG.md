@@ -13,17 +13,21 @@ This project follows semantic versioning once releases are cut:
 ### Added
 
 - Started formal version tracking with this changelog.
+- Added frontend status diagnostics that distinguish live meta introspection from config fallback paths.
+- Added frontend unit tests for diagram viewport fitting and structure-status messaging.
 
 ### Fixed
 
 - Added in-process structure response caching to avoid repeated expensive meta introspection for identical requests.
 - Added a layered structure-generation path: config-first output, generic resource-budget gating, and isolated worker introspection with config fallback diagnostics when the worker fails or times out.
 - Improved config fallback output for nested `text_config` blocks by exposing decoder layer counts under the nested text node.
+- Centered and fit the Architecture diagram by default, while keeping zoom controls relative to the fitted view.
+- Collapsed repeated layer patterns such as `A x3 + B + A x3 + B` into a single pattern group without hiding incomplete tails.
+- Improved loading and diagnostics UI copy by showing `Generating...` with busy state and status chips for fallback reasons.
 
 ### Known Issues
 
-- The Architecture view opens at the diagram origin instead of fitting or centering the model graph in the viewport.
-- Layer folding only groups consecutive isomorphic layers; alternating repeated patterns such as `x3 + single + x3` remain visually fragmented.
+- Unsupported or over-budget model structures may still fall back to config-derived views; the UI now exposes this as a warning status instead of hiding it.
 
 ## [0.1.0] - 2026-07-04
 

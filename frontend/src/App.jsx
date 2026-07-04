@@ -78,6 +78,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("Architecture");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [fitNonce, setFitNonce] = useState(0);
   const [parseError, setParseError] = useState("");
   const [selectedNodePath, setSelectedNodePath] = useState(null);
   const [layersExpandedPaths, setLayersExpandedPaths] = useState(() => new Set());
@@ -190,6 +191,7 @@ function App() {
       exporter.reset();
       setActiveTab("Architecture");
       setZoom(1);
+      setFitNonce((value) => value + 1);
       setSelectedNodePath(null);
       setLayersExpandedPaths(new Set());
       setSearchTerm("");
@@ -235,6 +237,11 @@ function App() {
               structure={structure}
               zoom={zoom}
               onZoomChange={setZoom}
+              fitNonce={fitNonce}
+              onFit={() => {
+                setZoom(1);
+                setFitNonce((value) => value + 1);
+              }}
               selectedPath={selectedNodePath}
               matchedPaths={matchedPaths}
               expandedGroups={allCollapsiblePaths}

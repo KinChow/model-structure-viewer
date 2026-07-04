@@ -50,8 +50,8 @@ function Header({
           <option value="refresh">refresh</option>
           <option value="offline">offline</option>
         </select>
-        <button className="primary" onClick={onGenerate} disabled={loading}>
-          {loading ? "Generating" : "Generate"}
+        <button className="primary" onClick={onGenerate} disabled={loading} aria-busy={loading}>
+          {loading ? "Generating..." : "Generate"}
         </button>
         <button className="icon-button" onClick={onOpenDrawer} title="Settings and search">
           ⚙

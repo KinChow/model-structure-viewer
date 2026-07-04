@@ -104,6 +104,7 @@ cd frontend && npm run build
 
 ## Docs
 
+- `CHANGELOG.md`
 - `docs/reverse_original_space.md`
 - `docs/minimax_m3_mapping.md`
 - `docs/model_source_resolution.md`

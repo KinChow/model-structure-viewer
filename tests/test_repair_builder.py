@@ -179,3 +179,37 @@ def test_builder_falls_back_after_repair_retry_failure(monkeypatch):
     assert result.source["diagnostics"]["repair_strategy"] == "deepseek_import_compat"
     assert result.source["diagnostics"]["repair_status"] == "failed"
     assert result.source["diagnostics"]["retry_count"] == 1
+
+
+def test_builder_does_not_short_circuit_glm_moe_dsa(monkeypatch):
+    calls = []
+
+    def fake_meta(
+        config,
+        *,
+        source,
+        local_dir,
+        config_overrides=None,
+        runtime_patch=None,
+        config_normalizer=None,
+    ):
+        calls.append((config, source, local_dir))
+        return _structure("meta-introspect")
+
+    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+
+    result = builder.build_model_structure(
+        {
+            "model_type": "glm_moe_dsa",
+            "architectures": ["GlmMoeDsaForCausalLM"],
+            "text_config": {
+                "num_hidden_layers": 78,
+                "hidden_size": 6144,
+                "num_attention_heads": 64,
+            },
+        },
+        source={"kind": "test"},
+    )
+
+    assert len(calls) == 1
+    assert result.summary["strategy"] == "meta-introspect"

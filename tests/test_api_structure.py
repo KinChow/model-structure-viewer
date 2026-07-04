@@ -3,6 +3,7 @@ import json
 
 from fastapi.testclient import TestClient
 
+from model_structure_viewer import service
 from model_structure_viewer.api import app, get_settings, set_settings
 from model_structure_viewer.settings import AppSettings
 
@@ -11,6 +12,7 @@ client = TestClient(app)
 
 
 def test_structure_api_returns_contract_for_inline_config():
+    service.clear_structure_cache()
     config = {
         "model_type": "tiny_decoder",
         "architectures": ["TinyDecoderForCausalLM"],
@@ -37,6 +39,7 @@ def test_structure_api_returns_contract_for_inline_config():
 
 
 def test_structure_api_fallback_keeps_decoder_only_config_structural():
+    service.clear_structure_cache()
     config = {
         "model_type": "deepseek_v3",
         "architectures": ["DeepseekV3ForCausalLM"],
@@ -110,6 +113,7 @@ def test_models_api_lists_standalone_configs_and_excludes_inference_configs(tmp_
 
 
 def test_structure_api_accepts_config_path_for_standalone_config(tmp_path):
+    service.clear_structure_cache()
     config_path = tmp_path / "kimi" / "Kimi-K2-Instruct-config.json"
     config_path.parent.mkdir()
     config_path.write_text(
@@ -135,3 +139,42 @@ def test_structure_api_accepts_config_path_for_standalone_config(tmp_path):
     assert payload["source"]["kind"] == "local file"
     assert payload["summary"]["model_type"] == "kimi_k2"
     assert payload["summary"]["text_layers"] == 61
+
+
+def test_structure_api_caches_repeated_responses(monkeypatch):
+    service.clear_structure_cache()
+    calls = {"count": 0}
+
+    def fake_worker(config, **kwargs):
+        calls["count"] += 1
+        return {
+            "ok": True,
+            "structure": service.build_model_structure(
+                config,
+                source=kwargs["source"],
+                detail_level=kwargs["detail_level"],
+                local_dir=kwargs["local_dir"],
+            ).model_dump(mode="json"),
+        }
+
+    monkeypatch.setattr(service, "_run_introspection_worker", fake_worker)
+    config = {
+        "model_type": "tiny_decoder",
+        "architectures": ["TinyDecoderForCausalLM"],
+        "num_hidden_layers": 2,
+        "hidden_size": 64,
+        "num_attention_heads": 4,
+    }
+    request = {
+        "source": "config",
+        "config_json": config,
+        "detail_level": "compressed",
+    }
+
+    first = client.post("/api/structure", json=request)
+    second = client.post("/api/structure", json=request)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+    assert calls["count"] == 1

@@ -14,9 +14,14 @@ This project follows semantic versioning once releases are cut:
 
 - Started formal version tracking with this changelog.
 
+### Fixed
+
+- Added in-process structure response caching to avoid repeated expensive meta introspection for identical requests.
+- Added a layered structure-generation path: config-first output, generic resource-budget gating, and isolated worker introspection with config fallback diagnostics when the worker fails or times out.
+- Improved config fallback output for nested `text_config` blocks by exposing decoder layer counts under the nested text node.
+
 ### Known Issues
 
-- Large-model meta introspection can exceed local memory and terminate the API process, observed with repeated `zai-org/GLM-5.2` structure generation on a 16 GB machine.
 - The Architecture view opens at the diagram origin instead of fitting or centering the model graph in the viewport.
 - Layer folding only groups consecutive isomorphic layers; alternating repeated patterns such as `x3 + single + x3` remain visually fragmented.
 

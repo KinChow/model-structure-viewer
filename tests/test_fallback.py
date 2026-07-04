@@ -40,6 +40,26 @@ def test_fallback_text_and_vision_nested_children():
     assert vision.attributes.get("image_size") == 336
 
 
+def test_fallback_nested_text_config_includes_decoder_layers():
+    structure = build_from_config(
+        {
+            "model_type": "vlm",
+            "architectures": ["VLMForCausalLM"],
+            "text_config": {
+                "hidden_size": 4096,
+                "num_hidden_layers": 32,
+                "num_attention_heads": 32,
+            },
+        },
+        source={"kind": "test"},
+    )
+
+    text = next(c for c in structure.root.children if c.id == "text")
+    decoder = next(c for c in text.children if c.id == "decoder")
+    assert decoder.repeat == 32
+    assert decoder.attributes["hidden_size"] == 4096
+
+
 def test_fallback_pick_filters_unknown_keys():
     config = {
         "model_type": "x",

@@ -90,10 +90,11 @@ Error responses use the shape `{"detail": "<message>"}`.
 
 ### Summary fields
 
-The `summary` block on every `ModelStructure` payload includes two diagnostic fields in addition to the model-shape numbers:
+The `summary` block on every `ModelStructure` payload includes diagnostic fields in addition to the model-shape numbers:
 
-- `summary.strategy`: `"meta-introspect"` when Plan A succeeded (live `nn.Module` tree on the meta device), or `"config-fallback"` when the resolver fell back to Plan C (config-only construction).
-- `summary.fallback_reason`: only present when `strategy == "config-fallback"`; a short human-readable reason such as `"meta-instantiation-failed"` or `"auto-map missing"`. The same value is mirrored on `source.fallback_reason` for backward compatibility.
+- `summary.strategy`: `"meta-introspect"` when live `nn.Module` introspection succeeded, `"config-fallback"` when builder-level introspection failed, `"budget-config-fallback"` when generic resource-budget gating skipped introspection, or `"worker-config-fallback"` when the isolated introspection worker failed or timed out.
+- `summary.fallback_reason`: present for fallback strategies; a short human-readable reason such as `"AutoModel.from_config failed: ..."`, `"resource budget exceeded for meta introspection"`, or `"worker exited with code -9"`. The same value is mirrored on `source.fallback_reason` for backward compatibility.
+- `source.diagnostics`: machine-readable fallback context such as `failure_kind`, `execution_mode`, budget estimates, worker timeout, or worker exit code.
 
 ## Test
 

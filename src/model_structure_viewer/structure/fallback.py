@@ -94,9 +94,17 @@ def _build_children(config: dict[str, Any], *, depth: int) -> list[StructureNode
                     attributes=_pick(nested),
                     source_fields=[key],
                     confidence="low",
-                    children=_build_children(nested, depth=depth + 1),
+                    children=_nested_children(nested, depth=depth + 1),
                 )
             )
+    return children
+
+
+def _nested_children(config: dict[str, Any], *, depth: int) -> list[StructureNode]:
+    children = _build_children(config, depth=depth)
+    decoder = _top_level_decoder(config)
+    if decoder is not None:
+        children.append(decoder)
     return children
 
 

@@ -13,6 +13,9 @@
 ### 新增
 
 - 开始使用这份更新日志管理版本变化。
+- Layers 卡片和详情面板增加输入/输出维度，使用 `batch`、`sequence`、`hidden size` 这类完整名字，避免缩写看不懂。
+- 前端结构生成器增加统一的 shape 推导，覆盖 embedding、decoder、attention、MLP、MoE、norm、lm head、vision tower 和 projector。
+- 页面级验证增加 readable shape 检查，确认 Layers 展开后能看到输入/输出维度。
 - 前端增加状态诊断，可以区分 `meta-introspect`、前端组网和 config fallback。
 - 前端可以从粘贴的 config JSON 生成结构，结果里包含模块、算子和公式信息。
 - 新增 `frontend/src/structure` 结构目录，拆分为 config 归一化、registry、模型构建、layers、ops、formulas、IR、materializers、diagnostics 和 catalog。
@@ -27,6 +30,7 @@
 
 ### 修复
 
+- 补齐 config 归一化里的 `head_dim`、`intermediate_size`、`moe_intermediate_size` 和 `vocab_size`，让维度展示能带上具体数值。
 - 对相同结构请求增加进程内缓存，减少重复的后端 introspection 开销。
 - 后端结构生成改成分层路径：优先 config 输出，超预算时直接 fallback，必要时再用隔离 worker 做 introspection。
 - 改进嵌套 `text_config` 的 fallback 输出，让 decoder layer 数量能挂到对应的 text 节点下。
@@ -37,7 +41,17 @@
 
 ### 已知问题
 
+- 后端 CLI 的 `msv inspect --format json` 在部分 Qwen meta-introspect 模型上会被 transformers 日志污染 stdout。结构生成和 HTTP API 返回正常，但直接解析 CLI stdout 时需要先处理这段前缀日志。
 - 不支持或超出预算的模型仍可能退回到 config-derived 视图。现在界面会把这件事明示为 warning，不再悄悄隐藏。
+
+### 验证
+
+- 前端单测：`npm --prefix frontend test`，26 个用例通过。
+- 前端内置模型结构验证：`npm --prefix frontend run verify:models`，44/44 通过。
+- 前端构建：`npm --prefix frontend run build` 通过。
+- 浏览器页面验证：`npm --prefix frontend run verify:page`，44/44 通过，并确认 readable shape。
+- 后端单测：`.venv/bin/pytest -q`，120 个用例通过。
+- 后端 HTTP 验证：真实启动 `msv serve`，`/api/models` 返回 44 个模型，`/api/structure` 44/44 通过。
 
 ## [0.1.0] - 2026-07-04
 

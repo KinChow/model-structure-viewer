@@ -1,5 +1,8 @@
 import AttributeGrid from "./AttributeGrid";
+import ShapeFlow from "./ShapeFlow";
 import { typeClass } from "../diagram/meta";
+
+const SHAPE_ATTRIBUTE_KEYS = ["input_shape", "output_shape"];
 
 function pathChild(path, index) {
   return `${path}.${index}`;
@@ -63,7 +66,12 @@ function ModuleCards({
           )}
         </div>
       </header>
-      <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} />
+      <ShapeFlow attributes={node.attributes} />
+      <AttributeGrid
+        attributes={node.attributes}
+        sourceFields={node.source_fields}
+        excludeKeys={["class", ...SHAPE_ATTRIBUTE_KEYS]}
+      />
       {isCollapsible && isExpanded && (
         <div className="module-children">
           {node.children.map((child, index) => (

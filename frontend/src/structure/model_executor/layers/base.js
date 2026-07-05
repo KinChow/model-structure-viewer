@@ -5,7 +5,9 @@ export function moduleSpec(id, name, type, attributes = {}, children = [], repea
     name,
     type,
     repeat,
-    attributes,
+    attributes: Object.fromEntries(
+      Object.entries(attributes).filter(([, value]) => value !== undefined && value !== null),
+    ),
     children,
   };
 }

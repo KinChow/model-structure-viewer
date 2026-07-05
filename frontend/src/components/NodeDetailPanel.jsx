@@ -1,4 +1,5 @@
 import AttributeGrid from "./AttributeGrid";
+import ShapeFlow from "./ShapeFlow";
 
 function NodeDetailPanel({ node, onClose }) {
   if (!node) return null;
@@ -23,6 +24,7 @@ function NodeDetailPanel({ node, onClose }) {
           ×
         </button>
       </header>
+      <ShapeFlow attributes={node.attributes} />
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />
     </aside>
   );

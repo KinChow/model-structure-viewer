@@ -7,11 +7,11 @@ import { networkSpec } from "./common.js";
 export function buildMiniMaxM3Network(resolved, normalized) {
   return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.canonicalArchitecture, [
     visionTowerModule(normalized),
-    projectorModule(),
+    projectorModule(normalized),
     decoderStackNetwork("text_decoder", normalized, {
       attentionKind: "sparse",
       defaultLayerKind: normalized.experts ? "moe" : "dense",
     }),
-    lmHeadModule(),
+    lmHeadModule("lm_head", normalized),
   ]);
 }

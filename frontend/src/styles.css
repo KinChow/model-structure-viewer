@@ -436,6 +436,41 @@ textarea {
   color: #245d86;
 }
 
+.shape-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  color: #425166;
+  font-size: 12px;
+}
+
+.shape-flow span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  border: 1px solid rgba(31, 95, 145, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 4px 7px;
+}
+
+.shape-flow em {
+  color: #526172;
+  font-style: normal;
+}
+
+.shape-flow strong {
+  color: #17202c;
+  overflow-wrap: anywhere;
+}
+
+.shape-flow b {
+  color: #627083;
+}
+
 .module-card.type-embedding {
   background: #fdecef;
 }

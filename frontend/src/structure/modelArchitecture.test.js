@@ -14,6 +14,8 @@ test("normalizes common config fields before architecture resolution", () => {
     num_hidden_layers: 4,
     hidden_size: 7168,
     num_attention_heads: 128,
+    intermediate_size: 18432,
+    vocab_size: 129280,
     n_routed_experts: 256,
     num_experts_per_tok: 8,
   });
@@ -21,6 +23,9 @@ test("normalizes common config fields before architecture resolution", () => {
   assert.equal(normalized.layers, 4);
   assert.equal(normalized.hiddenSize, 7168);
   assert.equal(normalized.attentionHeads, 128);
+  assert.equal(normalized.headDim, 56);
+  assert.equal(normalized.intermediateSize, 18432);
+  assert.equal(normalized.vocabSize, 129280);
   assert.equal(normalized.experts, 256);
   assert.equal(normalized.expertsPerToken, 8);
 });
@@ -137,4 +142,35 @@ test("builds network modules and materializes operator formulas", () => {
   const attention = structure.root.children[1].children[1].children.find((node) => node.type === "attention");
   const softmax = attention.children.find((node) => node.attributes.operator_id === "softmax");
   assert.equal(softmax.attributes.formula, formulaForOperator("softmax").formula);
+});
+
+test("adds readable tensor shapes to modules and operators", () => {
+  const normalized = normalizeConfig({
+    model_type: "qwen3_5",
+    architectures: ["Qwen3_5ForCausalLM"],
+    num_hidden_layers: 2,
+    hidden_size: 1024,
+    num_attention_heads: 8,
+    num_key_value_heads: 2,
+    head_dim: 256,
+    intermediate_size: 3584,
+    vocab_size: 248320,
+  });
+  const resolved = resolveArchitecture(normalized, { modelId: "Qwen/Qwen3.5-0.8B" });
+  const network = buildNetwork(resolved, normalized);
+  const structure = materializeModelStructure(createStructureIr({ network, normalized, resolved }));
+
+  const embedding = structure.root.children.find((node) => node.type === "embedding");
+  assert.equal(embedding.attributes.input_shape, "[batch, sequence]");
+  assert.equal(embedding.attributes.output_shape, "[batch, sequence, hidden size=1024]");
+
+  const decoder = structure.root.children.find((node) => node.name === "Decoder Layers");
+  const layer = decoder.children[0];
+  const attention = layer.children.find((node) => node.type === "attention");
+  const qProjection = attention.children.find((node) => node.name === "q projection");
+
+  assert.equal(layer.attributes.input_shape, "[batch, sequence, hidden size=1024]");
+  assert.equal(attention.attributes.query_shape, "[batch, sequence, attention heads=8, head dimension=256]");
+  assert.equal(attention.attributes.key_shape, "[batch, sequence, key value heads=2, head dimension=256]");
+  assert.equal(qProjection.attributes.output_shape, "[batch, sequence, attention heads=8, head dimension=256]");
 });

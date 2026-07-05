@@ -17,7 +17,7 @@ export function textDecoderNetwork(resolved, normalized, { attentionKind, defaul
   return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.canonicalArchitecture, [
     embeddingModule("embed_tokens", normalized),
     decoderStackNetwork("decoder", normalized, { attentionKind, defaultLayerKind }),
-    rmsNormModule("norm", "final norm"),
-    lmHeadModule(),
+    rmsNormModule("norm", "final norm", normalized),
+    lmHeadModule("lm_head", normalized),
   ]);
 }

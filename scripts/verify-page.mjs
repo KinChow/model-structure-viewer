@@ -138,7 +138,12 @@ async function runPageSmoke(cdp) {
   `);
   await waitFor(cdp, `
     const text = document.body.innerText;
-    return text.includes('Decoder Layers') && text.includes('Routed MoE') && text.includes('formula');
+    return text.includes('Decoder Layers') &&
+      text.includes('Routed MoE') &&
+      text.includes('formula') &&
+      text.includes('input') &&
+      text.includes('output') &&
+      text.includes('hidden size=');
   `, "expanded Layers content");
   const layersText = await evaluate(cdp, "return document.body.innerText;");
 
@@ -182,6 +187,10 @@ async function runPageSmoke(cdp) {
       hasDecoderLayers: layersText.includes("Decoder Layers"),
       hasRoutedMoe: layersText.includes("Routed MoE"),
       hasFormula: layersText.includes("formula"),
+      hasReadableShapes:
+        layersText.includes("input") &&
+        layersText.includes("output") &&
+        layersText.includes("hidden size="),
     },
     export: {
       hasMermaid: exportPreview.includes("flowchart TD"),
@@ -311,6 +320,7 @@ async function main() {
       smoke.layers.hasDecoderLayers &&
       smoke.layers.hasRoutedMoe &&
       smoke.layers.hasFormula &&
+      smoke.layers.hasReadableShapes &&
       smoke.export.hasMermaid &&
       smoke.rawConfig.hasDeepseekConfig;
 

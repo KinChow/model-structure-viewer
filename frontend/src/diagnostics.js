@@ -2,9 +2,6 @@ const STRATEGY_LABELS = {
   "frontend-architecture-template": ["Frontend template", "ok", "Config-driven frontend structure"],
   "meta-introspect": ["Meta introspect", "ok", "Live module tree"],
   "repaired-meta-introspect": ["Meta introspect", "ok", "Live module tree repaired"],
-  "config-fallback": ["Config fallback", "warn", "Config-derived structure"],
-  "budget-config-fallback": ["Config fallback", "warn", "Resource budget guard"],
-  "worker-config-fallback": ["Config fallback", "warn", "Worker fallback"],
 };
 
 export function structureStatus(structure) {
@@ -19,25 +16,13 @@ export function structureStatus(structure) {
   return {
     label,
     tone,
-    detail: detailFor(strategy, summary, diagnostics, defaultDetail),
+    detail: detailFor(strategy, diagnostics, defaultDetail),
   };
 }
 
-function detailFor(strategy, summary, diagnostics, defaultDetail) {
-  if (strategy === "budget-config-fallback") {
-    const budget = diagnostics.budget || {};
-    const parts = [
-      budget.layers ? `layers ${budget.layers}` : null,
-      budget.hidden_size ? `hidden ${budget.hidden_size}` : null,
-      budget.experts ? `experts ${budget.experts}` : null,
-    ].filter(Boolean);
-    return parts.length > 0 ? `Budget exceeded: ${parts.join(", ")}` : defaultDetail;
-  }
-  if (strategy === "worker-config-fallback") {
-    return diagnostics.failure_kind || summary.fallback_reason || defaultDetail;
-  }
-  if (strategy === "config-fallback") {
-    return diagnostics.failure_kind || summary.fallback_reason || defaultDetail;
+function detailFor(strategy, diagnostics, defaultDetail) {
+  if (strategy === "repaired-meta-introspect" && diagnostics.repair_strategy) {
+    return `Repaired by ${diagnostics.repair_strategy}`;
   }
   return defaultDetail;
 }

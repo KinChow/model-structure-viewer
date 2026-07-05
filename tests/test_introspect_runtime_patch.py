@@ -37,6 +37,8 @@ class RecordingPatch:
 
 
 def test_load_config_applies_overrides_to_local_config(monkeypatch, tmp_path):
+    (tmp_path / "config.json").write_text('{"model_type":"minimax_m3"}', encoding="utf-8")
+
     class AutoConfig:
         @staticmethod
         def from_pretrained(path, trust_remote_code):

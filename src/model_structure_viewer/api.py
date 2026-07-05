@@ -11,8 +11,8 @@ from .errors import ViewerError
 from .exporters import export_structure
 from .resolve.local_cache import LocalModelCache
 from .resolver import ModelSourceResolver
-from .schemas import ExportRequest, SettingsPayload, StructureRequest
-from .service import build_structure_response
+from .schemas import ExportRequest, SettingsPayload, StructureRequest, VerifyRequest
+from .service import build_structure_response, verify_structure_response
 from .settings import AppSettings
 
 
@@ -132,6 +132,14 @@ def structure(
     s: AppSettings = Depends(get_settings),
 ) -> dict[str, object]:
     return build_structure_response(payload, s).model_dump()
+
+
+@app.post("/api/verify")
+def verify(
+    payload: VerifyRequest,
+    s: AppSettings = Depends(get_settings),
+) -> dict[str, object]:
+    return verify_structure_response(payload, s).model_dump()
 
 
 @app.post("/api/export", response_class=PlainTextResponse)

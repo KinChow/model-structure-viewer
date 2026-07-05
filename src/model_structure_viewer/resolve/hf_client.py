@@ -55,7 +55,7 @@ class HuggingFaceClient:
         rev = urllib.parse.quote(revision, safe="")
         url = f"{self.hf_endpoint}/api/models/{encoded}/tree/{rev}?recursive=true"
         try:
-            payload = self._http_json(url)
+            payload = self._http_json(url, log_errors=False)
         except RemoteError:
             return []
         return payload if isinstance(payload, list) else []
@@ -67,22 +67,24 @@ class HuggingFaceClient:
         file_name = urllib.parse.quote(filename, safe="/")
         return f"{self.hf_endpoint}/{encoded}/resolve/{rev}/{file_name}"
 
-    def _http_json(self, url: str) -> Any:
-        text = self._request_text(url, context=url)
+    def _http_json(self, url: str, *, log_errors: bool = True) -> Any:
+        text = self._request_text(url, context=url, log_errors=log_errors)
         try:
             return json.loads(text)
         except json.JSONDecodeError as exc:
             raise RemoteError(f"HF API returned invalid JSON: {url}") from exc
 
-    def _request_text(self, url: str, *, context: str) -> str:
+    def _request_text(self, url: str, *, context: str, log_errors: bool = True) -> str:
         try:
             with urllib.request.urlopen(self._build_request(url), timeout=_TIMEOUT_SECONDS) as response:
                 return response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
-            _LOG.warning("HF HTTP %s for %s (%s)", exc.code, context, url)
+            if log_errors:
+                _LOG.warning("HF HTTP %s for %s (%s)", exc.code, context, url)
             raise RemoteError(f"HF request failed for {context} (HTTP {exc.code})") from exc
         except urllib.error.URLError as exc:
-            _LOG.warning("HF URL error for %s (%s): %s", context, url, exc.reason)
+            if log_errors:
+                _LOG.warning("HF URL error for %s (%s): %s", context, url, exc.reason)
             raise RemoteError(f"HF request failed for {context}: {exc.reason}") from exc
 
     @staticmethod

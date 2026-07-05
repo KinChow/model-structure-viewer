@@ -87,7 +87,7 @@ def _load_config(
     *,
     config_overrides: dict[str, Any] | None = None,
 ) -> Any:
-    if local_dir is not None and local_dir.exists():
+    if local_dir is not None and (local_dir / "config.json").exists():
         try:
             hf_config = AutoConfig.from_pretrained(str(local_dir), trust_remote_code=True)
             _apply_config_overrides(hf_config, config_overrides)

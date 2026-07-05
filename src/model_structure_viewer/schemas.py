@@ -41,6 +41,21 @@ class StructureRequest(BaseModel):
     auto_fetch_remote_code: bool | None = None
 
 
+class VerifyRequest(StructureRequest):
+    pass
+
+
+class VerifyResponse(BaseModel):
+    ok: bool
+    status: Literal["passed", "failed", "skipped"]
+    strategy: str = "transformers-meta"
+    model_id: str | None = None
+    source: dict[str, Any] = Field(default_factory=dict)
+    summary: dict[str, Any] = Field(default_factory=dict)
+    diagnostics: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+
+
 class ExportRequest(BaseModel):
     structure: ModelStructure
     format: ExportFormat = "json"

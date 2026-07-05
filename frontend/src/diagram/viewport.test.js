@@ -69,7 +69,7 @@ test("sameDiagramViewport suppresses duplicate viewport updates", () => {
   assert.equal(sameDiagramViewport(viewport, { ...viewport, offsetX: viewport.offsetX + 1 }), false);
 });
 
-test("fitDiagramViewport keeps small fallback diagrams within the visible frame", () => {
+test("fitDiagramViewport keeps small diagrams within the visible frame", () => {
   const result = fitDiagramViewport({
     contentWidth: 440,
     contentHeight: 120,

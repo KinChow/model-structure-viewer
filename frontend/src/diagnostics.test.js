@@ -25,28 +25,20 @@ test("structureStatus explains frontend architecture template output", () => {
   assert.equal(status.detail, "Config-driven frontend structure");
 });
 
-test("structureStatus explains budget config fallback with compact budget detail", () => {
+test("structureStatus explains repaired meta introspection", () => {
   const status = structureStatus({
     summary: {
-      strategy: "budget-config-fallback",
-      fallback_reason: "resource budget exceeded for meta introspection",
-      confidence: "low",
+      strategy: "repaired-meta-introspect",
+      confidence: "high",
     },
     source: {
       diagnostics: {
-        failure_kind: "resource_budget_exceeded",
-        budget: {
-          layers: 78,
-          hidden_size: 6144,
-          experts: 256,
-          score: 1757184,
-          score_limit: 400000,
-        },
+        repair_strategy: "minimax_config_adapter",
       },
     },
   });
 
-  assert.equal(status.label, "Config fallback");
-  assert.equal(status.tone, "warn");
-  assert.equal(status.detail, "Budget exceeded: layers 78, hidden 6144, experts 256");
+  assert.equal(status.label, "Meta introspect");
+  assert.equal(status.tone, "ok");
+  assert.equal(status.detail, "Repaired by minimax_config_adapter");
 });

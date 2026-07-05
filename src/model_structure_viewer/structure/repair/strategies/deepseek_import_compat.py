@@ -34,7 +34,11 @@ class DeepSeekImportCompatStrategy:
         return (
             context.failure_kind == IntrospectionFailureKind.REMOTE_IMPORT_COMPAT
             and "is_torch_fx_available" in context.original_error
-            and _is_deepseek(context)
+            and (
+                _is_deepseek(context)
+                or _uses_deepseek_remote_code(context)
+                or _has_deepseek_remote_file(context)
+            )
         )
 
     def apply(self, context: RepairContext) -> RepairResult:
@@ -57,3 +61,17 @@ def _is_deepseek(context: RepairContext) -> bool:
     values = [str(context.config.get("model_type", "")), str(context.source.get("model_id", ""))]
     values.extend(str(item) for item in context.config.get("architectures") or [])
     return any("deepseek" in value.lower() for value in values)
+
+
+def _uses_deepseek_remote_code(context: RepairContext) -> bool:
+    auto_map = context.config.get("auto_map") or {}
+    if not isinstance(auto_map, dict):
+        return False
+    values: list[str] = []
+    for value in auto_map.values():
+        values.extend(value if isinstance(value, list) else [value])
+    return any(isinstance(value, str) and "modeling_deepseek" in value for value in values)
+
+
+def _has_deepseek_remote_file(context: RepairContext) -> bool:
+    return context.local_dir is not None and (context.local_dir / "modeling_deepseek.py").exists()

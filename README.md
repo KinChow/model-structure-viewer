@@ -48,6 +48,9 @@ cd frontend && npm install
 
 # 直接查看一个 config 文件
 .venv/bin/msv inspect --config tests/fixtures/minimax_m3/config.json --format dot
+
+# 验证 transformers 是否能构造 meta 模型；失败会直接返回错误
+.venv/bin/msv verify --root ./models --offline --model Qwen/Qwen3.5-0.8B --source local --cache-policy offline
 ```
 
 ## 网页
@@ -80,6 +83,7 @@ npm run dev
 - `GET /api/hf/search?q=MiniMax-M3`
 - `GET /api/hf/config?model_id=MiniMaxAI/MiniMax-M3&revision=main`
 - `POST /api/structure`
+- `POST /api/verify`
 - `POST /api/export`
 - `GET /api/settings`
 - `POST /api/settings`
@@ -105,6 +109,8 @@ npm run dev
 ```
 
 网页端会优先从静态 `/models/catalog.json` 和 `/models/<org>/<model>/config.json` 读取内置配置，然后在前端生成结构。如果使用后端本地缓存或 Hugging Face 查询，才会访问 `/api/local/config` 和 `/api/hf/config`。`/api/structure` 仍然保留，主要用于命令行、兼容旧调用和后端诊断。
+
+新模型适配时，后端验证优先使用 `msv verify` 或 `/api/verify`。它只检查 transformers meta-device 构造是否成功，不会在失败时生成一份看似可用的 config 结构。
 
 ## 已验证支持模型
 
@@ -206,12 +212,30 @@ API 错误统一返回 `{"detail": "<message>"}`。常见状态码如下：
 每个 `ModelStructure` 的 `summary` 都会带上结构数字和诊断字段。它们用来说明当前结构是怎么生成的。
 
 - `summary.strategy`：结构生成策略。
+  - `frontend-architecture-template`：前端根据 config、registry 和模型 builder 生成结构，适合静态部署和手动验证。
   - `meta-introspect`：后端成功通过 `nn.Module` 做了结构检查。
-  - `config-fallback`：后端构建失败后，退回到 config 视图。
-  - `budget-config-fallback`：模型太大，后端跳过 `nn.Module` 构建，直接用 config 视图。
-  - `worker-config-fallback`：隔离 worker 失败或超时后，退回到 config 视图。
-- `summary.fallback_reason`：fallback 的原因，适合直接给人看。为了兼容旧接口，同样的值也会放在 `source.fallback_reason`。
-- `source.diagnostics`：更细的机器可读诊断信息，比如 `failure_kind`、`execution_mode`、预算估算、worker 超时和退出码。
+  - `repaired-meta-introspect`：后端先遇到 transformers 兼容问题，套用很窄的修复策略后构建成功。
+- `source.diagnostics`：更细的机器可读诊断信息，比如 `failure_kind`、`repair_strategy`、worker 超时和退出码。
+- 后端结构接口不再提供 config 兜底结构。transformers 或 remote code 不支持时，`/api/structure` 和 `msv inspect` 会直接报错，避免把不可靠的结构展示成正确结果。
+
+## Transformers 验证
+
+`msv verify` 和 `POST /api/verify` 是后端验证入口。它们只认 transformers meta-device 构造成功：
+
+- 成功：返回 `ok=true`、`status=passed`。
+- 失败：返回 `ok=false`、`status=failed`，并带上 `error` 和 `diagnostics.failure_kind`。
+- 失败时不生成 config-derived 结构，因此可以作为“transformers 是否支持这个模型结构”的判断依据。
+- 如果失败原因只是本机没有 FlashAttention2，验证会把 attention backend 临时切到 `sdpa` 后重试。这个过程只影响结构验证，不改 `config.json`。
+- 对个别官方 remote code 和当前 transformers API 的差异，验证会做很窄的运行时兼容，例如 MiniMax-M2.7 的 `rope_parameters`、Kimi-K2.5/Kimi-K2.6 的旧 `tie_weights` 签名。
+- 默认 worker 超时是 90 秒。特别慢的 remote code 可以用 `MSV_STRUCTURE_WORKER_TIMEOUT_SECONDS` 临时调大。
+
+示例：
+
+```bash
+curl -s http://127.0.0.1:8000/api/verify \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"local","model_id":"Qwen/Qwen3.5-0.8B","cache_policy":"offline","offline":true}'
+```
 
 ## 测试
 

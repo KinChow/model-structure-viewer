@@ -271,6 +271,19 @@ def test_source_config_does_not_trigger_remote_fetch(monkeypatch, tmp_path):
     assert "remote_code_fetch" not in resolved.source
 
 
+def test_hf_list_tree_is_best_effort_and_silent(monkeypatch):
+    calls = []
+
+    def fake_request(self, url, *, context, log_errors=True):
+        calls.append(log_errors)
+        raise RemoteError("network reset")
+
+    monkeypatch.setattr(HuggingFaceClient, "_request_text", fake_request)
+
+    assert HuggingFaceClient("https://example.test").list_tree("Org/Model", "main") == []
+    assert calls == [False]
+
+
 def test_auto_map_modules_handles_list_and_invalid():
     config = {
         "auto_map": {

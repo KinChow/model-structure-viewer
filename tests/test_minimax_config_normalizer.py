@@ -1,6 +1,31 @@
 from types import SimpleNamespace
 
-from model_structure_viewer.structure.repair.strategies.minimax_config_adapter import MiniMaxConfigNormalizer
+from model_structure_viewer.structure.repair.strategies.minimax_config_adapter import (
+    MiniMaxConfigNormalizer,
+    MiniMaxM2ConfigNormalizer,
+)
+
+
+def test_minimax_m2_config_normalizer_sets_root_rope_parameters():
+    config = SimpleNamespace()
+    normalizer = MiniMaxM2ConfigNormalizer({"rope_type": "default", "rope_theta": 5000000})
+
+    diagnostics = normalizer.normalize(config)
+
+    assert config.rope_parameters == {"rope_type": "default", "rope_theta": 5000000}
+    assert diagnostics["config_normalizer"] == "minimax_m2_config_normalizer"
+    assert diagnostics["normalized_fields"] == ["rope_parameters"]
+    assert diagnostics["normalized_targets"] == ["root.rope_parameters"]
+
+
+def test_minimax_m2_config_normalizer_does_not_overwrite_existing_rope_parameters():
+    config = SimpleNamespace(rope_parameters={"rope_type": "yarn"})
+    normalizer = MiniMaxM2ConfigNormalizer({"rope_type": "default", "rope_theta": 5000000})
+
+    diagnostics = normalizer.normalize(config)
+
+    assert config.rope_parameters == {"rope_type": "yarn"}
+    assert diagnostics["normalized_targets"] == []
 
 
 def test_minimax_config_normalizer_sets_missing_top_level_temporal_patch_size():

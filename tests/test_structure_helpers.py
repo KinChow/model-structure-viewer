@@ -1,7 +1,6 @@
-"""Unit tests for semantics, fold, fallback helpers."""
+"""Unit tests for semantics and fold helpers."""
 from model_structure_viewer.schemas import StructureNode
 from model_structure_viewer.structure.fold import collapse
-from model_structure_viewer.structure.fallback import build_from_config
 from model_structure_viewer.structure import semantics
 
 
@@ -93,9 +92,3 @@ def test_fold_heterogeneous_module_list_splits_groups():
     assert len(folded.children) == 2
     assert folded.children[0].repeat == 3
     assert folded.children[1].repeat == 6
-
-
-def test_fallback_handles_minimal_config():
-    structure = build_from_config({"model_type": "mystery"}, source={"kind": "test"})
-    assert structure.summary["confidence"] == "low"
-    assert structure.root.children

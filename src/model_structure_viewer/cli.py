@@ -6,8 +6,8 @@ import sys
 
 from .exporters import export_structure
 from .resolver import ModelSourceResolver, SourceResolutionError
-from .schemas import StructureRequest
-from .service import build_structure_response
+from .schemas import StructureRequest, VerifyRequest
+from .service import build_structure_response, verify_structure_response
 from .settings import AppSettings
 
 
@@ -50,6 +50,16 @@ def main(argv: list[str] | None = None) -> int:
     inspect_parser.add_argument("--format", choices=["json", "mermaid", "dot"], default="json")
     inspect_parser.add_argument("--detail-level", choices=["compressed", "expanded"], default="compressed")
     inspect_parser.set_defaults(func=cmd_inspect)
+
+    verify_parser = subparsers.add_parser("verify", help="Validate Transformers meta-model construction.")
+    add_common_options(verify_parser)
+    verify_parser.add_argument("--model", default=None, help="Model id, for example MiniMaxAI/MiniMax-M3.")
+    verify_parser.add_argument("--config", default=None, help="Path to config.json.")
+    verify_parser.add_argument("--source", choices=["auto", "local", "hf", "config"], default="auto")
+    verify_parser.add_argument("--revision", default="main")
+    verify_parser.add_argument("--cache-policy", choices=["prefer-local", "refresh", "offline"], default="prefer-local")
+    verify_parser.add_argument("--format", choices=["json", "text"], default="json")
+    verify_parser.set_defaults(func=cmd_verify)
 
     serve_parser = subparsers.add_parser("serve", help="Start the FastAPI server.")
     add_common_options(serve_parser)
@@ -106,6 +116,31 @@ def cmd_inspect(args: argparse.Namespace, settings: AppSettings) -> int:
     structure = build_structure_response(payload, settings)
     print(export_structure(structure, args.format), end="")
     return 0
+
+
+def cmd_verify(args: argparse.Namespace, settings: AppSettings) -> int:
+    config_json = None
+    source = args.source
+    if args.config and source == "config":
+        with open(args.config, "r", encoding="utf-8") as handle:
+            config_json = json.load(handle)
+    if args.config and source == "auto" and not args.model:
+        source = "local"
+    payload = VerifyRequest(
+        source=source,
+        model_id=args.model,
+        config_path=args.config if source != "config" else None,
+        config_json=config_json,
+        revision=args.revision,
+        cache_policy=args.cache_policy,
+    )
+    result = verify_structure_response(payload, settings)
+    if args.format == "text":
+        model = result.model_id or args.model or args.config or "<config>"
+        print(f"{result.status}\t{model}\tstrategy={result.strategy}\terror={result.error or '-'}")
+    else:
+        print(json.dumps(result.model_dump(), indent=2, ensure_ascii=False))
+    return 0 if result.ok else 1
 
 
 def cmd_serve(args: argparse.Namespace, settings: AppSettings) -> int:

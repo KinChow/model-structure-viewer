@@ -14,6 +14,34 @@ client = TestClient(app)
 def test_structure_api_returns_contract_for_inline_config():
     service.clear_structure_cache()
     config = {
+        "model_type": "bert",
+        "architectures": ["BertModel"],
+        "num_hidden_layers": 1,
+        "hidden_size": 32,
+        "num_attention_heads": 4,
+        "intermediate_size": 64,
+        "vocab_size": 128,
+    }
+
+    response = client.post(
+        "/api/structure",
+        json={
+            "source": "config",
+            "config_json": config,
+            "detail_level": "compressed",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) >= {"summary", "source", "root", "extra_config"}
+    assert payload["summary"]["strategy"] in {"meta-introspect", "repaired-meta-introspect"}
+    assert payload["root"]["children"]
+
+
+def test_structure_api_returns_error_when_transformers_introspection_fails():
+    service.clear_structure_cache()
+    config = {
         "model_type": "tiny_decoder",
         "architectures": ["TinyDecoderForCausalLM"],
         "num_hidden_layers": 2,
@@ -30,47 +58,9 @@ def test_structure_api_returns_contract_for_inline_config():
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 500
     payload = response.json()
-    assert set(payload) >= {"summary", "source", "root", "extra_config"}
-    assert payload["summary"]["strategy"] == "config-fallback"
-    assert payload["source"]["strategy"] == payload["summary"]["strategy"]
-    assert payload["root"]["children"]
-
-
-def test_structure_api_fallback_keeps_decoder_only_config_structural():
-    service.clear_structure_cache()
-    config = {
-        "model_type": "deepseek_v3",
-        "architectures": ["DeepseekV3ForCausalLM"],
-        "auto_map": {"AutoModel": "modeling_deepseek.DeepseekV3Model"},
-        "num_hidden_layers": 4,
-        "hidden_size": 128,
-        "num_attention_heads": 8,
-        "n_routed_experts": 16,
-    }
-
-    response = client.post(
-        "/api/structure",
-        json={
-            "source": "config",
-            "config_json": config,
-            "detail_level": "compressed",
-        },
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["summary"]["strategy"] == "config-fallback"
-
-    children = payload["root"]["children"]
-    assert children
-    assert [child["name"] for child in children] != ["Configuration"]
-
-    structural = next(child for child in children if child["type"] in {"decoder", "layers"})
-    assert structural["confidence"] == "low"
-    assert structural["repeat"] == 4 or structural["attributes"].get("num_hidden_layers") == 4
-    assert payload["source"]["diagnostics"]["failure_kind"] == "remote_code_unavailable"
+    assert "AutoConfig.for_model failed" in payload["detail"]
 
 
 def test_models_api_lists_standalone_configs_and_excludes_inference_configs(tmp_path):
@@ -114,16 +104,18 @@ def test_models_api_lists_standalone_configs_and_excludes_inference_configs(tmp_
 
 def test_structure_api_accepts_config_path_for_standalone_config(tmp_path):
     service.clear_structure_cache()
-    config_path = tmp_path / "kimi" / "Kimi-K2-Instruct-config.json"
+    config_path = tmp_path / "bert" / "tiny-bert-config.json"
     config_path.parent.mkdir()
     config_path.write_text(
         json.dumps(
             {
-                "model_type": "kimi_k2",
-                "architectures": ["DeepseekV3ForCausalLM"],
-                "num_hidden_layers": 61,
-                "hidden_size": 7168,
-                "num_attention_heads": 64,
+                "model_type": "bert",
+                "architectures": ["BertModel"],
+                "num_hidden_layers": 1,
+                "hidden_size": 32,
+                "num_attention_heads": 4,
+                "intermediate_size": 64,
+                "vocab_size": 128,
             }
         ),
         encoding="utf-8",
@@ -137,8 +129,8 @@ def test_structure_api_accepts_config_path_for_standalone_config(tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["source"]["kind"] == "local file"
-    assert payload["summary"]["model_type"] == "kimi_k2"
-    assert payload["summary"]["text_layers"] == 61
+    assert payload["summary"]["model_type"] == "bert"
+    assert payload["summary"]["text_layers"] == 1
 
 
 def test_local_config_api_returns_config_without_building_structure(tmp_path, monkeypatch):
@@ -220,11 +212,13 @@ def test_structure_api_caches_repeated_responses(monkeypatch):
 
     monkeypatch.setattr(service, "_run_introspection_worker", fake_worker)
     config = {
-        "model_type": "tiny_decoder",
-        "architectures": ["TinyDecoderForCausalLM"],
-        "num_hidden_layers": 2,
-        "hidden_size": 64,
+        "model_type": "bert",
+        "architectures": ["BertModel"],
+        "num_hidden_layers": 1,
+        "hidden_size": 32,
         "num_attention_heads": 4,
+        "intermediate_size": 64,
+        "vocab_size": 128,
     }
     request = {
         "source": "config",
@@ -239,3 +233,35 @@ def test_structure_api_caches_repeated_responses(monkeypatch):
     assert second.status_code == 200
     assert first.json() == second.json()
     assert calls["count"] == 1
+
+
+def test_verify_api_returns_transformers_validation(monkeypatch):
+    def fake_verify(payload, settings):
+        from model_structure_viewer.schemas import VerifyResponse
+
+        return VerifyResponse(
+            ok=True,
+            status="passed",
+            strategy="transformers-meta",
+            model_id=payload.model_id,
+            source={"kind": "test"},
+            summary={"strategy": "meta-introspect", "backbone_class": "DemoModel"},
+            diagnostics={"backbone_class": "DemoModel"},
+        )
+
+    monkeypatch.setattr("model_structure_viewer.api.verify_structure_response", fake_verify)
+
+    response = client.post(
+        "/api/verify",
+        json={
+            "source": "config",
+            "model_id": "Org/Demo",
+            "config_json": {"model_type": "demo", "architectures": ["DemoModel"]},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["status"] == "passed"
+    assert payload["strategy"] == "transformers-meta"

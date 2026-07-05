@@ -1,44 +1,10 @@
 """Centralized field-name tables shared across the structure pipeline.
 
 Keeping these in one place avoids drift between the introspection path,
-the config-only fallback path, and the summary aggregator. Each tuple has
+the frontend structure generator, and the summary aggregator. Each tuple has
 a single, well-defined consumer documented below.
 """
 from __future__ import annotations
-
-# Used by `fallback._pick` to surface salient scalar config fields on
-# generated nodes when meta-introspection is unavailable.
-FALLBACK_HIGHLIGHT_KEYS: tuple[str, ...] = (
-    "model_type",
-    "hidden_size",
-    "dim",
-    "num_hidden_layers",
-    "num_layers",
-    "n_layers",
-    "num_attention_heads",
-    "n_heads",
-    "num_key_value_heads",
-    "n_kv_heads",
-    "head_dim",
-    "intermediate_size",
-    "inter_dim",
-    "moe_intermediate_size",
-    "num_local_experts",
-    "num_experts",
-    "num_experts_per_tok",
-    "n_routed_experts",
-    "n_shared_experts",
-    "first_k_dense_replace",
-    "moe_layer_freq",
-    "q_lora_rank",
-    "kv_lora_rank",
-    "vocab_size",
-    "max_position_embeddings",
-    "tie_word_embeddings",
-    "hidden_act",
-    "patch_size",
-    "image_size",
-)
 
 # Used by `summary.extract_summary` for top-level scalar fields.
 SUMMARY_TOP_KEYS: tuple[str, ...] = (

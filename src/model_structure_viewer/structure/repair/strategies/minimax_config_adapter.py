@@ -6,6 +6,26 @@ from ..context import RepairContext, RepairResult
 from ..errors import IntrospectionFailureKind
 
 
+class MiniMaxM2ConfigNormalizer:
+    name = "minimax_m2_config_normalizer"
+
+    def __init__(self, rope_parameters: dict[str, Any]):
+        self.rope_parameters = rope_parameters
+
+    def normalize(self, hf_config: Any) -> dict[str, Any]:
+        normalized_fields: set[str] = set()
+        normalized_targets: list[str] = []
+        if not hasattr(hf_config, "rope_parameters"):
+            setattr(hf_config, "rope_parameters", self.rope_parameters)
+            normalized_fields.add("rope_parameters")
+            normalized_targets.append("root.rope_parameters")
+        return {
+            "config_normalizer": self.name,
+            "normalized_fields": sorted(normalized_fields),
+            "normalized_targets": normalized_targets,
+        }
+
+
 class MiniMaxConfigNormalizer:
     name = "minimax_config_normalizer"
 
@@ -103,13 +123,16 @@ class MiniMaxConfigAdapterStrategy:
     name = "minimax_config_adapter"
 
     def matches(self, context: RepairContext) -> bool:
-        return (
-            context.failure_kind == IntrospectionFailureKind.CONFIG_FIELD_MISSING
-            and "temporal_patch_size" in context.original_error
-            and _is_minimax(context)
-        )
+        if context.failure_kind != IntrospectionFailureKind.CONFIG_FIELD_MISSING:
+            return False
+        if not _is_minimax(context):
+            return False
+        return "temporal_patch_size" in context.original_error or "rope_parameters" in context.original_error
 
     def apply(self, context: RepairContext) -> RepairResult:
+        if "rope_parameters" in context.original_error and _is_minimax_m2(context):
+            return _apply_minimax_m2_rope_parameters(context, strategy_name=self.name)
+
         patched = dict(context.config)
         temporal_patch_size = _find_nested_value(context.config, "temporal_patch_size")
         spatial_merge_size = _find_nested_value(context.config, "spatial_merge_size")
@@ -152,10 +175,47 @@ class MiniMaxConfigAdapterStrategy:
         )
 
 
+def _apply_minimax_m2_rope_parameters(context: RepairContext, *, strategy_name: str) -> RepairResult:
+    patched = dict(context.config)
+    rope_parameters = _derive_root_rope_parameters(context.config)
+    if rope_parameters is None:
+        return RepairResult(
+            config=patched,
+            local_dir=context.local_dir,
+            strategy_name=strategy_name,
+            diagnostics={
+                "repair_strategy": strategy_name,
+                "repair_status": "skipped",
+                "reason": "rope_parameters_not_derived",
+            },
+        )
+    patched["rope_parameters"] = rope_parameters
+    return RepairResult(
+        config=patched,
+        local_dir=context.local_dir,
+        strategy_name=strategy_name,
+        diagnostics={
+            "repair_strategy": strategy_name,
+            "repair_status": "prepared",
+            "patched_fields": ["rope_parameters"],
+            "config_overrides": ["rope_parameters"],
+            "config_normalizer": MiniMaxM2ConfigNormalizer.name,
+        },
+        config_overrides={"rope_parameters": rope_parameters},
+        config_normalizer=MiniMaxM2ConfigNormalizer(rope_parameters),
+    )
+
+
 def _is_minimax(context: RepairContext) -> bool:
     values = [str(context.config.get("model_type", "")), str(context.source.get("model_id", ""))]
     values.extend(str(item) for item in context.config.get("architectures") or [])
     return any("minimax" in value.lower() for value in values)
+
+
+def _is_minimax_m2(context: RepairContext) -> bool:
+    values = [str(context.config.get("model_type", "")), str(context.source.get("model_id", ""))]
+    values.extend(str(item) for item in context.config.get("architectures") or [])
+    return any("minimax_m2" in value.lower() or "minimax-m2" in value.lower() for value in values)
 
 
 def _find_nested_value(value: Any, key: str) -> Any:
@@ -168,6 +228,18 @@ def _find_nested_value(value: Any, key: str) -> Any:
         if found is not None:
             return found
     return None
+
+
+def _derive_root_rope_parameters(config: dict[str, Any]) -> dict[str, Any] | None:
+    if isinstance(config.get("rope_parameters"), dict):
+        return config["rope_parameters"]
+    rope_theta = config.get("rope_theta")
+    if rope_theta is None:
+        return None
+    parameters = {"rope_type": "default", "rope_theta": rope_theta}
+    if "partial_rotary_factor" in config:
+        parameters["partial_rotary_factor"] = config["partial_rotary_factor"]
+    return parameters
 
 
 def _derive_layer_types(config: dict[str, Any]) -> list[str] | None:

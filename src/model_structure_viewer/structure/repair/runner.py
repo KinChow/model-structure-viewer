@@ -19,6 +19,6 @@ def try_repair(
         return None
     try:
         return strategy.apply(context)
-    except Exception as exc:  # noqa: BLE001 - repair must never break fallback
+    except Exception as exc:  # noqa: BLE001 - repair must not hide the original error
         _LOG.info("Repair strategy %s failed: %s", strategy.name, exc)
         return None

@@ -1,4 +1,4 @@
-"""Shared summary extraction for both introspection and fallback paths."""
+"""Shared summary extraction for structure builders."""
 from __future__ import annotations
 
 from typing import Any
@@ -13,7 +13,6 @@ def extract_summary(
     confidence: str = "high",
     extra: dict[str, Any] | None = None,
     strategy: str | None = None,
-    fallback_reason: str | None = None,
 ) -> dict[str, Any]:
     """Build a flat summary dict from a (possibly nested) HF config dict."""
     summary: dict[str, Any] = {}
@@ -44,8 +43,6 @@ def extract_summary(
 
     if strategy is not None:
         _put(summary, "strategy", strategy)
-    if fallback_reason is not None:
-        _put(summary, "fallback_reason", fallback_reason)
 
     summary["confidence"] = confidence
     return summary

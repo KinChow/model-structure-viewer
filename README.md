@@ -239,12 +239,13 @@ curl -s http://127.0.0.1:8000/api/verify \
 
 ## 测试
 
+完整系统测试流程见 `docs/testing_skill.md`。常用快速命令如下：
+
 ```bash
 .venv/bin/pytest -q
-cd frontend
-npm test
-npm run verify:models
-npm run build
+npm --prefix frontend test
+npm --prefix frontend run verify:models
+npm --prefix frontend run build
 ```
 
 页面级验证需要一个已经启动的静态页面和一个带 DevTools 端口的 Chrome，例如：
@@ -266,6 +267,7 @@ MSV_PAGE_URL=http://127.0.0.1:4183/ MSV_CHROME_DEBUG_PORT=9223 npm --prefix fron
 ## 文档
 
 - `CHANGELOG.md`
+- `docs/testing_skill.md`
 - `docs/frontend_structure_architecture.md`
 - `docs/reverse_original_space.md`
 - `docs/minimax_m3_mapping.md`

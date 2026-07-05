@@ -12,6 +12,7 @@
 
 ### 新增
 
+- 新增测试 Skill 文档，固定单测、后端 transformers/API 验证和浏览器页面验证流程。
 - 开始使用这份更新日志管理版本变化。
 - Layers 卡片和详情面板增加输入/输出维度，使用 `batch`、`sequence`、`hidden size` 这类完整名字，避免缩写看不懂。
 - 前端结构生成器增加统一的 shape 推导，覆盖 embedding、decoder、attention、MLP、MoE、norm、lm head、vision tower 和 projector。

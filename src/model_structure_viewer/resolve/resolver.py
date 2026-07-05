@@ -74,7 +74,9 @@ class ModelSourceResolver:
             raise ConfigError("model_id, config_path, or config_json is required.")
 
         effective_policy = "offline" if self.settings.offline else cache_policy
-        if source == "local":
+        if source == "builtin":
+            resolved = self._resolve_builtin_model(model_id, detail_level)
+        elif source == "local":
             resolved = self._cache.resolve_local_model(model_id, detail_level)
         elif source == "hf":
             if effective_policy == "offline":
@@ -89,6 +91,10 @@ class ModelSourceResolver:
 
         self._maybe_fetch_remote_code(resolved, model_id=model_id, revision=revision)
         return resolved
+
+    def builtin_config_path(self, model_id: str) -> Path:
+        parts = [part for part in model_id.split("/") if part]
+        return _repo_root().joinpath("models", *parts, "config.json")
 
     # ---- HF helpers ----------------------------------------------------------------
     def search_hf_models(self, query: str, limit: int = 10) -> list[HfSearchResult]:
@@ -125,6 +131,10 @@ class ModelSourceResolver:
         effective_policy: str,
         detail_level: str,
     ) -> ResolvedConfig:
+        builtin = self._try_builtin_model(model_id, detail_level)
+        if builtin is not None:
+            _LOG.info("auto resolved %s via built-in config", model_id)
+            return builtin
         local: ResolvedConfig | None = None
         if effective_policy != "refresh":
             local = self._cache.try_local_model(model_id, detail_level)
@@ -136,6 +146,21 @@ class ModelSourceResolver:
             raise NotFoundError(f"Local config not found and offline is enabled: {expected}")
         _LOG.info("auto falling back to HF for %s (policy=%s)", model_id, cache_policy)
         return self._resolve_hf_model(model_id, revision, cache_policy, detail_level)
+
+    def _try_builtin_model(self, model_id: str, detail_level: str) -> ResolvedConfig | None:
+        config_path = self.builtin_config_path(model_id)
+        if not config_path.exists():
+            return None
+        return ResolvedConfig(
+            config=self._cache.load_json(config_path),
+            source={
+                "kind": "built-in config",
+                "model_id": model_id,
+                "config_path": str(config_path),
+                "detail_level": detail_level,
+            },
+            local_dir=config_path.parent,
+        )
 
     def _resolve_hf_model(
         self,
@@ -166,6 +191,12 @@ class ModelSourceResolver:
             local_dir=cache_dir,
         )
 
+    def _resolve_builtin_model(self, model_id: str, detail_level: str) -> ResolvedConfig:
+        resolved = self._try_builtin_model(model_id, detail_level)
+        if resolved is None:
+            raise NotFoundError(f"Built-in model config not found: {self.builtin_config_path(model_id)}")
+        return resolved
+
     def _maybe_fetch_remote_code(
         self,
         resolved: ResolvedConfig,
@@ -174,6 +205,8 @@ class ModelSourceResolver:
         revision: str,
     ) -> None:
         if resolved.local_dir is None or model_id is None:
+            return
+        if resolved.source.get("kind") == "built-in config":
             return
         if self.settings.offline or not self.settings.auto_fetch_remote_code:
             return
@@ -204,3 +237,7 @@ class ModelSourceResolver:
 
 
 __all__ = ["ModelSourceResolver", "ResolvedConfig", "RemoteError"]
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]

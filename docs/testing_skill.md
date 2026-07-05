@@ -224,6 +224,13 @@ lsof -iTCP:8000 -sTCP:LISTEN -n -P || true
 
 这一步验证真实页面，不只验证代码函数。它适合静态部署前、UI 改动后、layers 展开和导出功能改动后执行。
 
+浏览器验证分两类：
+
+- 只启动前端静态服务：验证 `builtin` 和 `config`，覆盖 GitHub Pages 等纯静态部署能力。
+- 前后端都启动：验证 `local`、`hf`、后端 settings、`/api/local/config`、`/api/structure`、`/api/verify` 等需要 API 的能力。
+
+如果改动只影响前端组网、UI、导出或内置模型，至少跑静态前端浏览器验证。如果改动涉及 `source` 协议、resolver、settings、API、transformers recovery 或本地模型读取，必须同时跑前后端验证。
+
 先构建静态页面：
 
 ```bash
@@ -293,6 +300,21 @@ npm --prefix frontend run verify:models
 npm --prefix frontend run build
 # 再执行后端 transformers 全量验证、后端 API 验证和浏览器验证
 ```
+
+涉及 `source` 协议或 API 的改动，额外验证：
+
+```bash
+curl -s 'http://127.0.0.1:8000/api/local/config?source=builtin&model_id=Qwen/Qwen3.5-0.8B' | python3 -m json.tool >/tmp/msv-builtin.json
+curl -s http://127.0.0.1:8000/api/structure \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"builtin","model_id":"Qwen/Qwen3.5-0.8B","cache_policy":"offline","offline":true}' \
+  | python3 -m json.tool >/tmp/msv-structure.json
+```
+
+通过标准：
+
+- `/tmp/msv-builtin.json` 中 `source.kind` 是 `built-in config`。
+- `/tmp/msv-structure.json` 中 `summary.strategy` 是 `meta-introspect` 或 `repaired-meta-introspect`。
 
 ## 结果记录
 

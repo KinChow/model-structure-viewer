@@ -50,10 +50,11 @@ async function findBuiltinModelEntry(modelId) {
   return catalog.models.find((entry) => entry.modelId === modelId) || null;
 }
 
-export function fetchLocalConfigApi({ modelId, configPath }) {
+export function fetchLocalConfigApi({ modelId, configPath, source = "local" }) {
   const params = new URLSearchParams();
   if (modelId) params.set("model_id", modelId);
   if (configPath) params.set("config_path", configPath);
+  if (source !== "local") params.set("source", source);
   return requestJson(`/api/local/config?${params.toString()}`);
 }
 

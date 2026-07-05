@@ -33,7 +33,7 @@ def test_builder_retries_once_after_matching_repair(monkeypatch):
             )
         return _structure("meta-introspect")
 
-    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
 
     result = builder.build_model_structure(CONFIG, source={}, local_dir=None)
 
@@ -62,7 +62,7 @@ def test_builder_raises_when_no_repair_strategy(monkeypatch):
     ):
         raise IntrospectionError("something unexpected happened")
 
-    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
 
     import pytest
 
@@ -96,7 +96,7 @@ def test_builder_passes_minimax_normalizer_to_repair_retry(monkeypatch):
             raise IntrospectionError("AutoModel.from_config failed: object has no attribute 'temporal_patch_size'")
         return _structure("meta-introspect")
 
-    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
 
     result = builder.build_model_structure(config, source={}, local_dir=None)
 
@@ -132,7 +132,7 @@ def test_builder_reports_minimax_normalizer_diagnostics_after_retry_failure(monk
             raise IntrospectionError("AutoModel.from_config failed: object has no attribute 'temporal_patch_size'")
         raise IntrospectionError("AutoModel.from_config failed: object has no attribute 'another_field'")
 
-    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
 
     import pytest
 
@@ -167,7 +167,7 @@ def test_builder_raises_after_repair_retry_failure(monkeypatch):
             "AutoModel.from_config failed: cannot import name 'is_torch_fx_available'"
         )
 
-    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
 
     import pytest
 
@@ -210,7 +210,7 @@ def test_builder_retries_attention_and_kimi_tie_weights_compat(monkeypatch):
             )
         return _structure("meta-introspect")
 
-    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
 
     result = builder.build_model_structure(
         {"model_type": "kimi_k25", "architectures": ["KimiK25ForConditionalGeneration"]},
@@ -244,7 +244,7 @@ def test_builder_does_not_short_circuit_glm_moe_dsa(monkeypatch):
         calls.append((config, source, local_dir))
         return _structure("meta-introspect")
 
-    monkeypatch.setattr(builder, "build_from_meta_model", fake_meta)
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
 
     result = builder.build_model_structure(
         {

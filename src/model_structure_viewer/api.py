@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -91,14 +92,23 @@ def list_models(s: AppSettings = Depends(get_settings)) -> list[dict[str, object
 def local_config(
     model_id: str | None = None,
     config_path: str | None = None,
+    source: Literal["local", "builtin"] = "local",
     s: AppSettings = Depends(get_settings),
 ) -> dict[str, object]:
     if not model_id and not config_path:
         raise HTTPException(status_code=400, detail="model_id or config_path is required")
-    cache = LocalModelCache(s.model_root)
     if config_path:
+        cache = LocalModelCache(s.model_root)
         resolved = cache.resolve_config_path(config_path, detail_level="compressed")
+    elif source == "builtin":
+        assert model_id is not None
+        resolved = ModelSourceResolver(s).resolve(
+            source="builtin",
+            model_id=model_id,
+            detail_level="compressed",
+        )
     else:
+        cache = LocalModelCache(s.model_root)
         assert model_id is not None
         resolved = cache.resolve_local_model(model_id, detail_level="compressed")
     return {

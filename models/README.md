@@ -32,8 +32,8 @@ node scripts/generate-model-catalog.mjs
 .venv/bin/msv serve --root ./models --port 8000
 ```
 
-前端启动后选择 `local` 或 `auto`，model id 直接填下面这些值即可。
-如果是纯静态部署，选择 `builtin` 或 `auto`。
+前端启动后选择 `builtin` 或 `auto`，model id 直接填下面这些值即可。
+如果需要验证后端本地模型目录，选择 `local`。
 
 ## 当前模型
 

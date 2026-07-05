@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-SourceKind = Literal["auto", "local", "hf", "config"]
+SourceKind = Literal["auto", "builtin", "local", "hf", "config"]
 CachePolicy = Literal["prefer-local", "refresh", "offline"]
 ExportFormat = Literal["json", "mermaid", "dot"]
 

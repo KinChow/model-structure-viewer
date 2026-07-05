@@ -14,7 +14,7 @@ def _structure():
 
 def test_verify_transformers_structure_passes_meta_introspection(monkeypatch):
     monkeypatch.setattr(
-        "model_structure_viewer.verification.transformers_verify.build_from_meta_model",
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
         lambda config, **kwargs: _structure(),
     )
 
@@ -37,7 +37,7 @@ def test_verify_transformers_structure_failure_returns_error(monkeypatch):
         raise IntrospectionError("AutoModel.from_config failed: unsupported")
 
     monkeypatch.setattr(
-        "model_structure_viewer.verification.transformers_verify.build_from_meta_model",
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
         fail_meta,
     )
 
@@ -80,7 +80,7 @@ def test_verify_transformers_structure_retries_without_flash_attention(monkeypat
         return structure
 
     monkeypatch.setattr(
-        "model_structure_viewer.verification.transformers_verify.build_from_meta_model",
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
         flaky_meta,
     )
 
@@ -120,7 +120,7 @@ def test_verify_transformers_structure_retries_when_flash_attention_is_unsupport
         return structure
 
     monkeypatch.setattr(
-        "model_structure_viewer.verification.transformers_verify.build_from_meta_model",
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
         flaky_meta,
     )
 
@@ -163,7 +163,7 @@ def test_verify_transformers_structure_retries_kimi_tie_weights_after_attention_
         return structure
 
     monkeypatch.setattr(
-        "model_structure_viewer.verification.transformers_verify.build_from_meta_model",
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
         flaky_meta,
     )
 

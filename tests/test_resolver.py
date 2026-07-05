@@ -104,7 +104,29 @@ def test_local_model_cache_accepts_string_model_root(tmp_path):
 def test_auto_offline_fails_when_local_missing(tmp_path):
     resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
     with pytest.raises(SourceResolutionError):
-        resolver.resolve(source="auto", model_id="MiniMaxAI/MiniMax-M3", cache_policy="offline")
+        resolver.resolve(source="auto", model_id="MissingOrg/MissingModel", cache_policy="offline")
+
+
+def test_builtin_source_reads_repo_models_without_model_root(tmp_path):
+    resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
+    resolved = resolver.resolve(source="builtin", model_id="Qwen/Qwen3.5-0.8B")
+    assert resolved.config["model_type"]
+    assert resolved.source["kind"] == "built-in config"
+    assert resolved.local_dir is not None
+    assert str(resolved.local_dir).endswith("models/Qwen/Qwen3.5-0.8B")
+
+
+def test_auto_prefers_builtin_before_local_model_root(tmp_path):
+    local_dir = tmp_path / "Qwen" / "Qwen3.5-0.8B"
+    local_dir.mkdir(parents=True)
+    (local_dir / "config.json").write_text(
+        json.dumps({"model_type": "local_shadow", "num_hidden_layers": 1, "hidden_size": 8}),
+        encoding="utf-8",
+    )
+    resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
+    resolved = resolver.resolve(source="auto", model_id="Qwen/Qwen3.5-0.8B")
+    assert resolved.source["kind"] == "built-in config"
+    assert resolved.config["model_type"] != "local_shadow"
 
 
 def test_config_source_uses_supplied_json():

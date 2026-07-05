@@ -11,6 +11,17 @@ config.json -> registry -> model builder -> layers -> ops/formulas -> IR -> UI/e
 后端主要负责本地配置读取、Hugging Face 配置读取，以及保留兼容用的结构接口。
 仓库内置模型配置可以直接作为静态资源使用，适合部署到 GitHub Pages 这类静态站点。
 
+## 项目边界
+
+这个后端定位是本地开发和模型结构验证工具，不是面向公网或多租户的生产服务。它会读取本地模型目录，并在 transformers 结构验证时使用 `trust_remote_code=True` 加载本地模型代码，因此默认运行方式应是 `127.0.0.1` 或可信内网调试环境。
+
+如果要把后端暴露给不可信用户，需要先重新设计这些边界：
+
+- 限制 `config_path` 只能位于允许的模型根目录下。
+- 为 remote code 增加显式信任开关或沙箱。
+- 移除或隔离进程级 settings 状态。
+- 为 CORS、鉴权、请求大小、超时和日志脱敏补充生产约束。
+
 ## 路径
 
 - 开发仓库：`/Users/zhouzijian01/Desktop/workspace/code/kinchow/model-structure-viewer`
@@ -40,10 +51,13 @@ cd frontend && npm install
 # 搜索 Hugging Face
 .venv/bin/msv search MiniMax-M3 --endpoint https://huggingface.co
 
+# 通过仓库内置 config 查看结构
+.venv/bin/msv inspect --model MiniMaxAI/MiniMax-M3 --source builtin --format json
+
 # 通过 Hugging Face model id 查看结构，并把配置元数据缓存到 MODEL_ROOT
 .venv/bin/msv inspect --model MiniMaxAI/MiniMax-M3 --source hf --format json
 
-# 优先用本地缓存，本地没有再访问 Hugging Face
+# 优先用仓库内置配置，再用本地缓存，本地没有再访问 Hugging Face
 .venv/bin/msv inspect --model MiniMaxAI/MiniMax-M3 --source auto --cache-policy prefer-local --format mermaid
 
 # 直接查看一个 config 文件
@@ -88,12 +102,14 @@ npm run dev
 - `GET /api/settings`
 - `POST /api/settings`
 
+`POST /api/settings` 是本地单用户开发便利接口，会修改当前后端进程内的默认设置。结构生成和验证请求仍应把 `model_root`、`hf_endpoint`、`offline`、`cache_policy` 等参数显式放进请求体，避免依赖隐式全局状态。多用户服务不要直接复用这个 settings 接口。
+
 ## 数据来源
 
 - `local`：只读取 `$MODEL_ROOT/<org>/<model>/config.json`
-- `builtin`：读取仓库内置 `models/<org>/<model>/config.json`，不需要后端
+- `builtin`：读取仓库内置 `models/<org>/<model>/config.json`；网页静态部署时不需要后端，CLI/API 会从仓库内置目录读取
 - `hf`：从 Hugging Face 拉取 `config.json` 和允许缓存的元数据
-- `auto`：网页端优先读 `builtin`，再读后端本地缓存，最后才走后端兼容接口
+- `auto`：优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页端和后端保持相同顺序
 - `config`：使用粘贴或上传的 JSON
 
 允许缓存的 Hugging Face 元数据只有 `config.json`、`README.md`、`configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py`。
@@ -111,6 +127,8 @@ npm run dev
 网页端会优先从静态 `/models/catalog.json` 和 `/models/<org>/<model>/config.json` 读取内置配置，然后在前端生成结构。如果使用后端本地缓存或 Hugging Face 查询，才会访问 `/api/local/config` 和 `/api/hf/config`。`/api/structure` 仍然保留，主要用于命令行、兼容旧调用和后端诊断。
 
 新模型适配时，后端验证优先使用 `msv verify` 或 `/api/verify`。它只检查 transformers meta-device 构造是否成功，不会在失败时生成一份看似可用的 config 结构。
+
+前后端都维护导出逻辑是刻意保留的：前端导出服务静态部署和页面交互，后端导出用于 CLI/API 以及对前端导出结果做对照验证。不要把这类重复简单视为冗余；如果修改导出格式，应同时更新两边测试，必要时增加 golden 对照样例。
 
 ## 已验证支持模型
 

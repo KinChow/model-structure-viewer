@@ -194,6 +194,32 @@ def test_local_config_api_does_not_fetch_remote_code(tmp_path, monkeypatch):
     assert response.json()["config"] == config
 
 
+def test_local_config_api_can_read_builtin_source(tmp_path):
+    original_settings = get_settings()
+    try:
+        set_settings(AppSettings(model_root=tmp_path, offline=True))
+        response = client.get("/api/local/config?source=builtin&model_id=Qwen/Qwen3.5-0.8B")
+    finally:
+        set_settings(original_settings)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["model_id"] == "Qwen/Qwen3.5-0.8B"
+    assert payload["source"]["kind"] == "built-in config"
+    assert payload["config"]["model_type"]
+
+
+def test_local_config_api_rejects_unsupported_source(tmp_path):
+    original_settings = get_settings()
+    try:
+        set_settings(AppSettings(model_root=tmp_path, offline=True))
+        response = client.get("/api/local/config?source=hf&model_id=Qwen/Qwen3.5-0.8B")
+    finally:
+        set_settings(original_settings)
+
+    assert response.status_code == 422
+
+
 def test_structure_api_caches_repeated_responses(monkeypatch):
     service.clear_structure_cache()
     calls = {"count": 0}

@@ -164,6 +164,50 @@ def test_fallback_decoder_layers_expand_to_config_placeholder_group():
     assert layer_group.confidence == "low"
 
 
+def test_fallback_decoder_layer_groups_expand_to_config_derived_skeleton():
+    structure = build_from_config(
+        {
+            "model_type": "deepseek_v3",
+            "architectures": ["DeepseekV3ForCausalLM"],
+            "num_hidden_layers": 61,
+            "hidden_size": 7168,
+            "num_attention_heads": 128,
+            "num_key_value_heads": 128,
+            "intermediate_size": 18432,
+            "moe_intermediate_size": 2048,
+            "num_local_experts": 256,
+            "num_experts_per_tok": 8,
+            "n_routed_experts": 256,
+            "first_k_dense_replace": 3,
+            "moe_layer_freq": 1,
+        },
+        source={"kind": "test"},
+    )
+
+    decoder = next(child for child in structure.root.children if child.type == "decoder")
+
+    assert [child.attributes["range"] for child in decoder.children] == ["0..2", "3..60"]
+    dense_group, moe_group = decoder.children
+    assert dense_group.repeat == 3
+    assert moe_group.repeat == 58
+    assert dense_group.attributes["layer_kind"] == "dense"
+    assert moe_group.attributes["layer_kind"] == "moe"
+    assert [(child.name, child.type) for child in dense_group.children] == [
+        ("self attn (DeepseekV3Attention)", "attention"),
+        ("mlp (DeepseekV3MLP)", "mlp"),
+        ("input layernorm (DeepseekV3RMSNorm)", "normalization"),
+        ("post attention layernorm (DeepseekV3RMSNorm)", "normalization"),
+    ]
+    assert [(child.name, child.type) for child in moe_group.children] == [
+        ("self attn (DeepseekV3Attention)", "attention"),
+        ("mlp (DeepseekV3MoE)", "moe"),
+        ("input layernorm (DeepseekV3RMSNorm)", "normalization"),
+        ("post attention layernorm (DeepseekV3RMSNorm)", "normalization"),
+    ]
+    assert moe_group.children[1].attributes["num_local_experts"] == 256
+    assert moe_group.children[1].confidence == "low"
+
+
 def test_fallback_accepts_strategy_and_diagnostics_without_breaking_contract():
     structure = build_from_config(
         {"model_type": "x", "num_hidden_layers": 2},

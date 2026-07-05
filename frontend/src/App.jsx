@@ -10,6 +10,7 @@ import Drawer from "./components/Drawer";
 import StructureSearchBox from "./components/StructureSearchBox";
 import NodeDetailPanel from "./components/NodeDetailPanel";
 import { useSettings } from "./hooks/useSettings";
+import { useBuiltinModels } from "./hooks/useBuiltinModels";
 import { useLocalModels } from "./hooks/useLocalModels";
 import { useHfSearch } from "./hooks/useHfSearch";
 import { useStructure } from "./hooks/useStructure";
@@ -65,6 +66,7 @@ function ancestorCollapsiblePaths(root, path) {
 
 function App() {
   const { settings, setSettings, save: saveSettings, error: settingsError } = useSettings();
+  const { models: builtinModels, refresh: refreshBuiltinModels } = useBuiltinModels();
   const { models, refresh: refreshModels } = useLocalModels();
   const hf = useHfSearch();
   const { structure, build, loading, error: structureError } = useStructure();
@@ -86,7 +88,10 @@ function App() {
 
   const error = parseError || structureError || hf.error || settingsError || exporter.error;
   const sourceLabel = structure?.source?.kind || "not loaded";
-  const rawJson = useMemo(() => (structure ? JSON.stringify(structure, null, 2) : ""), [structure]);
+  const rawJson = useMemo(
+    () => (structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : ""),
+    [structure]
+  );
   const allCollapsiblePaths = useMemo(
     () => collectCollapsiblePaths(structure?.root),
     [structure]
@@ -283,6 +288,14 @@ function App() {
             onRevisionChange={setRevision}
             configText={configText}
             onConfigTextChange={setConfigText}
+            builtinModels={builtinModels}
+            onRefreshBuiltinModels={refreshBuiltinModels}
+            onPickBuiltinModel={(entry) => {
+              setModelId(entry.modelId);
+              setSelectedConfigPath("");
+              setSource("builtin");
+              setDrawerOpen(false);
+            }}
             models={models}
             onRefreshModels={refreshModels}
             onPickLocalModel={(entry) => {

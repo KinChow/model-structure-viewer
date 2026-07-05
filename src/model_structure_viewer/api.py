@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .errors import ViewerError
 from .exporters import export_structure
+from .resolve.local_cache import LocalModelCache
 from .resolver import ModelSourceResolver
 from .schemas import ExportRequest, SettingsPayload, StructureRequest
 from .service import build_structure_response
@@ -84,6 +85,27 @@ def update_settings(payload: SettingsPayload, s: AppSettings = Depends(get_setti
 @app.get("/api/models")
 def list_models(s: AppSettings = Depends(get_settings)) -> list[dict[str, object]]:
     return [entry.model_dump() for entry in ModelSourceResolver(s).list_local_models()]
+
+
+@app.get("/api/local/config")
+def local_config(
+    model_id: str | None = None,
+    config_path: str | None = None,
+    s: AppSettings = Depends(get_settings),
+) -> dict[str, object]:
+    if not model_id and not config_path:
+        raise HTTPException(status_code=400, detail="model_id or config_path is required")
+    cache = LocalModelCache(s.model_root)
+    if config_path:
+        resolved = cache.resolve_config_path(config_path, detail_level="compressed")
+    else:
+        assert model_id is not None
+        resolved = cache.resolve_local_model(model_id, detail_level="compressed")
+    return {
+        "model_id": model_id,
+        "config": resolved.config,
+        "source": resolved.source,
+    }
 
 
 @app.get("/api/hf/search")

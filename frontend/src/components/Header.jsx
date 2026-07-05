@@ -1,4 +1,4 @@
-const SOURCE_ITEMS = ["auto", "local", "hf", "config"];
+const SOURCE_ITEMS = ["auto", "builtin", "local", "hf", "config"];
 
 function Header({
   sourceLabel,

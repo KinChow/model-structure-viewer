@@ -4,6 +4,9 @@ function Drawer({
   onRevisionChange,
   configText,
   onConfigTextChange,
+  builtinModels,
+  onRefreshBuiltinModels,
+  onPickBuiltinModel,
   models,
   onRefreshModels,
   onPickLocalModel,
@@ -35,7 +38,19 @@ function Drawer({
         </label>
       </section>
       <section>
-        <h2>Local Models</h2>
+        <h2>Built-in Models</h2>
+        <button onClick={onRefreshBuiltinModels}>Refresh</button>
+        <div className="compact-list">
+          {builtinModels.map((entry) => (
+            <button key={entry.configPath} onClick={() => onPickBuiltinModel(entry)}>
+              <strong>{entry.modelId}</strong>
+              <span>{entry.modelType || entry.canonicalArchitecture || "built-in config"}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section>
+        <h2>Backend Local Models</h2>
         <button onClick={onRefreshModels}>Refresh</button>
         <div className="compact-list">
           {models.map((entry) => (

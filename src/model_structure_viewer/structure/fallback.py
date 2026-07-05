@@ -12,6 +12,14 @@ _LOG = logging.getLogger(__name__)
 
 _MAX_NESTED_CONFIG_DEPTH = 8
 _LAYER_COUNT_KEYS = ("num_hidden_layers", "num_layers", "n_layer", "n_layers")
+_MOE_KEYS = (
+    "moe_intermediate_size",
+    "num_local_experts",
+    "num_experts",
+    "num_experts_per_tok",
+    "n_routed_experts",
+    "n_shared_experts",
+)
 
 _KNOWN_NESTED = {
     "text_config": ("text", "decoder"),
@@ -112,6 +120,7 @@ def _top_level_decoder(config: dict[str, Any]) -> StructureNode | None:
     layer_count = next((config[key] for key in _LAYER_COUNT_KEYS if config.get(key) is not None), None)
     if layer_count is None:
         return None
+    layer_children = _decoder_layer_groups(config, layer_count)
     return StructureNode(
         id="decoder",
         name="Decoder Layers",
@@ -120,21 +129,42 @@ def _top_level_decoder(config: dict[str, Any]) -> StructureNode | None:
         attributes=_pick(config),
         source_fields=[key for key in _LAYER_COUNT_KEYS if config.get(key) is not None],
         confidence="low",
-        children=[_decoder_layer_placeholder(config, layer_count)],
+        children=layer_children,
     )
 
 
-def _decoder_layer_placeholder(config: dict[str, Any], layer_count: Any) -> StructureNode:
-    layer_count_int = layer_count if isinstance(layer_count, int) and layer_count > 0 else 1
+def _decoder_layer_groups(config: dict[str, Any], layer_count: Any) -> list[StructureNode]:
+    layer_count_int = _positive_int(layer_count, default=1)
+    dense_prefix = _dense_prefix_length(config, layer_count_int)
+    if dense_prefix <= 0 or dense_prefix >= layer_count_int or not _has_moe(config):
+        return [_decoder_layer_placeholder(config, start=0, end=layer_count_int - 1)]
+    return [
+        _decoder_layer_placeholder(config, start=0, end=dense_prefix - 1, layer_kind="dense"),
+        _decoder_layer_placeholder(config, start=dense_prefix, end=layer_count_int - 1, layer_kind="moe"),
+    ]
+
+
+def _decoder_layer_placeholder(
+    config: dict[str, Any],
+    *,
+    start: int,
+    end: int,
+    layer_kind: str | None = None,
+) -> StructureNode:
+    repeat = end - start + 1
     class_name = _decoder_layer_class(config)
+    attrs = {**_pick(config), "class": class_name, "range": f"{start}..{end}"}
+    if layer_kind is not None:
+        attrs["layer_kind"] = layer_kind
     return StructureNode(
-        id="decoder.0",
-        name=f"0 ({class_name}) x{layer_count_int}",
+        id=f"decoder.{start}",
+        name=f"{start} ({class_name})" + (f" x{repeat}" if repeat > 1 else ""),
         type="layer-group",
-        repeat=layer_count_int,
-        attributes={**_pick(config), "class": class_name, "range": f"0..{layer_count_int - 1}"},
+        repeat=repeat,
+        attributes=attrs,
         source_fields=[key for key in _LAYER_COUNT_KEYS if config.get(key) is not None],
         confidence="low",
+        children=_decoder_layer_skeleton(config, class_name=class_name, layer_kind=layer_kind),
     )
 
 
@@ -147,6 +177,89 @@ def _decoder_layer_class(config: dict[str, Any]) -> str:
     parts = [part for part in model_type.replace("-", "_").split("_") if part]
     prefix = "".join(part.capitalize() for part in parts) or "Config"
     return f"{prefix}DecoderLayer"
+
+
+def _decoder_layer_skeleton(
+    config: dict[str, Any],
+    *,
+    class_name: str,
+    layer_kind: str | None,
+) -> list[StructureNode]:
+    prefix = class_name.removesuffix("DecoderLayer") if class_name.endswith("DecoderLayer") else class_name
+    return [
+        _skeleton_child(
+            "self_attn",
+            f"self attn ({prefix}Attention)",
+            "attention",
+            config,
+            class_name=f"{prefix}Attention",
+        ),
+        _skeleton_child(
+            "mlp",
+            f"mlp ({_mlp_class(prefix, layer_kind, config)})",
+            "moe" if _layer_is_moe(layer_kind, config) else "mlp",
+            config,
+            class_name=_mlp_class(prefix, layer_kind, config),
+        ),
+        _skeleton_child(
+            "input_layernorm",
+            f"input layernorm ({prefix}RMSNorm)",
+            "normalization",
+            config,
+            class_name=f"{prefix}RMSNorm",
+        ),
+        _skeleton_child(
+            "post_attention_layernorm",
+            f"post attention layernorm ({prefix}RMSNorm)",
+            "normalization",
+            config,
+            class_name=f"{prefix}RMSNorm",
+        ),
+    ]
+
+
+def _skeleton_child(
+    node_id: str,
+    name: str,
+    node_type: str,
+    config: dict[str, Any],
+    *,
+    class_name: str,
+) -> StructureNode:
+    attrs = {**_pick(config), "class": class_name, "derived_from": "config"}
+    return StructureNode(
+        id=f"decoder.layer.{node_id}",
+        name=name,
+        type=node_type,
+        attributes=attrs,
+        source_fields=[key for key in attrs if key != "derived_from"],
+        confidence="low",
+    )
+
+
+def _mlp_class(prefix: str, layer_kind: str | None, config: dict[str, Any]) -> str:
+    if _layer_is_moe(layer_kind, config):
+        return f"{prefix}MoE"
+    return f"{prefix}MLP"
+
+
+def _layer_is_moe(layer_kind: str | None, config: dict[str, Any]) -> bool:
+    if layer_kind == "dense":
+        return False
+    return layer_kind == "moe" or _has_moe(config)
+
+
+def _has_moe(config: dict[str, Any]) -> bool:
+    return any(config.get(key) is not None for key in _MOE_KEYS)
+
+
+def _dense_prefix_length(config: dict[str, Any], layer_count: int) -> int:
+    prefix = _positive_int(config.get("first_k_dense_replace"), default=0)
+    return max(0, min(prefix, layer_count))
+
+
+def _positive_int(value: Any, *, default: int) -> int:
+    return value if isinstance(value, int) and value > 0 else default
 
 
 def _pick(config: dict[str, Any]) -> dict[str, Any]:

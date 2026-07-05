@@ -1,4 +1,5 @@
 const STRATEGY_LABELS = {
+  "frontend-architecture-template": ["Frontend template", "ok", "Config-driven frontend structure"],
   "meta-introspect": ["Meta introspect", "ok", "Live module tree"],
   "repaired-meta-introspect": ["Meta introspect", "ok", "Live module tree repaired"],
   "config-fallback": ["Config fallback", "warn", "Config-derived structure"],

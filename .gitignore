@@ -15,3 +15,10 @@ frontend/dist/
 .comate
 
 src/*.egg-info/
+
+# Keep only lightweight model metadata in the repo.
+models/**/*.safetensors
+models/**/*.bin
+models/**/*.gguf
+models/**/*.pt
+models/**/*.onnx

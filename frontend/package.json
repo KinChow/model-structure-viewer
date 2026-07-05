@@ -4,9 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "catalog": "node ../scripts/generate-model-catalog.mjs",
     "dev": "vite",
     "test": "node --test",
-    "build": "vite build",
+    "verify:models": "node ../scripts/verify-builtin-models.mjs",
+    "verify:page": "node ../scripts/verify-page.mjs",
+    "build": "npm run catalog && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

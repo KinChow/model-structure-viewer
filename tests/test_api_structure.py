@@ -141,6 +141,67 @@ def test_structure_api_accepts_config_path_for_standalone_config(tmp_path):
     assert payload["summary"]["text_layers"] == 61
 
 
+def test_local_config_api_returns_config_without_building_structure(tmp_path, monkeypatch):
+    original_settings = get_settings()
+    try:
+        model_dir = tmp_path / "Qwen" / "Qwen3.5-0.8B"
+        model_dir.mkdir(parents=True)
+        config = {
+            "model_type": "qwen3",
+            "architectures": ["Qwen3ForCausalLM"],
+            "num_hidden_layers": 2,
+            "hidden_size": 1024,
+            "num_attention_heads": 16,
+        }
+        (model_dir / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+        def fail_build(*args, **kwargs):
+            raise AssertionError("structure builder must not run")
+
+        monkeypatch.setattr(service, "build_structure_response", fail_build, raising=False)
+        set_settings(AppSettings(model_root=tmp_path, offline=True))
+        response = client.get("/api/local/config?model_id=Qwen/Qwen3.5-0.8B")
+    finally:
+        set_settings(original_settings)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["model_id"] == "Qwen/Qwen3.5-0.8B"
+    assert payload["config"] == config
+    assert payload["source"]["kind"] == "local cache"
+
+
+def test_local_config_api_does_not_fetch_remote_code(tmp_path, monkeypatch):
+    original_settings = get_settings()
+    try:
+        model_dir = tmp_path / "deepseek-ai" / "DeepSeek-V3.1"
+        model_dir.mkdir(parents=True)
+        config = {
+            "model_type": "deepseek_v3",
+            "architectures": ["DeepseekV3ForCausalLM"],
+            "auto_map": {"AutoModel": "modeling_deepseek.DeepseekV3Model"},
+            "num_hidden_layers": 2,
+            "hidden_size": 1024,
+            "num_attention_heads": 16,
+        }
+        (model_dir / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+        def fail_remote_fetch(*args, **kwargs):
+            raise AssertionError("local config endpoint must not fetch remote code")
+
+        monkeypatch.setattr(
+            "model_structure_viewer.resolve.remote_code.RemoteCodeFetcher.ensure_remote_code",
+            fail_remote_fetch,
+        )
+        set_settings(AppSettings(model_root=tmp_path, offline=False, auto_fetch_remote_code=True))
+        response = client.get("/api/local/config?model_id=deepseek-ai/DeepSeek-V3.1")
+    finally:
+        set_settings(original_settings)
+
+    assert response.status_code == 200
+    assert response.json()["config"] == config
+
+
 def test_structure_api_caches_repeated_responses(monkeypatch):
     service.clear_structure_cache()
     calls = {"count": 0}

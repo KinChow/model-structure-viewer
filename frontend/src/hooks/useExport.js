@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { exportStructureApi } from "../api/client";
+import { exportStructure } from "../exporters.js";
 
 export function useExport() {
   const [format, setFormat] = useState("mermaid");
@@ -11,7 +11,7 @@ export function useExport() {
       if (!structure) return;
       setError("");
       try {
-        setText(await exportStructureApi(structure, fmt));
+        setText(exportStructure(structure, fmt));
       } catch (err) {
         setError(err.message);
       }

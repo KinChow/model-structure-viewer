@@ -14,6 +14,17 @@ test("structureStatus explains successful meta introspection", () => {
   assert.equal(status.detail, "Live module tree");
 });
 
+test("structureStatus explains frontend architecture template output", () => {
+  const status = structureStatus({
+    summary: { strategy: "frontend-architecture-template" },
+    source: { diagnostics: { canonical_architecture: "mla-moe-decoder" } },
+  });
+
+  assert.equal(status.label, "Frontend template");
+  assert.equal(status.tone, "ok");
+  assert.equal(status.detail, "Config-driven frontend structure");
+});
+
 test("structureStatus explains budget config fallback with compact budget detail", () => {
   const status = structureStatus({
     summary: {

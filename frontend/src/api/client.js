@@ -1,3 +1,5 @@
+import { catalogPath, modelConfigPath, normalizeCatalog } from "../structure/catalog/manifest.js";
+
 export async function requestJson(path, options) {
   const response = await fetch(path, options);
   const text = await response.text();
@@ -24,9 +26,45 @@ export function fetchModels() {
   return requestJson("/api/models");
 }
 
+export async function fetchBuiltinCatalogApi() {
+  return normalizeCatalog(await requestJson(catalogPath()));
+}
+
+export async function fetchBuiltinConfigApi({ entry, modelId }) {
+  const target = entry || (await findBuiltinModelEntry(modelId));
+  if (!target) throw new Error(`Built-in model not found: ${modelId}`);
+  return {
+    model_id: target.modelId,
+    config: await requestJson(modelConfigPath(target)),
+    source: {
+      kind: "built-in config",
+      model_id: target.modelId,
+      config_path: target.configPath,
+    },
+  };
+}
+
+async function findBuiltinModelEntry(modelId) {
+  if (!modelId) return null;
+  const catalog = await fetchBuiltinCatalogApi();
+  return catalog.models.find((entry) => entry.modelId === modelId) || null;
+}
+
+export function fetchLocalConfigApi({ modelId, configPath }) {
+  const params = new URLSearchParams();
+  if (modelId) params.set("model_id", modelId);
+  if (configPath) params.set("config_path", configPath);
+  return requestJson(`/api/local/config?${params.toString()}`);
+}
+
 export function searchHfApi(query, limit = 10) {
   const params = new URLSearchParams({ q: query, limit: String(limit) });
   return requestJson(`/api/hf/search?${params.toString()}`);
+}
+
+export function fetchHfConfigApi({ modelId, revision = "main" }) {
+  const params = new URLSearchParams({ model_id: modelId, revision });
+  return requestJson(`/api/hf/config?${params.toString()}`);
 }
 
 export function buildStructureApi(payload) {
@@ -35,15 +73,4 @@ export function buildStructureApi(payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-}
-
-export async function exportStructureApi(structure, format) {
-  const response = await fetch("/api/export", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ structure, format }),
-  });
-  const text = await response.text();
-  if (!response.ok) throw new Error(text);
-  return text;
 }

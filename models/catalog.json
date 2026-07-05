@@ -1,0 +1,491 @@
+{
+  "models": [
+    {
+      "model_id": "MiniMaxAI/MiniMax-M2.7",
+      "config_path": "MiniMaxAI/MiniMax-M2.7/config.json",
+      "model_type": "minimax_m2",
+      "architectures": [
+        "MiniMaxM2ForCausalLM"
+      ],
+      "metadata_files": [
+        "configuration_minimax_m2.py",
+        "modeling_minimax_m2.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "MiniMaxAI/MiniMax-M3",
+      "config_path": "MiniMaxAI/MiniMax-M3/config.json",
+      "model_type": "minimax_m3_vl",
+      "architectures": [
+        "MiniMaxM3SparseForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "configuration_minimax_m3_vl.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "config_path": "MiniMaxAI/MiniMax-M3-MXFP8/config.json",
+      "model_type": "minimax_m3_vl",
+      "architectures": [
+        "MiniMaxM3SparseForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "configuration_minimax_m3_vl.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-0.8B",
+      "config_path": "Qwen/Qwen3.5-0.8B/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-0.8B-Base",
+      "config_path": "Qwen/Qwen3.5-0.8B-Base/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-122B-A10B",
+      "config_path": "Qwen/Qwen3.5-122B-A10B/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-122B-A10B-FP8",
+      "config_path": "Qwen/Qwen3.5-122B-A10B-FP8/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+      "config_path": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-27B",
+      "config_path": "Qwen/Qwen3.5-27B/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-27B-FP8",
+      "config_path": "Qwen/Qwen3.5-27B-FP8/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-27B-GPTQ-Int4",
+      "config_path": "Qwen/Qwen3.5-27B-GPTQ-Int4/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-2B",
+      "config_path": "Qwen/Qwen3.5-2B/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-2B-Base",
+      "config_path": "Qwen/Qwen3.5-2B-Base/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-35B-A3B",
+      "config_path": "Qwen/Qwen3.5-35B-A3B/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-35B-A3B-Base",
+      "config_path": "Qwen/Qwen3.5-35B-A3B-Base/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-35B-A3B-FP8",
+      "config_path": "Qwen/Qwen3.5-35B-A3B-FP8/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4",
+      "config_path": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-397B-A17B",
+      "config_path": "Qwen/Qwen3.5-397B-A17B/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "config_path": "Qwen/Qwen3.5-397B-A17B-FP8/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4",
+      "config_path": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-4B",
+      "config_path": "Qwen/Qwen3.5-4B/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-4B-Base",
+      "config_path": "Qwen/Qwen3.5-4B-Base/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-9B",
+      "config_path": "Qwen/Qwen3.5-9B/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-9B-Base",
+      "config_path": "Qwen/Qwen3.5-9B-Base/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.6-27B",
+      "config_path": "Qwen/Qwen3.6-27B/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.6-27B-FP8",
+      "config_path": "Qwen/Qwen3.6-27B-FP8/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.6-35B-A3B",
+      "config_path": "Qwen/Qwen3.6-35B-A3B/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.6-35B-A3B-FP8",
+      "config_path": "Qwen/Qwen3.6-35B-A3B-FP8/config.json",
+      "model_type": "qwen3_5_moe",
+      "architectures": [
+        "Qwen3_5MoeForConditionalGeneration"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-R1",
+      "config_path": "deepseek-ai/DeepSeek-R1/config.json",
+      "model_type": "deepseek_v3",
+      "architectures": [
+        "DeepseekV3ForCausalLM"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "modeling_deepseek.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V3.1",
+      "config_path": "deepseek-ai/DeepSeek-V3.1/config.json",
+      "model_type": "deepseek_v3",
+      "architectures": [
+        "DeepseekV3ForCausalLM"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "modeling_deepseek.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V3.2",
+      "config_path": "deepseek-ai/DeepSeek-V3.2/config.json",
+      "model_type": "deepseek_v32",
+      "architectures": [
+        "DeepseekV32ForCausalLM"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4-Flash",
+      "config_path": "deepseek-ai/DeepSeek-V4-Flash/config.json",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4-Pro",
+      "config_path": "deepseek-ai/DeepSeek-V4-Pro/config.json",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2-Base",
+      "config_path": "moonshotai/Kimi-K2-Base/config.json",
+      "model_type": "kimi_k2",
+      "architectures": [
+        "DeepseekV3ForCausalLM"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "modeling_deepseek.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2-Instruct",
+      "config_path": "moonshotai/Kimi-K2-Instruct/config.json",
+      "model_type": "kimi_k2",
+      "architectures": [
+        "DeepseekV3ForCausalLM"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "modeling_deepseek.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2-Instruct-0905",
+      "config_path": "moonshotai/Kimi-K2-Instruct-0905/config.json",
+      "model_type": "kimi_k2",
+      "architectures": [
+        "DeepseekV3ForCausalLM"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "modeling_deepseek.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2-Thinking",
+      "config_path": "moonshotai/Kimi-K2-Thinking/config.json",
+      "model_type": "kimi_k2",
+      "architectures": [
+        "DeepseekV3ForCausalLM"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "modeling_deepseek.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2.5",
+      "config_path": "moonshotai/Kimi-K2.5/config.json",
+      "model_type": "kimi_k25",
+      "architectures": [
+        "KimiK25ForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "configuration_kimi_k25.py",
+        "modeling_deepseek.py",
+        "modeling_kimi_k25.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2.6",
+      "config_path": "moonshotai/Kimi-K2.6/config.json",
+      "model_type": "kimi_k25",
+      "architectures": [
+        "KimiK25ForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "configuration_kimi_k25.py",
+        "modeling_deepseek.py",
+        "modeling_kimi_k25.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2.7-Code",
+      "config_path": "moonshotai/Kimi-K2.7-Code/config.json",
+      "model_type": "kimi_k25",
+      "architectures": [
+        "KimiK25ForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "configuration_deepseek.py",
+        "configuration_kimi_k25.py",
+        "modeling_deepseek.py",
+        "modeling_kimi_k25.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-4.7",
+      "config_path": "zai-org/GLM-4.7/config.json",
+      "model_type": "glm4_moe",
+      "architectures": [
+        "Glm4MoeForCausalLM"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5",
+      "config_path": "zai-org/GLM-5/config.json",
+      "model_type": "glm_moe_dsa",
+      "architectures": [
+        "GlmMoeDsaForCausalLM"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5.1",
+      "config_path": "zai-org/GLM-5.1/config.json",
+      "model_type": "glm_moe_dsa",
+      "architectures": [
+        "GlmMoeDsaForCausalLM"
+      ],
+      "metadata_files": [],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5.2",
+      "config_path": "zai-org/GLM-5.2/config.json",
+      "model_type": "glm_moe_dsa",
+      "architectures": [
+        "GlmMoeDsaForCausalLM"
+      ],
+      "metadata_files": [],
+      "verified": true
+    }
+  ]
+}

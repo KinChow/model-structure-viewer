@@ -116,12 +116,15 @@ export function enrichNetworkWithTruth(network, truth, { hasTemplate, modelName,
   const skeleton = buildSkeleton(truth.tensors);
 
   if (!hasTemplate) {
+    const spec = skeletonToSpec(skeleton);
+    // 空路径根（多顶层段，如 model.* + lm_head.*）仅作容器时展开，避免多余包装层
+    const children = spec.params === 0 && spec.children.length > 0 ? spec.children : [spec];
     const skeletonNetwork = {
       kind: "network",
       id: "skeleton",
       name: modelName || canonicalArchitecture || "Model",
       canonicalArchitecture,
-      children: [skeletonToSpec(skeleton)],
+      children,
     };
     return {
       network: skeletonNetwork,

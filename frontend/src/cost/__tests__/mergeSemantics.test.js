@@ -67,15 +67,15 @@ test("无模板时直接用 trie 树兜底（generic-* 架构）", () => {
   });
   assert.equal(diagnostics.strategy, "skeleton-truth");
   assert.equal(network.id, "skeleton");
-  assert.equal(network.children.length, 1);
-  const skeletonRoot = network.children[0];
-  assert.equal(skeletonRoot.id, "model");
+  // 单顶层段展开：model 容器的直接子节点即为顶层模块
+  const embed = network.children.find((c) => c.name === "embed_tokens");
+  const layers = network.children.find((c) => c.name === "layers");
+  assert.ok(embed, "embed_tokens 应为顶层模块");
+  assert.ok(layers, "layers 应为顶层模块");
   // 层被折叠为 repeat
-  const layers = skeletonRoot.children.find((c) => c.name === "layers");
   assert.equal(layers.repeat, 2);
   assert.equal(layers.value_source, "checkpoint");
   // 叶节点携带真值
-  const embed = skeletonRoot.children.find((c) => c.name === "embed_tokens");
   assert.equal(embed.params, 32000 * 4096);
   assert.deepEqual(embed.weight_shapes.weight, [32000, 4096]);
 });

@@ -44,6 +44,8 @@ function modelsStaticPlugin() {
 }
 
 export default defineConfig({
+  // 相对 base：静态部署（GitHub Pages 子路径等）下资源可解析
+  base: "./",
   plugins: [react(), modelsStaticPlugin()],
   server: {
     proxy: {

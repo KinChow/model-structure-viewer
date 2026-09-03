@@ -1,4 +1,5 @@
 import { catalogPath, modelConfigPath, normalizeCatalog } from "../structure/catalog/manifest.js";
+import { fetchHfConfigDirect, searchHfDirect } from "./hf.js";
 
 export async function requestJson(path, options) {
   const response = await fetch(path, options);
@@ -58,14 +59,23 @@ export function fetchLocalConfigApi({ modelId, configPath, source = "local" }) {
   return requestJson(`/api/local/config?${params.toString()}`);
 }
 
-export function searchHfApi(query, limit = 10) {
-  const params = new URLSearchParams({ q: query, limit: String(limit) });
-  return requestJson(`/api/hf/search?${params.toString()}`);
+// 搜索/配置读取：前端直连 HF 优先（静态部署可用），失败回退后端代理（本地开发/受限网络）。
+export async function searchHfApi(query, limit = 10) {
+  try {
+    return await searchHfDirect(query, limit);
+  } catch {
+    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    return requestJson(`/api/hf/search?${params.toString()}`);
+  }
 }
 
-export function fetchHfConfigApi({ modelId, revision = "main" }) {
-  const params = new URLSearchParams({ model_id: modelId, revision });
-  return requestJson(`/api/hf/config?${params.toString()}`);
+export async function fetchHfConfigApi({ modelId, revision = "main" }) {
+  try {
+    return await fetchHfConfigDirect({ modelId, revision });
+  } catch {
+    const params = new URLSearchParams({ model_id: modelId, revision });
+    return requestJson(`/api/hf/config?${params.toString()}`);
+  }
 }
 
 export function buildStructureApi(payload) {

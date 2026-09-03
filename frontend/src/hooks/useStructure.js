@@ -6,6 +6,7 @@ import {
   fetchLocalConfigApi,
 } from "../api/client.js";
 import { buildStructureFromConfig } from "../structure/buildStructure.js";
+import { fetchCheckpointTruth } from "../cost/weights.js";
 
 export async function buildStructureForPayload(
   payload,
@@ -13,6 +14,7 @@ export async function buildStructureForPayload(
   fetchLocalConfig = fetchLocalConfigApi,
   fetchHfConfig = fetchHfConfigApi,
   fetchBuiltinConfig = fetchBuiltinConfigApi,
+  fetchTruth = fetchCheckpointTruth,
 ) {
   if (payload.source === "config" && payload.config_json) {
     return buildStructureFromConfig(payload.config_json, {
@@ -52,14 +54,23 @@ export async function buildStructureForPayload(
     }
   }
   if (payload.source === "hf" && payload.model_id) {
+    const revision = payload.revision || "main";
     const config = await fetchHfConfig({
       modelId: payload.model_id,
-      revision: payload.revision || "main",
+      revision,
     });
+    // 真值（safetensors header）失败不阻断：离线/gated/无 safetensors → 降级模板路径
+    let truth = null;
+    try {
+      truth = await fetchTruth({ modelId: payload.model_id, revision });
+    } catch {
+      truth = null;
+    }
     return buildStructureFromConfig(config, {
       modelId: payload.model_id,
-      revision: payload.revision,
+      revision,
       source: "hf config",
+      truth,
     });
   }
   return buildApi(payload);

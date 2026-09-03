@@ -1,3 +1,5 @@
+import { enrichNetworkWithTruth, TEMPLATE_FAMILIES } from "../../cost/mergeSemantics.js";
+
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
     return {
@@ -12,6 +14,14 @@ function structureNodeFromSpec(spec) {
       source_fields: Object.keys(spec.attributes || {}),
       confidence: "high",
       children: [],
+      // IR v2 可选字段（仅当 spec 携带时透传）
+      params: spec.params,
+      weight_shapes: spec.weight_shapes,
+      dtype: spec.dtype,
+      input_shape: spec.input_shape,
+      output_shape: spec.output_shape,
+      value_source: spec.value_source,
+      tensor_names: spec.tensor_names,
     };
   }
   return {
@@ -35,7 +45,18 @@ function structureNodeFromSpec(spec) {
 }
 
 export function materializeModelStructure(ir) {
-  const { network, normalized, resolved, options = {}, diagnostics = {} } = ir;
+  const { network: templateNetwork, normalized, resolved, options = {}, diagnostics = {} } = ir;
+  const truth = options.truth;
+
+  // 真值合并：有模板 → 绑定真值；无模板 → trie 树兜底；无真值 → 原样
+  const hasTemplate = TEMPLATE_FAMILIES.has(resolved?.canonicalArchitecture);
+  const { network, diagnostics: truthDiagnostics } = enrichNetworkWithTruth(
+    templateNetwork,
+    truth,
+    { hasTemplate, modelName: templateNetwork?.name, canonicalArchitecture: resolved?.canonicalArchitecture },
+  );
+  const mergedDiagnostics = { ...diagnostics, ...truthDiagnostics };
+
   return {
     summary: {
       strategy: ir.strategy,
@@ -52,13 +73,16 @@ export function materializeModelStructure(ir) {
       n_routed_experts: normalized.experts,
       num_experts_per_tok: normalized.expertsPerToken,
       max_position_embeddings: normalized.contextLength,
+      // 真值：模型级精确参数量（@huggingface/hub 计算）
+      parameters_total: truth?.parameterTotal ?? null,
+      parameters_by_dtype: truth?.parameterCount ?? null,
     },
     source: {
       kind: options.source || "config",
       model_id: options.modelId,
       revision: options.revision,
-      strategy: ir.strategy,
-      diagnostics,
+      strategy: truthDiagnostics.strategy === "no-truth" || !truth ? ir.strategy : truthDiagnostics.strategy,
+      diagnostics: mergedDiagnostics,
     },
     root: {
       id: network.id,

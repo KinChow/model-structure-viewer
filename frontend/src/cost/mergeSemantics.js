@@ -1,0 +1,146 @@
+// mergeSemantics.js —— 把 checkpoint 真值（trie 骨架）与模板语义树合并。
+//
+// 依据 evolution_design.md §4.2(b2)/§4.4：
+// - 有模板（家族命中）：以模板树为骨架，按模块路径后缀匹配绑定真值
+//   （params / weight_shapes / dtype / tensor_names / value_source="checkpoint"），
+//   trie 里模板未声明的含参模块计入 template_gaps（模板完整性信号）。
+// - 无模板（generic-*）：直接用 trie 树作为结构树，数值仍精确。
+//
+// 注意：真实参数量换算已由 @huggingface/hub 完成（cost/weights.js），
+// 这里只做结构合并与展示字段落位，不做任何换算。
+
+import { buildSkeleton } from "./skeleton.js";
+
+/** 模板家族（命中则走模板树绑定；否则 trie 兜底）。 */
+export const TEMPLATE_FAMILIES = new Set([
+  "gqa-decoder",
+  "gqa-moe-decoder",
+  "mla-moe-decoder",
+  "multimodal-sparse-moe-decoder",
+]);
+
+/** 从路径末尾逐段比较，返回连续匹配段数（用于模板路径 ↔ trie 路径的对齐）。 */
+function suffixScore(triePath, templatePath) {
+  let i = triePath.length - 1;
+  let j = templatePath.length - 1;
+  let score = 0;
+  while (i >= 0 && j >= 0 && triePath[i] === templatePath[j]) {
+    score++;
+    i--;
+    j--;
+  }
+  return score;
+}
+
+function walkSpec(node, visit) {
+  visit(node);
+  for (const child of node.children || []) walkSpec(child, visit);
+}
+
+function flattenSkeleton(node, out = []) {
+  out.push(node);
+  for (const child of node.children || []) flattenSkeleton(child, out);
+  return out;
+}
+
+function bindTruthToTemplate(network, skeleton) {
+  const trieNodes = flattenSkeleton(skeleton).filter((n) => n.params > 0);
+  const templateNodes = [];
+  walkSpec(network, (node) => {
+    templateNodes.push({ node, path: node.id ? node.id.split(".") : [] });
+  });
+
+  const used = new Set();
+  const boundIds = [];
+  for (const { node, path } of templateNodes) {
+    let best = null;
+    let bestScore = 0;
+    for (const trieNode of trieNodes) {
+      if (used.has(trieNode)) continue;
+      const score = suffixScore(trieNode.id.split("."), path);
+      if (score > bestScore) {
+        bestScore = score;
+        best = trieNode;
+      }
+    }
+    if (best && bestScore > 0) {
+      used.add(best);
+      node.params = best.params;
+      node.weight_shapes = best.weight_shapes;
+      node.dtype = best.dtype;
+      node.tensor_names = best.tensor_names;
+      node.value_source = "checkpoint";
+      if (best.weight_dtypes && Object.keys(best.weight_dtypes).length) {
+        node.attributes = { ...(node.attributes || {}), weight_dtypes: best.weight_dtypes };
+      }
+      boundIds.push(best.id);
+    }
+  }
+
+  const gaps = trieNodes.filter((n) => !used.has(n)).map((n) => n.id);
+  return { boundIds, gaps };
+}
+
+/** trie 骨架节点 → 模板 spec 形态（materializer 可直接消费）。 */
+function skeletonToSpec(node) {
+  return {
+    kind: "module",
+    id: node.id,
+    name: node.name,
+    type: node.type,
+    repeat: node.repeat,
+    attributes:
+      node.weight_dtypes && Object.keys(node.weight_dtypes).length
+        ? { weight_dtypes: node.weight_dtypes }
+        : {},
+    children: (node.children || []).map(skeletonToSpec),
+    params: node.params,
+    weight_shapes: node.weight_shapes,
+    dtype: node.dtype,
+    value_source: "checkpoint",
+    tensor_names: node.tensor_names,
+  };
+}
+
+/**
+ * 合并真值与模板语义。
+ * @param {object} network 模板网络（spec 树，可能被就地注入真值）
+ * @param {object|null} truth fetchCheckpointTruth 的返回值
+ * @param {{hasTemplate: boolean, modelName: string, canonicalArchitecture: string|null}} ctx
+ * @returns {{network: object, diagnostics: object}}
+ */
+export function enrichNetworkWithTruth(network, truth, { hasTemplate, modelName, canonicalArchitecture }) {
+  if (!truth || !Array.isArray(truth.tensors) || truth.tensors.length === 0) {
+    return { network, diagnostics: { strategy: "no-truth" } };
+  }
+  const skeleton = buildSkeleton(truth.tensors);
+
+  if (!hasTemplate) {
+    const skeletonNetwork = {
+      kind: "network",
+      id: "skeleton",
+      name: modelName || canonicalArchitecture || "Model",
+      canonicalArchitecture,
+      children: [skeletonToSpec(skeleton)],
+    };
+    return {
+      network: skeletonNetwork,
+      diagnostics: {
+        strategy: "skeleton-truth",
+        total_tensors: truth.tensors.length,
+        parameter_total: truth.parameterTotal ?? null,
+      },
+    };
+  }
+
+  const { boundIds, gaps } = bindTruthToTemplate(network, skeleton);
+  return {
+    network,
+    diagnostics: {
+      strategy: "template+truth",
+      bound_tensors: boundIds.length,
+      total_tensors: truth.tensors.length,
+      template_gaps: gaps,
+    },
+  };
+}

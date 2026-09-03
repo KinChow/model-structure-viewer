@@ -23,6 +23,14 @@ function structureNodeFromSpec(spec) {
     source_fields: Object.keys(spec.attributes || {}),
     confidence: "high",
     children: (spec.children || []).map(structureNodeFromSpec),
+    // IR v2 可选字段（仅当 spec 携带时透传）
+    params: spec.params,
+    weight_shapes: spec.weight_shapes,
+    dtype: spec.dtype,
+    input_shape: spec.input_shape,
+    output_shape: spec.output_shape,
+    value_source: spec.value_source,
+    tensor_names: spec.tensor_names,
   };
 }
 

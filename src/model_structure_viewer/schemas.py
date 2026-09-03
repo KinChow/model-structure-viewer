@@ -18,6 +18,14 @@ class StructureNode(BaseModel):
     source_fields: list[str] = Field(default_factory=list)
     confidence: str = "high"
     children: list["StructureNode"] = Field(default_factory=list)
+    # IR v2（可选，None 表示未知；向后兼容，见 evolution_design.md §4.1）：
+    params: int | None = None  # 本节点自有参数（不含子树）
+    weight_shapes: dict[str, list[int]] | None = None  # 数值形状，如 {"weight": [4096, 4096]}
+    dtype: str | None = None  # 实际 dtype：BF16/F8_E4M3/I32…
+    input_shape: list[int] | None = None  # 数值 I/O；batch/seq 用 -1 占位
+    output_shape: list[int] | None = None
+    value_source: str | None = None  # "checkpoint" | "derived" | "introspect"
+    tensor_names: list[str] | None = None  # 绑定到本节点的 header 张量名
 
 
 class ModelStructure(BaseModel):

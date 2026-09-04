@@ -62,6 +62,8 @@ function ArchitectureTab({
   activeLenses = new Set(["vram"]),
   activePhase,
   activeMode = "centralized",
+  activePlans,
+  onPlanChange,
   chips = PUBLIC_CHIPS,
   onAddChip,
   compactControls = false,
@@ -83,12 +85,22 @@ function ArchitectureTab({
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const changePhase = (next) => activePhase ? null : setInternalPhase(next);
+  const internalPlan = useMemo(() => ({ tp, ep, attnMode }), [tp, ep, attnMode]);
+  const plan = activePlans?.[phase] || internalPlan;
+  const updatePlan = (next) => {
+    if (activePlans) onPlanChange?.({ ...activePlans, [phase]: next });
+    else {
+      setTp(next.tp);
+      setEp(next.ep);
+      setAttnMode(next.attnMode);
+    }
+  };
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const candidateChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
   const primaryScenario = useMemo(
-    () => ({ chip, plan: { tp, ep, attnMode } }),
-    [chip, tp, ep, attnMode],
+    () => ({ chip, plan }),
+    [chip, plan],
   );
   const candidateScenario = useMemo(
     () => ({ chip: candidateChip, plan: { tp: compareTp, ep: compareEp, attnMode: compareAttnMode } }),
@@ -151,9 +163,9 @@ function ArchitectureTab({
           {!compactControls && <>
           <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => setChipId(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>
           <label className="lens-control">阶段<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
-          <label className="lens-control">TP<input type="number" min="1" value={tp} onChange={(event) => setTp(Math.max(1, Number(event.target.value) || 1))} /></label>
-          <label className="lens-control">EP<input type="number" min="1" value={ep} onChange={(event) => setEp(Math.max(1, Number(event.target.value) || 1))} /></label>
-          <label className="lens-control">Attention<select value={attnMode} onChange={(event) => setAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label>
+          <label className="lens-control">TP<input type="number" min="1" value={plan.tp} onChange={(event) => updatePlan({ ...plan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>
+          <label className="lens-control">EP<input type="number" min="1" value={plan.ep} onChange={(event) => updatePlan({ ...plan, ep: Math.max(1, Number(event.target.value) || 1) })} /></label>
+          <label className="lens-control">Attention<select value={plan.attnMode} onChange={(event) => updatePlan({ ...plan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>
           <div className="lens-mode-switch" role="group" aria-label="对比模式">
             <span>对比</span>
             {[
@@ -196,7 +208,7 @@ function ArchitectureTab({
           </button>
         </div>
       </div>
-      <div className="diagram-lens-status" aria-label="Active Cost Lens">{activeMode === "pd" ? "PD" : "Centralized"} · {phase} · Cost Lens · {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</div>
+      <div className="diagram-lens-status" aria-label="Active Cost Lens">{activeMode === "pd" ? "PD" : "Centralized"} · {phase} · TP{plan.tp} / PP{plan.pp || 1} / EP{plan.ep} / DP{plan.dp || 1} · Cost Lens · {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</div>
       {formulaLinks.length > 0 && <div className="formula-strip" aria-label="公式索引"><span className="formula-strip-label">公式</span>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
       {!compactControls && chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>缺失：{coverage.missing.join("、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{warning}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">规格来源</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>缺失：{compareCoverage.missing.join("、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{warning}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">规格来源</a>}</>}</div>}
       {structure && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}

@@ -34,6 +34,7 @@ function StructureDiagram({
   const contentHeight = Math.max(1, ...nodes.map((node) => node.y + node.height + 28));
   const frameRef = useRef(null);
   const scrollRef = useRef(null);
+  const panRef = useRef({ active: false, moved: false, x: 0, y: 0, left: 0, top: 0 });
   const fitNonceRef = useRef(fitNonce);
   const [viewport, setViewport] = useState(() =>
     fitDiagramViewport({
@@ -79,9 +80,42 @@ function StructureDiagram({
   const height = viewport.canvasHeight;
   const contentTransform = `translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`;
 
+  function startPan(event) {
+    if (event.target.closest("button, a, input, select, textarea")) return;
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    panRef.current = { active: true, moved: false, x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop };
+    scroll.setPointerCapture?.(event.pointerId);
+  }
+
+  function movePan(event) {
+    const pan = panRef.current;
+    const scroll = scrollRef.current;
+    if (!pan.active || !scroll) return;
+    const dx = event.clientX - pan.x;
+    const dy = event.clientY - pan.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) pan.moved = true;
+    if (!pan.moved) return;
+    event.preventDefault();
+    scroll.scrollLeft = pan.left - dx;
+    scroll.scrollTop = pan.top - dy;
+  }
+
+  function endPan(event) {
+    const scroll = scrollRef.current;
+    if (scroll?.hasPointerCapture?.(event.pointerId)) scroll.releasePointerCapture(event.pointerId);
+    panRef.current.active = false;
+  }
+
+  function preventClickAfterPan(event) {
+    if (!panRef.current.moved) return;
+    event.stopPropagation();
+    panRef.current.moved = false;
+  }
+
   return (
     <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
-      <div className="diagram-scroll" ref={scrollRef}>
+      <div className="diagram-scroll" ref={scrollRef} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
         <div className="diagram-zoom" style={{ width, height }}>
           <svg
             className="diagram-svg"

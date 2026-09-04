@@ -209,7 +209,7 @@ function StructureDiagram({
                 const metrics = lensEnabled ? nodeLens?.[node.path]?.metrics || {} : {};
                 const lensValues = [
                   activeLenses.has("compute") && ["C", metrics.computeSeconds],
-                  activeLenses.has("memory") && ["M", metrics.memorySeconds],
+                  activeLenses.has("memory") && ["M", metrics.memoryBytes, true],
                   activeLenses.has("vram") && ["V", metrics.vramBytes, true],
                 ].filter(Boolean).map(([label, value, isBytes]) => value == null ? `${label} -` : `${label} ${isBytes ? formatBytes(value) : formatMetric(value)}`);
                 const isHovered = activeHoveredPath === node.path;

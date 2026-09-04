@@ -177,6 +177,10 @@ textarea {
 .cost-breakdown b, .cost-metrics b { color: #1e4f72; }
 .fit { color: #2f7b42 !important; }.no-fit { color: #a22d2d !important; }
 .cost-assumptions { margin-top: 9px; color: #778797; font-size: 11px; }
+.cost-plan-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 10px; color: #405365; font-size: 12px; }
+.cost-plan-controls label { color: #607184; }.cost-plan-controls input { margin-left: 4px; width: 48px; padding: 4px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }
+.cost-plan-error { margin-top: 8px; color: #a22d2d; font-size: 12px; }.cost-stages { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.cost-stages span { padding: 5px 8px; border: 1px solid #dce5ed; border-radius: 4px; color: #526678; font-size: 11px; background: #f8fafc; }.cost-stages b { color: #1e4f72; margin-right: 5px; }
 
 .chip {
   display: inline-flex;

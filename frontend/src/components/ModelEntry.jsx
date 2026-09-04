@@ -29,6 +29,7 @@ export default function ModelEntry({
   const [mode, setMode] = useState("model");
   const [endpoint, setEndpoint] = useState("huggingface");
   const [provider, setProvider] = useState(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [localPath, setLocalPath] = useState("");
   const fileRef = useRef(null);
   const providers = useMemo(() => {
@@ -53,6 +54,10 @@ export default function ModelEntry({
     browseHint: "Choose a provider to view mapped models",
     choose: "Choose a model",
     empty: "No mapped models for this provider",
+    help: "Help",
+    helpTitle: "Quick guide",
+    helpItems: ["Enter a Hugging Face or ModelScope model ID, or choose a mapped model.", "Open a local model directory to read its config and optional weight metadata.", "Browse by Provider to find models already included in this viewer."],
+    close: "Close",
   } : {
     title: "理解模型。",
     subtitle: "Browse architecture, inspect modules, and estimate the cost on your hardware.",
@@ -65,6 +70,10 @@ export default function ModelEntry({
     browseHint: "选择厂商查看已映射模型",
     choose: "选择模型",
     empty: "该 Provider 暂无已映射模型",
+    help: "帮助",
+    helpTitle: "快速说明",
+    helpItems: ["输入 Hugging Face 或 ModelScope 模型 ID，也可以直接选择已映射模型。", "打开本地模型目录，读取 config 和可选的权重元数据。", "按 Provider 浏览仓库内已收录的模型。"],
+    close: "关闭",
   };
 
   function handleFiles(event) {
@@ -76,7 +85,7 @@ export default function ModelEntry({
   return (
     <main className={`model-entry-page theme-${theme}`}>
       <section className="entry-hero">
-        <div className="entry-topline"><div className="entry-brand">Model Structure Viewer<span>.</span></div><div className="entry-top-actions"><button type="button" onClick={() => { const next = language === "en" ? "zh" : "en"; onLanguageChange?.(next); }}>{language === "en" ? "EN / 中" : "中 / EN"}</button><button type="button" onClick={onThemeChange}>{theme}</button><button type="button" title="Help">帮助 / Help</button></div></div>
+        <div className="entry-topline"><div className="entry-brand">Model Structure Viewer<span>.</span></div><div className="entry-top-actions"><button type="button" onClick={() => { const next = language === "en" ? "zh" : "en"; onLanguageChange?.(next); }}>{language === "en" ? "EN / 中" : "中 / EN"}</button><button type="button" onClick={onThemeChange}>{theme}</button><button type="button" title={t.help} onClick={() => setHelpOpen(true)}>{language === "en" ? "Help" : "帮助"}</button></div></div>
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
       </section>
@@ -106,6 +115,7 @@ export default function ModelEntry({
         <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><span className="provider-mark">{PROVIDER_MARKS[name] || name[0]?.toUpperCase() || "+"}</span><strong>{name}</strong><small>{entries.length} models</small></button>)}</div>
       </section>}
       {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider}><div className="provider-picker"><header><div><h2>{provider}</h2><p>{t.choose}</p></div><button type="button" aria-label="Close" onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelName(entry.modelId)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
+      {helpOpen && <div className="entry-help-overlay" role="dialog" aria-modal="true" aria-label={t.helpTitle}><div className="entry-help-panel"><header><h2>{t.helpTitle}</h2><button type="button" aria-label={t.close} onClick={() => setHelpOpen(false)}>×</button></header><ul>{t.helpItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div>}
     </main>
   );
 }

@@ -1282,6 +1282,12 @@ label {
 .provider-model-list button:hover:not(:disabled) { border-color: #f4ab52; }
 .provider-model-list button span { color: #8f9bad; font-size: 11px; }
 .provider-model-list button b { color: #f4ab52; font-size: 17px; }
+.entry-help-overlay { position: fixed; inset: 0; z-index: 21; display: grid; place-items: center; padding: 20px; background: rgba(4,7,10,.45); backdrop-filter: blur(10px); }
+.entry-help-panel { width: min(460px, 100%); border: 1px solid #344154; border-radius: 9px; background: #151c26; box-shadow: 0 24px 80px rgba(0,0,0,.5); padding: 20px; color: #dce5ee; }
+.entry-help-panel header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.entry-help-panel h2 { margin: 0; color: #f0f4f8; font-size: 18px; }
+.entry-help-panel header button { border: 0; background: transparent; color: #9ca8b7; font-size: 22px; padding: 0 4px; }
+.entry-help-panel ul { display: grid; gap: 10px; margin: 16px 0 0; padding-left: 20px; color: #9ba8b8; font-size: 12px; line-height: 1.5; }
 .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; clip: rect(0 0 0 0) !important; clip-path: inset(50%) !important; overflow: hidden !important; white-space: nowrap !important; }
 @media (max-width: 640px) {
   .model-entry-page { padding: 18px 14px 44px; }
@@ -1305,3 +1311,7 @@ label {
 .theme-light .provider-model-list button { color: #19212c; }
 .theme-light .provider-model-list button span { color: #657386; }
 .theme-light .provider-picker header button { color: #657386; }
+.model-entry-page.theme-light .entry-help-panel { border-color: #dce3eb; background: #fff; color: #364555; box-shadow: 0 24px 80px rgba(50,70,90,.18); }
+.model-entry-page.theme-light .entry-help-panel h2 { color: #19212c; }
+.model-entry-page.theme-light .entry-help-panel header button { color: #657386; }
+.model-entry-page.theme-light .entry-help-panel ul { color: #526172; }

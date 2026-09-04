@@ -14,7 +14,18 @@ function TruthSection({ node }) {
     node.params != null ||
     node.dtype ||
     (node.weight_shapes && Object.keys(node.weight_shapes).length > 0);
-  if (!hasTruth) return null;
+  if (!hasTruth) {
+    // 自解释：无真值 ≠ 漏绑，按节点性质说明原因
+    let reason = "无独立权重";
+    if (node.type === "operator") reason = "无参数算子（不占用权重）";
+    else if (node.children?.length > 0) reason = "容器节点（参数归集在子节点）";
+    return (
+      <section className="truth-section muted">
+        <h4>参数真值</h4>
+        <div className="truth-row">{reason}</div>
+      </section>
+    );
+  }
   const sourceLabel = node.value_source === "checkpoint" ? "checkpoint 真值" : node.value_source || "未知";
   return (
     <section className="truth-section">

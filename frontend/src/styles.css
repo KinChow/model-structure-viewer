@@ -791,6 +791,16 @@ label {
   background: #f4f9fd;
 }
 
+.truth-section.muted {
+  border-color: #d7dee8;
+  background: #f8fafc;
+}
+
+.truth-section.muted h4,
+.truth-section.muted .truth-row {
+  color: #8a97a6;
+}
+
 .truth-section h4 {
   margin: 0 0 8px;
   font-size: 12px;

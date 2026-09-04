@@ -1086,6 +1086,7 @@ label {
 .detail-fit-status.no-fit { background: rgba(215,112,92,.16); color: #f09682; }
 .detail-fit-status.unknown { background: rgba(148,161,177,.16); color: #aebaca; }
 .detail-cost-panel { margin-bottom: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #111821; padding: 0 12px; }
+.detail-cost-panel.is-collapsed { display: none; }
 .detail-cost-panel .cost-summary { border: 0; margin: 0; }
 .detail-aux-panel { margin-top: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #151c26; padding: 14px; }
 .detail-inspector-slot { min-width: 0; }

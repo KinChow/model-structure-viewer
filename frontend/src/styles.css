@@ -1112,6 +1112,18 @@ label {
 .detail-page .formula-strip { border-color: #2a3545; background: #121923; }
 .detail-page .formula-strip button { border-color: #354256; background: #1a2430; color: #d1a56b; }
 .detail-page .formula-strip button.active, .detail-page .formula-strip button:hover { border-color: #f4ab52; background: #35291c; color: #f4ab52; }
+.formula-strip { display: block; padding: 0; overflow: hidden; }
+.formula-strip-toggle { display: flex; width: 100%; align-items: center; gap: 8px; min-height: 32px; border: 0 !important; border-radius: 0 !important; padding: 7px 9px !important; background: transparent !important; color: inherit !important; font: inherit !important; text-align: left; }
+.formula-strip-toggle:hover { background: rgba(255,255,255,.04) !important; }
+.formula-strip-count { display: inline-flex; min-width: 20px; height: 18px; align-items: center; justify-content: center; border: 1px solid #354256; border-radius: 999px; color: #9ba8b8; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.formula-strip-active { min-width: 0; overflow: hidden; color: #9ba8b8; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.formula-strip-chevron { margin-left: auto; color: #f4ab52; font-size: 16px; line-height: 1; }
+.formula-strip-links { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 9px 8px; }
+.formula-strip-links button { flex: 0 0 auto; }
+.detail-page .formula-strip-toggle:hover { border-color: transparent; color: inherit; }
+.detail-page.theme-light .formula-strip-toggle:hover { background: rgba(31,95,145,.06) !important; }
+.theme-light .formula-strip-count { border-color: #b7c5d3; color: #607184; }
+.theme-light .formula-strip-active { color: #607184; }
 .detail-page .formula-section { border-color: #2a3545; }
 .detail-page .formula-section code { color: #f2c27b; }
 .detail-page .formula-section p { color: #aebaca; }

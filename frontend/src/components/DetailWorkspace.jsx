@@ -49,7 +49,7 @@ function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onTh
       <div className="detail-header-actions">
         <button type="button" onClick={() => onLanguageChange(english ? "zh" : "en")}>{english ? "EN / 中" : "中 / EN"}</button>
         <button type="button" onClick={onThemeChange}>{theme}</button>
-        <button type="button" onClick={onSettings}>设置 / Settings</button>
+        <button type="button" onClick={onSettings}>{english ? "Settings" : "设置"}</button>
       </div>
     </header>
   );

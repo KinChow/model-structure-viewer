@@ -1,4 +1,4 @@
-// Per-module MAC estimates for inference. They intentionally expose assumptions rather than predict latency.
+// 推理场景的逐模块 MACs 估算；显式暴露假设，不用于预测延迟。
 
 import { product } from "./memory.js";
 
@@ -14,17 +14,17 @@ function isLinear(node) {
   );
 }
 
-// ref: llm-analysis LLMAnalysis.get_num_flops_fwd_per_layer_linear
+// 来源：llm-analysis 的 LLMAnalysis.get_num_flops_fwd_per_layer_linear。
 export function linearMacs(node, { batch, sequence, phase, expertFraction = 1 } = {}) {
-  // Packed GPTQ/AWQ shapes are storage shapes, not logical matmul shapes.
-  // Do not emit a plausible but wrong MAC count without an explicit logical shape.
+  // GPTQ/AWQ 的 packed shape 是存储形状，不是逻辑矩阵乘形状。
+  // 没有明确的逻辑形状时，不输出看似合理但实际错误的 MACs。
   if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return null;
   const shape = Object.values(node?.weight_shapes || {}).find((value) => Array.isArray(value) && value.length >= 2);
   const logicalShape = node?.attributes?.logical_weight_shape || shape;
   return logicalShape ? tokensFor({ batch, sequence, phase }) * product(logicalShape) * expertFraction : 0;
 }
 
-// ref: llm-analysis LLMAnalysis.get_num_flops_fwd_per_layer_attn
+// 来源：llm-analysis 的 LLMAnalysis.get_num_flops_fwd_per_layer_attn。
 export function attentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   const heads = config?.attentionHeads || 0;
   const qk = config?.headDim || 0;

@@ -1,4 +1,4 @@
-// First-order inference memory accounting. Values are theoretical estimates, not runtime measurements.
+// 推理场景的一阶显存核算；结果是理论估算，不是运行时实测。
 
 const BYTES_PER_DTYPE = {
   BF16: 2, F16: 2, FP16: 2, F32: 4, FP32: 4, F8_E4M3: 1, F8_E5M2: 1, I8: 1,
@@ -24,7 +24,7 @@ export function nodeWeightBytes(node) {
   );
 }
 
-// ref: llm-analysis LLMAnalysis.get_memory_kv_cache_per_layer
+// 来源：llm-analysis 的 LLMAnalysis.get_memory_kv_cache_per_layer。
 export function kvBytesPerToken(config, kvBytes = 2) {
   const layers = config?.layers || 0;
   const heads = config?.kvHeads || config?.attentionHeads || 0;

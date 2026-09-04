@@ -78,7 +78,7 @@ function bindTruthToTemplate(network, skeleton) {
   }
 
   const gaps = trieNodes.filter((n) => !used.has(n)).map((n) => n.id);
-  return { boundIds, gaps };
+  return { boundIds, gaps, used };
 }
 
 /** trie 骨架节点 → 模板 spec 形态（materializer 可直接消费）。 */
@@ -100,6 +100,23 @@ function skeletonToSpec(node) {
     value_source: "checkpoint",
     tensor_names: node.tensor_names,
   };
+}
+
+/** 保留未绑定真值的层级与 repeat，已被模板消费的叶节点不重复插入。 */
+function skeletonGapsToSpec(node, used) {
+  const children = (node.children || []).map((child) => skeletonGapsToSpec(child, used)).filter(Boolean);
+  const ownGap = node.params > 0 && !used.has(node);
+  if (!ownGap && children.length === 0) return null;
+  const spec = skeletonToSpec(node);
+  spec.children = children;
+  if (!ownGap) {
+    spec.params = 0;
+    spec.weight_shapes = {};
+    spec.tensor_names = [];
+    spec.dtype = null;
+    spec.attributes = {};
+  }
+  return spec;
 }
 
 /**
@@ -136,7 +153,18 @@ export function enrichNetworkWithTruth(network, truth, { hasTemplate, modelName,
     };
   }
 
-  const { boundIds, gaps } = bindTruthToTemplate(network, skeleton);
+  const { boundIds, gaps, used } = bindTruthToTemplate(network, skeleton);
+  const gapTree = skeletonGapsToSpec(skeleton, used);
+  if (gapTree) {
+    network.children.push({
+      kind: "module",
+      id: "checkpoint_gaps",
+      name: "Checkpoint extra modules",
+      type: "checkpoint-gaps",
+      attributes: { class: "CheckpointExtraModules" },
+      children: gapTree.id ? [gapTree] : gapTree.children,
+    });
+  }
   return {
     network,
     diagnostics: {

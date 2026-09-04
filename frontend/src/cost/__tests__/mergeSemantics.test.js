@@ -106,6 +106,11 @@ test("有模板时绑定真值并报告未声明的含参模块（gap）", () =>
   assert.equal(network.children[1].children[1].params, undefined);
   // 模板未声明的含参模块进入 gap 信号
   assert.ok(diagnostics.template_gaps.includes("model.layers.0.self_attn.q_a_proj"));
+  const gapContainer = enriched.children.find((node) => node.id === "checkpoint_gaps");
+  assert.ok(gapContainer, "未绑定真值应追加到 checkpoint_gaps 容器");
+  const serialized = JSON.stringify(gapContainer);
+  assert.match(serialized, /q_a_proj/);
+  assert.doesNotMatch(serialized, /gate_proj/);
 });
 
 test("无真值时原样返回", () => {

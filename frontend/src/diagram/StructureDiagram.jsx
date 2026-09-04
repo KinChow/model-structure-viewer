@@ -239,7 +239,7 @@ function StructureDiagram({
                     <title>{[node.fullName, node.path, node.repeat ? `×${node.repeat}` : null, node.node?.attributes?.formula_id].filter(Boolean).join(" · ")}</title>
                     <rect width={node.width} height={node.height} rx="10" className={classes} />
                     <foreignObject x="0" y="0" width={node.width} height={node.height}>
-                      <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content">
+                      <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content" onMouseDown={(event) => { if (!event.target.closest("button, a, input, select, textarea")) onSelectNode?.(node.path); }} onClick={() => onSelectNode?.(node.path)}>
                         <div className="diagram-node-header">
                           <span className="diagram-title" title={node.fullName}>
                             {node.displayName}

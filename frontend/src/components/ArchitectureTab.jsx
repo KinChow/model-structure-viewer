@@ -169,6 +169,8 @@ function ArchitectureTab({
     onSelectNode,
     onFit,
     activeLenses,
+    focusMode: canvasFocus,
+    onExitFocus: () => setCanvasFocus(false),
   };
   useEffect(() => {
     onNodeLensChange?.(nodeLens);

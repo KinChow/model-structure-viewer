@@ -34,6 +34,8 @@ function StructureDiagram({
   showGroupToggle = true,
   activeLenses = new Set(),
   onFit,
+  focusMode = false,
+  onExitFocus,
 }) {
   const nodes = useMemo(
     () => layoutDiagram(structure.root, expandedGroups),
@@ -70,7 +72,8 @@ function StructureDiagram({
       const selected = nodes.find((node) => node.path === selectedPath);
       if (event.key === "Escape") {
         event.preventDefault();
-        onSelectNode?.(null);
+        if (focusMode) onExitFocus?.();
+        else onSelectNode?.(null);
       } else if (event.key === "0") {
         event.preventDefault();
         onFit?.();
@@ -84,7 +87,7 @@ function StructureDiagram({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [nodes, selectedPath, onFit, onToggleGroup]);
+  }, [nodes, selectedPath, onFit, onToggleGroup, focusMode, onExitFocus]);
 
   useEffect(() => {
     if (!selectedPath) return;

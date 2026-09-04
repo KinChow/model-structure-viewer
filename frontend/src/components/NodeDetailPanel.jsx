@@ -65,6 +65,11 @@ function LensSection({ lens, activeLenses = new Set(), language = "zh" }) {
   return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4>{activeLenses.has("vram") && <div className="truth-row"><b>VRAM</b>{formatBytes(lens.metrics?.vramBytes)}</div>}{activeLenses.has("compute") && <div className="truth-row"><b>Compute</b>{formatTime(lens.metrics?.computeSeconds)}</div>}{activeLenses.has("memory") && <div className="truth-row"><b>Memory</b>{formatBytes(lens.metrics?.memoryBytes)}</div>}{activeLenses.has("compute") && <div className="truth-row"><b>{language === "en" ? "Communication" : "通信"}</b>{formatTime(lens.metrics?.communicationSeconds)}</div>}{activeLenses.has("kv") && <div className="truth-row muted"><b>KV Cache</b>{language === "en" ? "See cost panel aggregate" : "见成本面板汇总"}</div>}{aggregateOnly && !activeLenses.has("vram") && !activeLenses.has("kv") && <div className="truth-row muted">{language === "en" ? "No node-level aggregate" : "无节点级汇总"}</div>}</section>;
 }
 
+function ChildModulesSection({ node, path, language = "zh", onSelectPath }) {
+  if (!node.children?.length) return null;
+  return <section className="child-modules-section"><h4>{language === "en" ? "Child modules" : "子模块"}</h4><div className="child-module-list">{node.children.map((child, index) => <button type="button" key={`${child.id || child.name}-${index}`} onClick={() => onSelectPath?.(`${path}.${index}`)}><span className="child-module-kind">{child.type}</span><strong>{child.name}</strong>{child.repeat > 1 && <b>×{child.repeat}</b>}<span className="child-module-arrow">→</span></button>)}</div></section>;
+}
+
 function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, activeLenses = new Set(), language = "zh", collapsed = false, onToggleCollapsed, onSelectPath, onClose }) {
   const [copyState, setCopyState] = useState("idle");
   if (!node) return null;
@@ -108,6 +113,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
       {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% of model parameters`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% of model parameters</small></div>}
       <LensSection lens={costLens} activeLenses={activeLenses} language={language} />
       <FormulaSection node={node} language={language} />
+      <ChildModulesSection node={node} path={path} language={language} onSelectPath={onSelectPath} />
       <ShapeFlow attributes={node.attributes} />
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />
     </aside>

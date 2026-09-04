@@ -857,6 +857,14 @@ label {
 .inspector-parameter-track { height: 5px; overflow: hidden; border-radius: 999px; background: #263343; }
 .inspector-parameter-track span { display: block; height: 100%; min-width: 2px; border-radius: inherit; background: #f4ab52; }
 .inspector-parameter-share small { display: block; margin-top: 5px; color: #8493a5; font-size: 10px; }
+.child-modules-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid #2a3545; }
+.child-modules-section h4 { margin: 0 0 8px; color: #9aa8b8; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.child-module-list { display: grid; gap: 5px; }
+.child-module-list button { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 6px; width: 100%; border: 1px solid #2a3545; border-radius: 5px; padding: 7px 8px; background: #121923; color: #dce5ee; text-align: left; }
+.child-module-list button:hover { border-color: #f4ab52; background: #1d2936; }
+.child-module-kind { color: #7f8da0; font-size: 9px; text-transform: uppercase; }
+.child-module-list strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.child-module-list b { color: #f4ab52; font-size: 10px; }.child-module-arrow { color: #8d9aaa; }
 .detail-breadcrumb i { color: #b5c0cb; font-style: normal; }
 .detail-breadcrumb .current { color: #f4ab52; }
 
@@ -1127,6 +1135,10 @@ label {
 .detail-page.theme-light .model-inspector-summary, .detail-page.theme-light .detail-inspector-slot .detail-panel { border-color: #dce3eb; background: #fff; color: #19212c; box-shadow: 0 12px 30px rgba(50,70,90,.08); }
 .detail-page.theme-light .model-summary-grid span { border-color: #dce3eb; }
 .detail-page.theme-light .model-summary-grid dd { color: #263445; }
+.detail-page.theme-light .child-modules-section { border-color: #dce3eb; }
+.detail-page.theme-light .child-modules-section h4 { color: #657386; }
+.detail-page.theme-light .child-module-list button { border-color: #dce3eb; background: #f6f8fa; color: #263445; }
+.detail-page.theme-light .child-module-list button:hover { border-color: #c58b45; background: #edf3f8; }
 .detail-page.theme-light .detail-inspector-slot .detail-panel header h3, .detail-page.theme-light .detail-inspector-slot .detail-panel h4, .detail-page.theme-light .detail-inspector-slot .detail-panel .truth-row { color: #19212c; }
 .detail-page.theme-light .detail-page .panel-toolbar h2, .detail-page.theme-light .panel-toolbar h2 { color: #19212c; }
 .detail-page.theme-light .detail-summary .chip { border-color: #dce3eb; background: #fff; color: #526172; }

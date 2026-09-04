@@ -36,7 +36,16 @@ export async function loadLocalChipOverrides({ url = "/chips.local.json", fetchI
   const payload = await response.json();
   const chips = Array.isArray(payload) ? payload : payload?.chips;
   if (!Array.isArray(chips)) throw new Error("本地芯片配置必须是数组或 {chips: []}");
-  const errors = chips.flatMap((chip) => validateChipEntry(chip));
+  const publicIds = new Set(PUBLIC_CHIPS.map((chip) => chip.id));
+  const errors = chips.flatMap((chip) => {
+    // 已有公开卡允许只提供需要覆盖的字段；新增本地卡仍需完整基本信息。
+    if (chip?.id && publicIds.has(chip.id)) {
+      return chip.confidence && !["official", "vendor-marketing", "community", "local"].includes(chip.confidence)
+        ? [`未知 confidence：${chip.confidence}`]
+        : [];
+    }
+    return validateChipEntry(chip);
+  });
   if (errors.length > 0) throw new Error(`本地芯片配置无效：${errors.join("；")}`);
   return chips;
 }

@@ -1078,6 +1078,9 @@ label {
 .detail-page .formula-strip { border-color: #2a3545; background: #121923; }
 .detail-page .formula-strip button { border-color: #354256; background: #1a2430; color: #d1a56b; }
 .detail-page .formula-strip button.active, .detail-page .formula-strip button:hover { border-color: #f4ab52; background: #35291c; color: #f4ab52; }
+.detail-page .formula-section { border-color: #2a3545; }
+.detail-page .formula-section code { color: #f2c27b; }
+.detail-page .formula-section p { color: #aebaca; }
 .detail-page .detail-panel .badge { border-color: #3a4658; background: #202a37; color: #afbdcb; }
 .detail-page .detail-panel .badge.type { border-color: #416a8f; background: #1c3348; color: #9dc5eb; }
 .detail-page .truth-section { border-color: #365e68; background: #14272d; }

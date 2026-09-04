@@ -328,7 +328,7 @@ function StructureDiagram({
         <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label="Structure overview map">
           <g transform={`scale(${miniScale})`}>
             {nodes.filter((node) => node.containerFrame).map((node) => <rect key={`mini-frame-${node.path}`} x={node.containerFrame.x} y={node.containerFrame.y} width={node.containerFrame.width} height={node.containerFrame.height} className="mini-frame" />)}
-            {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}${selectedPath === node.path ? " selected" : ""}`} />)}
+            {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}${selectedPath === node.path ? " selected" : ""}${selectedPath && selectedPath.startsWith(`${node.path}.`) ? " ancestor" : ""}`} />)}
             <rect x={miniViewport.x / miniScale} y={miniViewport.y / miniScale} width={miniViewport.width / miniScale} height={miniViewport.height / miniScale} className="mini-viewport" />
           </g>
         </svg>

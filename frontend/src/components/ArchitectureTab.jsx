@@ -210,7 +210,7 @@ function ArchitectureTab({
           <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
           <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />
           </>}
-          {compactControls && !advancedOpen && <>
+          {compactControls && <>
             <button type="button" onClick={onExpandAllGroups}>{language === "en" ? "Expand all" : "展开全部"}</button>
             <button type="button" onClick={onCollapseAllGroups}>{language === "en" ? "Collapse all" : "收起全部"}</button>
           </>}

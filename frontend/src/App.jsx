@@ -321,8 +321,7 @@ function App() {
           open={drawerOpen}
           revision={revision}
           onRevisionChange={setRevision}
-          configText={configText}
-          onConfigTextChange={setConfigText}
+          language={language}
           builtinModels={builtinModels}
           onRefreshBuiltinModels={refreshBuiltinModels}
           onPickBuiltinModel={(entry) => { void handleGenerate({ source: "builtin", modelId: entry.modelId }); setDrawerOpen(false); }}

@@ -188,6 +188,7 @@ function StructureDiagram({
               )}
               {nodes.map((node) => {
                 const isSelected = selectedPath === node.path;
+                const isAncestor = Boolean(selectedPath && selectedPath.startsWith(`${node.path}.`));
                 const isMatch = matched.has(node.path);
                 const isDimmed = searchActive && !isMatch;
                 const bound = nodeLens?.[node.path]?.bound || "unknown";
@@ -208,6 +209,7 @@ function StructureDiagram({
                   isHovered ? "hovered" : "",
                   isRelated ? "related" : "",
                   isSelected ? "selected" : "",
+                  isAncestor ? "ancestor" : "",
                   isMatch ? "match" : "",
                   isDimmed ? "dimmed" : "",
                   isComparisonChange ? "comparison-change" : "",

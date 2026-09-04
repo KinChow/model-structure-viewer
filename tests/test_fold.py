@@ -124,3 +124,60 @@ def test_collapse_preserves_singleton():
     assert len(folded.children) == 1
     assert folded.children[0].type == "module"
     assert folded.children[0].repeat is None
+
+
+def _layer_with_shapes(class_name: str, idx: int, weight_shapes: dict):
+    return StructureNode(
+        id=f"root.layers.{idx}",
+        name=str(idx),
+        type="module",
+        attributes={"class": class_name},
+        weight_shapes=weight_shapes,
+    )
+
+
+def test_collapse_does_not_fold_same_class_different_weight_shapes():
+    """G3：class 相同但中间维度（weight_shapes）不同 → 不折叠，防止误折叠混合层。"""
+    dense = {"gate_proj.weight": [4096, 1024], "up_proj.weight": [4096, 1024], "down_proj.weight": [1024, 4096]}
+    moe = {"gate_proj.weight": [16384, 1024], "up_proj.weight": [16384, 1024], "down_proj.weight": [1024, 16384]}
+    children = [
+        _layer_with_shapes("DecoderLayer", 0, dense),
+        _layer_with_shapes("DecoderLayer", 1, dense),
+        _layer_with_shapes("DecoderLayer", 2, moe),
+        _layer_with_shapes("DecoderLayer", 3, moe),
+    ]
+    parent = StructureNode(id="root.layers", name="layers", type="module-list", children=children)
+
+    folded = collapse(parent)
+
+    assert len(folded.children) == 2
+    assert folded.children[0].repeat == 2
+    assert folded.children[1].repeat == 2
+    # 两组 range 分开，不跨组误折叠
+    assert folded.children[0].attributes["range"] == "0..1"
+    assert folded.children[1].attributes["range"] == "2..3"
+
+
+def test_collapse_folds_same_class_same_weight_shapes():
+    """G3：class 与 weight_shapes 均相同的层正常折叠。"""
+    shapes = {"gate_proj.weight": [12288, 4096], "down_proj.weight": [4096, 12288]}
+    children = [_layer_with_shapes("DecoderLayer", i, dict(shapes)) for i in range(4)]
+    parent = StructureNode(id="root.layers", name="layers", type="module-list", children=children)
+
+    folded = collapse(parent)
+
+    assert len(folded.children) == 1
+    assert folded.children[0].repeat == 4
+
+
+def test_collapse_weight_shapes_key_order_insensitive():
+    """G3：weight_shapes 键顺序不同但内容相同 → 视为同构。"""
+    a = {"gate_proj.weight": [12288, 4096], "up_proj.weight": [12288, 4096]}
+    b = {"up_proj.weight": [12288, 4096], "gate_proj.weight": [12288, 4096]}
+    children = [_layer_with_shapes("DecoderLayer", 0, a), _layer_with_shapes("DecoderLayer", 1, b)]
+    parent = StructureNode(id="root.layers", name="layers", type="module-list", children=children)
+
+    folded = collapse(parent)
+
+    assert len(folded.children) == 1
+    assert folded.children[0].repeat == 2

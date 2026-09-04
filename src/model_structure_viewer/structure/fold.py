@@ -143,10 +143,22 @@ def _class_label(node: StructureNode) -> str:
 
 
 def _signature(node: StructureNode) -> tuple:
-    """Class-shape signature for isomorphism: type + class label + recursive children."""
+    """Class-shape signature for isomorphism: type + class label + weight_shapes + recursive children.
+
+    v4/G3：签名纳入真实 weight_shapes（数值形状），中间维度不同的层不再被误折叠
+    （如 first_k_dense_replace 的 dense/MoE 混合层）。weight_shapes 为 None 时行为与旧版一致。
+    """
     class_label = node.attributes.get("class") if isinstance(node.attributes, dict) else None
     return (
         node.type,
         class_label,
+        _weight_shapes_key(node.weight_shapes),
         tuple(_signature(child) for child in node.children),
     )
+
+
+def _weight_shapes_key(weight_shapes: dict[str, list[int]] | None) -> tuple | None:
+    """把 weight_shapes 归一化为可哈希、可比较的签名（排序后的 (参数名, shape) 元组）。"""
+    if not weight_shapes:
+        return None
+    return tuple(sorted((name, tuple(shape)) for name, shape in weight_shapes.items()))

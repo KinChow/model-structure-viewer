@@ -58,6 +58,8 @@ export default function ModelEntry({
     helpTitle: "Quick guide",
     helpItems: ["Enter a Hugging Face or ModelScope model ID, or choose a mapped model.", "Open a local model directory to read its config and optional weight metadata.", "Browse by Provider to find models already included in this viewer."],
     close: "Close",
+    chooseFolder: "Choose folder",
+    openPath: "Open path",
   } : {
     title: "理解模型。",
     subtitle: "Browse architecture, inspect modules, and estimate the cost on your hardware.",
@@ -74,6 +76,8 @@ export default function ModelEntry({
     helpTitle: "快速说明",
     helpItems: ["输入 Hugging Face 或 ModelScope 模型 ID，也可以直接选择已映射模型。", "打开本地模型目录，读取 config 和可选的权重元数据。", "按 Provider 浏览仓库内已收录的模型。"],
     close: "关闭",
+    chooseFolder: "打开文件夹",
+    openPath: "打开路径",
   };
 
   function handleFiles(event) {
@@ -103,8 +107,8 @@ export default function ModelEntry({
         ) : (
           <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); if (localPath.trim()) onOpenLocalPath?.(localPath.trim()); }}>
             <input value={localPath} onChange={(event) => setLocalPath(event.target.value)} placeholder={t.localPlaceholder} aria-label="local model path" />
-            <button className="entry-secondary" type="button" onClick={() => fileRef.current?.click()}>打开文件夹</button>
-            <button className="entry-primary" type="submit">打开路径</button>
+            <button className="entry-secondary" type="button" onClick={() => fileRef.current?.click()}>{t.chooseFolder}</button>
+            <button className="entry-primary" type="submit">{t.openPath}</button>
             <input ref={fileRef} className="visually-hidden" type="file" webkitdirectory="true" multiple tabIndex="-1" aria-hidden="true" onChange={handleFiles} />
           </form>
         )}

@@ -31,8 +31,11 @@ export function kvBytesPerToken(config, kvBytes = 2) {
   const headDim = config?.headDim || 0;
   const mlaRank = config?.kvLoraRank;
   const ropeDim = config?.qkRopeHeadDim;
-  const elements = mlaRank != null && ropeDim != null ? mlaRank + ropeDim : heads * headDim;
-  return 2 * layers * elements * kvBytes;
+  if (mlaRank != null && ropeDim != null) {
+    // 来源：vLLM MLAAttentionSpec.head_size_v = 0；MLA 每 token 只存一个 latent，不分离 K/V。
+    return layers * (mlaRank + ropeDim) * kvBytes;
+  }
+  return 2 * layers * heads * headDim * kvBytes;
 }
 
 export function activationPeakBytes({ activationPeak = 1.5 * 1024 ** 3 } = {}) {

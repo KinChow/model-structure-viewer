@@ -8,7 +8,7 @@ test("KV cache uses two tensors and KV heads", () => {
 });
 
 test("MLA uses compressed latent plus rotary component", () => {
-  assert.equal(kvBytesPerToken({ layers: 2, kvHeads: 16, headDim: 128, kvLoraRank: 512, qkRopeHeadDim: 64 }, 2), 2 * 2 * (512 + 64) * 2);
+  assert.equal(kvBytesPerToken({ layers: 2, kvHeads: 16, headDim: 128, kvLoraRank: 512, qkRopeHeadDim: 64 }, 2), 2 * (512 + 64) * 2);
 });
 
 test("memory breakdown exposes five additive components", () => {

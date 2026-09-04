@@ -90,6 +90,9 @@ function App() {
   const [layersExpandedPaths, setLayersExpandedPaths] = useState(() => new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [chips, setChips] = useState(PUBLIC_CHIPS);
+  function handleAddChip(chip) {
+    setChips((current) => [...current.filter((entry) => entry.id !== chip.id), chip]);
+  }
 
   useEffect(() => {
     let active = true;
@@ -275,6 +278,7 @@ function App() {
               hitCount={matchedPaths.size}
               onSelectNode={handleSelectNode}
               chips={chips}
+              onAddChip={handleAddChip}
             />
           )}
           {activeTab === "Layers" && (

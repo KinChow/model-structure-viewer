@@ -8,6 +8,7 @@ import { nodeCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 import { collectFormulaLinks } from "../diagram/formulaLinks.js";
 import { boundFlips } from "../diagram/compare.js";
+import ManualChipForm from "./ManualChipForm.jsx";
 
 function downloadSvg(structure) {
   const svg = document.querySelector(".diagram-svg");
@@ -34,6 +35,7 @@ function ArchitectureTab({
   hitCount,
   onSelectNode,
   chips = PUBLIC_CHIPS,
+  onAddChip,
 }) {
   const [phase, setPhase] = useState("prefill");
   const [chipId, setChipId] = useState(chips[0]?.id || "");
@@ -89,6 +91,7 @@ function ArchitectureTab({
           <label className="lens-control">ηF<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
           <label className="lens-control">ηHBM<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
           <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
+          <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); setChipId(entry.id); }} />
           <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button onClick={onFit}>Fit</button>
           <button onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>

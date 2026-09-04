@@ -1,45 +1,47 @@
-function dimension(name, value) {
-  return value === undefined || value === null ? name : `${name}=${value}`;
-}
+// shapes.js —— 展示形状层（G2）。
+// tensorShapes 不再自行拼装数值，改为读 dims.js 的数值形状 + 标签表渲染展示串。
+// 输出与旧版逐字一致（modelArchitecture.test.js 断言依赖）。
+
+import { tensorDims } from "./dims.js";
+
+// 每个形状 key 的维度标签，顺序与 tensorDims 数值位置一一对应。
+const SHAPE_LABELS = {
+  tokenIds: ["batch", "sequence"],
+  hidden: ["batch", "sequence", "hidden size"],
+  attentionQuery: ["batch", "sequence", "attention heads", "head dimension"],
+  attentionKey: ["batch", "sequence", "key value heads", "head dimension"],
+  attentionValue: ["batch", "sequence", "key value heads", "value head dimension"],
+  attentionScores: ["batch", "attention heads", "query sequence", "key sequence"],
+  attentionProbabilities: ["batch", "attention heads", "query sequence", "key sequence"],
+  attentionContext: ["batch", "sequence", "attention heads", "value head dimension"],
+  intermediate: ["batch", "sequence", "intermediate size"],
+  moeIntermediate: ["tokens_per_expert", "expert intermediate size"],
+  routerLogits: ["batch", "sequence", "experts"],
+  topExperts: ["batch", "sequence", "experts per token"],
+  expertInput: ["tokens_per_expert", "hidden size"],
+  logits: ["batch", "sequence", "vocab size"],
+  visionInput: ["batch", "image_or_video", "channels", "height", "width"],
+  visionOutput: ["batch", "visual_tokens", "vision hidden size"],
+};
 
 export function shapeText(parts) {
   return `[${parts.filter(Boolean).join(", ")}]`;
 }
 
-export function tensorShapes(normalized) {
-  const hidden = dimension("hidden size", normalized.hiddenSize);
-  const attentionHeads = dimension("attention heads", normalized.attentionHeads);
-  const keyValueHeads = dimension("key value heads", normalized.kvHeads ?? normalized.attentionHeads);
-  const headDim = dimension("head dimension", normalized.headDim);
-  const valueHeadDim = dimension("value head dimension", normalized.valueHeadDim ?? normalized.headDim);
-  const intermediate = dimension("intermediate size", normalized.intermediateSize);
-  const moeIntermediate = dimension(
-    "expert intermediate size",
-    normalized.moeIntermediateSize ?? normalized.intermediateSize,
+/** 由数值 dims + 标签数组渲染展示串：-1/未知位只显示标签名，已知位显示 label=value。 */
+export function shapeTextFromDims(labels, dims) {
+  return shapeText(
+    labels.map((label, i) => (dims[i] == null || dims[i] === -1 ? label : `${label}=${dims[i]}`)),
   );
-  const experts = dimension("experts", normalized.experts);
-  const expertsPerToken = dimension("experts per token", normalized.expertsPerToken);
-  const vocab = dimension("vocab size", normalized.vocabSize);
-  const visionHidden = dimension("vision hidden size", normalized.visionHiddenSize);
+}
 
-  return {
-    tokenIds: shapeText(["batch", "sequence"]),
-    hidden: shapeText(["batch", "sequence", hidden]),
-    attentionQuery: shapeText(["batch", "sequence", attentionHeads, headDim]),
-    attentionKey: shapeText(["batch", "sequence", keyValueHeads, headDim]),
-    attentionValue: shapeText(["batch", "sequence", keyValueHeads, valueHeadDim]),
-    attentionScores: shapeText(["batch", "attention heads", "query sequence", "key sequence"]),
-    attentionProbabilities: shapeText(["batch", "attention heads", "query sequence", "key sequence"]),
-    attentionContext: shapeText(["batch", "sequence", attentionHeads, valueHeadDim]),
-    intermediate: shapeText(["batch", "sequence", intermediate]),
-    moeIntermediate: shapeText(["tokens_per_expert", moeIntermediate]),
-    routerLogits: shapeText(["batch", "sequence", experts]),
-    topExperts: shapeText(["batch", "sequence", expertsPerToken]),
-    expertInput: shapeText(["tokens_per_expert", hidden]),
-    logits: shapeText(["batch", "sequence", vocab]),
-    visionInput: shapeText(["batch", "image_or_video", "channels", "height", "width"]),
-    visionOutput: shapeText(["batch", "visual_tokens", visionHidden]),
-  };
+export function tensorShapes(normalized) {
+  const dims = tensorDims(normalized);
+  const out = {};
+  for (const key of Object.keys(dims)) {
+    out[key] = shapeTextFromDims(SHAPE_LABELS[key] || [], dims[key]);
+  }
+  return out;
 }
 
 export function shapeFlow(inputShape, outputShape, extra = {}) {

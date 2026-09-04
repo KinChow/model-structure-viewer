@@ -9,19 +9,20 @@ function formatCount(n) {
   return String(n);
 }
 
-function TruthSection({ node }) {
+function TruthSection({ node, language = "zh" }) {
+  const english = language === "en";
   const hasTruth =
     node.params != null ||
     node.dtype ||
     (node.weight_shapes && Object.keys(node.weight_shapes).length > 0);
   if (!hasTruth) {
     // 自解释：无真值 ≠ 漏绑，按节点性质说明原因
-    let reason = "无独立权重";
-    if (node.type === "operator") reason = "无参数算子（不占用权重）";
-    else if (node.children?.length > 0) reason = "容器节点（参数归集在子节点）";
+    let reason = english ? "No independent weights" : "无独立权重";
+    if (node.type === "operator") reason = english ? "Parameter-free operator" : "无参数算子（不占用权重）";
+    else if (node.children?.length > 0) reason = english ? "Container node; parameters are in children" : "容器节点（参数归集在子节点）";
     return (
       <section className="truth-section muted">
-        <h4>参数真值</h4>
+        <h4>{english ? "Parameter truth" : "参数真值"}</h4>
         <div className="truth-row">{reason}</div>
       </section>
     );
@@ -30,9 +31,9 @@ function TruthSection({ node }) {
   return (
     <section className="truth-section">
       <h4>
-        参数真值 <span className={`badge ${node.value_source === "checkpoint" ? "truth" : ""}`}>{sourceLabel}</span>
+        {english ? "Parameter truth" : "参数真值"} <span className={`badge ${node.value_source === "checkpoint" ? "truth" : ""}`}>{sourceLabel}</span>
       </h4>
-      {node.params != null && <div className="truth-row"><b>参数量</b>{formatCount(node.params)}</div>}
+      {node.params != null && <div className="truth-row"><b>{english ? "Parameters" : "参数量"}</b>{formatCount(node.params)}</div>}
       {node.dtype && <div className="truth-row"><b>dtype</b>{node.dtype}</div>}
       {node.weight_shapes && Object.keys(node.weight_shapes).length > 0 && (
         <div className="truth-row">
@@ -48,20 +49,20 @@ function TruthSection({ node }) {
   );
 }
 
-function FormulaSection({ node }) {
+function FormulaSection({ node, language = "zh" }) {
   const formula = node.attributes?.formula;
   const formulaId = node.attributes?.formula_id;
   if (!formulaId && !formula) return null;
-  return <section className="formula-section"><h4>公式 <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
+  return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
 }
 
-function LensSection({ lens }) {
+function LensSection({ lens, language = "zh" }) {
   if (!lens) return null;
   const formatTime = (value) => Number.isFinite(value) ? (value >= 1 ? `${value.toFixed(2)} s` : `${(value * 1000).toFixed(2)} ms`) : "-";
-  return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4><div className="truth-row"><b>Compute</b>{formatTime(lens.metrics?.computeSeconds)}</div><div className="truth-row"><b>Memory</b>{formatTime(lens.metrics?.memorySeconds)}</div><div className="truth-row"><b>Communication</b>{formatTime(lens.metrics?.communicationSeconds)}</div></section>;
+  return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4><div className="truth-row"><b>Compute</b>{formatTime(lens.metrics?.computeSeconds)}</div><div className="truth-row"><b>Memory</b>{formatTime(lens.metrics?.memorySeconds)}</div><div className="truth-row"><b>{language === "en" ? "Communication" : "通信"}</b>{formatTime(lens.metrics?.communicationSeconds)}</div></section>;
 }
 
-function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, onSelectPath, onClose }) {
+function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, language = "zh", onSelectPath, onClose }) {
   if (!node) return null;
   const confidence = typeof node.confidence === "number" ? node.confidence.toFixed(2) : null;
   const className = node.attributes?.class;
@@ -88,10 +89,10 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
           ×
         </button>
       </header>
-      <TruthSection node={node} />
+      <TruthSection node={node} language={language} />
       {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% of model parameters`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% of model parameters</small></div>}
-      <LensSection lens={costLens} />
-      <FormulaSection node={node} />
+      <LensSection lens={costLens} language={language} />
+      <FormulaSection node={node} language={language} />
       <ShapeFlow attributes={node.attributes} />
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />
     </aside>

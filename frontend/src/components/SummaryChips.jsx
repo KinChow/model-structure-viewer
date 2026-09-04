@@ -15,21 +15,23 @@ function dtypeBreakdown(byDtype) {
     .join(" · ");
 }
 
-function SummaryChips({ structure, sourceLabel }) {
+function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   const summary = structure?.summary || {};
   const status = structureStatus(structure);
   const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype);
+  const english = language === "en";
+  const label = english ? { model: "Model", architecture: "Architecture", layers: "Layers", hidden: "Hidden", heads: "Heads", experts: "Experts", context: "Context", params: "Params", source: "Source", status: "Status" } : { model: "模型", architecture: "架构", layers: "层数", hidden: "Hidden Size", heads: "Heads", experts: "Experts", context: "Context", params: "Params", source: "来源", status: "状态" };
   const chips = [
-    ["Model", summary.model_family || summary.model_type],
-    ["Architecture", summary.architecture],
-    ["Layers", summary.text_layers],
-    ["Hidden", summary.hidden_size],
-    ["Heads", summary.num_attention_heads],
-    ["Experts", summary.num_local_experts ?? summary.n_routed_experts],
-    ["Context", summary.max_position_embeddings],
-    ["Params", formatCount(summary.parameters_total), "truth", paramsTitle],
-    ["Source", sourceLabel],
-    ["Status", status.label, status.tone, status.detail],
+    [label.model, summary.model_family || summary.model_type],
+    [label.architecture, summary.architecture],
+    [label.layers, summary.text_layers],
+    [label.hidden, summary.hidden_size],
+    [label.heads, summary.num_attention_heads],
+    [label.experts, summary.num_local_experts ?? summary.n_routed_experts],
+    [label.context, summary.max_position_embeddings],
+    [label.params, formatCount(summary.parameters_total), "truth", paramsTitle],
+    [label.source, sourceLabel],
+    [label.status, status.label, status.tone, status.detail],
   ];
   return (
     <div className="summary-chips">

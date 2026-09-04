@@ -69,6 +69,7 @@ function ArchitectureTab({
   onNodeLensChange,
   chips = PUBLIC_CHIPS,
   onAddChip,
+  language = "zh",
   compactControls = false,
 }) {
   const [internalPhase, setInternalPhase] = useState("prefill");
@@ -204,8 +205,8 @@ function ArchitectureTab({
           <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); setChipId(entry.id); }} />
           </>}
           {compactControls && <>
-            <button type="button" onClick={onExpandAllGroups}>展开全部</button>
-            <button type="button" onClick={onCollapseAllGroups}>收起全部</button>
+            <button type="button" onClick={onExpandAllGroups}>{language === "en" ? "Expand all" : "展开全部"}</button>
+            <button type="button" onClick={onCollapseAllGroups}>{language === "en" ? "Collapse all" : "收起全部"}</button>
           </>}
           <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button onClick={onFit}>Fit</button>
@@ -216,7 +217,7 @@ function ArchitectureTab({
         </div>
       </div>
       <div className="diagram-lens-status" aria-label="Active Cost Lens">{activeMode === "pd" ? "PD" : "Centralized"} · {phase} · {activeNodes?.[activeMode === "pd" ? phase : "centralized"] || 1} {activeNodes?.[activeMode === "pd" ? phase : "centralized"] === 1 ? "node" : "nodes"} × {gpusPerNode} GPU · TP{plan.tp} / PP{plan.pp || 1} / EP{plan.ep} / DP{plan.dp || 1} · Cost Lens · {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</div>
-      {formulaLinks.length > 0 && <div className="formula-strip" aria-label="公式索引"><span className="formula-strip-label">公式</span>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
+      {formulaLinks.length > 0 && <div className="formula-strip" aria-label={language === "en" ? "Formula index" : "公式索引"}><span className="formula-strip-label">{language === "en" ? "Formula" : "公式"}</span>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
       {!compactControls && chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>缺失：{coverage.missing.join("、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{warning}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">规格来源</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>缺失：{compareCoverage.missing.join("、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{warning}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">规格来源</a>}</>}</div>}
       {structure && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}
       {structure && compareLensResult && !compareLensResult.ok && <div className="cost-plan-error">对比方案无效：{compareLensResult.errors.join("；")}</div>}

@@ -143,7 +143,7 @@ msv 有两条独立的结构构建路径，产出同一份 `ModelStructure`（py
 | G1 | 节点级无参数计数 | `schemas.py:12-20` `StructureNode` 无 `params`；`materializers/toStructureNode.js` 只落 `id/name/type/repeat/attributes/source_fields/confidence/children` | 无法做 per-module 成本分解 |
 | G2 | **不存在数值形状（不是"被丢弃"）** | `model_executor/shapes.js`：`dimension()` 直接把数值格式化进字符串（`"hidden size=4096"`），`tensorShapes` 每个值本来就是字符串 → **数值形态从未存在过** | 需要把 `shapes.js` 拆成数值层 + 展示层两套，工作量大于 v1 估计 |
 | G3 | fold 签名不含 shape 维度 | `structure/fold.py:145-152` `_signature` 只返回 `(node.type, class_label, tuple(children_sig))` | 中间维度不同的层会被误折叠，成本会错 |
-| G4 | 前端不直连 HF | `frontend/src/api/client.js` 所有 HF 调用走后端 `/api/hf/config`、`/api/hf/search` | **当前静态部署形态只能看内置 catalog**；读 safetensors header 必须先开前端直连 HF 的路径 |
+| G4 | 前端直连 HF | 已由 `frontend/src/api/hf.js` 和 `api/client.js` 实现直连优先、后端 fallback | **已解决**：静态部署可读取公开 HF 配置与 safetensors header |
 | G5 | 零成本存量代码 | 全仓 grep `params\|vram\|kv_cache\|flops\|macs\|numel` 无实现命中 | 成本模块从零开始 |
 | G6 | 无静态部署配置 | 无 `.github/workflows/` | "静态部署可行"是可行性，非既成事实 |
 
@@ -412,7 +412,7 @@ Qwen/Qwen3-30B-A3B（MoE，18867 个张量）→ 专家是编号子节点，天�
 
 #### (e) 前置依赖：前端直连 HF（G4）
 
-`api/client.js` 目前所有 HF 调用都走后端。要吃到上述能力，需要新增前端直连路径（`frontend/src/api/hf.js`），走 `huggingface.co` 公开 API。这同时解决了 G6/G4 的连带问题：**静态部署形态从"只能看内置 catalog"变为"能看任意公开 HF 模型"**。
+已由 `frontend/src/api/hf.js` 和 `api/client.js` 实现浏览器直连优先、后端代理 fallback。静态部署现在可以读取公开 Hugging Face / ModelScope 配置和 safetensors header；`local` 与 transformers 验证仍由后端负责。
 
 ### 4.3 层原语与后端的职责调整
 
@@ -706,6 +706,8 @@ plan = {
 
 **现实预期**：国产芯片的公开渠道经常缺 `memory_bandwidth` 或逐 dtype `peak_flops`。这不是暂时状态，而是本期必须正面设计的常态——见 (c) 的「缺项即协作入口」。
 
+**当前实施例外（2026-09-04）**：按第 12 条决策，公开国产目录暂缓；本期先保留字段级降级、本地覆盖和手动录入能力，不录入无法完整核实的公开条目。
+
 #### (c) 数据来源与合规（已拍板 2026-09-04）
 
 **策略：公开规格入库，非公开规格走用户配置，缺项做成显式的协作入口。** msv 定位是可静态公开部署（GitHub Pages），因此分两层 + 一个缺项机制：
@@ -807,7 +809,7 @@ __tests__/
 **编码约定**：每个公式的实现处必须写一行注释指明对应的 llm-analysis 函数，格式如：
 
 ```js
-// ref: llm-analysis LLMAnalysis.get_memory_kv_cache_per_layer
+// 来源：llm-analysis LLMAnalysis.get_memory_kv_cache_per_layer
 // 注意 min(TP, num_kv_heads)：TP 超过 KV 头数时无法继续切分
 ```
 
@@ -928,7 +930,7 @@ modelmap 式脉冲回放（rAF 引擎 + 相机跟随 + HUD 逐步解说 + beats 
 - **借的是公式形态与效率因子的三/四因子设计**，不是借它的精度。llm-analysis 自己就说输出是下界估计，msv 与它对齐的是"下界 + 定性"这个定位，不是数值。
 - **不做对比测试（v6）**：不建 oracle 测试套件、不存 fixture、不进 CI。理由：按 §5.1 的"准确 vs 正确"划分，对比套件守的是精度，而 msv 不承诺精度。
 - **代之以 §5.7 的公式正确性清单**：逐条列出必须正确的公式、常见错法、对应的 llm-analysis 函数、是否需要单测。**这是本方案唯一的质量闸门。**
-- **编码约定**：每个公式的实现处写一行 `// ref: llm-analysis <函数名>` 注释。未来怀疑某个公式时有据可查，成本近乎零。
+- **编码约定**：每个公式的实现处写一行中文 `// 来源：llm-analysis <函数名>` 注释。未来怀疑某个公式时有据可查，成本近乎零。
 
 三条来源共同确认的一件事：**解析式模型的定位是"下界 + 定性"，不是"预测"**。这与 msv "只做 bound 分类，不给吞吐数字"的边界一致 —— 但需要在 UI 上说清楚，否则用户会当预测用。
 
@@ -942,12 +944,12 @@ modelmap 式脉冲回放（rAF 引擎 + 相机跟随 + HUD 逐步解说 + beats 
 | **P0b** | safetensors header 接入（`@huggingface/hub`）+ **`skeleton.js` trie 建树** + `mergeSemantics` + IR v2 schema | 新 `cost/{weights,skeleton,mergeSemantics}.js`、`schemas.py`、`materializers/`、层原语改为只声明无参算子/执行序/语义 | P0a | ✅ |
 | **P0c** | `shapes.js` 拆 `dims.js` + `fold.py:_signature` 改为子树结构 + 真实 shape 的 hash | `model_executor/shapes.js`、`structure/fold.py` | P0b | ✅ |
 | **P1** | 单卡内存/计算量核心 + 轻量汇总条（prefill / decode 分开）+ **定位声明与假设摘要 UI** | 新 `cost/{memory,compute,aggregate}.js`、`normalize.js` 补 `kv_lora_rank`/`qk_rope_head_dim` | P0b | ✅ |
-| **P2a** | 芯片规格表（公开数据 + `coverage.js` 按字段降级 + 本地覆盖加载器 + 贡献说明） | 新 `cost/chips/*`、`CONTRIBUTING` 芯片数据一节 | — （可与 P0/P1 并行） | ✅ |
+| **P2a** | 芯片规格表（公开数据 + `coverage.js` 按字段降级 + 本地覆盖加载器 + 贡献说明） | 新 `cost/chips/*`、`CONTRIBUTING` 芯片数据一节 | — （可与 P0/P1 并行） | ◐（国产公开目录暂缓；本地/手动入口完成） |
 | **P2b** | 效率因子 + roofline 三类 bound 分类 + 图上 lens + **双卡对比视图** | 新 `cost/efficiency.js`、`cost/roofline.js`、`diagram` 渲染 | P0c、P1、P2a | ✅ |
 | **P2c** | **并行投影**（`parallel.js`：TP/PP/EP/DP 权重与 KV 切分 + 逐卡 fit + 每卡视图） | 新 `cost/parallel.js` | P1 | ✅ |
 | **P2d** | **通信量 + comm-bound**（`comm.js`）+ 并行策略对比视图 | 新 `cost/comm.js`、`roofline.js` 扩三类、`chips` 补 `interconnect` | P2b、P2c | ✅ |
 | **P2e** | **PD 分离**：plan 扩为一对 + KV 传输量 + 两侧不同芯片 | `cost/parallel.js`、`cost/comm.js` 扩展 | P2c、P2d | ✅ |
-| **P3** | 轻量动画（hover 联动 + 公式↔节点双向联动） | `diagram`、`formulas` 联动 | P0c | — |
+| **P3** | 轻量动画（hover 联动 + 公式↔节点双向联动） | `diagram`、`formulas` 联动 | P0c | ✅ |
 
 **实施顺序**：**P0a→P0b 必须先行**——成本数字的价值全部来自真值，先做一个基于推导的 P1 等于先造一个要被替换掉的东西。P0a 单独可交付且立刻有可见收益（静态部署从"只能看内置模型"变为"能看任意公开 HF 模型"）。
 
@@ -960,9 +962,9 @@ modelmap 式脉冲回放（rAF 引擎 + 相机跟随 + HUD 逐步解说 + beats 
 **验收标准**（按 §5.1 的定位，都是"能得出正确的定性结论"，不是"数值贴近实测"）：
 - **P0b**：任选一个**没有模板**的架构（如 Llama / Gemma / GLM），能出正确的模块树与精确的参数量。这条直接证明"覆盖度与模板解耦"。
 - **P1**：五段分解 + 逐卡 fit 能跑通；**UI 上有显眼的"理论估算，非仿真非预测"声明与假设摘要**。不设"与实测偏差 < X%"这类指标。
-- **P2b**：并排两张卡（建议 H20 vs 昆仑芯 P800），能看出 bound 类型发生翻转的模块。
+- **P2b**：并排两张已核实或用户本地配置的卡，能看出 bound 类型发生翻转的模块；H20 vs 昆仑芯 P800 的公开目录验收随第 12 条决策暂缓。
 - **P2c**：DeepSeek-V3（权重 641 GiB，单卡必然放不下）能在给定 plan 下算出逐卡 fit 结论。**这条同时是"为什么并行必须进范围"的证明**。
-- **P2d**：国产卡 + decode 阶段，TP 增大时能看出模块从 memory-bound 翻成 comm-bound。
+- **P2d**：低互联本地/手动卡 + decode 阶段，TP 增大时能看出模块从 memory-bound 翻成 comm-bound；公开国产卡复测随第 12 条决策暂缓。
 - **P2e**：**MLA（DeepSeek）vs GQA（Qwen）在 PD 分离下的 KV 传输量对比**，能看出 MLA 小一个数量级。这是最有说服力的单一输出，且无同类工具覆盖。
 
 ---
@@ -1006,19 +1008,19 @@ modelmap 式脉冲回放（rAF 引擎 + 相机跟随 + HUD 逐步解说 + beats 
 6. **并行策略进入范围**：做 given-plan（TP / PP / EP / DP）的每卡资源投影与每层通信量，**不做 plan 搜索与吞吐预测**。连带：`interconnect` 升为必需字段；bound 分类扩为三类（compute / memory / comm）。
 7. **拓扑骨架也读真值**：safetensors key 建 trie → 精确含参模块树；模板收缩为无参算子 + 执行序 + 语义/公式。覆盖度与模板数量解耦（§4.2(b2)）。
 8. **三类 bound 引入显式效率因子** `η_flops`/`η_hbm`/`η_comm`，取文献默认值（§5.3(4)）。**目的是消除结构性偏差，不是追求精度。**
-9. **借 llm-analysis 的公式形态与效率因子设计**；**不建对比测试套件**，代之以 §5.7 公式清单 + 实现处 `// ref:` 注释；**plan 搜索与仿真指向 Vidur，msv 不做**（§7.4）。
+9. **借 llm-analysis 的公式形态与效率因子设计**；**不建对比测试套件**，代之以 §5.7 公式清单 + 实现处中文 `// 来源：` 注释；**plan 搜索与仿真指向 Vidur，msv 不做**（§7.4）。
 10. **PD 分离进范围（P2e）**：plan 扩为 `{prefill, decode}` 一对 + KV 传输量，两侧可用不同芯片（§5.3(7)）。
 11. **定位收口（v5）**：msv 成本模块是**理论分析能力**，不是仿真、不是预测、**不承诺精度**（§5.1）。
     - 效率因子与三个常数项只给默认值 + UI 旋钮 + 明示假设，**不组织实测校准**。
     - **取消** vLLM 日志 / XProfiler / `xccl_perf` 的一切校准动作（v6 连"可选抽查"也不保留）。
     - 验收标准全部改为"能得出正确的定性结论"，**不设与实测的偏差百分比指标**。
     - 守住的底线是**倍数级正确**（`/TP`、`2×`、MLA 不可切这类），由 KV 切分单测覆盖 —— 这属于正确性而非精度（§5.1 的"准确 vs 正确"表）。
+12. **国产芯片公开目录暂缓**：当前仓库只收录有完整官方字段来源的 NVIDIA A100/H100/L40S；国产及非公开规格继续通过 `chips.local.json` 或手动录入，不阻塞其余阶段收口。
 
-**仍待确认**（下一个会话开工时顺手定，都不阻塞 P0）：
+**后续增强候选**（不属于当前验收范围）：
 1. **§5.3(6) 的 plan 输入形态**：手填 `{TP, PP, EP, DP}` 是否够？还是支持粘贴 vLLM / SGLang 启动参数自动解析？建议做，但放在 P2c 之后作为独立小增量。
 2. **§5.3(6.1) embedding / lm_head 的切分开关**：建议默认按 vLLM 行为（vocab-并行）并暴露开关。
 3. **§7.3**：Model Explorer 作为退路的判断（先手写，性能撑不住再换）。
-4. **§6.1** 公式↔节点双向联动的投入优先级。v4 后它的价值更高——公式讲解是模板**唯一**不可替代的产出，也是⑤算子级可解释的核心。
 
 ---
 
@@ -1027,27 +1029,16 @@ modelmap 式脉冲回放（rAF 引擎 + 相机跟随 + HUD 逐步解说 + beats 
 ### 11.1 先读什么
 
 1. **§0.1 定位判据** —— 任何实现决策先过那张表，过不去就是越界。
-2. 本节 11.2 的第一步任务。
+2. 本节 11.2 的当前实现基线。
 3. 需要背景时再回看：§4.2(b2)（trie 建骨架，最核心的技术判断）、§5.1（成本定位）、§5.7（公式清单）。
 
-### 11.2 第一步：`skeleton.js`（强烈建议单独交付）
+### 11.2 当前实现基线
 
-**为什么先做这个**：约 30 行，换来覆盖度从 3 个模板家族到"任何有 safetensors 的模型"。它是全案投入产出比最高的一步，且与成本侧完全解耦。
-
-```
-输入：safetensors 的 key 列表（+ 每个 key 的 {dtype, shape}）
-处理：key 去掉最后一段（参数名）→ 按 "." 切分 → 建 trie
-输出：模块树，每个叶节点带 {参数名: {dtype, shape}}
-```
-
-关键实现点（均已在 §4.2(b2) 实测验证）：
-- 数字路径段（`layers.0`、`experts.3`）即 ModuleList，直接对应 `repeat`。
-- 同一模块下的多个参数（`weight` / `qweight` / `qzeros` / `scales` / `bias`）聚在同一节点，不拆。
-- 大 MoE 的 `index.json` 可达 MB 量级（Qwen3-30B-A3B 18867 个张量约 1 MB）→ 需要 loading 态，且**建完 trie 立刻折叠再交给渲染层**，不要把 18867 个节点送进 diagram。
-
-**验收**：拿一个**没有模板**的架构（Llama / Gemma / GLM 任选）出正确的模块树与精确参数量。
-
-**前置**：P0a（前端直连 HF，`frontend/src/api/hf.js`）。当前 `api/client.js` 所有 HF 调用走后端，静态部署只能看内置 catalog。
+- `skeleton.js` 已用 safetensors key 构造并折叠含参模块树；无模板模型走 `skeleton-truth`。
+- `mergeSemantics.js` 已把模板语义与 checkpoint 真值合并，模板缺项会物化到 `checkpoint_gaps`。
+- `cost/` 已覆盖 F3–F17 公式闸门、逐卡并行投影、三类 roofline bound、芯片/方案对比和 PD 分离。
+- `diagram/` 已覆盖 hover 前后继、差异节点突出以及公式、Layers、Architecture 的同路径联动。
+- 公开国产芯片目录按第 12 条决策暂缓；本地覆盖与手动录入能力保留。
 
 ### 11.3 阶段顺序（详见 §8）
 
@@ -1067,7 +1058,7 @@ P3 hover 联动 + 公式↔节点双向联动（依赖 P0c）
 ### 11.4 五条不可违反的约定
 
 1. **不做实测校准**。效率因子与三个常数项给默认值 + UI 旋钮，就停手（§5.1）。
-2. **公式实现处必须写 `// ref: llm-analysis <函数名>` 注释**（§5.7）。
+2. **公式实现处必须写中文 `// 来源：llm-analysis <函数名>` 注释**（§5.7）。
 3. **只测 §5.7 标"是"的项**，不写精度测试。F3–F7（KV 与其切分）是最高危区。
 4. **UI 显眼处必须有"理论估算，非仿真非预测"声明 + 生效假设摘要**（§5.6）。这是放弃精度的必要配套。
 5. **`chips/public.js` 每条必带 `source`**，无 source 不合入；非公开规格只走 gitignore 的 `chips.local.json`（§5.4(c)）。

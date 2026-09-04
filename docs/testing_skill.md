@@ -226,8 +226,8 @@ lsof -iTCP:8000 -sTCP:LISTEN -n -P || true
 
 浏览器验证分两类：
 
-- 只启动前端静态服务：验证 `builtin` 和 `config`，覆盖 GitHub Pages 等纯静态部署能力。
-- 前后端都启动：验证 `local`、`hf`、后端 settings、`/api/local/config`、`/api/structure`、`/api/verify` 等需要 API 的能力。
+- 只启动前端静态服务：验证 `builtin`、`config`、`hf` 直连和 Hugging Face 搜索，覆盖 GitHub Pages 等纯静态部署能力。
+- 前后端都启动：验证 `local`、后端 fallback、settings、`/api/local/config`、`/api/structure`、`/api/verify` 等需要 API 的能力。
 
 如果改动只影响前端组网、UI、导出或内置模型，至少跑静态前端浏览器验证。如果改动涉及 `source` 协议、resolver、settings、API、transformers recovery 或本地模型读取，必须同时跑前后端验证。
 
@@ -268,10 +268,14 @@ npm --prefix frontend run verify:page
 
 - 页面能打开并完成默认模型生成。
 - Architecture 有 SVG 图。
+- Architecture 芯片目录包含 A100、H100、L40S，方案对比固定芯片并渲染两个同步面板。
+- 点击公式后，公式按钮与两个图面板中的同路径节点同时高亮。
 - Layers 能展开，能看到 `Decoder Layers`、公式、输入维度和输出维度。
 - Export 能生成 Mermaid。
 - Raw Config 能展示原始配置。
 - 所有内置模型逐个切到 `builtin` 后都能生成结构。
+
+涉及 checkpoint 真值时，再用浏览器手动验证一个无模板模型，例如 `HuggingFaceTB/SmolLM2-135M`：状态应为“Checkpoint 骨架真值”，导出的 JSON 中节点参数账本应等于 `summary.parameters_total`。涉及 roofline 对比时，使用一张手动录入的低互联测试卡，在 Decode 下比较 TP1 与 TP8，确认能显示并突出 `memory→comm` 翻转；测试卡只存在于当前会话，不写入仓库。
 
 结束后停止静态服务和 Chrome，并确认端口没有残留：
 

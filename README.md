@@ -1,11 +1,11 @@
 # Model Structure Viewer
 
-这是一个模型结构查看工具。它读取 `config.json` 和少量模型元数据，生成结构图、层列表和导出内容。
+这是一个模型结构查看与理论成本分析工具。它读取 `config.json`，并可通过 safetensors header 获取逐张量 dtype、shape 和参数量，生成结构图、层列表、显存分解与瓶颈分析。
 
-工具只看结构，不下载权重，也不跑推理。当前网页端主要在前端完成组网：
+工具不下载权重数据区，也不跑推理。在线模型只读取配置、模型 API 和 safetensors header。当前网页端主要在前端完成组网：
 
 ```text
-config.json -> registry -> model builder -> layers -> ops/formulas -> IR -> UI/export
+config.json + checkpoint header -> registry/trie -> semantics merge -> IR -> cost lens/UI/export
 ```
 
 后端主要负责本地配置读取、Hugging Face 配置读取，以及保留兼容用的结构接口。
@@ -90,6 +90,16 @@ npm run dev
 
 打开 `http://localhost:5173`。Vite dev server 会把 API 请求转发到 `http://localhost:8000`。
 
+### 页面使用
+
+1. 选择 `builtin`、`hf`、`local` 或 `config`，填写模型 ID 或配置并点击 `Generate`。
+2. 顶部“理论成本估算”调整 Prefill/Decode、B、T、权重/KV dtype 假设以及 TP/PP/EP/DP；结果只用于定性分析，不是仿真或性能预测。
+3. Architecture 的 Lens 可切换芯片、阶段、TP、EP、Attention 模式和三个效率因子。
+4. “芯片”对比固定并行方案，只改变芯片；“方案”对比固定芯片，只改变 TP/EP/Attention，发生瓶颈翻转的节点会单独突出。
+5. 公式按钮、Architecture 节点和 Layers 卡片共享节点路径，点击后可联动查看详情。
+
+内置公开芯片为 A100、H100 和 L40S，均附 NVIDIA 官方来源。其他芯片可通过页面“添加芯片”临时录入，或复制 `frontend/src/cost/chips/chips.local.example.json` 为 `frontend/public/chips.local.json` 进行本地覆盖；仓库不会保存非公开规格。
+
 ## API
 
 - `GET /api/models`
@@ -108,7 +118,7 @@ npm run dev
 
 - `local`：只读取 `$MODEL_ROOT/<org>/<model>/config.json`
 - `builtin`：读取仓库内置 `models/<org>/<model>/config.json`；网页静态部署时不需要后端，CLI/API 会从仓库内置目录读取
-- `hf`：从 Hugging Face 拉取 `config.json` 和允许缓存的元数据
+- `hf`：网页优先直连 Hugging Face 或 ModelScope 获取 `config.json` 与 checkpoint header；直连失败时可回退后端代理
 - `auto`：优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页端和后端保持相同顺序
 - `config`：使用粘贴或上传的 JSON
 
@@ -124,7 +134,7 @@ npm run dev
 .onnx
 ```
 
-网页端会优先从静态 `/models/catalog.json` 和 `/models/<org>/<model>/config.json` 读取内置配置，然后在前端生成结构。如果使用后端本地缓存或 Hugging Face 查询，才会访问 `/api/local/config` 和 `/api/hf/config`。`/api/structure` 仍然保留，主要用于命令行、兼容旧调用和后端诊断。
+网页端会优先从静态 `/models/catalog.json` 和 `/models/<org>/<model>/config.json` 读取内置配置。`hf` 与 Hugging Face 搜索优先从浏览器直连公开端点；`local`、设置保存、后端 fallback 和 transformers 验证才依赖 API。`/api/structure` 仍然保留，主要用于命令行、兼容旧调用和后端诊断。
 
 新模型适配时，后端验证优先使用 `msv verify` 或 `/api/verify`。它只检查 transformers meta-device 构造是否成功，不会在失败时生成一份看似可用的 config 结构。
 
@@ -207,7 +217,7 @@ cd frontend
 npm run build
 ```
 
-部署 `frontend/dist` 到 GitHub Pages 后，`builtin` 和 `config` 两种来源可以在没有后端的情况下工作。`local`、`hf`、后端设置保存和 Hugging Face 搜索仍然需要 API 服务。
+部署 `frontend/dist` 到 GitHub Pages 后，`builtin`、`config`、`hf` 和 Hugging Face 搜索可以在没有后端的情况下工作。`local`、后端设置保存、代理 fallback 和 transformers 验证仍需要 API 服务。
 
 如果站点部署在子路径，例如 `https://kinchow.github.io/model-structure-viewer/`，需要设置 Vite base：
 
@@ -231,6 +241,8 @@ API 错误统一返回 `{"detail": "<message>"}`。常见状态码如下：
 
 - `summary.strategy`：结构生成策略。
   - `frontend-architecture-template`：前端根据 config、registry 和模型 builder 生成结构，适合静态部署和手动验证。
+  - `skeleton-truth`：无匹配模板时，直接用 checkpoint header 的张量路径构造含参模块树。
+  - `template+truth`：模板提供无参算子、执行顺序和公式，checkpoint header 提供参数真值。
   - `meta-introspect`：后端成功通过 `nn.Module` 做了结构检查。
   - `repaired-meta-introspect`：后端先遇到 transformers 兼容问题，套用很窄的修复策略后构建成功。
 - `source.diagnostics`：更细的机器可读诊断信息，比如 `failure_kind`、`repair_strategy`、worker 超时和退出码。

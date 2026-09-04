@@ -23,7 +23,7 @@
 
 - 后端是本地开发/验证后端，默认可信用户、可信模型目录；公网暴露、安全沙箱和多租户隔离不是当前设计目标。
 - `source` 是前后端共享协议，固定为 `auto`、`builtin`、`local`、`hf`、`config`。`auto` 的顺序是 `builtin -> local -> hf`。
-- 前端 `builtin` 和 `config` 来源必须在无后端的静态站点工作；`local`、`hf`、settings 保存和后端 transformers 验证需要 API。
+- 前端 `builtin`、`config`、`hf` 直连和 Hugging Face 搜索必须在无后端的静态站点工作；`local`、settings 保存、代理 fallback 和后端 transformers 验证需要 API。
 - 前后端导出实现并存是有意设计：前端服务静态站点和 UI，后端服务 CLI/API，并可用于对照验证。审查时不要把它直接归类为应删除的重复代码。
 - `POST /api/settings` 是本地单用户便利接口，会改变进程默认设置；多用户部署需要改为每请求显式参数或会话级设置。
 

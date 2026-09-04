@@ -121,7 +121,35 @@ async function runPageSmoke(cdp) {
   const architecture = await evaluate(cdp, `
     return {
       hasSvg: Boolean(document.querySelector('svg[aria-label="Model architecture diagram"]')),
+      chipOptions: Array.from(document.querySelectorAll('.diagram-panel label.lens-control select')[0]?.options || []).map((option) => option.textContent.trim()),
       text: document.body.innerText,
+    };
+  `);
+
+  await evaluate(cdp, `
+    const button = Array.from(document.querySelectorAll('.lens-mode-switch button')).find((item) => item.textContent.trim() === '方案');
+    button.click();
+    return true;
+  `);
+  await waitFor(cdp, "return document.querySelectorAll('.diagram-compare .diagram-frame').length === 2;", "plan comparison panes");
+  const comparison = await evaluate(cdp, `
+    const labels = Array.from(document.querySelectorAll('.diagram-compare-label')).map((item) => item.textContent.trim());
+    return {
+      labels,
+      paneCount: document.querySelectorAll('.diagram-compare .diagram-frame').length,
+      hasCompareTp: Array.from(document.querySelectorAll('.diagram-panel label.lens-control')).some((item) => item.textContent.includes('对比 TP')),
+      hasCompareChip: Array.from(document.querySelectorAll('.diagram-panel label.lens-control')).some((item) => item.textContent.includes('对比芯片')),
+    };
+  `);
+  const formulaLinking = await evaluate(cdp, `
+    const formulaButton = document.querySelector('.formula-strip button[data-node-path]');
+    const path = formulaButton?.dataset.nodePath || '';
+    formulaButton?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return {
+      path,
+      activeFormulaPath: document.querySelector('.formula-strip button.active')?.dataset.nodePath || '',
+      selectedNodePaths: Array.from(document.querySelectorAll('g.diagram-node.selected')).map((item) => item.dataset.nodePath),
     };
   `);
 
@@ -182,7 +210,10 @@ async function runPageSmoke(cdp) {
       hasExpectedModel: architecture.text.includes("DeepseekV3ForCausalLM"),
       hasExpectedSource: architecture.text.includes("built-in config"),
       hasFrontendTemplateStatus: architecture.text.includes("Frontend template"),
+      hasL40s: architecture.chipOptions.includes("L40S 48GB"),
     },
+    comparison,
+    formulaLinking,
     layers: {
       hasDecoderLayers: layersText.includes("Decoder Layers"),
       hasRoutedMoe: layersText.includes("Routed MoE"),
@@ -317,6 +348,15 @@ async function main() {
       smoke.architecture.hasSvg &&
       smoke.architecture.hasExpectedModel &&
       smoke.architecture.hasExpectedSource &&
+      smoke.architecture.hasL40s &&
+      smoke.comparison.paneCount === 2 &&
+      smoke.comparison.hasCompareTp &&
+      !smoke.comparison.hasCompareChip &&
+      smoke.comparison.labels.every((label) => label.includes("A100 80GB SXM")) &&
+      smoke.formulaLinking.path !== "" &&
+      smoke.formulaLinking.activeFormulaPath === smoke.formulaLinking.path &&
+      smoke.formulaLinking.selectedNodePaths.length === 2 &&
+      smoke.formulaLinking.selectedNodePaths.every((path) => path === smoke.formulaLinking.path) &&
       smoke.layers.hasDecoderLayers &&
       smoke.layers.hasRoutedMoe &&
       smoke.layers.hasFormula &&

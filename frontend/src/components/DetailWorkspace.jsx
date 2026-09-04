@@ -103,13 +103,17 @@ export default function DetailWorkspace({
   const breadcrumbs = breadcrumbForPath(structure?.root, selectedPath);
   const activeMachineName = chips?.find((chip) => chip.id === activeMachineId)?.name || "GPU";
   const activeNodeCount = activeNodes?.[activeMode === "pd" ? activePhase : "centralized"] || 1;
+  const selectSearchResult = (path) => {
+    onSelectNode(path);
+    onSearchChange("");
+  };
   return (
     <main className={`detail-page theme-${theme}`}>
       <DetailHeader structure={structure} sourceLabel={sourceLabel} language={language} onLanguageChange={onLanguageChange} onThemeChange={onThemeChange} theme={theme} onBack={onBack} onSettings={onSettings} />
       <section className="detail-summary"><SummaryChips structure={structure} sourceLabel={sourceLabel} language={language} /></section>
       <section className="detail-layout">
         <div className="detail-main">
-          <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={onSelectNode} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
+          <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
           <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen}><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? "PD" : "Centralized"} · {activeMachineName} · {activePhase} · {activeNodeCount}×{activeGpusPerNode} GPU</span><span>{costOpen ? "−" : "+"}</span></button></div>
           {costOpen && <div className="detail-cost-panel"><CostSummary structure={structure} chips={chips} onAddChip={onAddChip} language={language} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={setActivePhase} mode={activeMode} onModeChange={setActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} /></div>}
           <ArchitectureTab structure={structure} zoom={zoom} onZoomChange={onZoomChange} fitNonce={fitNonce} onFit={onFit} selectedPath={selectedPath} matchedPaths={matchedPaths} expandedGroups={expandedGroups} searchActive={Boolean(searchTerm.trim())} hitCount={matchedPaths.size} onSelectNode={onSelectNode} onToggleGroup={onToggleLayerPath} onExpandAllGroups={onExpandAllLayers} onCollapseAllGroups={onCollapseAllLayers} chips={chips} onAddChip={onAddChip} language={language} activeLenses={activeLenses} activePhase={activePhase} activeMode={activeMode} activePlans={activePlans} onPlanChange={setActivePlans} activeNodes={activeNodes} gpusPerNode={activeGpusPerNode} activeMachineId={activeMachineId} onMachineChange={setActiveMachineId} onNodeLensChange={setNodeLens} compactControls />

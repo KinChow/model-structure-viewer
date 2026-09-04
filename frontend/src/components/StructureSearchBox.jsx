@@ -6,6 +6,15 @@ function StructureSearchBox({ value, onChange, hitCount, disabled, results = [],
         placeholder="Search nodes by name / type / class..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && results[0]) {
+            event.preventDefault();
+            onSelect?.(results[0].path);
+          } else if (event.key === "Escape" && value) {
+            event.preventDefault();
+            onChange("");
+          }
+        }}
         disabled={disabled}
       />
       {value && (

@@ -1104,6 +1104,17 @@ label {
 .detail-page .panel-toolbar h2, .detail-page .detail-panel h3, .detail-page .detail-panel h4 { color: #edf2f7; }
 .detail-page .diagram-frame { border-color: #2a3545; background-color: #0f151e; background-image: radial-gradient(#253042 1px, transparent 1px); background-size: 20px 20px; }
 .detail-page.theme-light .diagram-frame { border-color: #dce3eb; background-color: #f8fbfd; background-image: radial-gradient(#d7e1ea 1px, transparent 1px); }
+.detail-page.theme-dark .diagram-node.model { fill: #182432; stroke: #6ca6d7; }
+.detail-page.theme-dark .diagram-node.embedding { fill: #2b2028; stroke: #d3869f; }
+.detail-page.theme-dark .diagram-node.attention { fill: #302719; stroke: #d5a64b; }
+.detail-page.theme-dark .diagram-node.mlp { fill: #1c2d25; stroke: #7eae89; }
+.detail-page.theme-dark .diagram-node.moe { fill: #29233a; stroke: #9a86d9; }
+.detail-page.theme-dark .diagram-node.projector { fill: #1d302f; stroke: #6fb4aa; }
+.detail-page.theme-dark .diagram-node.output { fill: #28242e; stroke: #a18eaa; }
+.detail-page.theme-dark .diagram-node.vision { fill: #1d2939; stroke: #7ca7dc; }
+.detail-page.theme-dark .diagram-node.layer { fill: #1a222b; stroke: #9ca8b6; }
+.detail-page.theme-dark .diagram-node-header .diagram-repeat { color: #a9c9e7; background: rgba(108,166,215,.16); }
+.detail-page.theme-dark .diagram-range, .detail-page.theme-dark .diagram-children-count { color: #9baabd; }
 .detail-page .diagram-panel.canvas-focus { position: fixed; inset: 12px; z-index: 40; min-height: 0; overflow: auto; padding: 18px; border: 1px solid #344154; border-radius: 10px; background: #0d1117; box-shadow: 0 24px 80px rgba(0,0,0,.58); }
 .detail-page .diagram-panel.canvas-focus .diagram-frame { height: calc(100vh - 178px); min-height: 420px; }
 .detail-page.theme-light .diagram-panel.canvas-focus { border-color: #dce3eb; background: #f5f7fa; box-shadow: 0 24px 80px rgba(31,47,64,.24); }

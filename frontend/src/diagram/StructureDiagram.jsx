@@ -45,6 +45,7 @@ function StructureDiagram({
   const frameRef = useRef(null);
   const scrollRef = useRef(null);
   const panRef = useRef({ active: false, moved: false, x: 0, y: 0, left: 0, top: 0 });
+  const [scrollPosition, setScrollPosition] = useState({ left: 0, top: 0 });
   const fitNonceRef = useRef(fitNonce);
   const [viewport, setViewport] = useState(() =>
     fitDiagramViewport({
@@ -124,6 +125,12 @@ function StructureDiagram({
   const miniMapWidth = 148;
   const miniMapHeight = 92;
   const miniScale = Math.min(miniMapWidth / Math.max(contentWidth, 1), miniMapHeight / Math.max(contentHeight, 1));
+  const miniViewport = {
+    x: Math.max(0, (scrollPosition.left - viewport.offsetX) / viewport.scale) * miniScale,
+    y: Math.max(0, (scrollPosition.top - viewport.offsetY) / viewport.scale) * miniScale,
+    width: Math.min(miniMapWidth, (scrollRef.current?.clientWidth || miniMapWidth) / viewport.scale * miniScale),
+    height: Math.min(miniMapHeight, (scrollRef.current?.clientHeight || miniMapHeight) / viewport.scale * miniScale),
+  };
 
   function jumpFromMiniMap(event) {
     const scroll = scrollRef.current;
@@ -131,8 +138,8 @@ function StructureDiagram({
     const rect = event.currentTarget.getBoundingClientRect();
     const x = (event.clientX - rect.left) / miniScale;
     const y = (event.clientY - rect.top) / miniScale;
-    scroll.scrollLeft = Math.max(0, x * viewport.scale - scroll.clientWidth / 2);
-    scroll.scrollTop = Math.max(0, y * viewport.scale - scroll.clientHeight / 2);
+    scroll.scrollLeft = Math.max(0, x * viewport.scale + viewport.offsetX - scroll.clientWidth / 2);
+    scroll.scrollTop = Math.max(0, y * viewport.scale + viewport.offsetY - scroll.clientHeight / 2);
   }
 
   function startPan(event) {
@@ -170,7 +177,7 @@ function StructureDiagram({
 
   return (
     <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
-      <div className="diagram-scroll" ref={scrollRef} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
+      <div className="diagram-scroll" ref={scrollRef} onScroll={(event) => setScrollPosition({ left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop })} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
         <div className="diagram-zoom" style={{ width, height }}>
           <svg
             className="diagram-svg"
@@ -322,6 +329,7 @@ function StructureDiagram({
           <g transform={`scale(${miniScale})`}>
             {nodes.filter((node) => node.containerFrame).map((node) => <rect key={`mini-frame-${node.path}`} x={node.containerFrame.x} y={node.containerFrame.y} width={node.containerFrame.width} height={node.containerFrame.height} className="mini-frame" />)}
             {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}`} />)}
+            <rect x={miniViewport.x / miniScale} y={miniViewport.y / miniScale} width={miniViewport.width / miniScale} height={miniViewport.height / miniScale} className="mini-viewport" />
           </g>
         </svg>
       </button>

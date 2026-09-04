@@ -1,0 +1,24 @@
+{
+  "chips": [
+    {
+      "id": "example-chip",
+      "vendor": "example-vendor",
+      "name": "Example local chip (fictional)",
+      "memory_bytes": 100000000000,
+      "memory_bandwidth": 1000000000000,
+      "peak_flops": {
+        "bf16": 1000000000000,
+        "fp16": 1000000000000,
+        "fp8": 1000000000000,
+        "int8": 1000000000000
+      },
+      "interconnect": {
+        "intra_node": { "kind": "PCIe", "bandwidth": 100000000000 },
+        "inter_node": { "kind": "RoCE", "bandwidth": 10000000000 }
+      },
+      "source": "https://example.com/replace-with-your-source",
+      "confidence": "local",
+      "notes": ["这是虚构示例，使用前必须替换全部规格和来源。"]
+    }
+  ]
+}

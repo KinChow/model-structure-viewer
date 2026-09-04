@@ -10,6 +10,7 @@ build/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/src/cost/chips/chips.local.json
 .env
 .env.*
 .comate

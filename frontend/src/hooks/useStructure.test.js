@@ -138,7 +138,7 @@ test("buildStructureForPayload reads HF config then builds in frontend", async (
   );
 
   assert.equal(apiCalled, false);
-  assert.equal(structure.source.kind, "hf config");
+  assert.equal(structure.source.kind, "hf config (huggingface)");
   assert.equal(structure.summary.canonical_architecture, "mla-moe-decoder");
 });
 

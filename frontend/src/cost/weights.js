@@ -14,17 +14,19 @@ function isTensorKey(name) {
 }
 
 /**
- * 读取一个 HF repo 的 safetensors 元数据，归一化为：
+ * 读取模型源的 safetensors 元数据，归一化为：
  * - tensors: [{name, dtype, shape}]（跨分片合并，含每张量的真实 dtype/shape）
  * - parameterCount: 逐 dtype 精确参数量（库计算，处理打包容器/排除项）
- * - parameterTotal: 模型级精确总参数量
+ * - parameterTotal: 模型级精确总参数量（header 无 __metadata__ 时按 parameterCount 求和推导）
  *
+ * hubUrl 传入 ModelScope（https://www.modelscope.cn）即可直读其 safetensors（国内可达）。
  * 失败（无 safetensors / gated / 网络）时抛错，由调用方降级为模板路径。
  */
-export async function fetchCheckpointTruth({ modelId, revision = "main", fetchImpl = fetch }) {
+export async function fetchCheckpointTruth({ modelId, revision = "main", hubUrl, fetchImpl = fetch }) {
   const parsed = await parseSafetensorsMetadata({
     repo: { type: "model", name: modelId },
     revision,
+    hubUrl,
     computeParametersCount: true,
     fetch: fetchImpl,
   });
@@ -39,9 +41,14 @@ export async function fetchCheckpointTruth({ modelId, revision = "main", fetchIm
   }
   tensors.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
+  const parameterCount = parsed.parameterCount ?? null;
+  const parameterTotal =
+    parsed.parameterTotal ??
+    (parameterCount ? Object.values(parameterCount).reduce((sum, n) => sum + n, 0) : null);
+
   return {
     tensors,
-    parameterCount: parsed.parameterCount ?? null,
-    parameterTotal: parsed.parameterTotal ?? null,
+    parameterCount,
+    parameterTotal,
   };
 }

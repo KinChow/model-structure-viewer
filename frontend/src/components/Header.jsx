@@ -4,6 +4,8 @@ function Header({
   sourceLabel,
   source,
   onSourceChange,
+  endpoint,
+  onEndpointChange,
   modelId,
   onModelIdChange,
   cachePolicy,
@@ -41,6 +43,15 @@ function Header({
             aria-label="model id"
           />
         )}
+        <select
+          value={endpoint}
+          onChange={(event) => onEndpointChange(event.target.value)}
+          aria-label="endpoint"
+          title="模型源（huggingface / modelscope 国内可达）"
+        >
+          <option value="huggingface">huggingface</option>
+          <option value="modelscope">modelscope</option>
+        </select>
         <select
           value={cachePolicy}
           onChange={(event) => onCachePolicyChange(event.target.value)}

@@ -73,6 +73,7 @@ function App() {
   const exporter = useExport();
 
   const [source, setSource] = useState("auto");
+  const [endpoint, setEndpoint] = useState("huggingface");
   const [modelId, setModelId] = useState("deepseek-ai/DeepSeek-V3.1");
   const [selectedConfigPath, setSelectedConfigPath] = useState("");
   const [revision, setRevision] = useState("main");
@@ -181,6 +182,7 @@ function App() {
     }
     const payload = {
       source,
+      endpoint,
       model_id: source === "config" || selectedConfigPath ? null : modelId.trim(),
       config_path: source === "config" ? null : selectedConfigPath || null,
       config_json: configJson,
@@ -215,6 +217,8 @@ function App() {
         sourceLabel={sourceLabel}
         source={source}
         onSourceChange={handleSourceChange}
+        endpoint={endpoint}
+        onEndpointChange={setEndpoint}
         modelId={modelId}
         onModelIdChange={handleModelIdChange}
         cachePolicy={settings.cache_policy}

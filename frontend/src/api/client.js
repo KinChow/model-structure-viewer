@@ -59,19 +59,19 @@ export function fetchLocalConfigApi({ modelId, configPath, source = "local" }) {
   return requestJson(`/api/local/config?${params.toString()}`);
 }
 
-// 搜索/配置读取：前端直连 HF 优先（静态部署可用），失败回退后端代理（本地开发/受限网络）。
-export async function searchHfApi(query, limit = 10) {
+// 搜索/配置读取：前端直连优先（静态部署可用），失败回退后端代理（本地开发/受限网络）。
+export async function searchHfApi(query, limit = 10, endpoint) {
   try {
-    return await searchHfDirect(query, limit);
+    return await searchHfDirect(query, limit, endpoint);
   } catch {
     const params = new URLSearchParams({ q: query, limit: String(limit) });
     return requestJson(`/api/hf/search?${params.toString()}`);
   }
 }
 
-export async function fetchHfConfigApi({ modelId, revision = "main" }) {
+export async function fetchHfConfigApi({ modelId, revision = "main", endpoint }) {
   try {
-    return await fetchHfConfigDirect({ modelId, revision });
+    return await fetchHfConfigDirect({ modelId, revision, endpoint });
   } catch {
     const params = new URLSearchParams({ model_id: modelId, revision });
     return requestJson(`/api/hf/config?${params.toString()}`);

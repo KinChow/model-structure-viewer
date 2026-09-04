@@ -8,6 +8,9 @@ export function metaForNode(node) {
   const experts = attrs.routed_experts || attrs.num_local_experts;
   if (experts) lines.push(`experts ${experts}`);
   if (attrs.range) lines.push(String(attrs.range));
+  const inputShape = attrs.input_shape;
+  const outputShape = attrs.output_shape;
+  if (lines.length < 2 && (inputShape || outputShape)) lines.push(`${inputShape || "-"} → ${outputShape || "-"}`);
   if (lines.length === 0 && node.type) lines.push(node.type);
   return lines.slice(0, 2);
 }

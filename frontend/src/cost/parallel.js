@@ -1,6 +1,8 @@
 // 给定 TP/PP/EP/DP 计划的资源投影；不搜索计划，也不预测吞吐或延迟。
 // 来源：llm-analysis 的并行内存分解方法，以及 evolution_design.md §5.3(6)。
 
+import { nodeWeightBytes } from "./memory.js";
+
 function positiveInteger(value) {
   return Number.isInteger(value) && value > 0;
 }
@@ -70,6 +72,7 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = 
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
+  if (arguments[0]?.root) return projectNodePlan({ root: arguments[0].root, kvBytes, config, plan: checked.plan });
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
   const perStageWeight = weightBytes / pp;
   return {
@@ -84,6 +87,34 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = 
       dpRanks: dp,
     })),
   };
+}
+
+/**
+ * 根据 IR 节点路径把权重归属到 PP stage，避免 embedding/lm_head 被平均摊薄。
+ * 来源：llm-analysis 的 get_memory_weight_per_stage；具体模块切分复用本文件的 TP/EP 规则。
+ */
+export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = {}) {
+  const checked = validatePlan(plan, config);
+  if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
+  const { pp, dp } = checked.plan;
+  const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, dpRanks: dp }));
+  function visit(node, inheritedRepeat = 1) {
+    const path = String(node?.id || node?.name || "").toLowerCase();
+    const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
+    const rawWeight = nodeWeightBytes(node) * inheritedRepeat;
+    const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
+    let stage = 0;
+    const layerMatch = path.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
+    if (layerMatch && config.layers) stage = stageForLayer(Number(layerMatch[1]), config.layers, pp) ?? 0;
+    else if (/(lm_head|output_head|language_model_head)/.test(path)) stage = pp - 1;
+    else if (/(final_norm|norm$)/.test(path) && pp > 1) stage = pp - 1;
+    stages[stage].weightBytes += projected;
+    for (const child of node?.children || []) visit(child, inheritedRepeat * repeat);
+  }
+  if (root) visit(root);
+  const kv = kvBytesPerCard(kvBytes, config, checked.plan);
+  for (const stage of stages) stage.kvBytes = kv.bytes;
+  return { ok: true, errors: [], plan: checked.plan, stages, kvShardFactor: kv.shardFactor };
 }
 
 /** 校验 PD 分离的 prefill/decode 两侧计划；两侧可以使用不同 TP/PP/DP。 */

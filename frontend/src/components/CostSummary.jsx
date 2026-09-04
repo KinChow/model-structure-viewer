@@ -40,6 +40,7 @@ export default function CostSummary({ structure }) {
   }, [structure, phase, batch, sequence]);
   if (!cost) return null;
   const parallel = projectPlan({
+    root: structure.root,
     weightBytes: cost.memory.weightBytes,
     kvBytes: cost.memory.kvBytes,
     config: normalizeConfig(structure.extra_config),

@@ -90,6 +90,7 @@ function ArchitectureTab({
   const [etaComm, setEtaComm] = useState(0.8);
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
+  const [advancedOpen, setAdvancedOpen] = useState(!compactControls);
   const changePhase = (next) => activePhase ? null : setInternalPhase(next);
   const internalPlan = useMemo(() => ({ tp, ep, attnMode }), [tp, ep, attnMode]);
   const plan = activePlans?.[phase] || internalPlan;
@@ -171,7 +172,8 @@ function ArchitectureTab({
           )}
         </h2>
         <div className="toolbar-actions">
-          {!compactControls && <>
+          {compactControls && <button type="button" onClick={() => setAdvancedOpen((value) => !value)}>{advancedOpen ? (language === "en" ? "Hide analysis" : "收起分析") : (language === "en" ? "Analysis" : "分析配置")}</button>}
+          {advancedOpen && <>
           <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>
           <label className="lens-control">阶段<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
           <label className="lens-control">TP<input type="number" min="1" value={plan.tp} onChange={(event) => updatePlan({ ...plan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>
@@ -207,7 +209,7 @@ function ArchitectureTab({
           <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
           <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); setChipId(entry.id); }} />
           </>}
-          {compactControls && <>
+          {compactControls && !advancedOpen && <>
             <button type="button" onClick={onExpandAllGroups}>{language === "en" ? "Expand all" : "展开全部"}</button>
             <button type="button" onClick={onCollapseAllGroups}>{language === "en" ? "Collapse all" : "收起全部"}</button>
           </>}

@@ -70,9 +70,17 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
   const parameterShare = Number.isFinite(node.params) && Number.isFinite(totalParameters) && totalParameters > 0
     ? Math.min(100, Math.max(0, (node.params / totalParameters) * 100))
     : null;
+  async function copyPath() {
+    if (!path) return;
+    try {
+      await navigator.clipboard?.writeText(path);
+    } catch {
+      // Clipboard permissions are optional in local and embedded browsers.
+    }
+  }
   return (
     <aside className="detail-panel">
-      {path && <div className="detail-breadcrumb" aria-label="Structure path">{(breadcrumbs.length > 0 ? breadcrumbs : path.split(".").map((part, index, parts) => ({ path: parts.slice(0, index + 1).join("."), name: part === "root" ? "model" : `#${part}` }))).map((item, index, items) => <span key={item.path}><button type="button" className={index === items.length - 1 ? "current" : ""} onClick={() => index < items.length - 1 && onSelectPath?.(item.path)}>{item.name}</button>{index < items.length - 1 && <i>/</i>}</span>)}</div>}
+      {path && <div className="detail-breadcrumb" aria-label="Structure path"><div className="detail-breadcrumb-path">{(breadcrumbs.length > 0 ? breadcrumbs : path.split(".").map((part, index, parts) => ({ path: parts.slice(0, index + 1).join("."), name: part === "root" ? "model" : `#${part}` }))).map((item, index, items) => <span key={item.path}><button type="button" className={index === items.length - 1 ? "current" : ""} onClick={() => index < items.length - 1 && onSelectPath?.(item.path)}>{item.name}</button>{index < items.length - 1 && <i>/</i>}</span>)}</div><button type="button" className="copy-path" onClick={copyPath}>{language === "en" ? "Copy path" : "复制路径"}</button></div>}
       <header>
         <div>
           <h3 title={node.name}>{node.name}</h3>

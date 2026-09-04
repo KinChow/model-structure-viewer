@@ -26,6 +26,24 @@ test("buildStructureForPayload handles pasted config in the frontend without API
   assert.equal(structure.summary.canonical_architecture, "mla-moe-decoder");
 });
 
+test("buildStructureForPayload keeps local safetensors truth for a picked directory", async () => {
+  const structure = await buildStructureForPayload({
+    source: "config",
+    source_label: "local directory",
+    checkpoint_truth: { parameterTotal: 12345, parameterCount: { BF16: 12345 }, tensors: [] },
+    config_json: {
+      model_type: "qwen3",
+      architectures: ["Qwen3ForCausalLM"],
+      num_hidden_layers: 2,
+      hidden_size: 1024,
+      num_attention_heads: 16,
+    },
+  }, async () => { throw new Error("API should not be called"); });
+  assert.equal(structure.source.kind, "local directory");
+  assert.equal(structure.summary.parameters_total, 12345);
+  assert.deepEqual(structure.summary.parameters_by_dtype, { BF16: 12345 });
+});
+
 test("buildStructureForPayload falls back to backend when auto local config is missing", async () => {
   const expected = { summary: { strategy: "backend" }, source: {}, root: { id: "root" } };
   const structure = await buildStructureForPayload(

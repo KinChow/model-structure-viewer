@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { readSafetensorsHeaders } from "../safetensorsReader.js";
+import { readLocalSafetensorsHeaders, readSafetensorsHeaders } from "../safetensorsReader.js";
 
 /** 构造一个假 safetensors 文件字节：8 字节小端 u64 长度 + JSON。 */
 function fakeSafetensorsBytes(headerObj) {
@@ -133,4 +133,21 @@ test("Range 不被支持时，完整响应按请求偏移截取", async () => {
   };
   const result = await readSafetensorsHeaders({ modelId: "x/y", fetchImpl });
   assert.equal(result.parameterTotal, 4);
+});
+
+test("浏览器本地目录：按 safetensors index 读取分片 header", async () => {
+  const shard0 = fakeSafetensorsBytes({ "model.embed.weight": { dtype: "BF16", shape: [4, 8] } });
+  const shard1 = fakeSafetensorsBytes({ "model.lm_head.weight": { dtype: "F32", shape: [8, 2] } });
+  const makeFile = (name, bytes) => ({ name, text: async () => "", slice: (start, end) => ({ arrayBuffer: async () => bytes.slice(start, end).buffer }) });
+  const index = { weight_map: { "model.embed.weight": "model-00001-of-00002.safetensors", "model.lm_head.weight": "model-00002-of-00002.safetensors" } };
+  const indexFile = { name: "model.safetensors.index.json", text: async () => JSON.stringify(index) };
+  const result = await readLocalSafetensorsHeaders([
+    indexFile,
+    makeFile("model-00001-of-00002.safetensors", shard0),
+    makeFile("model-00002-of-00002.safetensors", shard1),
+  ]);
+  assert.equal(result.tensors.length, 2);
+  assert.equal(result.parameterCount.BF16, 32);
+  assert.equal(result.parameterCount.F32, 16);
+  assert.equal(result.parameterTotal, 48);
 });

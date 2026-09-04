@@ -11,6 +11,7 @@ import { useExport } from "./hooks/useExport";
 import { computeMatches } from "./diagram/match";
 import { PUBLIC_CHIPS } from "./cost/chips/public.js";
 import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal.js";
+import { readLocalSafetensorsHeaders } from "./cost/safetensorsReader.js";
 
 function findNodeByPath(root, path) {
   if (!root || !path) return null;
@@ -194,6 +195,8 @@ function App() {
     const activeModelId = overrides.modelId ?? modelId;
     const activeConfigPath = overrides.configPath ?? selectedConfigPath;
     const activeEndpoint = overrides.endpoint ?? endpoint;
+    const checkpointTruth = overrides.checkpointTruth ?? null;
+    const sourceLabelOverride = overrides.sourceLabel ?? null;
     if (activeSource === "config") {
       try {
         configJson = overrides.configJson ?? JSON.parse(configText);
@@ -208,6 +211,8 @@ function App() {
       model_id: activeSource === "config" || activeConfigPath ? null : activeModelId.trim(),
       config_path: activeSource === "config" ? null : activeConfigPath || null,
       config_json: configJson,
+      checkpoint_truth: checkpointTruth,
+      source_label: sourceLabelOverride,
       revision,
       cache_policy: settings.offline ? "offline" : settings.cache_policy,
       model_root: settings.model_root,
@@ -240,7 +245,13 @@ function App() {
     }
     try {
       const config = JSON.parse(await configFile.text());
-      await handleGenerate({ source: "config", configJson: config });
+      let checkpointTruth = null;
+      try {
+        checkpointTruth = await readLocalSafetensorsHeaders(files);
+      } catch {
+        checkpointTruth = null;
+      }
+      await handleGenerate({ source: "config", configJson: config, checkpointTruth, sourceLabel: "local directory" });
     } catch (err) {
       setParseError(err.message);
     }

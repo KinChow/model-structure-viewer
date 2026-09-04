@@ -36,24 +36,48 @@ export async function readSafetensorsHeaders({
   }
   if (!shardFiles || shardFiles.length === 0) shardFiles = ["model.safetensors"];
 
+  const headers = [];
+  for (const shard of shardFiles) headers.push(await readShardHeader(`${base}/${shard}`, fetchImpl));
+  return summarizeHeaders(headers);
+}
+
+/** Read model safetensors headers already selected by a browser directory picker. */
+export async function readLocalSafetensorsHeaders(files = []) {
+  const entries = [...files].filter((file) => /(?:^|\/)\w*(?:model|pytorch_model)[^/]*\.safetensors$/i.test(file.name || ""));
+  if (entries.length === 0) return null;
+
+  const indexFile = [...files].find((file) => file.name === "model.safetensors.index.json");
+  let selected = entries;
+  if (indexFile) {
+    try {
+      const index = JSON.parse(await indexFile.text());
+      const shardNames = new Set(Object.values(index.weight_map || {}));
+      const indexed = entries.filter((file) => shardNames.has(file.name) || [...shardNames].some((name) => String(file.name).endsWith(`/${name}`)));
+      if (indexed.length > 0) selected = indexed;
+    } catch {
+      // A malformed optional index should not prevent reading the shard headers.
+    }
+  }
+  const headers = [];
+  for (const file of selected) headers.push(await readLocalShardHeader(file));
+  return summarizeHeaders(headers);
+}
+
+function summarizeHeaders(headers) {
   const tensors = [];
-  for (const shard of shardFiles) {
-    const header = await readShardHeader(`${base}/${shard}`, fetchImpl);
+  for (const header of headers) {
     for (const [name, info] of Object.entries(header)) {
       if (name.startsWith("__") || name.startsWith("bitsandbytes__")) continue;
       tensors.push({ name, dtype: info.dtype, shape: info.shape });
     }
   }
   tensors.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-
   const parameterCount = {};
   for (const t of tensors) {
     const numel = t.shape.reduce((a, b) => a * b, 1);
     parameterCount[t.dtype] = (parameterCount[t.dtype] || 0) + numel;
   }
-  const parameterTotal = Object.values(parameterCount).reduce((a, b) => a + b, 0);
-
-  return { tensors, parameterCount, parameterTotal };
+  return { tensors, parameterCount, parameterTotal: Object.values(parameterCount).reduce((a, b) => a + b, 0) };
 }
 
 /** 读取单个分片：先取 8 字节 header 长度，再取该长度 JSON。 */
@@ -61,6 +85,13 @@ async function readShardHeader(shardUrl, fetchImpl) {
   const lenBuf = await rangeBytes(fetchImpl, shardUrl, 0, 7);
   const headerLen = readU64LE(lenBuf);
   const jsonBytes = await rangeBytes(fetchImpl, shardUrl, 8, 8 + headerLen - 1);
+  return JSON.parse(new TextDecoder().decode(jsonBytes));
+}
+
+async function readLocalShardHeader(file) {
+  const lenBuf = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  const headerLen = readU64LE(lenBuf);
+  const jsonBytes = new Uint8Array(await file.slice(8, 8 + headerLen).arrayBuffer());
   return JSON.parse(new TextDecoder().decode(jsonBytes));
 }
 

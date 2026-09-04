@@ -21,7 +21,8 @@ export async function buildStructureForPayload(
     return buildStructureFromConfig(payload.config_json, {
       modelId: payload.model_id,
       revision: payload.revision,
-      source: "pasted",
+      source: payload.source_label || "pasted",
+      truth: payload.checkpoint_truth || null,
     });
   }
   if ((payload.source === "builtin" || payload.source === "auto") && (payload.builtin_entry || payload.model_id)) {

@@ -16,8 +16,12 @@ function isLinear(node) {
 
 // ref: llm-analysis LLMAnalysis.get_num_flops_fwd_per_layer_linear
 export function linearMacs(node, { batch, sequence, phase, expertFraction = 1 } = {}) {
+  // Packed GPTQ/AWQ shapes are storage shapes, not logical matmul shapes.
+  // Do not emit a plausible but wrong MAC count without an explicit logical shape.
+  if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return null;
   const shape = Object.values(node?.weight_shapes || {}).find((value) => Array.isArray(value) && value.length >= 2);
-  return shape ? tokensFor({ batch, sequence, phase }) * product(shape) * expertFraction : 0;
+  const logicalShape = node?.attributes?.logical_weight_shape || shape;
+  return logicalShape ? tokensFor({ batch, sequence, phase }) * product(logicalShape) * expertFraction : 0;
 }
 
 // ref: llm-analysis LLMAnalysis.get_num_flops_fwd_per_layer_attn
@@ -41,8 +45,17 @@ export function computeNodeCosts(root, config, options = {}) {
   const rows = [];
   function visit(node, path = "root", multiplier = 1) {
     const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
-    const own = nodeMacs(node, config, options) * multiplier;
-    rows.push({ path, node, macs: own });
+    const modulePath = node?.id || path;
+    const layerMatch = modulePath.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
+    const layerIndex = layerMatch ? Number(layerMatch[1]) : null;
+    const layerKind = layerIndex != null ? config?.layerSchedule?.[layerIndex] : null;
+    const routedExpert = /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(modulePath);
+    const expertFraction = routedExpert && layerKind === "moe" && config?.experts && config?.expertsPerToken
+      ? config.expertsPerToken / config.experts
+      : 1;
+    const ownMacs = nodeMacs(node, config, { ...options, expertFraction });
+    const own = ownMacs == null ? null : ownMacs * multiplier;
+    rows.push({ path, node, macs: own, estimate_status: own == null ? "unknown" : "estimated" });
     (node?.children || []).forEach((child, index) => visit(child, `${path}.${index}`, multiplier * repeat));
   }
   if (root) visit(root);

@@ -122,3 +122,15 @@ test("header 长度字段不足 8 字节时报错", async () => {
     /too short/,
   );
 });
+
+test("Range 不被支持时，完整响应按请求偏移截取", async () => {
+  const header = { "model.weight": { dtype: "BF16", shape: [2, 2] } };
+  const file = fakeSafetensorsBytes(header);
+  const fetchImpl = async (url, opts = {}) => {
+    const range = opts.headers?.Range;
+    if (range) return { ok: true, status: 200, arrayBuffer: async () => file.buffer };
+    return { ok: false, status: 404 };
+  };
+  const result = await readSafetensorsHeaders({ modelId: "x/y", fetchImpl });
+  assert.equal(result.parameterTotal, 4);
+});

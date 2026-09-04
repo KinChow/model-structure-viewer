@@ -68,7 +68,9 @@ async function rangeBytes(fetchImpl, url, start, end) {
   const res = await fetchImpl(url, { headers: { Range: `bytes=${start}-${end}` } });
   if (!res.ok) throw new Error(`safetensors range HTTP ${res.status}`);
   const buf = new Uint8Array(await res.arrayBuffer());
-  // 服务端若不支持 Range 会返回整文件——只取需要的切片，避免意外下载整个权重
+  // 206 bodies start at the requested offset; a 200 body is the complete file.
+  // Keep the fallback bounded so an origin that ignores Range cannot corrupt the header parse.
+  if (res.status === 200) return buf.slice(start, end + 1);
   return buf.slice(0, end - start + 1);
 }
 

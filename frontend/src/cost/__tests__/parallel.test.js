@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { kvBytesPerCard, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { kvBytesPerCard, projectNodePlan, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
@@ -46,4 +46,16 @@ test("PD 双 plan 分别校验并保留两侧配置", () => {
   assert.equal(result.ok, true);
   assert.equal(result.prefillPlan.tp, 2);
   assert.equal(result.decodePlan.tp, 4);
+});
+
+test("按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
+  const root = { id: "model", children: [
+    { id: "embed_tokens", weight_shapes: { weight: [10, 2] }, dtype: "BF16", children: [] },
+    { id: "layers.0", repeat: 2, children: [{ id: "layers.0.q_proj", weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] },
+    { id: "lm_head", weight_shapes: { weight: [10, 2] }, dtype: "BF16", children: [] },
+  ] };
+  const result = projectNodePlan({ root, config: { layers: 2, kvHeads: 1 }, plan: { tp: 1, pp: 2, dp: 1 }, kvBytes: 0 });
+  assert.equal(result.ok, true);
+  assert.equal(result.stages[0].weightBytes, 56);
+  assert.equal(result.stages[1].weightBytes, 40);
 });

@@ -59,3 +59,9 @@ test("按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
   assert.equal(result.stages[0].weightBytes, 56);
   assert.equal(result.stages[1].weightBytes, 40);
 });
+
+test("PP 汇总不重复计算父列表和范围子节点 repeat", () => {
+  const root = { id: "decoder", repeat: 4, children: [{ id: "decoder.0", repeat: 4, children: [{ id: "decoder.0.mlp.down_proj", weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] }] };
+  const result = projectNodePlan({ root, config: { layers: 4, kvHeads: 1 }, plan: { pp: 1 }, kvBytes: 0 });
+  assert.equal(result.stages[0].weightBytes, 32);
+});

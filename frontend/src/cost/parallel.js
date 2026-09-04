@@ -101,6 +101,7 @@ export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = 
   function visit(node, inheritedRepeat = 1) {
     const path = String(node?.id || node?.name || "").toLowerCase();
     const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
+    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
     const rawWeight = nodeWeightBytes(node) * inheritedRepeat;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
     let stage = 0;
@@ -109,7 +110,8 @@ export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = 
     else if (/(lm_head|output_head|language_model_head)/.test(path)) stage = pp - 1;
     else if (/(final_norm|norm$)/.test(path) && pp > 1) stage = pp - 1;
     stages[stage].weightBytes += projected;
-    for (const child of node?.children || []) visit(child, inheritedRepeat * repeat);
+    const childMultiplier = inheritedRepeat * (childHasExplicitRepeat ? 1 : repeat);
+    for (const child of node?.children || []) visit(child, childMultiplier);
   }
   if (root) visit(root);
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);

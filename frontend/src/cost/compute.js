@@ -46,6 +46,7 @@ export function computeNodeCosts(root, config, options = {}) {
   const rows = [];
   function visit(node, path = "root", multiplier = 1) {
     const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
+    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
     const modulePath = node?.id || path;
     const layerMatch = modulePath.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
     const layerIndex = layerMatch ? Number(layerMatch[1]) : null;
@@ -58,7 +59,8 @@ export function computeNodeCosts(root, config, options = {}) {
     const own = ownMacs == null ? null : ownMacs * multiplier;
     rows.push({ path, node, macs: own, weightBytes: nodeWeightBytes(node) * multiplier,
       estimate_status: own == null ? "unknown" : "estimated" });
-    (node?.children || []).forEach((child, index) => visit(child, `${path}.${index}`, multiplier * repeat));
+    const childMultiplier = multiplier * (childHasExplicitRepeat ? 1 : repeat);
+    (node?.children || []).forEach((child, index) => visit(child, `${path}.${index}`, childMultiplier));
   }
   if (root) visit(root);
   return rows;

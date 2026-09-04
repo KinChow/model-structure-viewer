@@ -67,6 +67,7 @@ function ArchitectureTab({
   activeNodes,
   gpusPerNode = 1,
   activeMachineId,
+  onMachineChange,
   onNodeLensChange,
   chips = PUBLIC_CHIPS,
   onAddChip,
@@ -102,7 +103,7 @@ function ArchitectureTab({
       setAttnMode(next.attnMode);
     }
   };
-  const changeChip = (next) => activeMachineId ? null : setInternalChipId(next);
+  const changeChip = (next) => activeMachineId ? onMachineChange?.(next) : setInternalChipId(next);
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const candidateChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
@@ -207,7 +208,7 @@ function ArchitectureTab({
           <label className="lens-control">ηF<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
           <label className="lens-control">ηHBM<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
           <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
-          <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); setChipId(entry.id); }} />
+          <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />
           </>}
           {compactControls && !advancedOpen && <>
             <button type="button" onClick={onExpandAllGroups}>{language === "en" ? "Expand all" : "展开全部"}</button>

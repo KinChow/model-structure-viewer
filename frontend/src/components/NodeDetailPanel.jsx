@@ -56,13 +56,14 @@ function FormulaSection({ node, language = "zh" }) {
   return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
 }
 
-function LensSection({ lens, language = "zh" }) {
+function LensSection({ lens, activeLenses = new Set(), language = "zh" }) {
   if (!lens) return null;
   const formatTime = (value) => Number.isFinite(value) ? (value >= 1 ? `${value.toFixed(2)} s` : `${(value * 1000).toFixed(2)} ms`) : "-";
-  return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4><div className="truth-row"><b>Compute</b>{formatTime(lens.metrics?.computeSeconds)}</div><div className="truth-row"><b>Memory</b>{formatTime(lens.metrics?.memorySeconds)}</div><div className="truth-row"><b>{language === "en" ? "Communication" : "通信"}</b>{formatTime(lens.metrics?.communicationSeconds)}</div></section>;
+  const aggregateOnly = activeLenses.has("vram") || activeLenses.has("kv");
+  return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4>{activeLenses.has("compute") && <div className="truth-row"><b>Compute</b>{formatTime(lens.metrics?.computeSeconds)}</div>}{activeLenses.has("memory") && <div className="truth-row"><b>Memory</b>{formatTime(lens.metrics?.memorySeconds)}</div>}{activeLenses.has("compute") && <div className="truth-row"><b>{language === "en" ? "Communication" : "通信"}</b>{formatTime(lens.metrics?.communicationSeconds)}</div>}{aggregateOnly && <div className="truth-row muted"><b>{activeLenses.has("kv") ? "KV Cache" : "VRAM"}</b>{language === "en" ? "See cost panel aggregate" : "见成本面板汇总"}</div>}</section>;
 }
 
-function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, language = "zh", onSelectPath, onClose }) {
+function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, activeLenses = new Set(), language = "zh", onSelectPath, onClose }) {
   if (!node) return null;
   const confidence = typeof node.confidence === "number" ? node.confidence.toFixed(2) : null;
   const className = node.attributes?.class;
@@ -91,7 +92,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
       </header>
       <TruthSection node={node} language={language} />
       {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% of model parameters`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% of model parameters</small></div>}
-      <LensSection lens={costLens} language={language} />
+      <LensSection lens={costLens} activeLenses={activeLenses} language={language} />
       <FormulaSection node={node} language={language} />
       <ShapeFlow attributes={node.attributes} />
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />

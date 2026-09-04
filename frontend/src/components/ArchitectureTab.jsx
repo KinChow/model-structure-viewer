@@ -20,19 +20,19 @@ function downloadSvg(structure) {
   URL.revokeObjectURL(url);
 }
 
-function chipLinkText(chip) {
+function chipLinkText(chip, language = "zh") {
   const bandwidth = chip?.interconnect?.intra_node?.bandwidth;
-  return Number.isFinite(bandwidth) ? `${bandwidth / 1e9} GB/s` : "链路未知";
+  return Number.isFinite(bandwidth) ? `${bandwidth / 1e9} GB/s` : language === "en" ? "link unknown" : "链路未知";
 }
 
 function chipOptionText(chip) {
   return `${chip.name}${chip.confidence === "local" ? " (local)" : ""}`;
 }
 
-function scenarioLabel(prefix, scenario) {
+function scenarioLabel(prefix, scenario, language = "zh") {
   if (!scenario) return prefix;
   const { chip, plan } = scenario;
-  return `${prefix} · ${chip?.name || "未知芯片"} · TP ${plan.tp} / EP ${plan.ep} / Attention ${String(plan.attnMode).toUpperCase()} · ${chipLinkText(chip)}`;
+  return `${prefix} · ${chip?.name || (language === "en" ? "unknown GPU" : "未知芯片")} · TP ${plan.tp} / EP ${plan.ep} / Attention ${String(plan.attnMode).toUpperCase()} · ${chipLinkText(chip, language)}`;
 }
 
 function DiagramPane({ label, syncId, ...diagramProps }) {
@@ -159,6 +159,63 @@ function ArchitectureTab({
   const flipPaths = useMemo(() => new Set(flips.map((flip) => flip.path)), [flips]);
   const sharedHoveredPath = formulaHoveredPath ?? diagramHoveredPath;
   const activeFormulaPath = sharedHoveredPath ?? selectedPath;
+  const ui = language === "en" ? {
+    architecture: "Architecture",
+    analysis: "Analysis",
+    hideAnalysis: "Hide analysis",
+    focus: "Focus canvas",
+    exitFocus: "Exit focus",
+    phase: "Phase",
+    attention: "Attention",
+    compare: "Compare",
+    off: "Off",
+    chip: "Chip",
+    plan: "Plan",
+    compareChip: "Compare GPU",
+    compareTp: "Compare TP",
+    compareEp: "Compare EP",
+    compareAttention: "Compare Attention",
+    flops: "eta FLOPs",
+    hbm: "eta HBM",
+    comm: "eta Comm",
+    zoomOut: "Zoom out",
+    fit: "Fit",
+    zoomIn: "Zoom in",
+    exportSvg: "SVG",
+    expandAll: "Expand all",
+    collapseAll: "Collapse all",
+    base: "Base",
+    chipComparison: "Chip comparison",
+    planComparison: "Plan comparison",
+  } : {
+    architecture: "架构",
+    analysis: "分析配置",
+    hideAnalysis: "收起分析",
+    focus: "专注画布",
+    exitFocus: "退出专注",
+    phase: "阶段",
+    attention: "Attention",
+    compare: "对比",
+    off: "关闭",
+    chip: "芯片",
+    plan: "方案",
+    compareChip: "对比芯片",
+    compareTp: "对比 TP",
+    compareEp: "对比 EP",
+    compareAttention: "对比 Attention",
+    flops: "ηF",
+    hbm: "ηHBM",
+    comm: "ηComm",
+    zoomOut: "缩小",
+    fit: "适应画布",
+    zoomIn: "放大",
+    exportSvg: "SVG",
+    expandAll: "展开全部",
+    collapseAll: "收起全部",
+    base: "基准",
+    chipComparison: "芯片对比",
+    planComparison: "方案对比",
+  };
   const diagramProps = {
     structure,
     zoom,
@@ -182,26 +239,26 @@ function ArchitectureTab({
     <section className={`diagram-panel${canvasFocus ? " canvas-focus" : ""}`}>
       <div className="panel-toolbar">
         <h2>
-          Architecture
+          {ui.architecture}
           {searchActive && (
             <span className="hit-count inline"> · {hitCount} match{hitCount === 1 ? "" : "es"}</span>
           )}
         </h2>
         <div className="toolbar-actions">
-          {compactControls && <button type="button" onClick={() => setAdvancedOpen((value) => !value)}>{advancedOpen ? (language === "en" ? "Hide analysis" : "收起分析") : (language === "en" ? "Analysis" : "分析配置")}</button>}
-          <button type="button" onClick={() => setCanvasFocus((value) => !value)}>{canvasFocus ? (language === "en" ? "Exit focus" : "退出专注") : (language === "en" ? "Focus canvas" : "专注画布")}</button>
+          {compactControls && <button type="button" onClick={() => setAdvancedOpen((value) => !value)}>{advancedOpen ? ui.hideAnalysis : ui.analysis}</button>}
+          <button type="button" onClick={() => setCanvasFocus((value) => !value)}>{canvasFocus ? ui.exitFocus : ui.focus}</button>
           {advancedOpen && <>
-          {!compactControls && <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
-          <label className="lens-control">阶段<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
+          {!compactControls && <label className="lens-control">GPU<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
+          <label className="lens-control">{ui.phase}<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
           <label className="lens-control">TP<input type="number" min="1" value={plan.tp} onChange={(event) => updatePlan({ ...plan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>
           <label className="lens-control">EP<input type="number" min="1" value={plan.ep} onChange={(event) => updatePlan({ ...plan, ep: Math.max(1, Number(event.target.value) || 1) })} /></label>
-          <label className="lens-control">Attention<select value={plan.attnMode} onChange={(event) => updatePlan({ ...plan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>
-          <div className="lens-mode-switch" role="group" aria-label="对比模式">
-            <span>对比</span>
+          <label className="lens-control">{ui.attention}<select value={plan.attnMode} onChange={(event) => updatePlan({ ...plan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>
+          <div className="lens-mode-switch" role="group" aria-label={ui.compare}>
+            <span>{ui.compare}</span>
             {[
-              [COMPARISON_MODE.OFF, "关闭"],
-              [COMPARISON_MODE.CHIP, "芯片"],
-              [COMPARISON_MODE.PLAN, "方案"],
+              [COMPARISON_MODE.OFF, ui.off],
+              [COMPARISON_MODE.CHIP, ui.chip],
+              [COMPARISON_MODE.PLAN, ui.plan],
             ].map(([mode, label]) => (
               <button
                 key={mode}
@@ -217,25 +274,25 @@ function ArchitectureTab({
               </button>
             ))}
           </div>
-          {comparisonMode === COMPARISON_MODE.CHIP && <label className="lens-control">对比芯片<select value={candidateChip?.id || ""} onChange={(event) => setCompareChipId(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
-          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">对比 TP<input type="number" min="1" value={compareTp} onChange={(event) => setCompareTp(Math.max(1, Number(event.target.value) || 1))} /></label>}
-          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">对比 EP<input type="number" min="1" value={compareEp} onChange={(event) => setCompareEp(Math.max(1, Number(event.target.value) || 1))} /></label>}
-          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">对比 Attention<select value={compareAttnMode} onChange={(event) => setCompareAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label>}
-          <label className="lens-control">ηF<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
-          <label className="lens-control">ηHBM<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
-          <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
-          <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />
+          {comparisonMode === COMPARISON_MODE.CHIP && <label className="lens-control">{ui.compareChip}<select value={candidateChip?.id || ""} onChange={(event) => setCompareChipId(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
+          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareTp}<input type="number" min="1" value={compareTp} onChange={(event) => setCompareTp(Math.max(1, Number(event.target.value) || 1))} /></label>}
+          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareEp}<input type="number" min="1" value={compareEp} onChange={(event) => setCompareEp(Math.max(1, Number(event.target.value) || 1))} /></label>}
+          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareAttention}<select value={compareAttnMode} onChange={(event) => setCompareAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label>}
+          <label className="lens-control">{ui.flops}<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
+          <label className="lens-control">{ui.hbm}<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
+          <label className="lens-control">{ui.comm}<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
+          <ManualChipForm language={language} onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />
           </>}
           {compactControls && <>
-            <button type="button" onClick={onExpandAllGroups}>{language === "en" ? "Expand all" : "展开全部"}</button>
-            <button type="button" onClick={onCollapseAllGroups}>{language === "en" ? "Collapse all" : "收起全部"}</button>
+            <button type="button" onClick={onExpandAllGroups}>{ui.expandAll}</button>
+            <button type="button" onClick={onCollapseAllGroups}>{ui.collapseAll}</button>
           </>}
-          <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
-          <button type="button" title="Fit diagram" aria-label="Fit diagram" onClick={onFit}>Fit</button>
+          <button type="button" title={ui.zoomOut} aria-label={ui.zoomOut} onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
+          <button type="button" title={ui.fit} aria-label={ui.fit} onClick={onFit}>{ui.fit}</button>
           <span className="zoom-level" aria-label="Zoom level">{Math.round(zoom * 100)}%</span>
-          <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
-          <button type="button" title="Export SVG" aria-label="Export SVG" onClick={() => downloadSvg(structure)} disabled={!structure}>
-            SVG
+          <button type="button" title={ui.zoomIn} aria-label={ui.zoomIn} onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
+          <button type="button" title={ui.exportSvg} aria-label={ui.exportSvg} onClick={() => downloadSvg(structure)} disabled={!structure}>
+            {ui.exportSvg}
           </button>
         </div>
       </div>
@@ -256,7 +313,7 @@ function ArchitectureTab({
       {compareScenario && compareLensResult?.ok && <div className={`lens-flips${flips.length === 0 ? " empty" : ""}`}>{flips.length > 0 ? <>瓶颈类型翻转：{flips.length} 个节点（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join("、")}{flips.length > 4 ? "…" : ""}）</> : "当前条件下没有瓶颈类型翻转"}</div>}
       {structure ? (compareScenario && compareLensResult?.ok ? <div className="diagram-compare">
         <DiagramPane
-          label={scenarioLabel("基准", primaryScenario)}
+          label={scenarioLabel(ui.base, primaryScenario, language)}
           syncId="primary"
           {...diagramProps}
           nodeLens={nodeLens}
@@ -264,7 +321,7 @@ function ArchitectureTab({
           onHoverPathChange={setDiagramHoveredPath}
         />
         <DiagramPane
-          label={scenarioLabel(comparisonMode === COMPARISON_MODE.CHIP ? "芯片对比" : "方案对比", compareScenario)}
+          label={scenarioLabel(comparisonMode === COMPARISON_MODE.CHIP ? ui.chipComparison : ui.planComparison, compareScenario, language)}
           syncId="compare"
           {...diagramProps}
           nodeLens={compareNodeLens}

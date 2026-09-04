@@ -121,6 +121,19 @@ function StructureDiagram({
   const width = viewport.canvasWidth;
   const height = viewport.canvasHeight;
   const contentTransform = `translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`;
+  const miniMapWidth = 148;
+  const miniMapHeight = 92;
+  const miniScale = Math.min(miniMapWidth / Math.max(contentWidth, 1), miniMapHeight / Math.max(contentHeight, 1));
+
+  function jumpFromMiniMap(event) {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / miniScale;
+    const y = (event.clientY - rect.top) / miniScale;
+    scroll.scrollLeft = Math.max(0, x * viewport.scale - scroll.clientWidth / 2);
+    scroll.scrollTop = Math.max(0, y * viewport.scale - scroll.clientHeight / 2);
+  }
 
   function startPan(event) {
     if (event.target.closest("button, a, input, select, textarea")) return;
@@ -304,6 +317,14 @@ function StructureDiagram({
           </svg>
         </div>
       </div>
+      <button type="button" className="diagram-minimap" aria-label="Structure overview" title="Click to navigate the structure" onClick={jumpFromMiniMap}>
+        <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label="Structure overview map">
+          <g transform={`scale(${miniScale})`}>
+            {nodes.filter((node) => node.containerFrame).map((node) => <rect key={`mini-frame-${node.path}`} x={node.containerFrame.x} y={node.containerFrame.y} width={node.containerFrame.width} height={node.containerFrame.height} className="mini-frame" />)}
+            {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}`} />)}
+          </g>
+        </svg>
+      </button>
     </div>
   );
 }

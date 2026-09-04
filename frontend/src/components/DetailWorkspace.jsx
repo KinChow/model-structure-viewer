@@ -88,6 +88,7 @@ export default function DetailWorkspace({
 }) {
   const [auxView, setAuxView] = useState(null);
   const [costOpen, setCostOpen] = useState(false);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [activeLenses, setActiveLenses] = useState(() => new Set(["vram"]));
   const [activePhase, setActivePhase] = useState("prefill");
   const [activeMode, setActiveMode] = useState("centralized");
@@ -105,6 +106,7 @@ export default function DetailWorkspace({
   const activeMachineName = chips?.find((chip) => chip.id === activeMachineId)?.name || "GPU";
   const activeNodeCount = activeNodes?.[activeMode === "pd" ? activePhase : "centralized"] || 1;
   const selectSearchResult = (path) => {
+    setInspectorCollapsed(false);
     onSelectNode(path);
     onSearchChange("");
   };
@@ -121,7 +123,7 @@ export default function DetailWorkspace({
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
         </div>
-        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} onSelectPath={onSelectNode} onClose={onCloseNode} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} onSelectPath={onSelectNode} />}</div>
+        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>
       </section>
     </main>
   );

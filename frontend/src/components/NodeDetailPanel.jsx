@@ -65,7 +65,7 @@ function LensSection({ lens, activeLenses = new Set(), language = "zh" }) {
   return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4>{activeLenses.has("vram") && <div className="truth-row"><b>VRAM</b>{formatBytes(lens.metrics?.vramBytes)}</div>}{activeLenses.has("compute") && <div className="truth-row"><b>Compute</b>{formatTime(lens.metrics?.computeSeconds)}</div>}{activeLenses.has("memory") && <div className="truth-row"><b>Memory</b>{formatBytes(lens.metrics?.memoryBytes)}</div>}{activeLenses.has("compute") && <div className="truth-row"><b>{language === "en" ? "Communication" : "通信"}</b>{formatTime(lens.metrics?.communicationSeconds)}</div>}{activeLenses.has("kv") && <div className="truth-row muted"><b>KV Cache</b>{language === "en" ? "See cost panel aggregate" : "见成本面板汇总"}</div>}{aggregateOnly && !activeLenses.has("vram") && !activeLenses.has("kv") && <div className="truth-row muted">{language === "en" ? "No node-level aggregate" : "无节点级汇总"}</div>}</section>;
 }
 
-function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, activeLenses = new Set(), language = "zh", onSelectPath, onClose }) {
+function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, activeLenses = new Set(), language = "zh", collapsed = false, onToggleCollapsed, onSelectPath, onClose }) {
   const [copyState, setCopyState] = useState("idle");
   if (!node) return null;
   const confidence = typeof node.confidence === "number" ? node.confidence.toFixed(2) : null;
@@ -84,8 +84,8 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
     }
   }
   return (
-    <aside className="detail-panel">
-      <div className="detail-sheet-handle" aria-hidden="true" />
+    <aside className={`detail-panel${collapsed ? " mobile-inspector-collapsed" : ""}`}>
+      <button type="button" className="detail-sheet-handle" aria-label={collapsed ? "Expand inspector" : "Collapse inspector"} aria-expanded={!collapsed} onClick={onToggleCollapsed} />
       {path && <div className="detail-breadcrumb" aria-label="Structure path"><div className="detail-breadcrumb-path">{(breadcrumbs.length > 0 ? breadcrumbs : path.split(".").map((part, index, parts) => ({ path: parts.slice(0, index + 1).join("."), name: part === "root" ? "model" : `#${part}` }))).map((item, index, items) => <span key={item.path}><button type="button" className={index === items.length - 1 ? "current" : ""} onClick={() => index < items.length - 1 && onSelectPath?.(item.path)}>{item.name}</button>{index < items.length - 1 && <i>/</i>}</span>)}</div><button type="button" className={`copy-path ${copyState}`} onClick={copyPath}>{copyState === "success" ? (language === "en" ? "Copied" : "已复制") : copyState === "unavailable" ? (language === "en" ? "Copy unavailable" : "无法复制") : language === "en" ? "Copy path" : "复制路径"}</button></div>}
       <header>
         <div>

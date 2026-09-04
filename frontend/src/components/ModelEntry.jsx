@@ -43,13 +43,16 @@ export default function ModelEntry({
   }, [builtinModels]);
   const providerModels = providers.find(([name]) => name === provider)?.[1] || [];
   useEffect(() => {
-    if (!provider) return undefined;
+    if (!provider && !helpOpen) return undefined;
     const onKeyDown = (event) => {
-      if (event.key === "Escape") setProvider(null);
+      if (event.key === "Escape") {
+        setProvider(null);
+        setHelpOpen(false);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [provider]);
+  }, [provider, helpOpen]);
   const t = language === "en" ? {
     title: "Understand the model.",
     subtitle: "Explore architecture, inspect modules, and estimate the cost on your hardware.",

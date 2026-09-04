@@ -202,8 +202,9 @@ function StructureDiagram({
                 const isAncestor = Boolean(selectedPath && selectedPath.startsWith(`${node.path}.`));
                 const isMatch = matched.has(node.path);
                 const isDimmed = searchActive && !isMatch;
-                const bound = nodeLens?.[node.path]?.bound || "unknown";
-                const metrics = nodeLens?.[node.path]?.metrics || {};
+                const lensEnabled = activeLenses.size > 0;
+                const bound = lensEnabled ? nodeLens?.[node.path]?.bound || "unknown" : "unknown";
+                const metrics = lensEnabled ? nodeLens?.[node.path]?.metrics || {} : {};
                 const lensValues = [
                   activeLenses.has("compute") && ["C", metrics.computeSeconds],
                   activeLenses.has("memory") && ["M", metrics.memorySeconds],
@@ -279,7 +280,7 @@ function StructureDiagram({
                               {node.node.attributes.formula_id}
                             </span>
                           )}
-                          {nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
+                          {lensEnabled && nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
                         </div>
                         {node.metaLines.length > 0 && (
                           <ul className="diagram-meta">

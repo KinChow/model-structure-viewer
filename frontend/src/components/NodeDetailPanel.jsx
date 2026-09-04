@@ -57,7 +57,7 @@ function FormulaSection({ node, language = "zh" }) {
 }
 
 function LensSection({ lens, activeLenses = new Set(), language = "zh" }) {
-  if (!lens) return null;
+  if (!lens || activeLenses.size === 0) return null;
   const formatTime = (value) => Number.isFinite(value) ? (value >= 1 ? `${value.toFixed(2)} s` : `${(value * 1000).toFixed(2)} ms`) : "-";
   const aggregateOnly = activeLenses.has("vram") || activeLenses.has("kv");
   const formatBytes = (value) => Number.isFinite(value) ? (value >= 1024 ** 3 ? `${(value / 1024 ** 3).toFixed(2)} GiB` : value >= 1024 ** 2 ? `${(value / 1024 ** 2).toFixed(1)} MiB` : `${Math.round(value)} B`) : "-";

@@ -22,3 +22,12 @@ test("H100 稠密算力保留由官方稀疏峰值换算的说明", () => {
   assert.ok(h100.notes.some((note) => note.includes("稀疏峰值除以 2")));
   assert.equal(h100.peak_flops.bf16, 989.5e12);
 });
+
+test("L40S 使用官方未启用稀疏性的 BF16 与双向 PCIe 数据", () => {
+  const l40s = PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-l40s-48gb");
+  assert.equal(l40s.memory_bytes, 48e9);
+  assert.equal(l40s.memory_bandwidth, 864e9);
+  assert.equal(l40s.peak_flops.bf16, 362.05e12);
+  assert.equal(l40s.interconnect.intra_node.bandwidth, 64e9);
+  assert.ok(l40s.notes.some((note) => note.includes("双向带宽")));
+});

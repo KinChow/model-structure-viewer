@@ -1103,12 +1103,16 @@ label {
 .detail-inspector-slot .detail-panel { max-height: calc(100vh - 96px); overflow: auto; }
 .detail-page .panel-toolbar h2, .detail-page .detail-panel h3, .detail-page .detail-panel h4 { color: #edf2f7; }
 .detail-page .diagram-frame { border-color: #2a3545; background-color: #0f151e; background-image: radial-gradient(#253042 1px, transparent 1px); background-size: 20px 20px; }
+.detail-page.theme-light .diagram-frame { border-color: #dce3eb; background-color: #f8fbfd; background-image: radial-gradient(#d7e1ea 1px, transparent 1px); }
 .detail-page .diagram-panel.canvas-focus { position: fixed; inset: 12px; z-index: 40; min-height: 0; overflow: auto; padding: 18px; border: 1px solid #344154; border-radius: 10px; background: #0d1117; box-shadow: 0 24px 80px rgba(0,0,0,.58); }
 .detail-page .diagram-panel.canvas-focus .diagram-frame { height: calc(100vh - 178px); min-height: 420px; }
 .detail-page.theme-light .diagram-panel.canvas-focus { border-color: #dce3eb; background: #f5f7fa; box-shadow: 0 24px 80px rgba(31,47,64,.24); }
 .detail-page .diagram-node-content { color: #edf2f7; }
 .detail-page .diagram-node-header .diagram-title { color: #edf2f7; }
 .detail-page .diagram-meta li { color: #9eacbb; }
+.detail-page.theme-light .diagram-node-content { color: #17202c; }
+.detail-page.theme-light .diagram-node-header .diagram-title { color: #17202c; }
+.detail-page.theme-light .diagram-meta li { color: #526172; }
 .detail-page .formula-strip { border-color: #2a3545; background: #121923; }
 .detail-page .formula-strip button { border-color: #354256; background: #1a2430; color: #d1a56b; }
 .detail-page .formula-strip button.active, .detail-page .formula-strip button:hover { border-color: #f4ab52; background: #35291c; color: #f4ab52; }

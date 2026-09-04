@@ -9,6 +9,14 @@ function formatMetric(seconds) {
   return `${(seconds * 1000).toFixed(1)}ms`;
 }
 
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return "-";
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GiB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MiB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${Math.round(bytes)} B`;
+}
+
 function StructureDiagram({
   structure,
   zoom,
@@ -199,7 +207,8 @@ function StructureDiagram({
                 const lensValues = [
                   activeLenses.has("compute") && ["C", metrics.computeSeconds],
                   activeLenses.has("memory") && ["M", metrics.memorySeconds],
-                ].filter(Boolean).map(([label, value]) => value == null ? `${label} -` : `${label} ${formatMetric(value)}`);
+                  activeLenses.has("vram") && ["V", metrics.vramBytes, true],
+                ].filter(Boolean).map(([label, value, isBytes]) => value == null ? `${label} -` : `${label} ${isBytes ? formatBytes(value) : formatMetric(value)}`);
                 const isHovered = activeHoveredPath === node.path;
                 const isRelated = activeHoveredPath && isPathRelated(node.path, activeHoveredPath);
                 const comparisonActive = comparisonPaths instanceof Set && comparisonPaths.size > 0;

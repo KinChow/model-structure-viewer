@@ -45,6 +45,7 @@ export function buildNodeLens(structure, chip, {
         computeSeconds: roofline.times.compute,
         memorySeconds: roofline.times.memory,
         communicationSeconds: roofline.times.comm,
+        vramBytes: (perCardCost.weightBytes || 0) + (perCardCost.actInBytes || 0) + (perCardCost.actOutBytes || 0),
       },
     }];
   }));

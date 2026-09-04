@@ -72,6 +72,14 @@ function StructureDiagram({
   }, [nodes, selectedPath, onFit, onToggleGroup]);
 
   useEffect(() => {
+    if (!selectedPath) return;
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const selectedNode = [...scroll.querySelectorAll("g[data-node-path]")].find((element) => element.getAttribute("data-node-path") === selectedPath);
+    selectedNode?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+  }, [selectedPath, nodes]);
+
+  useEffect(() => {
     const element = frameRef.current;
     if (!element) return;
     const update = () => {

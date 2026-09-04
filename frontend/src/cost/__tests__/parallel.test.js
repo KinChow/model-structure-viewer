@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { kvBytesPerCard, projectNodePlan, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { expertWeightRange, kvBytesPerCard, projectNodePlan, projectPdFit, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
@@ -64,4 +64,18 @@ test("PP 汇总不重复计算父列表和范围子节点 repeat", () => {
   const root = { id: "decoder", repeat: 4, children: [{ id: "decoder.0", repeat: 4, children: [{ id: "decoder.0.mlp.down_proj", weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] }] };
   const result = projectNodePlan({ root, config: { layers: 4, kvHeads: 1 }, plan: { pp: 1 }, kvBytes: 0 });
   assert.equal(result.stages[0].weightBytes, 32);
+});
+
+test("EP 返回专家权重平均值和最坏值区间", () => {
+  const result = expertWeightRange(100, 8, 3);
+  assert.equal(result.averageBytes, 100 / 3);
+  assert.equal(result.worstBytes, 100 / 8 * 3);
+  assert.equal(result.expertsPerRank, 3);
+});
+
+test("PD fit 分别按两侧芯片容量判定", () => {
+  const result = projectPdFit({ weightBytes: 100, kvBytes: 20, config: {}, pdPlan: { prefill_plan: { tp: 1 }, decode_plan: { tp: 2 } }, prefillChip: { id: "p", memory_bytes: 200 }, decodeChip: { id: "d", memory_bytes: 50 } });
+  assert.equal(result.ok, true);
+  assert.equal(result.prefill.fit, true);
+  assert.equal(result.decode.fit, false);
 });

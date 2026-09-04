@@ -61,6 +61,19 @@ export function weightBytesPerCard(totalBytes, node, plan = {}) {
   return { bytes: totalBytes, divisor: 1, axis: "replicated" };
 }
 
+/** 专家权重在 EP rank 上的平均/最坏区间；来源：vLLM MoE 负载不均衡建模讨论。 */
+export function expertWeightRange(totalBytes, experts, ep = 1) {
+  if (!Number.isFinite(totalBytes) || totalBytes < 0 || !positiveInteger(experts) || !positiveInteger(ep)) {
+    return { averageBytes: null, worstBytes: null, expertsPerRank: null };
+  }
+  const expertsPerRank = Math.ceil(experts / ep);
+  return {
+    averageBytes: totalBytes / ep,
+    worstBytes: (totalBytes / experts) * expertsPerRank,
+    expertsPerRank,
+  };
+}
+
 /** 将层索引映射到 PP stage；首尾 stage 可额外承载 embedding/lm_head。 */
 export function stageForLayer(layerIndex, layers, pp = 1) {
   if (!positiveInteger(pp) || !positiveInteger(layers) || layerIndex < 0 || layerIndex >= layers) return null;
@@ -97,26 +110,52 @@ export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = 
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
-  const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, dpRanks: dp }));
+  const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
   function visit(node, inheritedRepeat = 1) {
     const path = String(node?.id || node?.name || "").toLowerCase();
     const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
     const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
     const rawWeight = nodeWeightBytes(node) * inheritedRepeat;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
+    const isExpert = /(^|\.)experts(\.|$)/.test(path);
     let stage = 0;
     const layerMatch = path.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
     if (layerMatch && config.layers) stage = stageForLayer(Number(layerMatch[1]), config.layers, pp) ?? 0;
     else if (/(lm_head|output_head|language_model_head)/.test(path)) stage = pp - 1;
     else if (/(final_norm|norm$)/.test(path) && pp > 1) stage = pp - 1;
     stages[stage].weightBytes += projected;
+    if (isExpert) stages[stage].expertWeightBytes += rawWeight;
     const childMultiplier = inheritedRepeat * (childHasExplicitRepeat ? 1 : repeat);
     for (const child of node?.children || []) visit(child, childMultiplier);
   }
   if (root) visit(root);
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
-  for (const stage of stages) stage.kvBytes = kv.bytes;
+  for (const stage of stages) {
+    stage.kvBytes = kv.bytes;
+    const expertRange = expertWeightRange(stage.expertWeightBytes, config.experts, checked.plan.ep);
+    stage.expertWeightAverageBytes = expertRange.averageBytes;
+    stage.expertWeightWorstBytes = expertRange.worstBytes;
+    delete stage.expertWeightBytes;
+  }
   return { ok: true, errors: [], plan: checked.plan, stages, kvShardFactor: kv.shardFactor };
+}
+
+/** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。 */
+export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0 } = {}) {
+  const checked = validatePdPlan(pdPlan, config);
+  if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
+  function side(plan, chip) {
+    const projection = root
+      ? projectNodePlan({ root, kvBytes, config, plan })
+      : projectPlan({ weightBytes, kvBytes, config, plan });
+    const capacity = chip?.memory_bytes;
+    const stages = projection.stages.map((stage) => {
+      const totalBytes = stage.weightBytes + stage.kvBytes + activationBytes + runtimeBytes;
+      return { ...stage, totalBytes, fit: positiveInteger(capacity) ? totalBytes <= capacity : null };
+    });
+    return { chipId: chip?.id || null, capacityBytes: capacity ?? null, stages, fit: stages.every((stage) => stage.fit === true) };
+  }
+  return { ok: true, errors: [], prefill: side(checked.prefillPlan, prefillChip), decode: side(checked.decodePlan, decodeChip) };
 }
 
 /** 校验 PD 分离的 prefill/decode 两侧计划；两侧可以使用不同 TP/PP/DP。 */

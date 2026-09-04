@@ -146,6 +146,16 @@ function App() {
   function handleSelectNode(path) {
     setSelectedNodePath(path);
     setDrawerOpen(false);
+    if (!path || !structure) return;
+    const ancestors = ancestorCollapsiblePaths(structure.root, path);
+    if (ancestors.length > 0) {
+      setLayersExpandedPaths((previous) => {
+        const next = new Set(previous);
+        ancestors.forEach((ancestor) => next.add(ancestor));
+        return next;
+      });
+      setFitNonce((value) => value + 1);
+    }
   }
 
   function handleToggleLayerPath(path) {

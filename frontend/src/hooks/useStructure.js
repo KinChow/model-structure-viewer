@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   buildStructureApi,
   fetchBuiltinConfigApi,
@@ -88,20 +88,25 @@ export function useStructure() {
   const [structure, setStructure] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const requestRef = useRef(0);
 
   const build = useCallback(async (payload) => {
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
     setError("");
     setLoading(true);
     try {
       const data = await buildStructureForPayload(payload);
+      if (requestId !== requestRef.current) return null;
       setStructure(data);
       return data;
     } catch (err) {
+      if (requestId !== requestRef.current) return null;
       setStructure(null);
       setError(err.message);
       return null;
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
   }, []);
 

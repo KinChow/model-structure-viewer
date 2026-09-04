@@ -110,7 +110,7 @@ export default function ModelEntry({
           <EntryButton active={mode === "local"} onClick={() => setMode("local")}>{t.local}</EntryButton>
         </div>
         {mode === "model" ? (
-          <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); onOpenModel?.(modelId.trim(), "hf", endpoint); }}>
+          <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); const id = modelId.trim(); const builtin = builtinModels.some((entry) => entry.modelId === id); onOpenModel?.(id, builtin ? "builtin" : "hf", endpoint); }}>
             <select className="entry-source-select" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} aria-label="model source"><option value="huggingface">Hugging Face</option><option value="modelscope">ModelScope</option></select><input list="builtin-models" value={modelId} onChange={(event) => onModelIdChange?.(event.target.value)} placeholder={t.placeholder} aria-label="model id" />
             <datalist id="builtin-models">{builtinModels.map((entry) => <option key={entry.modelId} value={entry.modelId} />)}</datalist>
             <button className="entry-primary" type="submit">{t.open}</button>

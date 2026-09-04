@@ -293,6 +293,7 @@ textarea {
 .diagram-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }.diagram-compare-label { margin: 0 0 6px; color: #526678; font-size: 12px; font-weight: 700; }.diagram-compare .diagram-frame { min-width: 0; }.lens-flips { margin: -2px 0 10px; padding: 6px 8px; border: 1px solid #e4bd72; border-radius: 4px; background: #fff7e6; color: #7c5418; font-size: 11px; }
 @media (max-width: 900px) { .diagram-compare { grid-template-columns: 1fr; } }
 .manual-chip { display: inline-flex; align-items: center; position: relative; }.manual-chip-form { position: absolute; z-index: 5; right: 0; top: 34px; width: 250px; padding: 10px; display: grid; gap: 7px; border: 1px solid #bdcbd8; border-radius: 5px; background: #fff; box-shadow: 0 8px 20px rgba(47,65,86,.16); }.manual-chip-form label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 6px; color: #607184; font-size: 11px; }.manual-chip-form input { min-width: 0; width: 100%; padding: 4px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }
+.lens-coverage { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: -4px 0 10px; color: #6d5a35; font-size: 11px; }.lens-coverage b { color: #405365; }.lens-coverage a { color: #286f9f; }
 
 .diagram-frame {
   width: 100%;

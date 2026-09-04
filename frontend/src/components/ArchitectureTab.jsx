@@ -10,6 +10,7 @@ import { activationTensorBytes } from "../cost/memory.js";
 import { collectFormulaLinks } from "../diagram/formulaLinks.js";
 import { boundFlips } from "../diagram/compare.js";
 import ManualChipForm from "./ManualChipForm.jsx";
+import { getChipCoverage } from "../cost/chips/coverage.js";
 
 function downloadSvg(structure) {
   const svg = document.querySelector(".diagram-svg");
@@ -60,6 +61,8 @@ function ArchitectureTab({
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const compareChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
+  const coverage = useMemo(() => getChipCoverage(chip, "bf16"), [chip]);
+  const compareCoverage = useMemo(() => getChipCoverage(compareChip, "bf16"), [compareChip]);
   const nodeLens = useMemo(() => {
     if (!structure?.root || !structure.extra_config || !chip) return {};
     const config = normalizeConfig(structure.extra_config);
@@ -117,6 +120,7 @@ function ArchitectureTab({
         </div>
       </div>
       {formulaLinks.length > 0 && <div className="formula-strip" aria-label="公式索引"><span className="formula-strip-label">公式</span>{formulaLinks.map((link) => <button key={link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
+      {chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>缺失：{coverage.missing.join("、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{warning}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">规格来源</a>}{compareEnabled && compareChip && <><b>{compareChip.name}</b>{compareCoverage.missing.length > 0 && <span>缺失：{compareCoverage.missing.join("、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareChip.id}-${warning}`}>{warning}</span>)}{compareChip.source?.startsWith("http") && <a href={compareChip.source} target="_blank" rel="noreferrer">规格来源</a>}</>}</div>}
       {compareEnabled && flips.length > 0 && <div className="lens-flips">bound 翻转：{flips.length} 个节点（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join("、")}{flips.length > 4 ? "…" : ""}）</div>}
       {structure ? (compareEnabled ? <div className="diagram-compare"><div><div className="diagram-compare-label">{chip?.name || "主卡"} · TP {tp} / EP {ep} · {chipLinkText(chip)}</div><StructureDiagram
           structure={structure}

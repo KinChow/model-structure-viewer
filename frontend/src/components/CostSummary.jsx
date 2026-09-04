@@ -45,6 +45,9 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
   const [kvElementBytes, setKvElementBytes] = useState(2);
   const [activationGiB, setActivationGiB] = useState(1.5);
   const [runtimeGiB, setRuntimeGiB] = useState(1.5);
+  const [commBufferGiB, setCommBufferGiB] = useState(0);
+  const [weightMode, setWeightMode] = useState("actual");
+  const [capacityChipId, setCapacityChipId] = useState("");
   const [tp, setTp] = useState(1);
   const [pp, setPp] = useState(1);
   const [ep, setEp] = useState(1);
@@ -67,8 +70,9 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
     if (!structure?.root || !structure.extra_config) return null;
     return aggregateCost({ root: structure.root, config: normalizeConfig(structure.extra_config),
       parameterCount: structure.summary?.parameters_by_dtype, phase, batch, sequence,
-      kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB });
-  }, [structure, phase, batch, sequence, kvElementBytes, activationGiB, runtimeGiB]);
+      kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB,
+      commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
+  }, [structure, phase, batch, sequence, kvElementBytes, activationGiB, runtimeGiB, commBufferGiB, weightMode]);
   if (!cost) return null;
   const parallel = projectPlan({
     root: structure.root,
@@ -95,14 +99,15 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
     decodeChip: chips.find((chip) => chip.id === decodeChipId),
     activationBytes: cost.memory.activationBytes,
     runtimeBytes: cost.memory.runtimeBytes,
+    commBufferBytes: cost.memory.commBufferBytes,
   }) : null;
   const available = capacity * GIB;
   const maxContext = cost.memory.kvBytesPerToken
     ? Math.max(0, Math.floor((available - cost.memory.weightBytes - cost.memory.activationBytes - cost.memory.runtimeBytes) / cost.memory.kvBytesPerToken))
     : null;
-  const planMaxContext = parallel.ok ? maxContextForStages(parallel.stages, { capacityBytes: available, activationBytes: cost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes, sequence }) : null;
+  const planMaxContext = parallel.ok ? maxContextForStages(parallel.stages, { capacityBytes: available, activationBytes: cost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes + cost.memory.commBufferBytes, sequence }) : null;
   const parts = [
-    [`权重${cost.weightSource === "derived" ? "（估算）" : ""}`, cost.memory.weightBytes], ["KV", cost.memory.kvBytes],
+    [`权重${cost.weightSource === "derived" ? "（估算）" : cost.weightSource === "what-if" ? "（what-if）" : ""}`, cost.memory.weightBytes], ["KV", cost.memory.kvBytes],
     ["激活峰值", cost.memory.activationBytes], ["运行时", cost.memory.runtimeBytes],
     ["通信缓冲", cost.memory.commBufferBytes],
   ];
@@ -115,19 +120,22 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
           <label>B<input type="number" min="1" value={batch} onChange={(event) => setBatch(Math.max(1, Number(event.target.value) || 1))} /></label>
           <label>T<input type="number" min="1" value={sequence} onChange={(event) => setSequence(Math.max(1, Number(event.target.value) || 1))} /></label>
           <label>卡显存 GiB<input type="number" min="1" value={capacity} onChange={(event) => setCapacity(Math.max(1, Number(event.target.value) || 1))} /></label>
+          <label>容量卡<select value={capacityChipId} onChange={(event) => { const id = event.target.value; setCapacityChipId(id); const selected = chips.find((chip) => chip.id === id); if (selected?.memory_bytes) setCapacity(Number((selected.memory_bytes / GIB).toFixed(2))); }}><option value="">手动</option>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label>
+          <label>权重 what-if<select value={weightMode} onChange={(event) => setWeightMode(event.target.value)}><option value="actual">实际/derived</option><option value="2">BF16/FP16</option><option value="1">FP8/INT8</option><option value="0.5">INT4</option></select></label>
           <label>KV bytes<select value={kvElementBytes} onChange={(event) => setKvElementBytes(Number(event.target.value))}><option value="2">2</option><option value="1">1</option><option value="0.5">0.5</option></select></label>
           <label>激活 GiB<input type="number" min="0" step="0.1" value={activationGiB} onChange={(event) => setActivationGiB(Math.max(0, Number(event.target.value) || 0))} /></label>
           <label>运行时 GiB<input type="number" min="0" step="0.1" value={runtimeGiB} onChange={(event) => setRuntimeGiB(Math.max(0, Number(event.target.value) || 0))} /></label>
+          <label>通信缓冲 GiB<input type="number" min="0" step="0.1" value={commBufferGiB} onChange={(event) => setCommBufferGiB(Math.max(0, Number(event.target.value) || 0))} /></label>
         </div>
       </div>
       <div className="cost-breakdown">{parts.map(([label, value]) => <span key={label}><b>{label}</b>{formatBytes(value)}</span>)}</div>
       <div className="cost-metrics"><span>合计显存 <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>未切分 fit <b className={cost.memory.totalBytes <= available ? "fit" : "no-fit"}>{cost.memory.totalBytes <= available ? "是" : "否"}</b></span><span>未切分最大上下文 <b>{maxContext == null ? "-" : maxContext.toLocaleString()}</b></span><span>计划最大上下文 <b>{planMaxContext == null ? "-" : planMaxContext.toLocaleString()}</b></span><span>MACs <b>{formatMacs(cost.totalMacs)}</b></span><span>计划通信 <b>{formatBytes(communication.totalBytes)}</b></span></div>
       <div className="cost-plan-controls"><b>并行计划</b><label>TP<input type="number" min="1" value={tp} onChange={(event) => setTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>PP<input type="number" min="1" value={pp} onChange={(event) => setPp(Math.max(1, Number(event.target.value) || 1))} /></label><label>EP<input type="number" min="1" value={ep} onChange={(event) => setEp(Math.max(1, Number(event.target.value) || 1))} /></label><label>DP<input type="number" min="1" value={dp} onChange={(event) => setDp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Attention<select value={attnMode} onChange={(event) => setAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label></div>
       {!parallel.ok && <div className="cost-plan-error">计划无效：{parallel.errors.join("；")}</div>}
-      {parallel.ok && <div className="cost-stages">{parallel.stages.map((stage) => { const stageTotal = stage.weightBytes + stage.kvBytes + cost.memory.activationBytes + cost.memory.runtimeBytes; const worstTotal = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + cost.memory.activationBytes + cost.memory.runtimeBytes; const hasRange = stage.weightWorstBytes > stage.weightBytes; return <span key={stage.stage}><b>Stage {stage.stage}</b>权重 {formatBytes(stage.weightBytes)}{hasRange ? `–${formatBytes(stage.weightWorstBytes)}` : ""} · KV {formatBytes(stage.kvBytes)} · fit <strong className={stageTotal <= available ? "fit" : "no-fit"}>{stageTotal <= available ? "是" : "否"}{hasRange ? `/${worstTotal <= available ? "是" : "否"}` : ""}</strong></span>; })}</div>}
+      {parallel.ok && <div className="cost-stages">{parallel.stages.map((stage) => { const stageTotal = stage.weightBytes + stage.kvBytes + cost.memory.activationBytes + cost.memory.runtimeBytes + cost.memory.commBufferBytes; const worstTotal = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + cost.memory.activationBytes + cost.memory.runtimeBytes + cost.memory.commBufferBytes; const hasRange = stage.weightWorstBytes > stage.weightBytes; return <span key={stage.stage}><b>Stage {stage.stage}</b>权重 {formatBytes(stage.weightBytes)}{hasRange ? `–${formatBytes(stage.weightWorstBytes)}` : ""} · KV {formatBytes(stage.kvBytes)} · fit <strong className={stageTotal <= available ? "fit" : "no-fit"}>{stageTotal <= available ? "是" : "否"}{hasRange ? `/${worstTotal <= available ? "是" : "否"}` : ""}</strong></span>; })}</div>}
       <label className="pd-toggle"><input type="checkbox" checked={pdEnabled} onChange={(event) => setPdEnabled(event.target.checked)} />启用 PD 分离</label>
       {pdEnabled && <div className="pd-summary"><label>Prefill 芯片<select value={prefillChipId} onChange={(event) => setPrefillChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Decode 芯片<select value={decodeChipId} onChange={(event) => setDecodeChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Prefill TP<input type="number" min="1" value={prefillTp} onChange={(event) => setPrefillTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Prefill PP<input type="number" min="1" value={prefillPp} onChange={(event) => setPrefillPp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Prefill EP<input type="number" min="1" value={prefillEp} onChange={(event) => setPrefillEp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Prefill DP<input type="number" min="1" value={prefillDp} onChange={(event) => setPrefillDp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Prefill Attention<select value={prefillAttnMode} onChange={(event) => setPrefillAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label><label>Decode TP<input type="number" min="1" value={decodeTp} onChange={(event) => setDecodeTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode PP<input type="number" min="1" value={decodePp} onChange={(event) => setDecodePp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode EP<input type="number" min="1" value={decodeEp} onChange={(event) => setDecodeEp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode DP<input type="number" min="1" value={decodeDp} onChange={(event) => setDecodeDp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode Attention<select value={decodeAttnMode} onChange={(event) => setDecodeAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label>{pd?.ok ? <span>按 Decode 布局：每 rank KV {formatBytes(pd.perDecodeRankBytes)} · 聚合传输 {formatBytes(pd.aggregateBytes)} · 链路 {pd.linkSource}{pd.linkBandwidth ? `（${formatRate(pd.linkBandwidth)}）` : ""} · Prefill fit {fitText(pdFit?.prefill?.fit)}/{fitText(worstFit(pdFit?.prefill))} · Decode fit {fitText(pdFit?.decode?.fit)}/{fitText(worstFit(pdFit?.decode))}</span> : <span className="cost-plan-error">PD 计划无效：{pd?.errors?.join("；")}</span>}</div>}
-      <div className="cost-assumptions">假设：KV 每元素 {kvElementBytes} bytes；激活峰值 {activationGiB} GiB；运行时常数 {runtimeGiB} GiB。通信为理论上界，不含 overlap。</div>
+      <div className="cost-assumptions">假设：KV 每元素 {kvElementBytes} bytes；激活峰值 {activationGiB} GiB；运行时常数 {runtimeGiB} GiB；通信缓冲 {commBufferGiB} GiB。通信为理论上界，不含 overlap。</div>
     </section>
   );
 }

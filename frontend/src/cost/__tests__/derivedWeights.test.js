@@ -13,3 +13,9 @@ test("无 checkpoint 和节点权重时使用 derived fallback", () => {
   assert.equal(result.memory.weightBytes, 88);
   assert.equal(result.weightSource, "derived");
 });
+
+test("权重 what-if 只在显式指定时覆盖默认字节数", () => {
+  const result = aggregateCost({ root: { children: [] }, config: { hiddenSize: 4, vocabSize: 10, tieWordEmbeddings: true }, weightBytesPerParameter: 1, activationPeak: 0, runtimeConst: 0 });
+  assert.equal(result.memory.weightBytes, 44);
+  assert.equal(result.weightSource, "what-if");
+});

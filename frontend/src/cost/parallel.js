@@ -192,15 +192,15 @@ export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = 
 }
 
 /** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。 */
-export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0 } = {}) {
+export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
   function side(plan, chip) {
     const projection = projectPlan({ root, weightBytes, kvBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
-      const totalBytes = stage.weightBytes + stage.kvBytes + activationBytes + runtimeBytes;
-      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + activationBytes + runtimeBytes;
+      const totalBytes = stage.weightBytes + stage.kvBytes + activationBytes + runtimeBytes + commBufferBytes;
+      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + activationBytes + runtimeBytes + commBufferBytes;
       return { ...stage, totalBytes, worstTotalBytes,
         fit: positiveNumber(capacity) ? totalBytes <= capacity : null,
         worstFit: positiveNumber(capacity) ? worstTotalBytes <= capacity : null };

@@ -73,7 +73,7 @@ function ArchitectureTab({
   const [etaHbm, setEtaHbm] = useState(0.9);
   const [etaComm, setEtaComm] = useState(0.8);
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
-  const [comparisonHoveredPath, setComparisonHoveredPath] = useState(null);
+  const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const candidateChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
@@ -115,7 +115,8 @@ function ArchitectureTab({
     [nodeLens, compareNodeLens, compareLensResult?.ok],
   );
   const flipPaths = useMemo(() => new Set(flips.map((flip) => flip.path)), [flips]);
-  const sharedHoveredPath = formulaHoveredPath ?? comparisonHoveredPath;
+  const sharedHoveredPath = formulaHoveredPath ?? diagramHoveredPath;
+  const activeFormulaPath = sharedHoveredPath ?? selectedPath;
   const diagramProps = {
     structure,
     zoom,
@@ -156,7 +157,7 @@ function ArchitectureTab({
                 aria-pressed={comparisonMode === mode}
                 onClick={() => {
                   setComparisonMode(mode);
-                  setComparisonHoveredPath(null);
+                  setDiagramHoveredPath(null);
                 }}
               >
                 {label}
@@ -179,7 +180,7 @@ function ArchitectureTab({
           </button>
         </div>
       </div>
-      {formulaLinks.length > 0 && <div className="formula-strip" aria-label="公式索引"><span className="formula-strip-label">公式</span>{formulaLinks.map((link) => <button key={link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
+      {formulaLinks.length > 0 && <div className="formula-strip" aria-label="公式索引"><span className="formula-strip-label">公式</span>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
       {chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>缺失：{coverage.missing.join("、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{warning}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">规格来源</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>缺失：{compareCoverage.missing.join("、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{warning}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">规格来源</a>}</>}</div>}
       {structure && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}
       {structure && compareLensResult && !compareLensResult.ok && <div className="cost-plan-error">对比方案无效：{compareLensResult.errors.join("；")}</div>}
@@ -190,18 +191,19 @@ function ArchitectureTab({
           {...diagramProps}
           nodeLens={nodeLens}
           comparisonPaths={flipPaths}
-          onHoverPathChange={setComparisonHoveredPath}
+          onHoverPathChange={setDiagramHoveredPath}
         />
         <DiagramPane
           label={scenarioLabel(comparisonMode === COMPARISON_MODE.CHIP ? "芯片对比" : "方案对比", compareScenario)}
           {...diagramProps}
           nodeLens={compareNodeLens}
           comparisonPaths={flipPaths}
-          onHoverPathChange={setComparisonHoveredPath}
+          onHoverPathChange={setDiagramHoveredPath}
         />
       </div> : <StructureDiagram
           {...diagramProps}
           nodeLens={nodeLens}
+          onHoverPathChange={setDiagramHoveredPath}
           showGroupToggle={false}
         />)
       : (

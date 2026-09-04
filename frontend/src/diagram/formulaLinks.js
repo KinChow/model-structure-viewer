@@ -1,4 +1,4 @@
-// 收集 IR 节点上的公式绑定，供公式索引与图节点双向联动。
+// 来源：GNN 101 的 formula ↔ visualization 交互；收集公式与图节点的双向路径绑定。
 
 export function collectFormulaLinks(root) {
   const links = [];

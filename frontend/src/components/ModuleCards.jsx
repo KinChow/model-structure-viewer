@@ -40,7 +40,7 @@ function ModuleCards({
     .join(" ");
 
   return (
-    <article className={classes}>
+    <article className={classes} data-node-path={path}>
       <header
         style={{ cursor: "pointer" }}
         onClick={() => onSelectNode && onSelectNode(path)}

@@ -135,6 +135,7 @@ function StructureDiagram({
                 return (
                   <g
                     key={node.path}
+                    data-node-path={node.path}
                     transform={`translate(${node.x}, ${node.y})`}
                     className={`${classes}${isComparisonStable ? " comparison-stable" : ""}`}
                     style={{ cursor: "pointer" }}

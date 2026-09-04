@@ -299,7 +299,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-node.dimmed { opacity: 0.32; }
 .diagram-edge.related { stroke: #3178b7; stroke-dasharray: 5 3; }
 .formula-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; padding: 7px 9px; border: 1px solid #dce5ed; border-radius: 5px; background: #f8fafc; }
-.formula-strip-label { color: #607184; font-size: 11px; }.formula-strip button { padding: 3px 7px; border: 1px solid #b7d0e3; border-radius: 4px; background: #fff; color: #2d6790; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; }.formula-strip button:hover { border-color: #3178b7; background: #eaf5fc; }
+.formula-strip-label { color: #607184; font-size: 11px; }.formula-strip button { padding: 3px 7px; border: 1px solid #b7d0e3; border-radius: 4px; background: #fff; color: #2d6790; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; }.formula-strip button:hover, .formula-strip button.active { border-color: #3178b7; background: #dff0fa; color: #174e75; }
 .formula-section { border-top: 1px solid #e0e7ef; padding-top: 12px; margin-top: 12px; }.formula-section h4 { margin: 0 0 8px; }.formula-section code { display: block; white-space: pre-wrap; color: #28516d; font-size: 12px; }.formula-section p { margin: 8px 0 0; color: #667788; font-size: 12px; line-height: 1.45; }
 .diagram-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }.diagram-compare-label { min-height: 30px; margin: 0 0 6px; color: #526678; font-size: 12px; font-weight: 700; line-height: 1.35; }.diagram-compare .diagram-frame { min-width: 0; }.lens-flips { margin: -2px 0 10px; padding: 6px 8px; border: 1px solid #e4bd72; border-radius: 4px; background: #fff7e6; color: #7c5418; font-size: 11px; }.lens-flips.empty { border-color: #dce5ed; background: #f8fafc; color: #607184; }
 @media (max-width: 900px) { .diagram-compare { grid-template-columns: 1fr; } }
@@ -346,6 +346,11 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-node {
   stroke-width: 1.5;
   filter: drop-shadow(var(--node-shadow));
+  transition: opacity 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
+}
+
+.diagram-edge {
+  transition: opacity 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
 }
 
 .diagram-node-content {

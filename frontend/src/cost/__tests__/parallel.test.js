@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { kvBytesPerCard, projectPlan, stageForLayer, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { kvBytesPerCard, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
@@ -39,4 +39,11 @@ test("PP 层归属和逐 stage 投影返回结构", () => {
   assert.equal(result.stages.length, 2);
   assert.equal(result.stages[0].weightBytes, 400);
   assert.equal(result.stages[0].kvBytes, 80);
+});
+
+test("PD 双 plan 分别校验并保留两侧配置", () => {
+  const result = validatePdPlan({ prefill_plan: { tp: 2, pp: 1, dp: 1 }, decode_plan: { tp: 4, pp: 1, dp: 2 } }, {});
+  assert.equal(result.ok, true);
+  assert.equal(result.prefillPlan.tp, 2);
+  assert.equal(result.decodePlan.tp, 4);
 });

@@ -85,3 +85,18 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = 
     })),
   };
 }
+
+/** 校验 PD 分离的 prefill/decode 两侧计划；两侧可以使用不同 TP/PP/DP。 */
+export function validatePdPlan(pdPlan = {}, config = {}) {
+  const prefill = validatePlan(pdPlan.prefill_plan || pdPlan.prefillPlan || {}, config);
+  const decode = validatePlan(pdPlan.decode_plan || pdPlan.decodePlan || {}, config);
+  return {
+    ok: prefill.ok && decode.ok,
+    errors: [
+      ...prefill.errors.map((error) => `prefill_plan：${error}`),
+      ...decode.errors.map((error) => `decode_plan：${error}`),
+    ],
+    prefillPlan: prefill.plan,
+    decodePlan: decode.plan,
+  };
+}

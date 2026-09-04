@@ -183,6 +183,7 @@ test("buildStructureForPayload enriches HF tree with checkpoint truth when avail
 
   assert.equal(apiCalled, false);
   assert.equal(structure.summary.parameters_total, 151936 * 1024 + 1024 * 1024 * 2 + 4096 * 1024 * 2 + 1024);
+  assert.equal(structure.summary.strategy, "template+truth");
   assert.equal(structure.source.strategy, "template+truth");
 
   const findNode = (node, id) => {
@@ -202,4 +203,29 @@ test("buildStructureForPayload enriches HF tree with checkpoint truth when avail
   // 无模板对应物（rope）不绑定
   const rope = findNode(structure.root, "decoder.0.self_attn.rope");
   assert.equal(rope.params, undefined);
+});
+
+test("无模板 HF 架构把 checkpoint trie 报告为骨架真值", async () => {
+  const structure = await buildStructureForPayload(
+    { source: "hf", model_id: "HuggingFaceTB/SmolLM2-135M", revision: "main" },
+    async () => { throw new Error("structure API should not be called"); },
+    async () => { throw new Error("local config should not be called"); },
+    async () => ({
+      model_type: "llama",
+      architectures: ["LlamaForCausalLM"],
+      num_hidden_layers: 1,
+      hidden_size: 576,
+      num_attention_heads: 9,
+    }),
+    async () => null,
+    async () => ({
+      tensors: [{ name: "model.layers.0.self_attn.q_proj.weight", dtype: "BF16", shape: [576, 576] }],
+      parameterCount: { BF16: 576 * 576 },
+      parameterTotal: 576 * 576,
+    }),
+  );
+
+  assert.equal(structure.summary.strategy, "skeleton-truth");
+  assert.equal(structure.source.strategy, "skeleton-truth");
+  assert.equal(structure.root.children[0].value_source, "checkpoint");
 });

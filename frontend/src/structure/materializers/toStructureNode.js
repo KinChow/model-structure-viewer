@@ -56,10 +56,13 @@ export function materializeModelStructure(ir) {
     { hasTemplate, modelName: templateNetwork?.name, canonicalArchitecture: resolved?.canonicalArchitecture },
   );
   const mergedDiagnostics = { ...diagnostics, ...truthDiagnostics };
+  const effectiveStrategy = truthDiagnostics.strategy === "no-truth" || !truth
+    ? ir.strategy
+    : truthDiagnostics.strategy;
 
   return {
     summary: {
-      strategy: ir.strategy,
+      strategy: effectiveStrategy,
       model_family: network.name,
       model_type: normalized.modelType,
       architecture: resolved.architecture || normalized.architecture || normalized.modelType,
@@ -81,7 +84,7 @@ export function materializeModelStructure(ir) {
       kind: options.source || "config",
       model_id: options.modelId,
       revision: options.revision,
-      strategy: truthDiagnostics.strategy === "no-truth" || !truth ? ir.strategy : truthDiagnostics.strategy,
+      strategy: effectiveStrategy,
       diagnostics: mergedDiagnostics,
     },
     root: {

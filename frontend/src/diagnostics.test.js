@@ -25,6 +25,19 @@ test("structureStatus explains frontend architecture template output", () => {
   assert.equal(status.detail, "Config-driven frontend structure");
 });
 
+test("structureStatus 区分 checkpoint 骨架真值与模板合并真值", () => {
+  assert.deepEqual(structureStatus({ summary: { strategy: "skeleton-truth" } }), {
+    label: "Checkpoint 骨架真值",
+    tone: "truth",
+    detail: "Checkpoint-derived module tree",
+  });
+  assert.deepEqual(structureStatus({ summary: { strategy: "template+truth" } }), {
+    label: "模板 + checkpoint 真值",
+    tone: "truth",
+    detail: "Template semantics with checkpoint values",
+  });
+});
+
 test("structureStatus explains repaired meta introspection", () => {
   const status = structureStatus({
     summary: {

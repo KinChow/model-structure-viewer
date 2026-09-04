@@ -1,5 +1,7 @@
 const STRATEGY_LABELS = {
   "frontend-architecture-template": ["Frontend template", "ok", "Config-driven frontend structure"],
+  "skeleton-truth": ["Checkpoint 骨架真值", "truth", "Checkpoint-derived module tree"],
+  "template+truth": ["模板 + checkpoint 真值", "truth", "Template semantics with checkpoint values"],
   "meta-introspect": ["Meta introspect", "ok", "Live module tree"],
   "repaired-meta-introspect": ["Meta introspect", "ok", "Live module tree repaired"],
 };

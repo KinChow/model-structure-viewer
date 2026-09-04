@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StructureDiagram from "../diagram/StructureDiagram";
 import EmptyState from "./EmptyState";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
@@ -66,6 +66,7 @@ function ArchitectureTab({
   onPlanChange,
   activeNodes,
   gpusPerNode = 1,
+  onNodeLensChange,
   chips = PUBLIC_CHIPS,
   onAddChip,
   compactControls = false,
@@ -153,6 +154,9 @@ function ArchitectureTab({
     onFit,
     activeLenses,
   };
+  useEffect(() => {
+    onNodeLensChange?.(nodeLens);
+  }, [nodeLens, onNodeLensChange]);
   return (
     <section className="diagram-panel">
       <div className="panel-toolbar">

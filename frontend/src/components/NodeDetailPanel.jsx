@@ -55,7 +55,13 @@ function FormulaSection({ node }) {
   return <section className="formula-section"><h4>公式 <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
 }
 
-function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, onSelectPath, onClose }) {
+function LensSection({ lens }) {
+  if (!lens) return null;
+  const formatTime = (value) => Number.isFinite(value) ? (value >= 1 ? `${value.toFixed(2)} s` : `${(value * 1000).toFixed(2)} ms`) : "-";
+  return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4><div className="truth-row"><b>Compute</b>{formatTime(lens.metrics?.computeSeconds)}</div><div className="truth-row"><b>Memory</b>{formatTime(lens.metrics?.memorySeconds)}</div><div className="truth-row"><b>Communication</b>{formatTime(lens.metrics?.communicationSeconds)}</div></section>;
+}
+
+function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLens, onSelectPath, onClose }) {
   if (!node) return null;
   const confidence = typeof node.confidence === "number" ? node.confidence.toFixed(2) : null;
   const className = node.attributes?.class;
@@ -84,6 +90,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, onSele
       </header>
       <TruthSection node={node} />
       {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% of model parameters`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% of model parameters</small></div>}
+      <LensSection lens={costLens} />
       <FormulaSection node={node} />
       <ShapeFlow attributes={node.attributes} />
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />

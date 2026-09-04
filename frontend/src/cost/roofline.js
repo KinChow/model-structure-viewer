@@ -43,7 +43,11 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
     ["memory", memoryTime],
     ["comm", commTime],
   ].filter(([, value]) => value != null);
-  const bound = candidates.length > 0 ? candidates.reduce((best, current) => current[1] > best[1] ? current : best)[0] : "unknown";
+  const baseComplete = computeTime != null && memoryTime != null;
+  const communicationComplete = !positive(commBytes) || commTime != null;
+  const bound = baseComplete && communicationComplete
+    ? candidates.reduce((best, current) => current[1] > best[1] ? current : best)[0]
+    : "unknown";
 
   return {
     dtype,

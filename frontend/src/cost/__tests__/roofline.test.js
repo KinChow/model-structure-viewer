@@ -35,3 +35,14 @@ test("跨节点通信使用 inter_node 带宽与效率因子", () => {
   const result = classifyRoofline({ macs: 1, weightBytes: 1, commBytes: 100 }, CHIP, { interNode: true });
   assert.equal(result.times.comm, 100 / (20 * 0.6));
 });
+
+test("只有 memory 时间时不做不完整的 bound 分类", () => {
+  const result = classifyRoofline({ macs: null, weightBytes: 100 }, { memory_bandwidth: 100 });
+  assert.equal(result.times.memory, 100 / 90);
+  assert.equal(result.bound, "unknown");
+});
+
+test("存在通信量但缺链路带宽时 bound 为 unknown", () => {
+  const result = classifyRoofline({ macs: 10, weightBytes: 100, commBytes: 20 }, { memory_bandwidth: 100, peak_flops: { bf16: 1000 } });
+  assert.equal(result.bound, "unknown");
+});

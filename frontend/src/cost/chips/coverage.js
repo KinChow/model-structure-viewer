@@ -55,11 +55,11 @@ export function getChipCoverage(chip, dtype = "bf16") {
     capabilities: {
       fit: hasMemory,
       max_context: hasMemory,
-      weight_share: hasMemory,
-      compute_bound: hasMemory && hasBandwidth && hasFlops,
-      memory_bound: hasMemory && hasBandwidth,
-      comm_bound: hasMemory && hasIntraLink,
-      parallel_compare: hasMemory && hasIntraLink,
+      weight_share: true,
+      compute_bound: hasBandwidth && hasFlops,
+      memory_bound: hasBandwidth && hasFlops,
+      comm_bound: hasBandwidth && hasFlops && hasIntraLink,
+      parallel_compare: hasBandwidth && hasFlops && hasIntraLink,
     },
   };
 }

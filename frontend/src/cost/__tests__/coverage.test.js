@@ -46,7 +46,8 @@ test("缺显存容量时禁用 fit 和 max_context", () => {
   const result = getChipCoverage({ ...COMPLETE, memory_bytes: null }, "bf16");
   assert.equal(result.capabilities.fit, false);
   assert.equal(result.capabilities.max_context, false);
-  assert.equal(result.capabilities.compute_bound, false);
+  assert.equal(result.capabilities.compute_bound, true);
+  assert.equal(result.capabilities.weight_share, true);
 });
 
 test("芯片条目必须有可追溯来源", () => {

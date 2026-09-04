@@ -94,6 +94,13 @@ function ArchitectureTab({
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const [advancedOpen, setAdvancedOpen] = useState(!compactControls);
+  const [canvasFocus, setCanvasFocus] = useState(false);
+  useEffect(() => {
+    if (!canvasFocus) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [canvasFocus]);
   const changePhase = (next) => activePhase ? onPhaseChange?.(next) : setInternalPhase(next);
   const internalPlan = useMemo(() => ({ tp, ep, attnMode }), [tp, ep, attnMode]);
   const plan = activePlans?.[phase] || internalPlan;
@@ -167,7 +174,7 @@ function ArchitectureTab({
     onNodeLensChange?.(nodeLens);
   }, [nodeLens, onNodeLensChange]);
   return (
-    <section className="diagram-panel">
+    <section className={`diagram-panel${canvasFocus ? " canvas-focus" : ""}`}>
       <div className="panel-toolbar">
         <h2>
           Architecture
@@ -177,6 +184,7 @@ function ArchitectureTab({
         </h2>
         <div className="toolbar-actions">
           {compactControls && <button type="button" onClick={() => setAdvancedOpen((value) => !value)}>{advancedOpen ? (language === "en" ? "Hide analysis" : "收起分析") : (language === "en" ? "Analysis" : "分析配置")}</button>}
+          <button type="button" onClick={() => setCanvasFocus((value) => !value)}>{canvasFocus ? (language === "en" ? "Exit focus" : "退出专注") : (language === "en" ? "Focus canvas" : "专注画布")}</button>
           {advancedOpen && <>
           {!compactControls && <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
           <label className="lens-control">阶段<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>

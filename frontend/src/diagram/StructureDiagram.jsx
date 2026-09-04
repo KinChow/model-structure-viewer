@@ -175,7 +175,7 @@ function StructureDiagram({
             <g transform={contentTransform}>
               {nodes.filter((node) => node.containerFrame).sort((a, b) => a.depth - b.depth).map((node) => {
                 const frame = node.containerFrame;
-                return <g key={`frame-${node.path}`} className="diagram-container-frame" data-container-path={node.path}>
+                return <g key={`frame-${node.path}`} className={`diagram-container-frame depth-${Math.min(node.depth, 3)}`} data-container-path={node.path}>
                   <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx="12" />
                   <text x={frame.x + 10} y={frame.y + 15}>{frame.label}</text>
                 </g>;

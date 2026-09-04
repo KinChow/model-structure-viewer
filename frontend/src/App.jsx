@@ -249,7 +249,7 @@ function App() {
       <section className="content">
         <section className="hero-panel">
           <SummaryChips structure={structure} sourceLabel={sourceLabel} />
-          <CostSummary structure={structure} />
+          <CostSummary structure={structure} chips={chips} />
           {structure && (
             <StructureSearchBox
               value={searchTerm}

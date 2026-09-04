@@ -3,6 +3,7 @@ import { normalizeConfig } from "../structure/config/normalize.js";
 import { aggregateCost } from "../cost/aggregate.js";
 import { projectPlan } from "../cost/parallel.js";
 import { pdKvTransferBytes } from "../cost/comm.js";
+import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 
 const GIB = 1024 ** 3;
 
@@ -20,7 +21,7 @@ function formatMacs(value) {
   return `${(value / 1e6).toFixed(1)} M`;
 }
 
-export default function CostSummary({ structure }) {
+export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
   const [phase, setPhase] = useState("prefill");
   const [batch, setBatch] = useState(1);
   const [sequence, setSequence] = useState(2048);
@@ -32,6 +33,8 @@ export default function CostSummary({ structure }) {
   const [pdEnabled, setPdEnabled] = useState(false);
   const [prefillTp, setPrefillTp] = useState(1);
   const [decodeTp, setDecodeTp] = useState(1);
+  const [prefillChipId, setPrefillChipId] = useState(chips[0]?.id || "");
+  const [decodeChipId, setDecodeChipId] = useState(chips[1]?.id || chips[0]?.id || "");
   const cost = useMemo(() => {
     if (!structure?.root || !structure.extra_config) return null;
     return aggregateCost({ root: structure.root, config: normalizeConfig(structure.extra_config),
@@ -50,6 +53,8 @@ export default function CostSummary({ structure }) {
     totalKvBytes: cost.memory.kvBytes,
     config: normalizeConfig(structure.extra_config),
     pdPlan: { prefill_plan: { tp: prefillTp }, decode_plan: { tp: decodeTp } },
+    prefillChip: chips.find((chip) => chip.id === prefillChipId),
+    decodeChip: chips.find((chip) => chip.id === decodeChipId),
   }) : null;
   const available = capacity * GIB;
   const maxContext = cost.memory.kvBytesPerToken
@@ -77,7 +82,7 @@ export default function CostSummary({ structure }) {
       {!parallel.ok && <div className="cost-plan-error">计划无效：{parallel.errors.join("；")}</div>}
       {parallel.ok && <div className="cost-stages">{parallel.stages.map((stage) => { const stageTotal = stage.weightBytes + stage.kvBytes + cost.memory.activationBytes + cost.memory.runtimeBytes; return <span key={stage.stage}><b>Stage {stage.stage}</b>权重 {formatBytes(stage.weightBytes)} · KV {formatBytes(stage.kvBytes)} · fit <strong className={stageTotal <= available ? "fit" : "no-fit"}>{stageTotal <= available ? "是" : "否"}</strong></span>; })}</div>}
       <label className="pd-toggle"><input type="checkbox" checked={pdEnabled} onChange={(event) => setPdEnabled(event.target.checked)} />启用 PD 分离</label>
-      {pdEnabled && <div className="pd-summary"><label>Prefill TP<input type="number" min="1" value={prefillTp} onChange={(event) => setPrefillTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode TP<input type="number" min="1" value={decodeTp} onChange={(event) => setDecodeTp(Math.max(1, Number(event.target.value) || 1))} /></label>{pd?.ok ? <span>按 Decode 布局：每 rank KV {formatBytes(pd.perDecodeRankBytes)} · 聚合传输 {formatBytes(pd.aggregateBytes)}</span> : <span className="cost-plan-error">PD 计划无效：{pd?.errors?.join("；")}</span>}</div>}
+      {pdEnabled && <div className="pd-summary"><label>Prefill 芯片<select value={prefillChipId} onChange={(event) => setPrefillChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Decode 芯片<select value={decodeChipId} onChange={(event) => setDecodeChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Prefill TP<input type="number" min="1" value={prefillTp} onChange={(event) => setPrefillTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode TP<input type="number" min="1" value={decodeTp} onChange={(event) => setDecodeTp(Math.max(1, Number(event.target.value) || 1))} /></label>{pd?.ok ? <span>按 Decode 布局：每 rank KV {formatBytes(pd.perDecodeRankBytes)} · 聚合传输 {formatBytes(pd.aggregateBytes)} · 链路 {pd.linkSource}</span> : <span className="cost-plan-error">PD 计划无效：{pd?.errors?.join("；")}</span>}</div>}
       <div className="cost-assumptions">假设：KV 每元素 2 bytes；激活峰值 1.5 GiB；运行时常数 1.5 GiB。未计并行切分与通信。</div>
     </section>
   );

@@ -51,17 +51,25 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
  * PD 分离的 KV 传输量，按 decode 侧 KV 布局计算。
  * 来源：evolution_design.md §5.3(7) 与 F15；只给出理论传输量，不建模 overlap。
  */
-export function pdKvTransferBytes({ totalKvBytes = 0, config = {}, pdPlan = {} } = {}) {
+export function pdKvTransferBytes({ totalKvBytes = 0, config = {}, pdPlan = {}, prefillChip, decodeChip } = {}) {
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, perDecodeRankBytes: null, aggregateBytes: null };
   const perRank = kvBytesPerCard(totalKvBytes, config, checked.decodePlan);
   const decodeRanks = checked.decodePlan.tp * checked.decodePlan.dp;
+  const prefillLink = prefillChip?.interconnect?.inter_node?.bandwidth || prefillChip?.interconnect?.intra_node?.bandwidth;
+  const decodeLink = decodeChip?.interconnect?.inter_node?.bandwidth || decodeChip?.interconnect?.intra_node?.bandwidth;
+  const linkBandwidth = prefillLink && decodeLink ? Math.min(prefillLink, decodeLink) : prefillLink || decodeLink || null;
+  const linkSource = prefillChip?.interconnect?.inter_node?.bandwidth && decodeChip?.interconnect?.inter_node?.bandwidth
+    ? "两侧 inter_node"
+    : "可用节点内/跨节点带宽的较小值";
   return {
     ok: true,
     errors: [],
     perDecodeRankBytes: perRank.bytes,
     decodeRanks,
     aggregateBytes: perRank.bytes * decodeRanks,
+    linkBandwidth,
+    linkSource: linkBandwidth ? linkSource : "缺少链路带宽",
     shardFactor: perRank.shardFactor,
     prefillPlan: checked.prefillPlan,
     decodePlan: checked.decodePlan,

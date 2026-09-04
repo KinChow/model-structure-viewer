@@ -182,7 +182,7 @@ textarea {
 .cost-plan-error { margin-top: 8px; color: #a22d2d; font-size: 12px; }.cost-stages { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
 .cost-stages span { padding: 5px 8px; border: 1px solid #dce5ed; border-radius: 4px; color: #526678; font-size: 11px; background: #f8fafc; }.cost-stages b { color: #1e4f72; margin-right: 5px; }
 .pd-toggle { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; color: #405365; font-size: 12px; }.pd-toggle input { accent-color: #3178b7; }
-.pd-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 8px; color: #526678; font-size: 11px; }.pd-summary label { display: inline-flex; align-items: center; gap: 4px; }.pd-summary input { width: 48px; padding: 4px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }
+.pd-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 8px; color: #526678; font-size: 11px; }.pd-summary label { display: inline-flex; align-items: center; gap: 4px; }.pd-summary input, .pd-summary select { width: 48px; padding: 4px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }.pd-summary select { width: 132px; background: #fff; }
 
 .chip {
   display: inline-flex;

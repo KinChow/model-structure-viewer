@@ -38,3 +38,12 @@ test("PD KV 传输量按 decode 侧 MLA 布局复制", () => {
   assert.equal(result.perDecodeRankBytes, 160);
   assert.equal(result.aggregateBytes, 1280);
 });
+
+test("PD 链路带宽取两侧可用链路的较小值", () => {
+  const result = pdKvTransferBytes({ totalKvBytes: 10, config: { kvHeads: 1 }, pdPlan: { prefill_plan: {}, decode_plan: {} },
+    prefillChip: { interconnect: { inter_node: { bandwidth: 20e9 } } },
+    decodeChip: { interconnect: { inter_node: { bandwidth: 10e9 } } },
+  });
+  assert.equal(result.linkBandwidth, 10e9);
+  assert.equal(result.linkSource, "两侧 inter_node");
+});

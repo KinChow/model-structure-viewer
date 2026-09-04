@@ -55,12 +55,13 @@ function FormulaSection({ node }) {
   return <section className="formula-section"><h4>公式 <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
 }
 
-function NodeDetailPanel({ node, onClose }) {
+function NodeDetailPanel({ node, path, onClose }) {
   if (!node) return null;
   const confidence = typeof node.confidence === "number" ? node.confidence.toFixed(2) : null;
   const className = node.attributes?.class;
   return (
     <aside className="detail-panel">
+      {path && <div className="detail-breadcrumb" aria-label="Structure path">{path.split(".").map((part, index, parts) => <span key={`${part}-${index}`}><span className={index === parts.length - 1 ? "current" : ""}>{part === "root" ? "model" : `#${part}`}</span>{index < parts.length - 1 && <i>/</i>}</span>)}</div>}
       <header>
         <div>
           <h3 title={node.name}>{node.name}</h3>

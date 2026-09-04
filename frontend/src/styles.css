@@ -283,6 +283,10 @@ textarea {
 .bound-compute .diagram-bound { background: #f8e4c5; color: #8b5613; }
 .bound-memory .diagram-bound { background: #d9edf8; color: #1e6488; }
 .bound-comm .diagram-bound { background: #f4d8dc; color: #8b2938; }
+.diagram-node.related { stroke: #7fa9c8; stroke-width: 2px; }
+.diagram-node.hovered { stroke: #1e6fa8; stroke-width: 3px; }
+.diagram-node.dimmed { opacity: 0.32; }
+.diagram-edge.related { stroke: #3178b7; stroke-dasharray: 5 3; }
 
 .diagram-frame {
   width: 100%;

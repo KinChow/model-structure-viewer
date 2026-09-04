@@ -259,6 +259,9 @@ function StructureDiagram({
                   <g
                     key={node.path}
                     data-node-path={node.path}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${node.fullName} at ${node.path}`}
                     transform={`translate(${node.x}, ${node.y})`}
                     className={`${classes}${node.isCollapsible ? " diagram-group-node" : ""}${node.isExpanded ? " diagram-group-open" : " diagram-group-closed"}${isComparisonStable ? " comparison-stable" : ""}`}
                     style={{ cursor: "pointer" }}
@@ -271,6 +274,12 @@ function StructureDiagram({
                       onHoverPathChange?.(null);
                     }}
                     onClick={() => onSelectNode && onSelectNode(node.path)}
+                    onKeyDown={(event) => {
+                      if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button, a, input, select, textarea")) {
+                        event.preventDefault();
+                        onSelectNode?.(node.path);
+                      }
+                    }}
                   >
                     <title>{[node.fullName, node.path, node.repeat ? `×${node.repeat}` : null, node.node?.attributes?.formula_id].filter(Boolean).join(" · ")}</title>
                     <rect width={node.width} height={node.height} rx="10" className={classes} />

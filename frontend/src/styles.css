@@ -327,6 +327,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .mini-frame { fill: rgba(123,153,181,.12); stroke: rgba(151,177,201,.4); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .mini-node { stroke: rgba(255,255,255,.35); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .85; }
 .mini-node.model { fill: #69a8d8; }.mini-node.embedding { fill: #df8ca0; }.mini-node.attention { fill: #dfa942; }.mini-node.mlp, .mini-node.moe { fill: #79aa82; }.mini-node.output { fill: #9c8da9; }.mini-node.projector { fill: #6bb4aa; }.mini-node.layer { fill: #9ca8b6; }
+.mini-node.selected { stroke: #f4ab52; stroke-width: 3; opacity: 1; }
 .mini-viewport { fill: rgba(244,171,82,.12); stroke: #f4ab52; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
 
 .diagram-scroll {

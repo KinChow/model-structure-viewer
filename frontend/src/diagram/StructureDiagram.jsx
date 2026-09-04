@@ -12,6 +12,7 @@ function StructureDiagram({
   searchActive,
   onSelectNode,
   onToggleGroup,
+  nodeLens,
   showGroupToggle = true,
 }) {
   const nodes = useMemo(
@@ -104,9 +105,11 @@ function StructureDiagram({
                 const isSelected = selectedPath === node.path;
                 const isMatch = matched.has(node.path);
                 const isDimmed = searchActive && !isMatch;
+                const bound = nodeLens?.[node.path]?.bound || "unknown";
                 const classes = [
                   "diagram-node",
                   node.typeClass,
+                  `bound-${bound}`,
                   isSelected ? "selected" : "",
                   isMatch ? "match" : "",
                   isDimmed ? "dimmed" : "",
@@ -117,6 +120,7 @@ function StructureDiagram({
                   <g
                     key={node.path}
                     transform={`translate(${node.x}, ${node.y})`}
+                    className={classes}
                     style={{ cursor: "pointer" }}
                     onClick={() => onSelectNode && onSelectNode(node.path)}
                   >
@@ -130,6 +134,7 @@ function StructureDiagram({
                           {node.repeat && (
                             <span className="diagram-repeat">×{node.repeat}</span>
                           )}
+                          {nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
                           {showGroupToggle && node.isCollapsible && (
                             <button
                               className="layer-group-toggle"

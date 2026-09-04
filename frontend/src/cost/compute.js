@@ -1,6 +1,6 @@
 // 推理场景的逐模块 MACs 估算；显式暴露假设，不用于预测延迟。
 
-import { product } from "./memory.js";
+import { nodeWeightBytes, product } from "./memory.js";
 
 function tokensFor({ batch = 1, sequence = 1, phase = "prefill" } = {}) {
   return batch * (phase === "decode" ? 1 : sequence);
@@ -35,8 +35,9 @@ export function attentionMacs(config, { batch = 1, sequence = 1, phase = "prefil
 
 export function nodeMacs(node, config, options = {}) {
   if (isLinear(node)) return linearMacs(node, options);
-  const label = `${node?.type || ""} ${node?.name || ""} ${node?.attributes?.operator_id || ""}`.toLowerCase();
-  if (label.includes("attention") || label.includes("attn")) return attentionMacs(config, options);
+  const type = String(node?.type || "").toLowerCase();
+  const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
+  if (type === "attention" || operatorId === "attention") return attentionMacs(config, options);
   const output = node?.output_shape || node?.attributes?.output_shape;
   return Array.isArray(output) ? product(output.filter((value) => value >= 0)) * tokensFor(options) : 0;
 }
@@ -55,7 +56,8 @@ export function computeNodeCosts(root, config, options = {}) {
       : 1;
     const ownMacs = nodeMacs(node, config, { ...options, expertFraction });
     const own = ownMacs == null ? null : ownMacs * multiplier;
-    rows.push({ path, node, macs: own, estimate_status: own == null ? "unknown" : "estimated" });
+    rows.push({ path, node, macs: own, weightBytes: nodeWeightBytes(node) * multiplier,
+      estimate_status: own == null ? "unknown" : "estimated" });
     (node?.children || []).forEach((child, index) => visit(child, `${path}.${index}`, multiplier * repeat));
   }
   if (root) visit(root);

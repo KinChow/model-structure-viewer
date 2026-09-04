@@ -11,3 +11,8 @@ test("MoE expert MACs use per-layer active fraction", () => {
   const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2, layerSchedule: ["moe"] }, { batch: 1, sequence: 1 });
   assert.equal(rows[1].macs, 2);
 });
+
+test("layernorm 名称包含 attention 时不应误判为 attention 核心", () => {
+  const node = { type: "normalization", name: "post attention layernorm", output_shape: [-1, -1, 8] };
+  assert.equal(computeNodeCosts(node, { attentionHeads: 2, headDim: 4 }, { batch: 1, sequence: 2 })[0].macs, 16);
+});

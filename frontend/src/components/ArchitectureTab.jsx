@@ -1,5 +1,10 @@
+import { useMemo, useState } from "react";
 import StructureDiagram from "../diagram/StructureDiagram";
 import EmptyState from "./EmptyState";
+import { normalizeConfig } from "../structure/config/normalize.js";
+import { computeNodeCosts } from "../cost/compute.js";
+import { classifyRoofline } from "../cost/roofline.js";
+import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 
 function downloadSvg(structure) {
   const svg = document.querySelector(".diagram-svg");
@@ -26,6 +31,21 @@ function ArchitectureTab({
   hitCount,
   onSelectNode,
 }) {
+  const [phase, setPhase] = useState("prefill");
+  const [chipId, setChipId] = useState(PUBLIC_CHIPS[0]?.id || "");
+  const chip = PUBLIC_CHIPS.find((entry) => entry.id === chipId) || PUBLIC_CHIPS[0];
+  const nodeLens = useMemo(() => {
+    if (!structure?.root || !structure.extra_config || !chip) return {};
+    const config = normalizeConfig(structure.extra_config);
+    const rows = computeNodeCosts(structure.root, config, { batch: 1, sequence: 2048, phase });
+    return Object.fromEntries(rows.map((row) => [row.path, classifyRoofline({
+      macs: row.macs,
+      weightBytes: row.weightBytes,
+      actInBytes: 0,
+      actOutBytes: 0,
+      commBytes: 0,
+    }, chip)]));
+  }, [structure, chip, phase]);
   return (
     <section className="diagram-panel">
       <div className="panel-toolbar">
@@ -36,6 +56,8 @@ function ArchitectureTab({
           )}
         </h2>
         <div className="toolbar-actions">
+          <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => setChipId(event.target.value)}>{PUBLIC_CHIPS.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
+          <label className="lens-control">阶段<select value={phase} onChange={(event) => setPhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
           <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button onClick={onFit}>Fit</button>
           <button onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
@@ -52,6 +74,7 @@ function ArchitectureTab({
           selectedPath={selectedPath}
           matchedPaths={matchedPaths}
           expandedGroups={expandedGroups}
+          nodeLens={nodeLens}
           searchActive={searchActive}
           onSelectNode={onSelectNode}
           showGroupToggle={false}

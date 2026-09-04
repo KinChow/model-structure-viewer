@@ -11,7 +11,7 @@ function modelName(modelId) {
 }
 
 function EntryButton({ active, children, onClick }) {
-  return <button type="button" className={active ? "entry-mode active" : "entry-mode"} onClick={onClick}>{children}</button>;
+  return <button type="button" className={active ? "entry-mode active" : "entry-mode"} aria-pressed={active} onClick={onClick}>{children}</button>;
 }
 
 export default function ModelEntry({

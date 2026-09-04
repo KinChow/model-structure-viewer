@@ -63,5 +63,23 @@ export function layoutDiagram(root, expandedGroups) {
       cursorY += item.height + NODE_GAP_Y;
     });
   });
+
+  items.forEach((item) => {
+    if (!item.isCollapsible || !item.isExpanded) return;
+    const descendants = items.filter((candidate) => candidate.path.startsWith(`${item.path}.`));
+    if (descendants.length === 0) return;
+    const left = Math.min(...descendants.map((candidate) => candidate.x)) - 14;
+    const top = Math.min(...descendants.map((candidate) => candidate.y)) - 22;
+    const right = Math.max(...descendants.map((candidate) => candidate.x + candidate.width)) + 14;
+    const bottom = Math.max(...descendants.map((candidate) => candidate.y + candidate.height)) + 14;
+    item.containerFrame = {
+      x: left,
+      y: top,
+      width: right - left,
+      height: bottom - top,
+      label: item.displayName,
+      depth: item.depth,
+    };
+  });
   return items;
 }

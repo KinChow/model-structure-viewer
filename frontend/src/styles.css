@@ -365,6 +365,12 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   transition: opacity 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
 }
 
+.diagram-container-frame { pointer-events: none; }
+.diagram-container-frame rect { fill: rgba(103, 137, 171, 0.045); stroke: rgba(103, 137, 171, 0.38); stroke-width: 1.2; stroke-dasharray: 6 4; }
+.diagram-container-frame text { fill: #72859a; font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.theme-dark .diagram-container-frame rect { fill: rgba(98, 132, 167, 0.07); stroke: rgba(132, 164, 198, 0.42); }
+.theme-dark .diagram-container-frame text { fill: #9aadc1; }
+
 .diagram-node-content {
   display: flex;
   flex-direction: column;

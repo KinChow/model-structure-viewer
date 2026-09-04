@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StructureDiagram from "../diagram/StructureDiagram";
 import EmptyState from "./EmptyState";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
@@ -35,11 +35,11 @@ function scenarioLabel(prefix, scenario) {
   return `${prefix} · ${chip?.name || "未知芯片"} · TP ${plan.tp} / EP ${plan.ep} / Attention ${String(plan.attnMode).toUpperCase()} · ${chipLinkText(chip)}`;
 }
 
-function DiagramPane({ label, ...diagramProps }) {
+function DiagramPane({ label, syncId, ...diagramProps }) {
   return (
     <div>
       <div className="diagram-compare-label">{label}</div>
-      <StructureDiagram {...diagramProps} showGroupToggle={false} />
+      <StructureDiagram {...diagramProps} scrollSyncId={syncId} showGroupToggle={false} />
     </div>
   );
 }
@@ -93,6 +93,7 @@ function ArchitectureTab({
   const [etaComm, setEtaComm] = useState(0.8);
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
+  const compareScrollGroup = useRef(new Map());
   const [advancedOpen, setAdvancedOpen] = useState(!compactControls);
   const [canvasFocus, setCanvasFocus] = useState(false);
   useEffect(() => {
@@ -171,6 +172,7 @@ function ArchitectureTab({
     activeLenses,
     focusMode: canvasFocus,
     onExitFocus: () => setCanvasFocus(false),
+    scrollSync: { group: compareScrollGroup.current },
   };
   useEffect(() => {
     onNodeLensChange?.(nodeLens);
@@ -246,6 +248,7 @@ function ArchitectureTab({
       {structure ? (compareScenario && compareLensResult?.ok ? <div className="diagram-compare">
         <DiagramPane
           label={scenarioLabel("基准", primaryScenario)}
+          syncId="primary"
           {...diagramProps}
           nodeLens={nodeLens}
           comparisonPaths={flipPaths}
@@ -253,6 +256,7 @@ function ArchitectureTab({
         />
         <DiagramPane
           label={scenarioLabel(comparisonMode === COMPARISON_MODE.CHIP ? "芯片对比" : "方案对比", compareScenario)}
+          syncId="compare"
           {...diagramProps}
           nodeLens={compareNodeLens}
           comparisonPaths={flipPaths}

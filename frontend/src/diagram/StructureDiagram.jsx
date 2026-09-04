@@ -36,6 +36,8 @@ function StructureDiagram({
   onFit,
   focusMode = false,
   onExitFocus,
+  scrollSync,
+  scrollSyncId,
 }) {
   const nodes = useMemo(
     () => layoutDiagram(structure.root, expandedGroups),
@@ -49,6 +51,25 @@ function StructureDiagram({
   const panRef = useRef({ active: false, moved: false, x: 0, y: 0, left: 0, top: 0 });
   const [scrollPosition, setScrollPosition] = useState({ left: 0, top: 0 });
   const [miniMapOpen, setMiniMapOpen] = useState(true);
+  useEffect(() => {
+    if (!scrollSync?.group || !scrollSyncId) return undefined;
+    scrollSync.group.set(scrollSyncId, scrollRef);
+    return () => scrollSync.group.delete(scrollSyncId);
+  }, [scrollSync, scrollSyncId]);
+
+  function handleScroll(event) {
+    const next = { left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop };
+    setScrollPosition(next);
+    if (!scrollSync?.group || scrollSync.group.busy) return;
+    scrollSync.group.busy = true;
+    scrollSync.group.forEach((ref, id) => {
+      if (id !== scrollSyncId && ref.current) {
+        ref.current.scrollLeft = next.left;
+        ref.current.scrollTop = next.top;
+      }
+    });
+    scrollSync.group.busy = false;
+  }
   const fitNonceRef = useRef(fitNonce);
   const [viewport, setViewport] = useState(() =>
     fitDiagramViewport({
@@ -181,7 +202,7 @@ function StructureDiagram({
 
   return (
     <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
-      <div className="diagram-scroll" ref={scrollRef} onScroll={(event) => setScrollPosition({ left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop })} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
+      <div className="diagram-scroll" ref={scrollRef} onScroll={handleScroll} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
         <div className="diagram-zoom" style={{ width, height }}>
           <svg
             className="diagram-svg"

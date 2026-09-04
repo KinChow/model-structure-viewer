@@ -38,7 +38,15 @@ export function buildNodeLens(structure, chip, {
       checked.plan,
       { batch, tokens, bytesPerElement },
     ) * row.multiplier;
-    return [row.path, classifyRoofline(perCardCost, chip, { dtype, efficiency })];
+    const roofline = classifyRoofline(perCardCost, chip, { dtype, efficiency });
+    return [row.path, {
+      ...roofline,
+      metrics: {
+        computeSeconds: roofline.times.compute,
+        memorySeconds: roofline.times.memory,
+        communicationSeconds: roofline.times.comm,
+      },
+    }];
   }));
   return { ok: true, errors: [], nodes, plan: checked.plan };
 }

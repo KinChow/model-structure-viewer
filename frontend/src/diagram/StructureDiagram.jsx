@@ -3,6 +3,12 @@ import { layoutDiagram } from "./layout";
 import { fitDiagramViewport, sameDiagramViewport } from "./viewport";
 import { isEdgeRelated, isPathRelated } from "./hover";
 
+function formatMetric(seconds) {
+  if (!Number.isFinite(seconds)) return null;
+  if (seconds >= 1) return `${seconds.toFixed(2)}s`;
+  return `${(seconds * 1000).toFixed(1)}ms`;
+}
+
 function StructureDiagram({
   structure,
   zoom,
@@ -122,6 +128,11 @@ function StructureDiagram({
                 const isMatch = matched.has(node.path);
                 const isDimmed = searchActive && !isMatch;
                 const bound = nodeLens?.[node.path]?.bound || "unknown";
+                const metrics = nodeLens?.[node.path]?.metrics || {};
+                const lensValues = [
+                  activeLenses.has("compute") && ["C", metrics.computeSeconds],
+                  activeLenses.has("memory") && ["M", metrics.memorySeconds],
+                ].filter(Boolean).map(([label, value]) => value == null ? `${label} -` : `${label} ${formatMetric(value)}`);
                 const isHovered = activeHoveredPath === node.path;
                 const isRelated = activeHoveredPath && isPathRelated(node.path, activeHoveredPath);
                 const comparisonActive = comparisonPaths instanceof Set && comparisonPaths.size > 0;
@@ -199,6 +210,7 @@ function StructureDiagram({
                             ))}
                           </ul>
                         )}
+                        {lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map((value) => <span key={value} className="diagram-lens-value">{value}</span>)}</div>}
                       </div>
                     </foreignObject>
                   </g>

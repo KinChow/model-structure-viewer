@@ -10,6 +10,8 @@ const VOCAB_KEYS = ["vocab_size"];
 const EXPERT_KEYS = ["num_local_experts", "n_routed_experts", "num_experts", "moe_num_experts"];
 const EXPERTS_PER_TOKEN_KEYS = ["num_experts_per_tok", "num_experts_per_token", "moe_top_k"];
 const CONTEXT_KEYS = ["max_position_embeddings", "seq_length", "max_sequence_length"];
+const KV_LORA_RANK_KEYS = ["kv_lora_rank", "kv_lora_dim"];
+const QK_ROPE_HEAD_DIM_KEYS = ["qk_rope_head_dim", "rope_head_dim"];
 
 function firstNumber(config, keys) {
   for (const key of keys) {
@@ -79,6 +81,9 @@ export function normalizeConfig(config) {
     attentionHeads,
     kvHeads: firstNumber(textConfig, KV_HEAD_KEYS) ?? firstNumber(config, KV_HEAD_KEYS),
     headDim,
+    kvLoraRank: firstNumber(textConfig, KV_LORA_RANK_KEYS) ?? firstNumber(config, KV_LORA_RANK_KEYS),
+    qkRopeHeadDim:
+      firstNumber(textConfig, QK_ROPE_HEAD_DIM_KEYS) ?? firstNumber(config, QK_ROPE_HEAD_DIM_KEYS),
     valueHeadDim: firstNumber(textConfig, VALUE_HEAD_DIM_KEYS) ?? firstNumber(config, VALUE_HEAD_DIM_KEYS) ?? headDim,
     intermediateSize: firstNumber(textConfig, INTERMEDIATE_KEYS) ?? firstNumber(config, INTERMEDIATE_KEYS),
     moeIntermediateSize: firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) ?? firstNumber(config, MOE_INTERMEDIATE_KEYS),

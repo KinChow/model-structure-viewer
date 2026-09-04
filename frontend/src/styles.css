@@ -154,6 +154,30 @@ textarea {
   padding-bottom: 16px;
 }
 
+.cost-summary {
+  border-top: 1px solid #dce5ed;
+  border-bottom: 1px solid #dce5ed;
+  padding: 13px 0 12px;
+  margin-bottom: 16px;
+}
+
+.cost-summary-header, .cost-metrics, .cost-breakdown, .cost-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cost-summary-header { justify-content: space-between; }
+.cost-disclaimer { margin-left: 10px; color: #8a5c18; font-size: 12px; }
+.cost-controls label { color: #607184; font-size: 12px; }
+.cost-controls input, .cost-controls select { margin-left: 4px; width: 72px; padding: 4px 6px; border: 1px solid #bdcbd8; border-radius: 4px; background: #fff; }
+.cost-breakdown { margin: 11px 0 9px; }
+.cost-breakdown span, .cost-metrics span { display: inline-flex; gap: 6px; padding: 6px 9px; background: #f4f8fb; border: 1px solid #dce5ed; border-radius: 5px; color: #405365; font-size: 12px; }
+.cost-breakdown b, .cost-metrics b { color: #1e4f72; }
+.fit { color: #2f7b42 !important; }.no-fit { color: #a22d2d !important; }
+.cost-assumptions { margin-top: 9px; color: #778797; font-size: 11px; }
+
 .chip {
   display: inline-flex;
   gap: 7px;

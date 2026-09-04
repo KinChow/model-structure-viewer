@@ -1,0 +1,58 @@
+import { useMemo, useState } from "react";
+import { normalizeConfig } from "../structure/config/normalize.js";
+import { aggregateCost } from "../cost/aggregate.js";
+
+const GIB = 1024 ** 3;
+
+function formatBytes(value) {
+  if (!Number.isFinite(value)) return "-";
+  if (value >= GIB) return `${(value / GIB).toFixed(2)} GiB`;
+  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MiB`;
+  return `${Math.round(value)} B`;
+}
+
+function formatMacs(value) {
+  if (!Number.isFinite(value)) return "-";
+  if (value >= 1e12) return `${(value / 1e12).toFixed(2)} T`;
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)} G`;
+  return `${(value / 1e6).toFixed(1)} M`;
+}
+
+export default function CostSummary({ structure }) {
+  const [phase, setPhase] = useState("prefill");
+  const [batch, setBatch] = useState(1);
+  const [sequence, setSequence] = useState(2048);
+  const [capacity, setCapacity] = useState(80);
+  const cost = useMemo(() => {
+    if (!structure?.root || !structure.extra_config) return null;
+    return aggregateCost({ root: structure.root, config: normalizeConfig(structure.extra_config),
+      parameterCount: structure.summary?.parameters_by_dtype, phase, batch, sequence,
+      activationPeak: 1.5 * GIB, runtimeConst: 1.5 * GIB });
+  }, [structure, phase, batch, sequence]);
+  if (!cost) return null;
+  const available = capacity * GIB;
+  const maxContext = cost.memory.kvBytesPerToken
+    ? Math.max(0, Math.floor((available - cost.memory.weightBytes - cost.memory.activationBytes - cost.memory.runtimeBytes) / cost.memory.kvBytesPerToken))
+    : null;
+  const parts = [
+    ["权重", cost.memory.weightBytes], ["KV", cost.memory.kvBytes],
+    ["激活峰值", cost.memory.activationBytes], ["运行时", cost.memory.runtimeBytes],
+    ["通信缓冲", cost.memory.commBufferBytes],
+  ];
+  return (
+    <section className="cost-summary" aria-label="理论成本估算">
+      <div className="cost-summary-header">
+        <div><b>理论成本估算</b><span className="cost-disclaimer">非仿真、非预测；结果供参考</span></div>
+        <div className="cost-controls">
+          <label>阶段<select value={phase} onChange={(event) => setPhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
+          <label>B<input type="number" min="1" value={batch} onChange={(event) => setBatch(Math.max(1, Number(event.target.value) || 1))} /></label>
+          <label>T<input type="number" min="1" value={sequence} onChange={(event) => setSequence(Math.max(1, Number(event.target.value) || 1))} /></label>
+          <label>卡显存 GiB<input type="number" min="1" value={capacity} onChange={(event) => setCapacity(Math.max(1, Number(event.target.value) || 1))} /></label>
+        </div>
+      </div>
+      <div className="cost-breakdown">{parts.map(([label, value]) => <span key={label}><b>{label}</b>{formatBytes(value)}</span>)}</div>
+      <div className="cost-metrics"><span>合计显存 <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>单卡 fit <b className={cost.memory.totalBytes <= available ? "fit" : "no-fit"}>{cost.memory.totalBytes <= available ? "是" : "否"}</b></span><span>最大上下文约 <b>{maxContext == null ? "-" : maxContext.toLocaleString()}</b></span><span>MACs <b>{formatMacs(cost.totalMacs)}</b></span></div>
+      <div className="cost-assumptions">假设：KV 每元素 2 bytes；激活峰值 1.5 GiB；运行时常数 1.5 GiB。未计并行切分与通信。</div>
+    </section>
+  );
+}

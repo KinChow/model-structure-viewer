@@ -9,6 +9,7 @@ import RawConfigTab from "./components/RawConfigTab";
 import Drawer from "./components/Drawer";
 import StructureSearchBox from "./components/StructureSearchBox";
 import NodeDetailPanel from "./components/NodeDetailPanel";
+import CostSummary from "./components/CostSummary";
 import { useSettings } from "./hooks/useSettings";
 import { useBuiltinModels } from "./hooks/useBuiltinModels";
 import { useLocalModels } from "./hooks/useLocalModels";
@@ -233,6 +234,7 @@ function App() {
       <section className="content">
         <section className="hero-panel">
           <SummaryChips structure={structure} sourceLabel={sourceLabel} />
+          <CostSummary structure={structure} />
           {structure && (
             <StructureSearchBox
               value={searchTerm}

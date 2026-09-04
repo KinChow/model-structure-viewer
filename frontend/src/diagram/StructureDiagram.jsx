@@ -39,6 +39,7 @@ function StructureDiagram({
     () => layoutDiagram(structure.root, expandedGroups),
     [structure, expandedGroups]
   );
+  const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
   const contentWidth = Math.max(1, ...nodes.map((node) => node.x + node.width + 28));
   const contentHeight = Math.max(1, ...nodes.map((node) => node.y + node.height + 28));
   const frameRef = useRef(null);
@@ -181,7 +182,7 @@ function StructureDiagram({
               })}
               {nodes.flatMap((node) =>
                 node.children.map((child) => {
-                  const target = nodes.find((item) => item.path === child);
+                  const target = nodesByPath.get(child);
                   if (!target) return null;
                   return (
                     <path

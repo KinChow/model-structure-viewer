@@ -277,6 +277,7 @@ textarea {
 .toolbar-actions button {
   min-width: 40px;
 }
+.toolbar-analysis { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; padding: 6px 8px; border: 1px solid #dce5ed; border-radius: 6px; background: #f8fafc; }
 
 .lens-control { display: inline-flex; align-items: center; gap: 5px; color: #607184; font-size: 12px; }
 .lens-control select { max-width: 145px; padding: 5px 7px; border: 1px solid #bdcbd8; border-radius: 4px; background: #fff; color: #34495b; }
@@ -1103,6 +1104,7 @@ label {
 .detail-inspector-slot .detail-panel { max-height: calc(100vh - 96px); overflow: auto; }
 .detail-page .panel-toolbar h2, .detail-page .detail-panel h3, .detail-page .detail-panel h4 { color: #edf2f7; }
 .detail-page .diagram-frame { border-color: #2a3545; background-color: #0f151e; background-image: radial-gradient(#253042 1px, transparent 1px); background-size: 20px 20px; }
+.detail-page .toolbar-analysis { border-color: #2a3545; background: #121923; }
 .detail-page.theme-light .diagram-frame { border-color: #dce3eb; background-color: #f8fbfd; background-image: radial-gradient(#d7e1ea 1px, transparent 1px); }
 .detail-page.theme-dark .diagram-node.model { fill: #182432; stroke: #6ca6d7; }
 .detail-page.theme-dark .diagram-node.embedding { fill: #2b2028; stroke: #d3869f; }
@@ -1156,6 +1158,7 @@ label {
 .theme-light .detail-brand, .theme-light .model-inspector-summary h2, .theme-light .detail-page .panel-toolbar h2, .theme-light .detail-page .detail-panel h3, .theme-light .detail-page .detail-panel h4 { color: #19212c; }
 .theme-light .detail-model-id, .theme-light .detail-header-actions button, .theme-light .detail-cost-summary { color: #657386; }
 .theme-light .detail-header-actions button, .theme-light .detail-aux-actions button, .theme-light .detail-cost-toggle > button, .theme-light .detail-aux-panel { border-color: #dce3eb; background: #fff; color: #364555; }
+.detail-page.theme-light .toolbar-analysis { border-color: #dce3eb; background: #f8fafc; }
 .theme-light .detail-layout .search-box input { border-color: #dce3eb; background: #fff; color: #19212c; }
 .theme-light .search-results { border-color: #dce3eb; background: #fff; box-shadow: 0 14px 28px rgba(38,55,73,.14); }
 .theme-light .search-results button { color: #263445; }

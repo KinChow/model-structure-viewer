@@ -247,7 +247,7 @@ function ArchitectureTab({
         <div className="toolbar-actions">
           {compactControls && <button type="button" onClick={() => setAdvancedOpen((value) => !value)}>{advancedOpen ? ui.hideAnalysis : ui.analysis}</button>}
           <button type="button" onClick={() => setCanvasFocus((value) => !value)}>{canvasFocus ? ui.exitFocus : ui.focus}</button>
-          {advancedOpen && <>
+          {advancedOpen && <div className="toolbar-analysis" aria-label={ui.analysis}>
           {!compactControls && <label className="lens-control">GPU<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
           <label className="lens-control">{ui.phase}<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
           <label className="lens-control">TP<input type="number" min="1" value={plan.tp} onChange={(event) => updatePlan({ ...plan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>
@@ -282,7 +282,7 @@ function ArchitectureTab({
           <label className="lens-control">{ui.hbm}<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
           <label className="lens-control">{ui.comm}<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
           <ManualChipForm language={language} onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />
-          </>}
+          </div>}
           {compactControls && <>
             <button type="button" onClick={onExpandAllGroups}>{ui.expandAll}</button>
             <button type="button" onClick={onCollapseAllGroups}>{ui.collapseAll}</button>

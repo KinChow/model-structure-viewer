@@ -17,6 +17,7 @@
 - 新增 TP/PP/EP/DP given-plan 投影、逐 stage fit、最大上下文、通信量和 PD 分离分析。
 - 新增互斥的芯片对比与方案对比模式，只突出 bound 翻转节点；公式、Architecture 和 Layers 使用同一路径双向联动。
 - 公开芯片目录增加 A100、H100、L40S 官方规格及字段级来源；保留 `chips.local.json` 与会话手动录入入口。
+- 内部结构 IR 升级为 `version: 2`；GitHub Pages 官方工作流增加前端单测和 44 模型验证闸门。
 - 新增测试 Skill 文档，固定单测、后端 transformers/API 验证和浏览器页面验证流程。
 - 开始使用这份更新日志管理版本变化。
 - Layers 卡片和详情面板增加输入/输出维度，使用 `batch`、`sequence`、`hidden size` 这类完整名字，避免缩写看不懂。

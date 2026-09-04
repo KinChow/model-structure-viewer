@@ -136,16 +136,16 @@ msv 有两条独立的结构构建路径，产出同一份 `ModelStructure`（py
 - **KV 字节与计算量**的解析式输入已齐备，只需补 `kv_lora_rank` / `qk_rope_head_dim`（MLA）。
 - **权重字节不走这条路**——前三个缺失字段（`torch_dtype` / `quantization_config` / `tie_word_embeddings`）恰好是 v1 打算用来推 dtype 的输入，而它们全部可被 HF API 的逐 dtype 真值取代（§4.2(a)）。因此**不需要为成本去扩 `normalizeConfig` 的 dtype 相关字段**。
 
-### 1.3 缺口（成本规划与图粒度的前置条件）
+### 1.3 缺口收口状态（成本规划与图粒度的前置条件）
 
 | # | 缺口 | 现状（代码依据） | 影响 |
 |---|---|---|---|
-| G1 | 节点级无参数计数 | `schemas.py:12-20` `StructureNode` 无 `params`；`materializers/toStructureNode.js` 只落 `id/name/type/repeat/attributes/source_fields/confidence/children` | 无法做 per-module 成本分解 |
-| G2 | **不存在数值形状（不是"被丢弃"）** | `model_executor/shapes.js`：`dimension()` 直接把数值格式化进字符串（`"hidden size=4096"`），`tensorShapes` 每个值本来就是字符串 → **数值形态从未存在过** | 需要把 `shapes.js` 拆成数值层 + 展示层两套，工作量大于 v1 估计 |
-| G3 | fold 签名不含 shape 维度 | `structure/fold.py:145-152` `_signature` 只返回 `(node.type, class_label, tuple(children_sig))` | 中间维度不同的层会被误折叠，成本会错 |
+| G1 | 节点级参数计数 | 后端 schema 与前端 materializer 均已增加 `params/weight_shapes/dtype/value_source/tensor_names` | **已解决**：支持 per-module 成本分解 |
+| G2 | 数值形状 | 已拆出 `model_executor/dims.js`，展示文本继续由 `shapes.js` 负责 | **已解决**：计算使用数值数组，展示使用可读文本 |
+| G3 | fold 签名包含 shape | 后端 fold 与前端 trie fold 均纳入真实子树和 weight shape | **已解决**：异构层不再误折叠 |
 | G4 | 前端直连 HF | 已由 `frontend/src/api/hf.js` 和 `api/client.js` 实现直连优先、后端 fallback | **已解决**：静态部署可读取公开 HF 配置与 safetensors header |
-| G5 | 零成本存量代码 | 全仓 grep `params\|vram\|kv_cache\|flops\|macs\|numel` 无实现命中 | 成本模块从零开始 |
-| G6 | 无静态部署配置 | 无 `.github/workflows/` | "静态部署可行"是可行性，非既成事实 |
+| G5 | 成本模块 | `frontend/src/cost/` 已覆盖内存、MACs、roofline、并行、通信和 PD | **已解决**：F3–F17 公式闸门已建立 |
+| G6 | 静态部署配置 | `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions，并执行前端测试、44 模型验证和构建 | **已解决**：部署不再只停留在可行性判断 |
 
 > G3 对照：modelmap `collapse.py` 的签名含 `weight_shapes`（`kind + cls + weight_shapes` 递归 hash），所以不会误折叠。msv 在 P0 拿到真实 `weight_shapes` 后同步补齐即可。
 
@@ -991,9 +991,9 @@ modelmap 式脉冲回放（rAF 引擎 + 相机跟随 + HUD 逐步解说 + beats 
 | **模板覆盖度**（影响大幅缩小） | v4 后模板只影响无参算子、执行序、公式讲解 | **骨架与数值都不受影响**——trie 不依赖模板（§4.2(b2)），这是 v4 的核心收益 |
 | **模板不完整的探测** | 模板漏声明过去无法发现 | `mergeSemantics` 统计 trie 里模板未声明的模块，既报警又自动补 `generic` 节点（§4.4） |
 | **手写 diagram 的性能与工作量** | 前端零图库，lens 命中测试与大图性能全自研 | 退路：转 Model Explorer（§7.3），代价是放弃公式双向联动 |
-| **契约双份手写** | `schemas.py` 与前端 materializer 手工同构，无版本号 | 延续现状；可选演进为 schema-first 代码生成（另立议题） |
-| **fold 误折叠** | 当前签名不含 shape | P0c 必修，且 v4 后改为数据驱动（子树结构 + 真实 shape hash） |
-| **无静态部署配置**（G6） | 无 `.github/workflows/` | P0a 交付时一并补 |
+| **契约双份手写** | `schemas.py` 与前端 materializer 手工同构 | 内部 IR 已标记 `version: 2`；schema-first 代码生成仍作为独立增强议题 |
+| **fold 误折叠** | 旧签名不含 shape | **已解决**：P0c 改为子树结构 + 真实 shape 的数据驱动签名 |
+| **静态部署回归**（G6） | Pages 构建可能绕过本地验证 | 官方 Pages 工作流依次执行前端单测、44 模型验证和生产构建 |
 
 ---
 

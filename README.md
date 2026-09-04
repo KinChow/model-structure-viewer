@@ -219,6 +219,8 @@ npm run build
 
 部署 `frontend/dist` 到 GitHub Pages 后，`builtin`、`config`、`hf` 和 Hugging Face 搜索可以在没有后端的情况下工作。`local`、后端设置保存、代理 fallback 和 transformers 验证仍需要 API 服务。
 
+仓库的 `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions；部署前会依次执行前端单测、44 个内置模型验证和生产构建。
+
 如果站点部署在子路径，例如 `https://kinchow.github.io/model-structure-viewer/`，需要设置 Vite base：
 
 ```bash

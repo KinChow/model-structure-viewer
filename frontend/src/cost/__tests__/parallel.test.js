@@ -7,19 +7,19 @@ test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.match(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 4 }).errors[0], /TP×PP×DP/);
 });
 
-test("GQA 的 KV 分片因子为 min(TP, kv_heads)", () => {
+test("F5 GQA 的 KV 分片因子为 min(TP, kv_heads)", () => {
   const result = kvBytesPerCard(160, { kvHeads: 4 }, { tp: 8 });
   assert.equal(result.shardFactor, 4);
   assert.equal(result.bytes, 40);
 });
 
-test("MLA 的 KV 在 TP 下全量复制", () => {
+test("F6 MLA 的 KV 在 TP 下全量复制", () => {
   const result = kvBytesPerCard(160, { kvHeads: 16, kvLoraRank: 512, qkRopeHeadDim: 64 }, { tp: 8 });
   assert.equal(result.shardFactor, 1);
   assert.equal(result.bytes, 160);
 });
 
-test("DP-attention 下每个 rank 持有完整 KV", () => {
+test("F7 DP-attention 下每个 rank 持有完整 KV", () => {
   const result = kvBytesPerCard(160, { kvHeads: 8 }, { tp: 4, dp: 2, attnMode: "dp" });
   assert.equal(result.shardFactor, 1);
   assert.equal(result.bytes, 160);
@@ -59,16 +59,16 @@ test("PD 双 plan 分别校验并保留两侧配置", () => {
   assert.equal(result.decodePlan.tp, 4);
 });
 
-test("按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
+test("F14 按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
   const root = { id: "model", children: [
     { id: "embed_tokens", weight_shapes: { weight: [10, 2] }, dtype: "BF16", children: [] },
     { id: "layers.0", repeat: 2, children: [{ id: "layers.0.q_proj", weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] },
-    { id: "lm_head", weight_shapes: { weight: [10, 2] }, dtype: "BF16", children: [] },
+    { id: "lm_head", weight_shapes: { weight: [5, 2] }, dtype: "BF16", children: [] },
   ] };
   const result = projectNodePlan({ root, config: { layers: 2, kvHeads: 1 }, plan: { tp: 1, pp: 2, dp: 1 }, kvBytes: 0 });
   assert.equal(result.ok, true);
   assert.equal(result.stages[0].weightBytes, 48);
-  assert.equal(result.stages[1].weightBytes, 48);
+  assert.equal(result.stages[1].weightBytes, 28);
 });
 
 test("PP 按 stage 层数分配 KV 而不是每个 stage 复制全量", () => {

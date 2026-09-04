@@ -3,11 +3,11 @@ import test from "node:test";
 import { activationTensorBytes, kvBytesPerToken, memoryBreakdown, tensorElements } from "../memory.js";
 import { aggregateCost } from "../aggregate.js";
 
-test("KV cache uses two tensors and KV heads", () => {
+test("F3 KV cache 使用 K/V 两份张量和 KV heads", () => {
   assert.equal(kvBytesPerToken({ layers: 2, kvHeads: 4, headDim: 8 }, 2), 2 * 4 * 8 * 2 * 2);
 });
 
-test("MLA uses compressed latent plus rotary component", () => {
+test("F4 MLA KV 使用压缩 latent 与 rotary 分量", () => {
   assert.equal(kvBytesPerToken({ layers: 2, kvHeads: 16, headDim: 128, kvLoraRank: 512, qkRopeHeadDim: 64 }, 2), 2 * (512 + 64) * 2);
 });
 

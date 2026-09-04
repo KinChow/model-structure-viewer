@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { expertAllToAllBytes, nodeCommunicationBytes, pdKvTransferBytes, pipelineP2PBytes, planCommunicationBytes, ringAllReduceBytes } from "../comm.js";
 
-test("TP ring all-reduce 每层两次时包含 2×(TP-1)/TP 系数", () => {
+test("F11 TP ring all-reduce 每层两次时包含 2×(TP-1)/TP 系数", () => {
   assert.equal(ringAllReduceBytes({ batch: 2, tokens: 3, hidden: 4, bytesPerElement: 2, tp: 4 }), 144);
   assert.equal(ringAllReduceBytes({ hidden: 4, tp: 1 }), 0);
 });
 
-test("EP all-to-all 使用 expertsPerToken 而不是专家总数", () => {
+test("F12 EP all-to-all 使用 expertsPerToken 而不是专家总数", () => {
   assert.equal(expertAllToAllBytes({ batch: 2, tokens: 3, hidden: 4, expertsPerToken: 2, bytesPerElement: 2 }), 192);
 });
 
@@ -29,7 +29,7 @@ test("EP=1 不产生 all-to-all，DP-attention 不产生 attention TP all-reduce
   assert.ok(nodeCommunicationBytes({ id: "decoder.0.mlp.down_proj" }, { hiddenSize: 4 }, { tp: 4, attnMode: "dp" }) > 0);
 });
 
-test("PD KV 传输量按 decode 侧 GQA 布局计算", () => {
+test("F15 PD KV 传输量按 decode 侧 GQA 布局计算", () => {
   const result = pdKvTransferBytes({ totalKvBytes: 160, config: { kvHeads: 4 }, pdPlan: {
     prefill_plan: { tp: 1 }, decode_plan: { tp: 8, dp: 1 },
   } });

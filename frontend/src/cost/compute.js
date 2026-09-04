@@ -52,7 +52,7 @@ export function computeNodeCosts(root, config, options = {}) {
     const layerIndex = layerMatch ? Number(layerMatch[1]) : null;
     const layerKind = layerIndex != null ? config?.layerSchedule?.[layerIndex] : null;
     const routedExpert = /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(modulePath);
-    const expertFraction = routedExpert && layerKind === "moe" && config?.experts && config?.expertsPerToken
+    const expertFraction = routedExpert && layerKind !== "dense" && config?.experts && config?.expertsPerToken
       ? config.expertsPerToken / config.experts
       : 1;
     const ownMacs = nodeMacs(node, config, { ...options, expertFraction });

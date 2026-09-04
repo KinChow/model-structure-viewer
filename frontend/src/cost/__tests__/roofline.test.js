@@ -15,7 +15,7 @@ test("效率因子使用文献默认值并支持芯片覆盖", () => {
   assert.equal(resolveEfficiency({ efficiency: { flops: 2 } }).flops, DEFAULT_EFFICIENCY.flops);
 });
 
-test("三类时间取最大值作为 bound，并计算有效 ridge point", () => {
+test("F17 三类时间各除对应效率因子后取最大值作为 bound", () => {
   const result = classifyRoofline({ macs: 100, weightBytes: 100, actInBytes: 0, actOutBytes: 0, commBytes: 10000 }, CHIP);
   assert.equal(result.bound, "comm");
   assert.equal(result.times.compute, 200 / 700);

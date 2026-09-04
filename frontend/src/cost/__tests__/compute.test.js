@@ -1,14 +1,36 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { computeNodeCosts, linearMacs } from "../compute.js";
+import { attentionMacs, computeNodeCosts, linearMacs } from "../compute.js";
 
 test("packed qweight is unknown without logical shape metadata", () => {
   assert.equal(linearMacs({ weight_shapes: { qweight: [4, 1] } }, { batch: 1, sequence: 1 }), null);
 });
 
-test("MoE expert MACs use per-layer active fraction", () => {
+test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {
+  const node = { weight_shapes: { weight: [4, 2] } };
+  assert.equal(linearMacs(node, { batch: 2, sequence: 3, phase: "prefill" }), 48);
+  assert.equal(linearMacs(node, { batch: 2, sequence: 3, phase: "decode" }), 16);
+});
+
+test("F9 Attention core MACs 区分 Prefill 的 T² 与 Decode 的 T", () => {
+  const config = { attentionHeads: 2, headDim: 4, valueHeadDim: 6 };
+  assert.equal(attentionMacs(config, { batch: 2, sequence: 3, phase: "prefill" }), 360);
+  assert.equal(attentionMacs(config, { batch: 2, sequence: 3, phase: "decode" }), 120);
+});
+
+test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {
+  const root = { children: [
+    { id: "decoder.0.mlp.gate_proj", weight_shapes: { weight: [4, 2] }, children: [] },
+    { id: "decoder.1.mlp.experts.0", weight_shapes: { weight: [4, 2] }, children: [] },
+  ] };
+  const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2, layerSchedule: ["dense", "moe"] }, { batch: 1, sequence: 1 });
+  assert.equal(rows[1].macs, 8);
+  assert.equal(rows[2].macs, 2);
+});
+
+test("F16 真实专家路径在缺少 layerSchedule 时仍使用活跃比例", () => {
   const root = { children: [{ id: "decoder.0.mlp.experts.0", weight_shapes: { weight: [4, 2] }, children: [] }] };
-  const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2, layerSchedule: ["moe"] }, { batch: 1, sequence: 1 });
+  const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2 }, { batch: 1, sequence: 1 });
   assert.equal(rows[1].macs, 2);
 });
 

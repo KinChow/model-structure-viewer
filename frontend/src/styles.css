@@ -779,6 +779,7 @@ label {
   stroke: #1f5f91;
   filter: drop-shadow(0 0 0 #1f5f91) drop-shadow(var(--node-shadow));
 }
+.diagram-node:focus-visible { outline: none; filter: drop-shadow(0 0 0 #f4ab52) drop-shadow(0 0 5px rgba(244,171,82,.9)); }
 .diagram-node.ancestor { stroke: #8c6b36; stroke-width: 2px; }
 
 .diagram-node.match {

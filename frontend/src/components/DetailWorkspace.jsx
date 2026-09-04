@@ -7,6 +7,20 @@ import ExportTab from "./ExportTab";
 import RawConfigTab from "./RawConfigTab";
 import NodeDetailPanel from "./NodeDetailPanel";
 
+function breadcrumbForPath(root, path) {
+  if (!root || !path) return [];
+  const parts = path.split(".");
+  const items = [{ path: "root", name: root.name }];
+  let current = root;
+  for (let index = 1; index < parts.length; index += 1) {
+    const child = current.children?.[Number(parts[index])];
+    if (!child) break;
+    current = child;
+    items.push({ path: parts.slice(0, index + 1).join("."), name: child.name });
+  }
+  return items;
+}
+
 function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onThemeChange, theme, onBack, onSettings }) {
   const id = structure?.source?.model_id || structure?.summary?.model_family || structure?.summary?.model_type || "model";
   const english = language === "en";
@@ -60,6 +74,7 @@ export default function DetailWorkspace({
   const rawJson = structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : "";
   const selectedData = selectedNode?.node || selectedNode;
   const selectedPath = selectedNodePath || selectedNode?.path || null;
+  const breadcrumbs = breadcrumbForPath(structure?.root, selectedPath);
   return (
     <main className={`detail-page theme-${theme}`}>
       <DetailHeader structure={structure} sourceLabel={sourceLabel} language={language} onLanguageChange={onLanguageChange} onThemeChange={onThemeChange} theme={theme} onBack={onBack} onSettings={onSettings} />
@@ -73,7 +88,7 @@ export default function DetailWorkspace({
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
         </div>
-        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} onClose={onCloseNode} /> : <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{structure?.summary?.model_family || structure?.summary?.model_type || "Model"}</h2><p>{language === "en" ? "Select a structure node to inspect parameters, shapes, weights, and cost." : "选择结构节点查看参数、Shape、权重和成本。"}</p><div className="inspector-rule" /></div>}</div>
+        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} onSelectPath={onSelectNode} onClose={onCloseNode} /> : <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{structure?.summary?.model_family || structure?.summary?.model_type || "Model"}</h2><p>{language === "en" ? "Select a structure node to inspect parameters, shapes, weights, and cost." : "选择结构节点查看参数、Shape、权重和成本。"}</p><div className="inspector-rule" /></div>}</div>
       </section>
     </main>
   );

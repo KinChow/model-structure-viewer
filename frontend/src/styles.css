@@ -813,6 +813,8 @@ label {
 }
 .detail-breadcrumb { display: flex; flex-wrap: wrap; gap: 5px; margin: -2px 0 10px; color: #8090a2; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .detail-breadcrumb span { display: inline-flex; gap: 5px; }
+.detail-breadcrumb button { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.detail-breadcrumb button:hover { color: #f4ab52; text-decoration: underline; }
 .detail-breadcrumb i { color: #b5c0cb; font-style: normal; }
 .detail-breadcrumb .current { color: #f4ab52; }
 

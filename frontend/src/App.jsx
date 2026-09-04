@@ -155,14 +155,17 @@ function App() {
       else next.add(path);
       return next;
     });
+    setFitNonce((value) => value + 1);
   }
 
   function handleExpandAllLayers() {
     setLayersExpandedPaths(new Set(allCollapsiblePaths));
+    setFitNonce((value) => value + 1);
   }
 
   function handleCollapseAllLayers() {
     setLayersExpandedPaths(new Set());
+    setFitNonce((value) => value + 1);
   }
 
   function handleOpenDrawer() {

@@ -61,6 +61,7 @@ function ArchitectureTab({
   onCollapseAllGroups,
   activeLenses = new Set(["vram"]),
   activePhase,
+  onPhaseChange,
   activeMode = "centralized",
   activePlans,
   onPlanChange,
@@ -93,7 +94,7 @@ function ArchitectureTab({
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const [advancedOpen, setAdvancedOpen] = useState(!compactControls);
-  const changePhase = (next) => activePhase ? null : setInternalPhase(next);
+  const changePhase = (next) => activePhase ? onPhaseChange?.(next) : setInternalPhase(next);
   const internalPlan = useMemo(() => ({ tp, ep, attnMode }), [tp, ep, attnMode]);
   const plan = activePlans?.[phase] || internalPlan;
   const updatePlan = (next) => {

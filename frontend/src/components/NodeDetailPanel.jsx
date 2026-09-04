@@ -28,7 +28,7 @@ function TruthSection({ node, language = "zh" }) {
       </section>
     );
   }
-  const sourceLabel = node.value_source === "checkpoint" ? "checkpoint 真值" : node.value_source || "未知";
+  const sourceLabel = node.value_source === "checkpoint" ? (english ? "checkpoint truth" : "checkpoint 真值") : node.value_source || (english ? "unknown" : "未知");
   return (
     <section className="truth-section">
       <h4>
@@ -38,7 +38,7 @@ function TruthSection({ node, language = "zh" }) {
       {node.dtype && <div className="truth-row"><b>dtype</b>{node.dtype}</div>}
       {node.weight_shapes && Object.keys(node.weight_shapes).length > 0 && (
         <div className="truth-row">
-          <b>weight shapes</b>
+          <b>{english ? "weight shapes" : "权重 Shape"}</b>
           <code>
             {Object.entries(node.weight_shapes)
               .map(([name, shape]) => `${name} ${JSON.stringify(shape)}`)
@@ -78,6 +78,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
   const parameterShare = Number.isFinite(node.params) && Number.isFinite(totalParameters) && totalParameters > 0
     ? Math.min(100, Math.max(0, (node.params / totalParameters) * 100))
     : null;
+  const english = language === "en";
   async function copyPath() {
     if (!path) return;
     try {
@@ -90,7 +91,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
   }
   return (
     <aside className={`detail-panel${collapsed ? " mobile-inspector-collapsed" : ""}`}>
-      <button type="button" className="detail-sheet-handle" aria-label={collapsed ? "Expand inspector" : "Collapse inspector"} aria-expanded={!collapsed} onClick={onToggleCollapsed} />
+      <button type="button" className="detail-sheet-handle" aria-label={collapsed ? (english ? "Expand inspector" : "展开详情") : (english ? "Collapse inspector" : "收起详情")} aria-expanded={!collapsed} onClick={onToggleCollapsed} />
       {path && <div className="detail-breadcrumb" aria-label="Structure path"><div className="detail-breadcrumb-path">{(breadcrumbs.length > 0 ? breadcrumbs : path.split(".").map((part, index, parts) => ({ path: parts.slice(0, index + 1).join("."), name: part === "root" ? "model" : `#${part}` }))).map((item, index, items) => <span key={item.path}><button type="button" className={index === items.length - 1 ? "current" : ""} onClick={() => index < items.length - 1 && onSelectPath?.(item.path)}>{item.name}</button>{index < items.length - 1 && <i>/</i>}</span>)}</div><button type="button" className={`copy-path ${copyState}`} onClick={copyPath}>{copyState === "success" ? (language === "en" ? "Copied" : "已复制") : copyState === "unavailable" ? (language === "en" ? "Copy unavailable" : "无法复制") : language === "en" ? "Copy path" : "复制路径"}</button></div>}
       <header>
         <div>
@@ -101,16 +102,16 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
             {node.repeat && <span className="badge repeat">×{node.repeat}</span>}
             {confidence && <span className="badge confidence">conf {confidence}</span>}
             {node.children?.length > 0 && (
-              <span className="badge children">{node.children.length} children</span>
+              <span className="badge children">{node.children.length} {english ? "children" : "个子节点"}</span>
             )}
           </div>
         </div>
-        <button className="close" onClick={onClose} aria-label="Close detail panel">
+        <button className="close" onClick={onClose} aria-label={english ? "Close detail panel" : "关闭详情面板"}>
           ×
         </button>
       </header>
       <TruthSection node={node} language={language} />
-      {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% of model parameters`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% of model parameters</small></div>}
+      {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% ${english ? "of model parameters" : "模型参数占比"}`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% {english ? "of model parameters" : "模型参数占比"}</small></div>}
       <LensSection lens={costLens} activeLenses={activeLenses} language={language} />
       <FormulaSection node={node} language={language} />
       <ChildModulesSection node={node} path={path} language={language} onSelectPath={onSelectPath} />

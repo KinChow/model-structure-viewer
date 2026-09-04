@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expertAllToAllBytes, nodeCommunicationBytes, pdKvTransferBytes, pipelineP2PBytes, ringAllReduceBytes } from "../comm.js";
+import { expertAllToAllBytes, nodeCommunicationBytes, pdKvTransferBytes, pipelineP2PBytes, planCommunicationBytes, ringAllReduceBytes } from "../comm.js";
 
 test("TP ring all-reduce 每层两次时包含 2×(TP-1)/TP 系数", () => {
   assert.equal(ringAllReduceBytes({ batch: 2, tokens: 3, hidden: 4, bytesPerElement: 2, tp: 4 }), 144);
@@ -46,4 +46,11 @@ test("PD 链路带宽取两侧可用链路的较小值", () => {
   });
   assert.equal(result.linkBandwidth, 10e9);
   assert.equal(result.linkSource, "两侧 inter_node");
+});
+
+test("通信汇总包含重复层节点通信和 PP 边界通信", () => {
+  const result = planCommunicationBytes({ root: { repeat: 2, children: [{ id: "decoder.0.self_attn.o_proj" }] }, config: { hiddenSize: 4 }, plan: { tp: 2, pp: 2 }, tokens: 1, bytesPerElement: 2 });
+  assert.equal(result.nodeBytes, 16);
+  assert.equal(result.ppBytes, 8);
+  assert.equal(result.totalBytes, 24);
 });

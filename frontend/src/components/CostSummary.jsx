@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { normalizeConfig } from "../structure/config/normalize.js";
 import { aggregateCost } from "../cost/aggregate.js";
 import { projectPlan } from "../cost/parallel.js";
-import { pdKvTransferBytes } from "../cost/comm.js";
+import { pdKvTransferBytes, planCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 
 const GIB = 1024 ** 3;
@@ -49,6 +49,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
     config: normalizeConfig(structure.extra_config),
     plan: { tp, pp, ep, dp },
   });
+  const communication = planCommunicationBytes({ root: structure.root, config: normalizeConfig(structure.extra_config), plan: { tp, pp, ep, dp }, batch, tokens: phase === "decode" ? 1 : sequence });
   const pd = pdEnabled ? pdKvTransferBytes({
     totalKvBytes: cost.memory.kvBytes,
     config: normalizeConfig(structure.extra_config),
@@ -77,13 +78,13 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
         </div>
       </div>
       <div className="cost-breakdown">{parts.map(([label, value]) => <span key={label}><b>{label}</b>{formatBytes(value)}</span>)}</div>
-      <div className="cost-metrics"><span>合计显存 <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>单卡 fit <b className={cost.memory.totalBytes <= available ? "fit" : "no-fit"}>{cost.memory.totalBytes <= available ? "是" : "否"}</b></span><span>最大上下文约 <b>{maxContext == null ? "-" : maxContext.toLocaleString()}</b></span><span>MACs <b>{formatMacs(cost.totalMacs)}</b></span></div>
+      <div className="cost-metrics"><span>合计显存 <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>单卡 fit <b className={cost.memory.totalBytes <= available ? "fit" : "no-fit"}>{cost.memory.totalBytes <= available ? "是" : "否"}</b></span><span>最大上下文约 <b>{maxContext == null ? "-" : maxContext.toLocaleString()}</b></span><span>MACs <b>{formatMacs(cost.totalMacs)}</b></span><span>计划通信 <b>{formatBytes(communication.totalBytes)}</b></span></div>
       <div className="cost-plan-controls"><b>并行计划</b><label>TP<input type="number" min="1" value={tp} onChange={(event) => setTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>PP<input type="number" min="1" value={pp} onChange={(event) => setPp(Math.max(1, Number(event.target.value) || 1))} /></label><label>EP<input type="number" min="1" value={ep} onChange={(event) => setEp(Math.max(1, Number(event.target.value) || 1))} /></label><label>DP<input type="number" min="1" value={dp} onChange={(event) => setDp(Math.max(1, Number(event.target.value) || 1))} /></label></div>
       {!parallel.ok && <div className="cost-plan-error">计划无效：{parallel.errors.join("；")}</div>}
       {parallel.ok && <div className="cost-stages">{parallel.stages.map((stage) => { const stageTotal = stage.weightBytes + stage.kvBytes + cost.memory.activationBytes + cost.memory.runtimeBytes; return <span key={stage.stage}><b>Stage {stage.stage}</b>权重 {formatBytes(stage.weightBytes)} · KV {formatBytes(stage.kvBytes)} · fit <strong className={stageTotal <= available ? "fit" : "no-fit"}>{stageTotal <= available ? "是" : "否"}</strong></span>; })}</div>}
       <label className="pd-toggle"><input type="checkbox" checked={pdEnabled} onChange={(event) => setPdEnabled(event.target.checked)} />启用 PD 分离</label>
       {pdEnabled && <div className="pd-summary"><label>Prefill 芯片<select value={prefillChipId} onChange={(event) => setPrefillChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Decode 芯片<select value={decodeChipId} onChange={(event) => setDecodeChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Prefill TP<input type="number" min="1" value={prefillTp} onChange={(event) => setPrefillTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode TP<input type="number" min="1" value={decodeTp} onChange={(event) => setDecodeTp(Math.max(1, Number(event.target.value) || 1))} /></label>{pd?.ok ? <span>按 Decode 布局：每 rank KV {formatBytes(pd.perDecodeRankBytes)} · 聚合传输 {formatBytes(pd.aggregateBytes)} · 链路 {pd.linkSource}</span> : <span className="cost-plan-error">PD 计划无效：{pd?.errors?.join("；")}</span>}</div>}
-      <div className="cost-assumptions">假设：KV 每元素 2 bytes；激活峰值 1.5 GiB；运行时常数 1.5 GiB。未计并行切分与通信。</div>
+      <div className="cost-assumptions">假设：KV 每元素 2 bytes；激活峰值 1.5 GiB；运行时常数 1.5 GiB。通信为理论上界，不含 overlap。</div>
     </section>
   );
 }

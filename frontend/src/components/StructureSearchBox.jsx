@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 
-function StructureSearchBox({ value, onChange, hitCount, disabled, results = [], onSelect }) {
+function StructureSearchBox({ value, onChange, hitCount, disabled, results = [], onSelect, language = "zh" }) {
   const [highlighted, setHighlighted] = useState(0);
+  const english = language === "en";
   useEffect(() => setHighlighted(0), [value, results.length]);
   return (
     <div className="search-box">
       <input
         type="search"
-        placeholder="Search nodes by name / type / class..."
+        placeholder={english ? "Search nodes by name / type / class..." : "搜索节点名称 / 类型 / class..."}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(event) => {
@@ -29,9 +30,9 @@ function StructureSearchBox({ value, onChange, hitCount, disabled, results = [],
       />
       {value && (
         <>
-          <span className="hit-count">{hitCount} match{hitCount === 1 ? "" : "es"}</span>
-          <button className="clear" onClick={() => onChange("")}>
-            Clear
+          <span className="hit-count">{english ? `${hitCount} match${hitCount === 1 ? "" : "es"}` : `${hitCount} 个匹配`}</span>
+          <button className="clear" type="button" onClick={() => onChange("")}>
+            {english ? "Clear" : "清空"}
           </button>
         </>
       )}

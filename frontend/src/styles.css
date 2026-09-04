@@ -392,6 +392,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   gap: 8px;
   min-width: 0;
 }
+.diagram-node-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; min-height: 14px; }
 
 .diagram-node-header .diagram-title {
   flex: 1;

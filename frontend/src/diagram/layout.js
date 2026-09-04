@@ -13,7 +13,7 @@ export function layoutDiagram(root, expandedGroups) {
 
   function measure(node, depth, path) {
     const metaLines = metaForNode(node);
-    const height = NODE_HEIGHTS[Math.min(metaLines.length, NODE_HEIGHTS.length - 1)];
+    const height = NODE_HEIGHTS[Math.min(metaLines.length + 1, NODE_HEIGHTS.length - 1)];
     const isCollapsible = node.children?.length > 0;
     const isExpanded = isCollapsible ? expanded.has(path) : true;
     const item = {

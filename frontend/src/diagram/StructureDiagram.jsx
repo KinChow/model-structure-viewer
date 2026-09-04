@@ -244,18 +244,6 @@ function StructureDiagram({
                           <span className="diagram-title" title={node.fullName}>
                             {node.displayName}
                           </span>
-                          {node.repeat && (
-                            <span className="diagram-repeat" title={`${node.repeat} repeated layers`}>×{node.repeat}</span>
-                          )}
-                          {node.node?.attributes?.range && (
-                            <span className="diagram-range" title="Layer range">{node.node.attributes.range}</span>
-                          )}
-                          {node.node?.attributes?.formula_id && (
-                            <span className="diagram-formula" title={node.node.attributes.explanation || node.node.attributes.formula_id}>
-                              {node.node.attributes.formula_id}
-                            </span>
-                          )}
-                          {nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
                           {showGroupToggle && node.isCollapsible && (
                             <button
                               className="layer-group-toggle"
@@ -269,6 +257,20 @@ function StructureDiagram({
                               {node.isExpanded ? "−" : "+"}
                             </button>
                           )}
+                        </div>
+                        <div className="diagram-node-badges">
+                          {node.repeat && (
+                            <span className="diagram-repeat" title={`${node.repeat} repeated layers`}>×{node.repeat}</span>
+                          )}
+                          {node.node?.attributes?.range && (
+                            <span className="diagram-range" title="Layer range">{node.node.attributes.range}</span>
+                          )}
+                          {node.node?.attributes?.formula_id && (
+                            <span className="diagram-formula" title={node.node.attributes.explanation || node.node.attributes.formula_id}>
+                              {node.node.attributes.formula_id}
+                            </span>
+                          )}
+                          {nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
                         </div>
                         {node.metaLines.length > 0 && (
                           <ul className="diagram-meta">

@@ -720,6 +720,12 @@ label {
   padding: 6px 10px;
   font-size: 12px;
 }
+.search-box { position: relative; }
+.search-results { position: absolute; z-index: 8; top: calc(100% + 6px); left: 0; right: 0; max-height: 280px; overflow: auto; padding: 5px; border: 1px solid #2a3545; border-radius: 6px; background: #151e29; box-shadow: 0 14px 28px rgba(0,0,0,.24); }
+.search-results button { display: flex; width: 100%; flex-direction: column; align-items: flex-start; gap: 3px; border: 0; border-radius: 4px; padding: 8px 9px; background: transparent; color: #e9eef4; text-align: left; cursor: pointer; }
+.search-results button:hover { background: #223044; }
+.search-results strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-results span { max-width: 100%; overflow: hidden; color: #8f9eae; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 
 .hit-count.inline {
   margin-left: 8px;
@@ -1041,6 +1047,10 @@ label {
 .theme-light .detail-model-id, .theme-light .detail-header-actions button, .theme-light .detail-cost-summary { color: #657386; }
 .theme-light .detail-header-actions button, .theme-light .detail-aux-actions button, .theme-light .detail-cost-toggle > button, .theme-light .detail-aux-panel { border-color: #dce3eb; background: #fff; color: #364555; }
 .theme-light .detail-layout .search-box input { border-color: #dce3eb; background: #fff; color: #19212c; }
+.theme-light .search-results { border-color: #dce3eb; background: #fff; box-shadow: 0 14px 28px rgba(38,55,73,.14); }
+.theme-light .search-results button { color: #263445; }
+.theme-light .search-results button:hover { background: #edf3f8; }
+.theme-light .search-results span { color: #68798a; }
 .theme-light .detail-cost-panel { border-color: #dce3eb; background: #fff; }
 .detail-page.theme-light .model-inspector-summary, .detail-page.theme-light .detail-inspector-slot .detail-panel { border-color: #dce3eb; background: #fff; color: #19212c; box-shadow: 0 12px 30px rgba(50,70,90,.08); }
 .detail-page.theme-light .detail-inspector-slot .detail-panel header h3, .detail-page.theme-light .detail-inspector-slot .detail-panel h4, .detail-page.theme-light .detail-inspector-slot .detail-panel .truth-row { color: #19212c; }

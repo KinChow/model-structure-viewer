@@ -110,6 +110,13 @@ function App() {
     () => computeMatches(structure?.root, searchTerm),
     [structure, searchTerm]
   );
+  const matchResults = useMemo(
+    () => [...matchedPaths].slice(0, 12).map((path) => {
+      const node = findNodeByPath(structure?.root, path);
+      return { path, name: node?.name || path, type: node?.type || "node" };
+    }),
+    [matchedPaths, structure]
+  );
 
   useEffect(() => {
     if (!searchActive || matchedPaths.size === 0 || !structure) return;
@@ -279,6 +286,7 @@ function App() {
           onCloseNode={() => setSelectedNodePath(null)}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          matchResults={matchResults}
           matchedPaths={matchedPaths}
           expandedGroups={layersExpandedPaths}
           zoom={zoom}

@@ -1,4 +1,4 @@
-function StructureSearchBox({ value, onChange, hitCount, disabled }) {
+function StructureSearchBox({ value, onChange, hitCount, disabled, results = [], onSelect }) {
   return (
     <div className="search-box">
       <input
@@ -16,6 +16,11 @@ function StructureSearchBox({ value, onChange, hitCount, disabled }) {
           </button>
         </>
       )}
+      {value && results.length > 0 && <div className="search-results" role="listbox" aria-label="Matching structure nodes">
+        {results.map((result) => <button key={result.path} type="button" role="option" onClick={() => onSelect?.(result.path)}>
+          <strong>{result.name}</strong><span>{result.path} · {result.type}</span>
+        </button>)}
+      </div>}
     </div>
   );
 }

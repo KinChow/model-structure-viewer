@@ -99,13 +99,15 @@ export default function DetailWorkspace({
   const [activeMachineId, setActiveMachineId] = useState(chips?.[0]?.id || "");
   const [activeLoads, setActiveLoads] = useState({ prefill: { batch: 1, sequence: 2048, chunked: false, chunkSize: 8192 }, decode: { batch: 1, sequence: 2048 } });
   const [nodeLens, setNodeLens] = useState({});
-  const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement" } : { export: "导出", raw: "原始配置", cost: "成本与部署" };
+  const [costFitStatus, setCostFitStatus] = useState(null);
+  const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement", fit: "fit", notFit: "not fit", unknown: "unknown" } : { export: "导出", raw: "原始配置", cost: "成本与部署", fit: "已适配", notFit: "不适配", unknown: "未知" };
   const rawJson = structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : "";
   const selectedData = selectedNode?.node || selectedNode;
   const selectedPath = selectedNodePath || selectedNode?.path || null;
   const breadcrumbs = breadcrumbForPath(structure?.root, selectedPath);
   const activeMachineName = chips?.find((chip) => chip.id === activeMachineId)?.name || "GPU";
   const activeNodeCount = activeNodes?.[activeMode === "pd" ? activePhase : "centralized"] || 1;
+  const fitLabel = costFitStatus == null ? null : costFitStatus.known ? (costFitStatus.fit ? t.fit : t.notFit) : t.unknown;
   const selectSearchResult = (path) => {
     setInspectorCollapsed(false);
     onSelectNode(path);
@@ -119,8 +121,8 @@ export default function DetailWorkspace({
         <div className="detail-main">
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
           <ArchitectureTab structure={structure} zoom={zoom} onZoomChange={onZoomChange} fitNonce={fitNonce} onFit={onFit} selectedPath={selectedPath} matchedPaths={matchedPaths} expandedGroups={expandedGroups} searchActive={Boolean(searchTerm.trim())} hitCount={matchedPaths.size} onSelectNode={onSelectNode} onToggleGroup={onToggleLayerPath} onExpandAllGroups={onExpandAllLayers} onCollapseAllGroups={onCollapseAllLayers} chips={chips} onAddChip={onAddChip} language={language} activeLenses={activeLenses} activePhase={activePhase} onPhaseChange={setActivePhase} activeMode={activeMode} activePlans={activePlans} onPlanChange={setActivePlans} activeNodes={activeNodes} gpusPerNode={activeGpusPerNode} activeMachineId={activeMachineId} onMachineChange={setActiveMachineId} activeLoads={activeLoads} onNodeLensChange={setNodeLens} compactControls />
-          <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen}><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? "PD" : "Centralized"} · {activeMachineName} · {activePhase} · {activeNodeCount}×{activeGpusPerNode} GPU</span><span>{costOpen ? "−" : "+"}</span></button></div>
-          {costOpen && <div className="detail-cost-panel"><CostSummary structure={structure} chips={chips} onAddChip={onAddChip} language={language} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={setActivePhase} mode={activeMode} onModeChange={setActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} /></div>}
+          <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen}><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? "PD" : "Centralized"} · {activeMachineName} · {activePhase} · {activeNodeCount}×{activeGpusPerNode} GPU</span>{fitLabel && <span className={`detail-fit-status ${costFitStatus.fit ? "fit" : costFitStatus.known ? "no-fit" : "unknown"}`}>{fitLabel}</span>}<span>{costOpen ? "−" : "+"}</span></button></div>
+          {costOpen && <div className="detail-cost-panel"><CostSummary structure={structure} chips={chips} onAddChip={onAddChip} language={language} onFitStatusChange={setCostFitStatus} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={setActivePhase} mode={activeMode} onModeChange={setActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} /></div>}
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
         </div>

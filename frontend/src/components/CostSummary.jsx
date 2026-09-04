@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { normalizeConfig } from "../structure/config/normalize.js";
 import { aggregateCost } from "../cost/aggregate.js";
 import { maxContextForStages, projectPdFit, projectPlan } from "../cost/parallel.js";
@@ -45,7 +45,7 @@ function PlanFields({ plan, onChange }) {
   </div>;
 }
 
-export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange }) {
+export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", onFitStatusChange, lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange }) {
   const english = language === "en";
   const text = {
     estimate: english ? "Theoretical cost estimate" : "理论成本估算",
@@ -126,6 +126,9 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     ? pdFit?.[phase]?.fit
     : projected?.ok && projected.stages.every((stage) => stage.weightBytes + stage.kvBytes + peakCost.memory.activationBytes + cost.memory.runtimeBytes + cost.memory.commBufferBytes <= available);
   const planStatus = !planFitsTopology ? text.needsGpus(requiredGpus) : planFitsMemory === false ? text.memoryNoFit : text.planValid;
+  useEffect(() => {
+    onFitStatusChange?.({ fit: planFitsTopology && planFitsMemory === true, known: planFitsMemory != null, status: planStatus });
+  }, [onFitStatusChange, planFitsTopology, planFitsMemory, planStatus]);
   const planMaxContext = projected?.ok ? maxContextForStages(projected.stages, { capacityBytes: available, activationBytes: peakCost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes + cost.memory.commBufferBytes, sequence: load.sequence }) : null;
   const updateLoad = (key, value) => updateLoads({ ...loads, [phase]: { ...loads[phase], [key]: value } });
   const toggleLens = (name) => {

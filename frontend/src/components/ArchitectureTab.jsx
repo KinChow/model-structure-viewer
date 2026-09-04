@@ -23,6 +23,11 @@ function downloadSvg(structure) {
   URL.revokeObjectURL(url);
 }
 
+function chipLinkText(chip) {
+  const bandwidth = chip?.interconnect?.intra_node?.bandwidth;
+  return Number.isFinite(bandwidth) ? `${bandwidth / 1e9} GB/s` : "链路未知";
+}
+
 function ArchitectureTab({
   structure,
   zoom,
@@ -45,6 +50,9 @@ function ArchitectureTab({
   const [attnMode, setAttnMode] = useState("tp");
   const [compareEnabled, setCompareEnabled] = useState(false);
   const [compareChipId, setCompareChipId] = useState(chips[1]?.id || chips[0]?.id || "");
+  const [compareTp, setCompareTp] = useState(2);
+  const [compareEp, setCompareEp] = useState(1);
+  const [compareAttnMode, setCompareAttnMode] = useState("tp");
   const [etaFlops, setEtaFlops] = useState(0.7);
   const [etaHbm, setEtaHbm] = useState(0.9);
   const [etaComm, setEtaComm] = useState(0.8);
@@ -61,7 +69,7 @@ function ArchitectureTab({
       weightBytes: row.weightBytes,
       actInBytes: activationTensorBytes(row.node.input_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
       actOutBytes: activationTensorBytes(row.node.output_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
-      commBytes: nodeCommunicationBytes(row.node, config, { tp, ep, attnMode }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }),
+      commBytes: nodeCommunicationBytes(row.node, config, { tp, ep, attnMode }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }) * row.multiplier,
     }, chip, { efficiency: { flops: etaFlops, hbm: etaHbm, intra_node_comm: etaComm } })]));
   }, [structure, chip, phase, tp, ep, attnMode, etaFlops, etaHbm, etaComm]);
   const compareNodeLens = useMemo(() => {
@@ -72,9 +80,9 @@ function ArchitectureTab({
       macs: row.macs, weightBytes: row.weightBytes,
       actInBytes: activationTensorBytes(row.node.input_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
       actOutBytes: activationTensorBytes(row.node.output_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
-      commBytes: nodeCommunicationBytes(row.node, config, { tp, ep, attnMode }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }),
+      commBytes: nodeCommunicationBytes(row.node, config, { tp: compareTp, ep: compareEp, attnMode: compareAttnMode }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }) * row.multiplier,
     }, compareChip, { efficiency: { flops: etaFlops, hbm: etaHbm, intra_node_comm: etaComm } })]));
-  }, [structure, compareChip, compareEnabled, phase, tp, ep, attnMode, etaFlops, etaHbm, etaComm]);
+  }, [structure, compareChip, compareEnabled, phase, compareTp, compareEp, compareAttnMode, etaFlops, etaHbm, etaComm]);
   const flips = useMemo(() => compareEnabled ? boundFlips(nodeLens, compareNodeLens) : [], [compareEnabled, nodeLens, compareNodeLens]);
   return (
     <section className="diagram-panel">
@@ -91,8 +99,11 @@ function ArchitectureTab({
           <label className="lens-control">TP<input type="number" min="1" value={tp} onChange={(event) => setTp(Math.max(1, Number(event.target.value) || 1))} /></label>
           <label className="lens-control">EP<input type="number" min="1" value={ep} onChange={(event) => setEp(Math.max(1, Number(event.target.value) || 1))} /></label>
           <label className="lens-control">Attention<select value={attnMode} onChange={(event) => setAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label>
-          <label className="lens-control"><input type="checkbox" checked={compareEnabled} onChange={(event) => setCompareEnabled(event.target.checked)} />双卡对比</label>
+          <label className="lens-control"><input type="checkbox" checked={compareEnabled} onChange={(event) => setCompareEnabled(event.target.checked)} />芯片/计划对比</label>
           {compareEnabled && <label className="lens-control">对比卡<select value={compareChip?.id || ""} onChange={(event) => setCompareChipId(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>}
+          {compareEnabled && <label className="lens-control">对比 TP<input type="number" min="1" value={compareTp} onChange={(event) => setCompareTp(Math.max(1, Number(event.target.value) || 1))} /></label>}
+          {compareEnabled && <label className="lens-control">对比 EP<input type="number" min="1" value={compareEp} onChange={(event) => setCompareEp(Math.max(1, Number(event.target.value) || 1))} /></label>}
+          {compareEnabled && <label className="lens-control">对比 Attention<select value={compareAttnMode} onChange={(event) => setCompareAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label>}
           <label className="lens-control">ηF<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
           <label className="lens-control">ηHBM<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
           <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
@@ -107,7 +118,7 @@ function ArchitectureTab({
       </div>
       {formulaLinks.length > 0 && <div className="formula-strip" aria-label="公式索引"><span className="formula-strip-label">公式</span>{formulaLinks.map((link) => <button key={link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
       {compareEnabled && flips.length > 0 && <div className="lens-flips">bound 翻转：{flips.length} 个节点（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join("、")}{flips.length > 4 ? "…" : ""}）</div>}
-      {structure ? (compareEnabled ? <div className="diagram-compare"><div><div className="diagram-compare-label">{chip?.name || "主卡"}</div><StructureDiagram
+      {structure ? (compareEnabled ? <div className="diagram-compare"><div><div className="diagram-compare-label">{chip?.name || "主卡"} · TP {tp} / EP {ep} · {chipLinkText(chip)}</div><StructureDiagram
           structure={structure}
           zoom={zoom}
           fitNonce={fitNonce}
@@ -119,7 +130,7 @@ function ArchitectureTab({
           searchActive={searchActive}
           onSelectNode={onSelectNode}
           showGroupToggle={false}
-        /></div><div><div className="diagram-compare-label">{compareChip?.name || "对比卡"}</div><StructureDiagram
+        /></div><div><div className="diagram-compare-label">{compareChip?.name || "对比卡"} · TP {compareTp} / EP {compareEp} · {chipLinkText(compareChip)}</div><StructureDiagram
           structure={structure}
           zoom={zoom}
           fitNonce={fitNonce}

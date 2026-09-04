@@ -57,7 +57,7 @@ export function computeNodeCosts(root, config, options = {}) {
       : 1;
     const ownMacs = nodeMacs(node, config, { ...options, expertFraction });
     const own = ownMacs == null ? null : ownMacs * multiplier;
-    rows.push({ path, node, macs: own, weightBytes: nodeWeightBytes(node) * multiplier,
+    rows.push({ path, node, multiplier, macs: own, weightBytes: nodeWeightBytes(node) * multiplier,
       estimate_status: own == null ? "unknown" : "estimated" });
     const childMultiplier = multiplier * (childHasExplicitRepeat ? 1 : repeat);
     (node?.children || []).forEach((child, index) => visit(child, `${path}.${index}`, childMultiplier));

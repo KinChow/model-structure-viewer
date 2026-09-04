@@ -1120,6 +1120,7 @@ label {
 .detail-page .truth-section { border-color: #365e68; background: #14272d; }
 .detail-page .truth-section.muted { border-color: #303b49; background: #171e27; }
 .detail-error { position: fixed; right: 18px; bottom: 18px; z-index: 30; max-width: 440px; margin: 0; }
+.entry-error { position: fixed; right: 18px; bottom: 18px; z-index: 30; max-width: min(440px, calc(100vw - 36px)); margin: 0; }
 .detail-page.theme-light { background: #f5f7fa; color: #19212c; }
 .theme-light .detail-header { border-color: #dce3eb; background: rgba(245,247,250,.94); }
 .theme-light .detail-brand, .theme-light .model-inspector-summary h2, .theme-light .detail-page .panel-toolbar h2, .theme-light .detail-page .detail-panel h3, .theme-light .detail-page .detail-panel h4 { color: #19212c; }

@@ -271,13 +271,14 @@ function App() {
           onOpenLocalPath={(path) => {
             setSource("local");
             setSelectedConfigPath(path);
-            void build({ source: "local", config_path: path, model_root: settings.model_root, detail_level: "compressed" });
+            void handleGenerate({ source: "local", configPath: path });
           }}
           language={language}
           onLanguageChange={handleLanguageChange}
           theme={theme}
           onThemeChange={handleThemeChange}
         />
+        {error && <div className="error entry-error" role="alert">{error}</div>}
       </main>
     );
   }

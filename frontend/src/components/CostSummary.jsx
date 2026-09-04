@@ -103,7 +103,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
   }) : null;
   const available = capacity * GIB;
   const maxContext = cost.memory.kvBytesPerToken
-    ? Math.max(0, Math.floor((available - cost.memory.weightBytes - cost.memory.activationBytes - cost.memory.runtimeBytes) / cost.memory.kvBytesPerToken))
+    ? Math.max(0, Math.floor((available - cost.memory.weightBytes - cost.memory.activationBytes - cost.memory.runtimeBytes - cost.memory.commBufferBytes) / cost.memory.kvBytesPerToken))
     : null;
   const planMaxContext = parallel.ok ? maxContextForStages(parallel.stages, { capacityBytes: available, activationBytes: cost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes + cost.memory.commBufferBytes, sequence }) : null;
   const parts = [

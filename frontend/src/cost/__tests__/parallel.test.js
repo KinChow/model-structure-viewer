@@ -96,3 +96,9 @@ test("计划最大上下文由最紧张 stage 决定", () => {
   const value = maxContextForStages([{ weightBytes: 40, kvBytes: 20 }, { weightBytes: 60, kvBytes: 10 }], { capacityBytes: 100, activationBytes: 10, runtimeBytes: 10, sequence: 10 });
   assert.equal(value, 20);
 });
+
+test("权重 what-if 比例同步应用到节点级 stage 投影", () => {
+  const root = { id: "model", weight_shapes: { weight: [10] }, dtype: "BF16", children: [] };
+  const result = projectPlan({ root, weightBytes: 5, config: {}, plan: { tp: 1 }, kvBytes: 0 });
+  assert.equal(result.stages[0].weightBytes, 5);
+});

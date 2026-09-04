@@ -116,7 +116,7 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = 
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
   if (arguments[0]?.root) {
-    const projected = projectNodePlan({ root: arguments[0].root, kvBytes, config, plan: checked.plan });
+    const projected = projectNodePlan({ root: arguments[0].root, targetWeightBytes: weightBytes, kvBytes, config, plan: checked.plan });
     if (projected.stages.some((stage) => stage.weightBytes > 0) || weightBytes <= 0) return projected;
   }
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
@@ -139,10 +139,24 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = 
  * 根据 IR 节点路径把权重归属到 PP stage，避免 embedding/lm_head 被平均摊薄。
  * 来源：llm-analysis 的 get_memory_weight_per_stage；具体模块切分复用本文件的 TP/EP 规则。
  */
-export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = {}) {
+function treeWeightBytes(root) {
+  let total = 0;
+  function visit(node, multiplier = 1) {
+    total += nodeWeightBytes(node) * multiplier;
+    const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
+    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
+    for (const child of node?.children || []) visit(child, multiplier * (childHasExplicitRepeat ? 1 : repeat));
+  }
+  if (root) visit(root);
+  return total;
+}
+
+export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, config = {}, plan = {} } = {}) {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
+  const naturalWeightBytes = treeWeightBytes(root);
+  const weightScale = positiveNumber(targetWeightBytes) && naturalWeightBytes > 0 ? targetWeightBytes / naturalWeightBytes : 1;
   const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
   function visit(node, inheritedRepeat = 1, inheritedLayerSpan = null) {
     const path = String(node?.id || node?.name || "").toLowerCase();
@@ -150,7 +164,7 @@ export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = 
     const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
     const ownLayerSpan = layerSpanForNode(node);
     const layerSpan = ownLayerSpan || inheritedLayerSpan;
-    const rawWeight = nodeWeightBytes(node) * inheritedRepeat;
+    const rawWeight = nodeWeightBytes(node) * inheritedRepeat * weightScale;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
     const isExpert = /(^|\.)experts(\.|$)/.test(path);
     if (layerSpan && config.layers) {

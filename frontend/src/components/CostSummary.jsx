@@ -21,6 +21,13 @@ function formatMacs(value) {
   return `${(value / 1e6).toFixed(1)} M`;
 }
 
+function formatRate(value) {
+  if (!Number.isFinite(value)) return "-";
+  if (value >= 1e12) return `${(value / 1e12).toFixed(2)} TB/s`;
+  if (value >= 1e9) return `${(value / 1e9).toFixed(1)} GB/s`;
+  return `${(value / 1e6).toFixed(1)} MB/s`;
+}
+
 export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
   const [phase, setPhase] = useState("prefill");
   const [batch, setBatch] = useState(1);
@@ -33,6 +40,12 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
   const [pdEnabled, setPdEnabled] = useState(false);
   const [prefillTp, setPrefillTp] = useState(1);
   const [decodeTp, setDecodeTp] = useState(1);
+  const [prefillPp, setPrefillPp] = useState(1);
+  const [prefillEp, setPrefillEp] = useState(1);
+  const [prefillDp, setPrefillDp] = useState(1);
+  const [decodePp, setDecodePp] = useState(1);
+  const [decodeEp, setDecodeEp] = useState(1);
+  const [decodeDp, setDecodeDp] = useState(1);
   const [prefillChipId, setPrefillChipId] = useState(chips[0]?.id || "");
   const [decodeChipId, setDecodeChipId] = useState(chips[1]?.id || chips[0]?.id || "");
   const cost = useMemo(() => {
@@ -53,7 +66,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
   const pd = pdEnabled ? pdKvTransferBytes({
     totalKvBytes: cost.memory.kvBytes,
     config: normalizeConfig(structure.extra_config),
-    pdPlan: { prefill_plan: { tp: prefillTp }, decode_plan: { tp: decodeTp } },
+    pdPlan: { prefill_plan: { tp: prefillTp, pp: prefillPp, ep: prefillEp, dp: prefillDp }, decode_plan: { tp: decodeTp, pp: decodePp, ep: decodeEp, dp: decodeDp } },
     prefillChip: chips.find((chip) => chip.id === prefillChipId),
     decodeChip: chips.find((chip) => chip.id === decodeChipId),
   }) : null;
@@ -83,7 +96,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
       {!parallel.ok && <div className="cost-plan-error">计划无效：{parallel.errors.join("；")}</div>}
       {parallel.ok && <div className="cost-stages">{parallel.stages.map((stage) => { const stageTotal = stage.weightBytes + stage.kvBytes + cost.memory.activationBytes + cost.memory.runtimeBytes; return <span key={stage.stage}><b>Stage {stage.stage}</b>权重 {formatBytes(stage.weightBytes)} · KV {formatBytes(stage.kvBytes)} · fit <strong className={stageTotal <= available ? "fit" : "no-fit"}>{stageTotal <= available ? "是" : "否"}</strong></span>; })}</div>}
       <label className="pd-toggle"><input type="checkbox" checked={pdEnabled} onChange={(event) => setPdEnabled(event.target.checked)} />启用 PD 分离</label>
-      {pdEnabled && <div className="pd-summary"><label>Prefill 芯片<select value={prefillChipId} onChange={(event) => setPrefillChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Decode 芯片<select value={decodeChipId} onChange={(event) => setDecodeChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Prefill TP<input type="number" min="1" value={prefillTp} onChange={(event) => setPrefillTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode TP<input type="number" min="1" value={decodeTp} onChange={(event) => setDecodeTp(Math.max(1, Number(event.target.value) || 1))} /></label>{pd?.ok ? <span>按 Decode 布局：每 rank KV {formatBytes(pd.perDecodeRankBytes)} · 聚合传输 {formatBytes(pd.aggregateBytes)} · 链路 {pd.linkSource}</span> : <span className="cost-plan-error">PD 计划无效：{pd?.errors?.join("；")}</span>}</div>}
+      {pdEnabled && <div className="pd-summary"><label>Prefill 芯片<select value={prefillChipId} onChange={(event) => setPrefillChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Decode 芯片<select value={decodeChipId} onChange={(event) => setDecodeChipId(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label><label>Prefill TP<input type="number" min="1" value={prefillTp} onChange={(event) => setPrefillTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Prefill PP<input type="number" min="1" value={prefillPp} onChange={(event) => setPrefillPp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Prefill EP<input type="number" min="1" value={prefillEp} onChange={(event) => setPrefillEp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Prefill DP<input type="number" min="1" value={prefillDp} onChange={(event) => setPrefillDp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode TP<input type="number" min="1" value={decodeTp} onChange={(event) => setDecodeTp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode PP<input type="number" min="1" value={decodePp} onChange={(event) => setDecodePp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode EP<input type="number" min="1" value={decodeEp} onChange={(event) => setDecodeEp(Math.max(1, Number(event.target.value) || 1))} /></label><label>Decode DP<input type="number" min="1" value={decodeDp} onChange={(event) => setDecodeDp(Math.max(1, Number(event.target.value) || 1))} /></label>{pd?.ok ? <span>按 Decode 布局：每 rank KV {formatBytes(pd.perDecodeRankBytes)} · 聚合传输 {formatBytes(pd.aggregateBytes)} · 链路 {pd.linkSource}{pd.linkBandwidth ? `（${formatRate(pd.linkBandwidth)}）` : ""}</span> : <span className="cost-plan-error">PD 计划无效：{pd?.errors?.join("；")}</span>}</div>}
       <div className="cost-assumptions">假设：KV 每元素 2 bytes；激活峰值 1.5 GiB；运行时常数 1.5 GiB。通信为理论上界，不含 overlap。</div>
     </section>
   );

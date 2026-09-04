@@ -1,10 +1,12 @@
-import { moduleSpec } from "./base.js";
+import { moduleSpec, withShapeDims } from "./base.js";
 import { moeOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
+import { tensorDims } from "../dims.js";
 
 export function moeModule(id, normalized) {
   const shapes = tensorShapes(normalized);
-  return moduleSpec(
+  const dims = tensorDims(normalized);
+  return withShapeDims(moduleSpec(
     id,
     "Routed MoE",
     "moe",
@@ -20,5 +22,5 @@ export function moeModule(id, normalized) {
       }),
     },
     moeOperatorSpecs(id, normalized),
-  );
+  ), dims.hidden, dims.hidden);
 }

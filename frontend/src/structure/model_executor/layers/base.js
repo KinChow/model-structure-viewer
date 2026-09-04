@@ -11,3 +11,7 @@ export function moduleSpec(id, name, type, attributes = {}, children = [], repea
     children,
   };
 }
+
+export function withShapeDims(spec, inputShape, outputShape) {
+  return { ...spec, input_shape: inputShape, output_shape: outputShape };
+}

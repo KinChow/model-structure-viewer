@@ -6,6 +6,7 @@ import { computeNodeCosts } from "../cost/compute.js";
 import { classifyRoofline } from "../cost/roofline.js";
 import { nodeCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
+import { activationTensorBytes } from "../cost/memory.js";
 import { collectFormulaLinks } from "../diagram/formulaLinks.js";
 import { boundFlips } from "../diagram/compare.js";
 import ManualChipForm from "./ManualChipForm.jsx";
@@ -58,8 +59,8 @@ function ArchitectureTab({
     return Object.fromEntries(rows.map((row) => [row.path, classifyRoofline({
       macs: row.macs,
       weightBytes: row.weightBytes,
-      actInBytes: 0,
-      actOutBytes: 0,
+      actInBytes: activationTensorBytes(row.node.input_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
+      actOutBytes: activationTensorBytes(row.node.output_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
       commBytes: nodeCommunicationBytes(row.node, config, { tp, ep, attnMode }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }),
     }, chip, { efficiency: { flops: etaFlops, hbm: etaHbm, intra_node_comm: etaComm } })]));
   }, [structure, chip, phase, tp, ep, attnMode, etaFlops, etaHbm, etaComm]);
@@ -68,7 +69,9 @@ function ArchitectureTab({
     const config = normalizeConfig(structure.extra_config);
     const rows = computeNodeCosts(structure.root, config, { batch: 1, sequence: 2048, phase });
     return Object.fromEntries(rows.map((row) => [row.path, classifyRoofline({
-      macs: row.macs, weightBytes: row.weightBytes, actInBytes: 0, actOutBytes: 0,
+      macs: row.macs, weightBytes: row.weightBytes,
+      actInBytes: activationTensorBytes(row.node.input_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
+      actOutBytes: activationTensorBytes(row.node.output_shape, { batch: 1, sequence: 2048, phase, attentionHeads: config.attentionHeads }),
       commBytes: nodeCommunicationBytes(row.node, config, { tp, ep, attnMode }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }),
     }, compareChip, { efficiency: { flops: etaFlops, hbm: etaHbm, intra_node_comm: etaComm } })]));
   }, [structure, compareChip, compareEnabled, phase, tp, ep, attnMode, etaFlops, etaHbm, etaComm]);

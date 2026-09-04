@@ -14,6 +14,24 @@ export function product(shape) {
   return shape.reduce((total, value) => total * (Number.isFinite(value) && value >= 0 ? value : 0), 1);
 }
 
+/** 把 IR 数值 shape 中的动态维解析为当前推理负载的元素数。 */
+export function tensorElements(shape, { batch = 1, sequence = 1, phase = "prefill", attentionHeads = 1 } = {}) {
+  if (!Array.isArray(shape) || shape.length === 0 || shape.some((value) => value == null)) return 0;
+  if (shape.length === 4 && shape[0] === -1 && shape[2] === -1 && shape[3] === -1) {
+    return batch * (shape[1] > 0 ? shape[1] : attentionHeads) * (phase === "decode" ? 1 : sequence) * sequence;
+  }
+  let dynamicIndex = 0;
+  return shape.reduce((total, value) => {
+    if (value !== -1) return total * value;
+    const replacement = dynamicIndex++ === 0 ? batch : phase === "decode" ? 1 : sequence;
+    return total * replacement;
+  }, 1);
+}
+
+export function activationTensorBytes(shape, options = {}, bytesPerElement = 2) {
+  return tensorElements(shape, options) * bytesPerElement;
+}
+
 export function nodeWeightBytes(node) {
   if (!node?.weight_shapes) return 0;
   const dtypes = node.attributes?.weight_dtypes || {};

@@ -1,5 +1,6 @@
 import { formulaForOperator } from "../../formulas/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
+import { tensorDims } from "../dims.js";
 
 function cleanAttributes(attributes) {
   return Object.fromEntries(
@@ -7,13 +8,15 @@ function cleanAttributes(attributes) {
   );
 }
 
-export function operatorSpec(id, name, operatorId, attributes = {}) {
+export function operatorSpec(id, name, operatorId, attributes = {}, numericShapes = {}) {
   const formula = formulaForOperator(operatorId);
   return {
     kind: "operator",
     id,
     name,
     operatorId,
+    input_shape: numericShapes.input,
+    output_shape: numericShapes.output,
     attributes: cleanAttributes({
       formula_id: operatorId,
       formula: formula?.formula,
@@ -27,73 +30,76 @@ export function operatorSpec(id, name, operatorId, attributes = {}) {
 
 export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
   const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
   return [
-    operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery)),
-    operatorSpec(`${prefix}.k_proj`, "k projection", "linear", shapeFlow(shapes.hidden, shapes.attentionKey)),
-    operatorSpec(`${prefix}.v_proj`, "v projection", "linear", shapeFlow(shapes.hidden, shapes.attentionValue)),
+    operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.k_proj`, "k projection", "linear", shapeFlow(shapes.hidden, shapes.attentionKey), { input: dims.hidden, output: dims.attentionKey }),
+    operatorSpec(`${prefix}.v_proj`, "v projection", "linear", shapeFlow(shapes.hidden, shapes.attentionValue), { input: dims.hidden, output: dims.attentionValue }),
     operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
       query_shape: shapes.attentionQuery,
       key_shape: shapes.attentionKey,
       output_shape: `${shapes.attentionQuery}, ${shapes.attentionKey}`,
-    }),
+    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
     operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {
       attention_kind: attentionKind,
       query_shape: shapes.attentionQuery,
       key_shape: shapes.attentionKey,
       output_shape: shapes.attentionScores,
-    }),
+    }, { input: dims.attentionQuery, output: dims.attentionScores }),
     operatorSpec(
       `${prefix}.softmax`,
       "attention probabilities",
       "softmax",
-      shapeFlow(shapes.attentionScores, shapes.attentionProbabilities),
+      shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities },
     ),
     operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
       probabilities_shape: shapes.attentionProbabilities,
       value_shape: shapes.attentionValue,
       output_shape: shapes.attentionContext,
-    }),
-    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden)),
+    }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
 
 export function mlpOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
   return [
-    operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate)),
-    operatorSpec(`${prefix}.up_proj`, "up projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate)),
+    operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }),
+    operatorSpec(`${prefix}.up_proj`, "up projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }),
     operatorSpec(`${prefix}.swiglu`, "SwiGLU activation", "swiglu", {
       gate_shape: shapes.intermediate,
       up_shape: shapes.intermediate,
       output_shape: shapes.intermediate,
-    }),
-    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", shapeFlow(shapes.intermediate, shapes.hidden)),
+    }, { input: dims.intermediate, output: dims.intermediate }),
+    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", shapeFlow(shapes.intermediate, shapes.hidden), { input: dims.intermediate, output: dims.hidden }),
   ];
 }
 
 export function moeOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
   return [
-    operatorSpec(`${prefix}.router`, "router logits", "linear", shapeFlow(shapes.hidden, shapes.routerLogits)),
+    operatorSpec(`${prefix}.router`, "router logits", "linear", shapeFlow(shapes.hidden, shapes.routerLogits), { input: dims.hidden, output: dims.routerLogits }),
     operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
       input_shape: shapes.routerLogits,
       expert_ids_shape: shapes.topExperts,
       expert_weights_shape: shapes.topExperts,
-    }),
+    }, { input: dims.routerLogits, output: dims.topExperts }),
     operatorSpec(`${prefix}.dispatch`, "expert dispatch", "moe_dispatch", {
       token_shape: shapes.hidden,
       expert_ids_shape: shapes.topExperts,
       output_shape: shapes.expertInput,
-    }),
+    }, { input: dims.hidden, output: dims.expertInput }),
     operatorSpec(`${prefix}.expert_mlp`, "expert MLP", "swiglu", {
       input_shape: shapes.expertInput,
       intermediate_shape: shapes.moeIntermediate,
       output_shape: shapes.expertInput,
-    }),
+    }, { input: dims.expertInput, output: dims.expertInput }),
     operatorSpec(`${prefix}.combine`, "expert combine", "moe_combine", {
       expert_output_shape: shapes.expertInput,
       expert_weights_shape: shapes.topExperts,
       output_shape: shapes.hidden,
-    }),
+    }, { input: dims.expertInput, output: dims.hidden }),
   ];
 }

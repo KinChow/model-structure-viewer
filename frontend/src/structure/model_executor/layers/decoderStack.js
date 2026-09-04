@@ -1,10 +1,12 @@
-import { moduleSpec } from "./base.js";
+import { moduleSpec, withShapeDims } from "./base.js";
 import { decoderLayerModule } from "./decoderLayer.js";
 import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
+import { tensorDims } from "../dims.js";
 
 export function decoderStackNetwork(id, normalized, options = {}) {
   const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
   const layers = normalized.layers || 0;
   const defaultLayerKind = options.defaultLayerKind || (normalized.experts ? "moe" : "dense");
   const defaultAttentionKind = options.attentionKind || "gqa";
@@ -29,12 +31,12 @@ export function decoderStackNetwork(id, normalized, options = {}) {
     return layer;
   });
 
-  return moduleSpec(
+  return withShapeDims(moduleSpec(
     id,
     id === "text_decoder" ? "Text Decoder Layers" : "Decoder Layers",
     "decoder",
     { class: "DecoderStack", num_hidden_layers: layers, ...shapeFlow(shapes.hidden, shapes.hidden) },
     children,
     layers || undefined,
-  );
+  ), dims.hidden, dims.hidden);
 }

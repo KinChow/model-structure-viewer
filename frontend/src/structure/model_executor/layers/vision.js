@@ -1,9 +1,11 @@
-import { moduleSpec } from "./base.js";
+import { moduleSpec, withShapeDims } from "./base.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
+import { tensorDims } from "../dims.js";
 
 export function visionTowerModule(normalized) {
   const shapes = tensorShapes(normalized);
-  return moduleSpec(
+  const dims = tensorDims(normalized);
+  return withShapeDims(moduleSpec(
     "vision_tower",
     "Vision Tower",
     "vision-encoder",
@@ -15,5 +17,5 @@ export function visionTowerModule(normalized) {
     },
     [],
     normalized.visionLayers,
-  );
+  ), dims.visionInput, dims.visionOutput);
 }

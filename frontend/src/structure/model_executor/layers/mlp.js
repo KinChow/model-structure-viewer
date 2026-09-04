@@ -1,10 +1,12 @@
-import { moduleSpec } from "./base.js";
+import { moduleSpec, withShapeDims } from "./base.js";
 import { mlpOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
+import { tensorDims } from "../dims.js";
 
 export function mlpModule(id, normalized) {
   const shapes = tensorShapes(normalized);
-  return moduleSpec(
+  const dims = tensorDims(normalized);
+  return withShapeDims(moduleSpec(
     id,
     "MLP",
     "mlp",
@@ -17,5 +19,5 @@ export function mlpModule(id, normalized) {
       }),
     },
     mlpOperatorSpecs(id, normalized),
-  );
+  ), dims.hidden, dims.hidden);
 }

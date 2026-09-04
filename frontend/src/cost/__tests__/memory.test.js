@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { kvBytesPerToken, memoryBreakdown } from "../memory.js";
+import { activationTensorBytes, kvBytesPerToken, memoryBreakdown, tensorElements } from "../memory.js";
 import { aggregateCost } from "../aggregate.js";
 
 test("KV cache uses two tensors and KV heads", () => {
@@ -29,4 +29,11 @@ test("empty parameterCount falls back to node weights", () => {
   const root = { weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] };
   const result = aggregateCost({ root, config: {}, parameterCount: {}, activationPeak: 0, runtimeConst: 0 });
   assert.equal(result.memory.weightBytes, 8);
+});
+
+test("动态数值 shape 分别解析普通张量和 attention 矩阵", () => {
+  assert.equal(tensorElements([-1, -1, 4], { batch: 2, sequence: 3 }), 24);
+  assert.equal(tensorElements([-1, -1, -1, -1], { batch: 2, sequence: 3, phase: "prefill", attentionHeads: 2 }), 36);
+  assert.equal(tensorElements([-1, -1, -1, -1], { batch: 2, sequence: 3, phase: "decode", attentionHeads: 2 }), 12);
+  assert.equal(activationTensorBytes([-1, -1, 4], { batch: 2, sequence: 3 }, 2), 48);
 });

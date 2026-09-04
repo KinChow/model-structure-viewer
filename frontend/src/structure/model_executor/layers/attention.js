@@ -1,10 +1,12 @@
-import { moduleSpec } from "./base.js";
+import { moduleSpec, withShapeDims } from "./base.js";
 import { attentionOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
+import { tensorDims } from "../dims.js";
 
 export function attentionModule(id, normalized, attentionKind) {
   const shapes = tensorShapes(normalized);
-  return moduleSpec(
+  const dims = tensorDims(normalized);
+  return withShapeDims(moduleSpec(
     id,
     `${attentionKind.toUpperCase()} Attention`,
     "attention",
@@ -21,5 +23,5 @@ export function attentionModule(id, normalized, attentionKind) {
       }),
     },
     attentionOperatorSpecs(id, attentionKind, normalized),
-  );
+  ), dims.hidden, dims.hidden);
 }

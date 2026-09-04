@@ -1081,12 +1081,15 @@ label {
 .cost-summary-modern { color: #dce5ee; }
 .cost-summary-modern .cost-summary-header { margin-bottom: 10px; }
 .cost-expand-button { border: 1px solid #344154; border-radius: 5px; background: #1a2430; color: #d2dce7; padding: 6px 9px; font-size: 11px; }
-.cost-lens-row, .cost-machine-summary, .cost-config-grid, .cost-plan-fields, .cost-section-heading, .cost-phase-switch, .pd-summary-modern { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.cost-lens-row, .cost-machine-summary, .cost-config-grid, .cost-plan-fields, .cost-section-heading, .cost-phase-switch, .pd-summary-modern, .pd-deployment-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .cost-lens-row { margin-bottom: 9px; color: #8491a2; font-size: 11px; }
 .cost-lens-row button, .cost-segmented button, .cost-phase-switch button { border: 1px solid #344154; border-radius: 5px; background: #121923; color: #9ba8b8; padding: 5px 8px; font-size: 11px; }
 .cost-lens-row button.active, .cost-segmented button.active, .cost-phase-switch button.active { border-color: #a7753a; background: #3a2a19; color: #f4ab52; }
 .cost-machine-summary { border-top: 1px solid #273444; border-bottom: 1px solid #273444; padding: 9px 0; color: #a3afbd; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .cost-machine-summary b { color: #edf2f7; }
+.pd-deployment-summary { margin-top: 8px; padding: 7px 8px; border-left: 2px solid #f4ab52; background: rgba(244,171,82,.06); color: #aebaca; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.pd-deployment-summary span { flex: 1 1 260px; }
+.pd-deployment-summary b { color: #f4ab52; }
 .cost-config-modern { display: grid; gap: 12px; margin: 10px 0; }
 .cost-config-section { border-top: 1px solid #273444; padding-top: 11px; }
 .cost-config-section h4 { margin: 0 0 9px; color: #b9c6d4; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }

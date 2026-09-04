@@ -117,7 +117,6 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const communication = useMemo(() => cost ? planCommunicationBytes({ root: structure.root, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence) }) : null, [cost, structure, config, plan, load, phase]);
   const pd = mode === "pd" && cost && machine ? pdKvTransferBytes({ totalKvBytes: cost.memory.kvBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine }) : null;
   const pdFit = mode === "pd" && cost && machine ? projectPdFit({ root: structure.root, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine, activationBytes: peakCost?.memory.activationBytes || 0, runtimeBytes: cost.memory.runtimeBytes, commBufferBytes: cost.memory.commBufferBytes }) : null;
-  if (!cost || !machine) return null;
   const currentNodes = mode === "pd" ? nodes[phase] : nodes.centralized;
   const totalGpus = currentNodes * gpusPerNode;
   const requiredGpus = plan.tp * plan.pp * plan.dp;
@@ -127,8 +126,13 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     : projected?.ok && projected.stages.every((stage) => stage.weightBytes + stage.kvBytes + peakCost.memory.activationBytes + cost.memory.runtimeBytes + cost.memory.commBufferBytes <= available);
   const planStatus = !planFitsTopology ? text.needsGpus(requiredGpus) : planFitsMemory === false ? text.memoryNoFit : text.planValid;
   useEffect(() => {
+    if (!cost || !machine) {
+      onFitStatusChange?.(null);
+      return;
+    }
     onFitStatusChange?.({ fit: planFitsTopology && planFitsMemory === true, known: planFitsMemory != null, status: planStatus });
-  }, [onFitStatusChange, planFitsTopology, planFitsMemory, planStatus]);
+  }, [cost, machine, onFitStatusChange, planFitsTopology, planFitsMemory, planStatus]);
+  if (!cost || !machine) return null;
   const planMaxContext = projected?.ok ? maxContextForStages(projected.stages, { capacityBytes: available, activationBytes: peakCost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes + cost.memory.commBufferBytes, sequence: load.sequence }) : null;
   const updateLoad = (key, value) => updateLoads({ ...loads, [phase]: { ...loads[phase], [key]: value } });
   const toggleLens = (name) => {

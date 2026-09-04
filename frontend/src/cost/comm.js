@@ -60,6 +60,8 @@ export function pdKvTransferBytes({ totalKvBytes = 0, config = {}, pdPlan = {}, 
   if (!checked.ok) return { ok: false, errors: checked.errors, perDecodeRankBytes: null, aggregateBytes: null };
   const perRank = kvBytesPerCard(totalKvBytes, config, checked.decodePlan);
   const decodeRanks = checked.decodePlan.tp * checked.decodePlan.dp;
+  const layoutRepackRequired = checked.prefillPlan.tp !== checked.decodePlan.tp
+    || checked.prefillPlan.attnMode !== checked.decodePlan.attnMode;
   const prefillLink = prefillChip?.interconnect?.inter_node?.bandwidth || prefillChip?.interconnect?.intra_node?.bandwidth;
   const decodeLink = decodeChip?.interconnect?.inter_node?.bandwidth || decodeChip?.interconnect?.intra_node?.bandwidth;
   const linkBandwidth = prefillLink && decodeLink ? Math.min(prefillLink, decodeLink) : prefillLink || decodeLink || null;
@@ -74,6 +76,7 @@ export function pdKvTransferBytes({ totalKvBytes = 0, config = {}, pdPlan = {}, 
     aggregateBytes: perRank.bytes * decodeRanks,
     linkBandwidth,
     linkSource: linkBandwidth ? linkSource : "缺少链路带宽",
+    layoutRepackRequired,
     shardFactor: perRank.shardFactor,
     prefillPlan: checked.prefillPlan,
     decodePlan: checked.decodePlan,

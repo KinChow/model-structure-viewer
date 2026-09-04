@@ -54,6 +54,12 @@ test("PD 链路带宽取两侧可用链路的较小值", () => {
   assert.equal(result.linkSource, "两侧 inter_node");
 });
 
+test("PD 两侧布局不同只标记重排，不估算重排开销", () => {
+  const result = pdKvTransferBytes({ totalKvBytes: 10, config: { kvHeads: 1 }, pdPlan: { prefill_plan: { tp: 1 }, decode_plan: { tp: 2 } } });
+  assert.equal(result.layoutRepackRequired, true);
+  assert.equal("repackBytes" in result, false);
+});
+
 test("通信汇总包含重复层节点通信和 PP 边界通信", () => {
   const result = planCommunicationBytes({ root: { repeat: 2, children: [{ id: "decoder.0.self_attn.o_proj" }] }, config: { hiddenSize: 4 }, plan: { tp: 2, pp: 2 }, tokens: 1, bytesPerElement: 2 });
   assert.equal(result.nodeBytes, 16);

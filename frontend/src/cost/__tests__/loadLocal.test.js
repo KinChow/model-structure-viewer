@@ -21,6 +21,11 @@ test("本地配置 404 按可选空配置处理", async () => {
   assert.deepEqual(result, []);
 });
 
+test("静态站点 HTML fallback 按文件不存在处理", async () => {
+  const result = await loadLocalChipOverrides({ fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => "text/html" } }) });
+  assert.deepEqual(result, []);
+});
+
 test("本地配置支持 {chips: []} 并校验基本字段", async () => {
   const result = await loadLocalChipOverrides({ fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ chips: [{ id: "x", vendor: "v", name: "n", source: "local" }] }) }) });
   assert.equal(result[0].id, "x");

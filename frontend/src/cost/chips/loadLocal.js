@@ -33,6 +33,7 @@ export async function loadLocalChipOverrides({ url = "/chips.local.json", fetchI
   const response = await fetchImpl(url);
   if (response.status === 404) return [];
   if (!response.ok) throw new Error(`本地芯片配置 HTTP ${response.status}`);
+  if (response.headers?.get?.("content-type")?.includes("text/html")) return [];
   const payload = await response.json();
   const chips = Array.isArray(payload) ? payload : payload?.chips;
   if (!Array.isArray(chips)) throw new Error("本地芯片配置必须是数组或 {chips: []}");

@@ -90,6 +90,7 @@ function App() {
   const [layersExpandedPaths, setLayersExpandedPaths] = useState(() => new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [chips, setChips] = useState(PUBLIC_CHIPS);
+  const [chipError, setChipError] = useState("");
   function handleAddChip(chip) {
     setChips((current) => [...current.filter((entry) => entry.id !== chip.id), chip]);
   }
@@ -101,12 +102,12 @@ function App() {
         if (active && localChips.length > 0) setChips(mergeChipCatalog(PUBLIC_CHIPS, localChips));
       })
       .catch(() => {
-        // 本地配置是可选项；格式错误由用户通过配置校验或后续设置入口处理。
+        setChipError("chips.local.json 加载失败，请检查本地芯片配置格式");
       });
     return () => { active = false; };
   }, []);
 
-  const error = parseError || structureError || hf.error || settingsError || exporter.error;
+  const error = parseError || structureError || hf.error || settingsError || exporter.error || chipError;
   const sourceLabel = structure?.source?.kind || "not loaded";
   const rawJson = useMemo(
     () => (structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : ""),

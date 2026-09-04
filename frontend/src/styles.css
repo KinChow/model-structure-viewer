@@ -276,6 +276,7 @@ textarea {
 
 .lens-control { display: inline-flex; align-items: center; gap: 5px; color: #607184; font-size: 12px; }
 .lens-control select { max-width: 145px; padding: 5px 7px; border: 1px solid #bdcbd8; border-radius: 4px; background: #fff; color: #34495b; }
+.lens-control input { width: 42px; padding: 5px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }
 .diagram-bound { margin-left: 5px; padding: 1px 4px; border-radius: 3px; font-size: 9px; text-transform: uppercase; letter-spacing: 0; background: #e9eef3; color: #687786; }
 .bound-compute .diagram-bound { background: #f8e4c5; color: #8b5613; }
 .bound-memory .diagram-bound { background: #d9edf8; color: #1e6488; }

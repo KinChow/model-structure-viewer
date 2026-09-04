@@ -4,6 +4,7 @@ import EmptyState from "./EmptyState";
 import { normalizeConfig } from "../structure/config/normalize.js";
 import { computeNodeCosts } from "../cost/compute.js";
 import { classifyRoofline } from "../cost/roofline.js";
+import { nodeCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 
 function downloadSvg(structure) {
@@ -33,6 +34,8 @@ function ArchitectureTab({
 }) {
   const [phase, setPhase] = useState("prefill");
   const [chipId, setChipId] = useState(PUBLIC_CHIPS[0]?.id || "");
+  const [tp, setTp] = useState(1);
+  const [ep, setEp] = useState(1);
   const chip = PUBLIC_CHIPS.find((entry) => entry.id === chipId) || PUBLIC_CHIPS[0];
   const nodeLens = useMemo(() => {
     if (!structure?.root || !structure.extra_config || !chip) return {};
@@ -43,9 +46,9 @@ function ArchitectureTab({
       weightBytes: row.weightBytes,
       actInBytes: 0,
       actOutBytes: 0,
-      commBytes: 0,
+      commBytes: nodeCommunicationBytes(row.node, config, { tp, ep }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }),
     }, chip)]));
-  }, [structure, chip, phase]);
+  }, [structure, chip, phase, tp, ep]);
   return (
     <section className="diagram-panel">
       <div className="panel-toolbar">
@@ -58,6 +61,8 @@ function ArchitectureTab({
         <div className="toolbar-actions">
           <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => setChipId(event.target.value)}>{PUBLIC_CHIPS.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
           <label className="lens-control">阶段<select value={phase} onChange={(event) => setPhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
+          <label className="lens-control">TP<input type="number" min="1" value={tp} onChange={(event) => setTp(Math.max(1, Number(event.target.value) || 1))} /></label>
+          <label className="lens-control">EP<input type="number" min="1" value={ep} onChange={(event) => setEp(Math.max(1, Number(event.target.value) || 1))} /></label>
           <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button onClick={onFit}>Fit</button>
           <button onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>

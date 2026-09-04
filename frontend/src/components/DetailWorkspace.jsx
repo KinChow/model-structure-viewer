@@ -21,6 +21,22 @@ function breadcrumbForPath(root, path) {
   return items;
 }
 
+function ModelSummaryPanel({ structure, sourceLabel, language }) {
+  const summary = structure?.summary || {};
+  const english = language === "en";
+  const rows = [
+    [english ? "Architecture" : "架构", summary.architecture],
+    [english ? "Parameters" : "参数量", summary.parameters_total ? `${(summary.parameters_total / 1e9).toFixed(2)}B` : "-"],
+    [english ? "Layers" : "层数", summary.text_layers],
+    ["Hidden Size", summary.hidden_size],
+    ["Experts", summary.num_local_experts ?? summary.n_routed_experts],
+    ["Context", summary.max_position_embeddings],
+    [english ? "Source" : "来源", sourceLabel],
+    [english ? "Status" : "状态", summary.strategy || "-"],
+  ];
+  return <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><p>{english ? "Select a structure node to inspect module-level details." : "选择结构节点查看模块级详情。"}</p><div className="inspector-rule" /></div>;
+}
+
 function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onThemeChange, theme, onBack, onSettings }) {
   const id = structure?.source?.model_id || structure?.summary?.model_family || structure?.summary?.model_type || "model";
   const english = language === "en";
@@ -98,7 +114,7 @@ export default function DetailWorkspace({
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
         </div>
-        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} onSelectPath={onSelectNode} onClose={onCloseNode} /> : <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{structure?.summary?.model_family || structure?.summary?.model_type || "Model"}</h2><p>{language === "en" ? "Select a structure node to inspect parameters, shapes, weights, and cost." : "选择结构节点查看参数、Shape、权重和成本。"}</p><div className="inspector-rule" /></div>}</div>
+        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} onSelectPath={onSelectNode} onClose={onCloseNode} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} />}</div>
       </section>
     </main>
   );

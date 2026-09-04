@@ -300,6 +300,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-edge.related { stroke: #3178b7; stroke-dasharray: 5 3; }
 .formula-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; padding: 7px 9px; border: 1px solid #dce5ed; border-radius: 5px; background: #f8fafc; }
 .diagram-lens-status { margin: -2px 0 7px; color: #718196; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.zoom-level { min-width: 34px; color: #718196; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
 .diagram-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 8px; color: #718196; font-size: 10px; }
 .diagram-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend-dot { display: inline-block; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }

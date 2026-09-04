@@ -216,6 +216,7 @@ function ArchitectureTab({
           </>}
           <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button type="button" title="Fit diagram" aria-label="Fit diagram" onClick={onFit}>Fit</button>
+          <span className="zoom-level" aria-label="Zoom level">{Math.round(zoom * 100)}%</span>
           <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
           <button type="button" title="Export SVG" aria-label="Export SVG" onClick={() => downloadSvg(structure)} disabled={!structure}>
             SVG

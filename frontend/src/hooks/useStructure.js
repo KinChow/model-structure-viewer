@@ -55,7 +55,7 @@ export async function buildStructureForPayload(
     }
   }
   if (payload.source === "hf" && payload.model_id) {
-    const { hubUrl, defaultRevision } = resolveEndpoint(payload.endpoint);
+    const { hubUrl, defaultRevision, resolvePrefix } = resolveEndpoint(payload.endpoint);
     // modelscope 默认 master；用户显式改过（非 main）时尊重用户值
     const revision =
       payload.endpoint === "modelscope" && (!payload.revision || payload.revision === "main")
@@ -69,7 +69,7 @@ export async function buildStructureForPayload(
     // 真值（safetensors header）失败不阻断：离线/gated/无 safetensors → 降级模板路径
     let truth = null;
     try {
-      truth = await fetchTruth({ modelId: payload.model_id, revision, hubUrl });
+      truth = await fetchTruth({ modelId: payload.model_id, revision, hubUrl, resolvePrefix });
     } catch {
       truth = null;
     }

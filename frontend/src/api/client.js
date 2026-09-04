@@ -3,10 +3,30 @@ import { fetchHfConfigDirect, searchHfDirect } from "./hf.js";
 
 export async function requestJson(path, options) {
   const response = await fetch(path, options);
-  const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let text = "";
+  try {
+    text = await response.text();
+  } catch {
+    text = "";
+  }
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = null;
+    }
+  }
   if (!response.ok) {
-    throw new Error(payload?.detail || `HTTP ${response.status}`);
+    if (payload?.detail) throw new Error(payload.detail);
+    if (response.status >= 500 && !payload) {
+      // vite 代理转发到未启动的后端会返回空 body 的 500
+      throw new Error(
+        `HTTP ${response.status}：后端不可用或返回了非 JSON 错误。请启动后端（uvicorn），` +
+          `或改用 source=hf + endpoint=modelscope 走前端直连（无需后端）。`,
+      );
+    }
+    throw new Error(`HTTP ${response.status}`);
   }
   return payload;
 }

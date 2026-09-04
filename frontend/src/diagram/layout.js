@@ -9,11 +9,9 @@ const LAYOUT_LEFT = 28;
 
 export function layoutDiagram(root, expandedGroups) {
   const expanded = expandedGroups instanceof Set ? expandedGroups : new Set();
-  const levels = [];
   const items = [];
 
-  function visit(node, depth, path) {
-    if (!levels[depth]) levels[depth] = [];
+  function measure(node, depth, path) {
     const metaLines = metaForNode(node);
     const height = NODE_HEIGHTS[Math.min(metaLines.length, NODE_HEIGHTS.length - 1)];
     const isCollapsible = node.children?.length > 0;
@@ -35,34 +33,29 @@ export function layoutDiagram(root, expandedGroups) {
       isCollapsible,
       isExpanded,
     };
-    levels[depth].push(item);
     items.push(item);
-    const shouldRecurse = !isCollapsible || isExpanded;
-    if (shouldRecurse) {
-      node.children?.forEach((child, index) => {
-        const childPath = `${path}.${index}`;
-        item.children.push(childPath);
-        visit(child, depth + 1, childPath);
-      });
+    if (isCollapsible && isExpanded) {
+      item.childItems = (node.children || []).map((child, index) => measure(child, depth + 1, `${path}.${index}`));
+      item.children = item.childItems.map((child) => child.path);
     }
+    const childHeight = item.childItems?.length
+      ? item.childItems.reduce((sum, child) => sum + child.subtreeHeight, 0) + (item.childItems.length - 1) * NODE_GAP_Y
+      : 0;
+    item.subtreeHeight = Math.max(height, childHeight);
+    return item;
   }
-  visit(root, 0, "root");
 
-  const columnHeights = levels.map((level) =>
-    level.reduce((acc, item) => acc + item.height + NODE_GAP_Y, -NODE_GAP_Y)
-  );
-  const maxColumnHeight = Math.max(0, ...columnHeights);
-
-  levels.forEach((level, depth) => {
-    const columnHeight = columnHeights[depth];
-    const startY = LAYOUT_TOP + Math.max(0, (maxColumnHeight - columnHeight) / 2);
-    let cursorY = startY;
-    level.forEach((item) => {
-      item.x = LAYOUT_LEFT + depth * (NODE_WIDTH + NODE_GAP_X);
-      item.y = cursorY;
-      cursorY += item.height + NODE_GAP_Y;
+  const tree = measure(root, 0, "root");
+  function place(item, x, y) {
+    item.x = x;
+    item.y = y + (item.subtreeHeight - item.height) / 2;
+    let childY = y;
+    (item.childItems || []).forEach((child) => {
+      place(child, x + NODE_WIDTH + NODE_GAP_X, childY);
+      childY += child.subtreeHeight + NODE_GAP_Y;
     });
-  });
+  }
+  place(tree, LAYOUT_LEFT, LAYOUT_TOP);
 
   items.forEach((item) => {
     if (!item.isCollapsible || !item.isExpanded) return;

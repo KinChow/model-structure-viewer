@@ -55,10 +55,13 @@ function FormulaSection({ node }) {
   return <section className="formula-section"><h4>公式 <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
 }
 
-function NodeDetailPanel({ node, path, breadcrumbs = [], onSelectPath, onClose }) {
+function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, onSelectPath, onClose }) {
   if (!node) return null;
   const confidence = typeof node.confidence === "number" ? node.confidence.toFixed(2) : null;
   const className = node.attributes?.class;
+  const parameterShare = Number.isFinite(node.params) && Number.isFinite(totalParameters) && totalParameters > 0
+    ? Math.min(100, Math.max(0, (node.params / totalParameters) * 100))
+    : null;
   return (
     <aside className="detail-panel">
       {path && <div className="detail-breadcrumb" aria-label="Structure path">{(breadcrumbs.length > 0 ? breadcrumbs : path.split(".").map((part, index, parts) => ({ path: parts.slice(0, index + 1).join("."), name: part === "root" ? "model" : `#${part}` }))).map((item, index, items) => <span key={item.path}><button type="button" className={index === items.length - 1 ? "current" : ""} onClick={() => index < items.length - 1 && onSelectPath?.(item.path)}>{item.name}</button>{index < items.length - 1 && <i>/</i>}</span>)}</div>}
@@ -80,6 +83,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], onSelectPath, onClose }
         </button>
       </header>
       <TruthSection node={node} />
+      {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% of model parameters`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% of model parameters</small></div>}
       <FormulaSection node={node} />
       <ShapeFlow attributes={node.attributes} />
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />

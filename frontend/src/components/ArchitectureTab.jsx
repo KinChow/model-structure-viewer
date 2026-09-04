@@ -214,10 +214,10 @@ function ArchitectureTab({
             <button type="button" onClick={onExpandAllGroups}>{language === "en" ? "Expand all" : "展开全部"}</button>
             <button type="button" onClick={onCollapseAllGroups}>{language === "en" ? "Collapse all" : "收起全部"}</button>
           </>}
-          <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
-          <button onClick={onFit}>Fit</button>
-          <button onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
-          <button onClick={() => downloadSvg(structure)} disabled={!structure}>
+          <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
+          <button type="button" title="Fit diagram" aria-label="Fit diagram" onClick={onFit}>Fit</button>
+          <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
+          <button type="button" title="Export SVG" aria-label="Export SVG" onClick={() => downloadSvg(structure)} disabled={!structure}>
             SVG
           </button>
         </div>

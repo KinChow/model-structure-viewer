@@ -422,6 +422,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 }
 .diagram-formula { display: inline-flex; align-items: center; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid rgba(244,171,82,.45); border-radius: 3px; padding: 1px 4px; color: #f4ab52; font-size: 9px; line-height: 1.2; }
 .diagram-range { flex: 0 0 auto; color: #66788b; font-size: 9px; font-variant-numeric: tabular-nums; }
+.diagram-children-count { flex: 0 0 auto; color: #728398; font-size: 9px; }
 
 .diagram-meta {
   list-style: none;

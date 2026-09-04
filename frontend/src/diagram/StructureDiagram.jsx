@@ -282,6 +282,7 @@ function StructureDiagram({
                               {node.node.attributes.formula_id}
                             </span>
                           )}
+                          {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {node.node.children.length === 1 ? "child" : "children"}</span>}
                           {lensEnabled && nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
                         </div>
                         {node.metaLines.length > 0 && (

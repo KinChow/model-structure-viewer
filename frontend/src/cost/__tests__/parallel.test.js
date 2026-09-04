@@ -56,8 +56,13 @@ test("按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
   ] };
   const result = projectNodePlan({ root, config: { layers: 2, kvHeads: 1 }, plan: { tp: 1, pp: 2, dp: 1 }, kvBytes: 0 });
   assert.equal(result.ok, true);
-  assert.equal(result.stages[0].weightBytes, 56);
-  assert.equal(result.stages[1].weightBytes, 40);
+  assert.equal(result.stages[0].weightBytes, 48);
+  assert.equal(result.stages[1].weightBytes, 48);
+});
+
+test("PP 按 stage 层数分配 KV 而不是每个 stage 复制全量", () => {
+  const result = projectNodePlan({ root: { id: "model", children: [] }, config: { layers: 5, kvHeads: 1 }, plan: { pp: 2 }, kvBytes: 100 });
+  assert.deepEqual(result.stages.map((stage) => stage.kvBytes), [40, 60]);
 });
 
 test("PP 汇总不重复计算父列表和范围子节点 repeat", () => {

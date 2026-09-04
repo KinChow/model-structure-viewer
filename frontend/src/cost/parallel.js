@@ -80,6 +80,32 @@ export function stageForLayer(layerIndex, layers, pp = 1) {
   return Math.min(pp - 1, Math.floor(layerIndex * pp / layers));
 }
 
+function stageLayerBounds(stage, layers, pp) {
+  return { start: Math.floor(stage * layers / pp), end: Math.floor((stage + 1) * layers / pp) - 1 };
+}
+
+function layerSpanForNode(node) {
+  const range = node?.attributes?.range;
+  if (typeof range === "string" && /^\d+\.\.\d+$/.test(range)) {
+    const [start, end] = range.split("..").map(Number);
+    return { start, end };
+  }
+  const path = String(node?.id || "");
+  const match = path.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
+  if (match && Number.isFinite(node?.repeat) && node.repeat > 1) {
+    const start = Number(match[1]);
+    return { start, end: start + node.repeat - 1 };
+  }
+  if (Number.isFinite(node?.repeat) && node.repeat > 1 && node?.children?.length === 1) {
+    const childMatch = String(node.children[0]?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
+    if (childMatch) {
+      const start = Number(childMatch[1]);
+      return { start, end: start + node.repeat - 1 };
+    }
+  }
+  return null;
+}
+
 /** 逐 stage 返回已投影的权重与 KV，供后续 fit UI 使用。 */
 export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = {} } = {}) {
   const checked = validatePlan(plan, config);
@@ -111,27 +137,41 @@ export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = 
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
   const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
-  function visit(node, inheritedRepeat = 1) {
+  function visit(node, inheritedRepeat = 1, inheritedLayerSpan = null) {
     const path = String(node?.id || node?.name || "").toLowerCase();
     const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
     const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
+    const ownLayerSpan = layerSpanForNode(node);
+    const layerSpan = ownLayerSpan || inheritedLayerSpan;
     const rawWeight = nodeWeightBytes(node) * inheritedRepeat;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
     const isExpert = /(^|\.)experts(\.|$)/.test(path);
-    let stage = 0;
-    const layerMatch = path.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
-    if (layerMatch && config.layers) stage = stageForLayer(Number(layerMatch[1]), config.layers, pp) ?? 0;
-    else if (/(lm_head|output_head|language_model_head)/.test(path)) stage = pp - 1;
-    else if (/(final_norm|norm$)/.test(path) && pp > 1) stage = pp - 1;
-    stages[stage].weightBytes += projected;
-    if (isExpert) stages[stage].expertWeightBytes += rawWeight;
-    const childMultiplier = inheritedRepeat * (childHasExplicitRepeat ? 1 : repeat);
-    for (const child of node?.children || []) visit(child, childMultiplier);
+    if (layerSpan && config.layers) {
+      for (const stage of stages) {
+        const bounds = stageLayerBounds(stage.stage, config.layers, pp);
+        const overlap = Math.max(0, Math.min(layerSpan.end, bounds.end) - Math.max(layerSpan.start, bounds.start) + 1);
+        if (overlap > 0) {
+          stage.weightBytes += projected * overlap;
+          if (isExpert) stage.expertWeightBytes += rawWeight * overlap;
+        }
+      }
+    } else {
+      let stage = 0;
+      if (/(lm_head|output_head|language_model_head)/.test(path)) stage = pp - 1;
+      else if (/(final_norm|norm$)/.test(path) && pp > 1) stage = pp - 1;
+      stages[stage].weightBytes += projected;
+      if (isExpert) stages[stage].expertWeightBytes += rawWeight;
+    }
+    const layerRepeatHandled = Boolean(ownLayerSpan);
+    const childMultiplier = inheritedRepeat * (layerRepeatHandled || childHasExplicitRepeat ? 1 : repeat);
+    for (const child of node?.children || []) visit(child, childMultiplier, layerSpan);
   }
   if (root) visit(root);
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
   for (const stage of stages) {
-    stage.kvBytes = kv.bytes;
+    const bounds = config.layers ? stageLayerBounds(stage.stage, config.layers, pp) : null;
+    const stageLayers = bounds ? Math.max(0, bounds.end - bounds.start + 1) : 0;
+    stage.kvBytes = config.layers ? kv.bytes * stageLayers / config.layers : kv.bytes / pp;
     const expertRange = expertWeightRange(stage.expertWeightBytes, config.experts, checked.plan.ep);
     stage.expertWeightAverageBytes = expertRange.averageBytes;
     stage.expertWeightWorstBytes = expertRange.worstBytes;

@@ -159,6 +159,11 @@ function StructureDiagram({
                           {node.repeat && (
                             <span className="diagram-repeat">×{node.repeat}</span>
                           )}
+                          {node.node?.attributes?.formula_id && (
+                            <span className="diagram-formula" title={node.node.attributes.explanation || node.node.attributes.formula_id}>
+                              {node.node.attributes.formula_id}
+                            </span>
+                          )}
                           {nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
                           {showGroupToggle && node.isCollapsible && (
                             <button

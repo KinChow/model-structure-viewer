@@ -56,6 +56,9 @@ function ArchitectureTab({
   searchActive,
   hitCount,
   onSelectNode,
+  onToggleGroup,
+  onExpandAllGroups,
+  onCollapseAllGroups,
   chips = PUBLIC_CHIPS,
   onAddChip,
   compactControls = false,
@@ -175,6 +178,10 @@ function ArchitectureTab({
           <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
           <ManualChipForm onAdd={(entry) => { onAddChip?.(entry); setChipId(entry.id); }} />
           </>}
+          {compactControls && <>
+            <button type="button" onClick={onExpandAllGroups}>展开全部</button>
+            <button type="button" onClick={onCollapseAllGroups}>收起全部</button>
+          </>}
           <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button onClick={onFit}>Fit</button>
           <button onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
@@ -207,7 +214,8 @@ function ArchitectureTab({
           {...diagramProps}
           nodeLens={nodeLens}
           onHoverPathChange={setDiagramHoveredPath}
-          showGroupToggle={false}
+          onToggleGroup={onToggleGroup}
+          showGroupToggle
         />)
       : (
         <EmptyState />

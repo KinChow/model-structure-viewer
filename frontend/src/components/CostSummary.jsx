@@ -45,7 +45,7 @@ function PlanFields({ plan, onChange }) {
   </div>;
 }
 
-export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange }) {
+export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange }) {
   const english = language === "en";
   const text = {
     estimate: english ? "Theoretical cost estimate" : "理论成本估算",
@@ -78,7 +78,9 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const [internalGpusPerNode, setInternalGpusPerNode] = useState(8);
   const gpusPerNode = controlledGpusPerNode || internalGpusPerNode;
   const updateGpusPerNode = (next) => controlledGpusPerNode ? onGpusPerNodeChange?.(next) : setInternalGpusPerNode(next);
-  const [loads, setLoads] = useState({ prefill: { batch: 1, sequence: 2048, chunked: false, chunkSize: 8192 }, decode: { batch: 1, sequence: 2048 } });
+  const [internalLoads, setInternalLoads] = useState({ prefill: { batch: 1, sequence: 2048, chunked: false, chunkSize: 8192 }, decode: { batch: 1, sequence: 2048 } });
+  const loads = controlledLoads || internalLoads;
+  const updateLoads = (next) => controlledLoads ? onLoadsChange?.(next) : setInternalLoads(next);
   const [internalPlans, setInternalPlans] = useState({ prefill: PLAN_DEFAULT, decode: PLAN_DEFAULT });
   const plans = controlledPlans || internalPlans;
   const updatePlan = (next) => controlledPlans ? onPlansChange?.(next) : setInternalPlans(next);
@@ -115,7 +117,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     : projected?.ok && projected.stages.every((stage) => stage.weightBytes + stage.kvBytes + peakCost.memory.activationBytes + cost.memory.runtimeBytes + cost.memory.commBufferBytes <= available);
   const planStatus = !planFitsTopology ? `needs ${requiredGpus} GPUs` : planFitsMemory === false ? "memory no-fit" : "plan valid";
   const planMaxContext = projected?.ok ? maxContextForStages(projected.stages, { capacityBytes: available, activationBytes: peakCost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes + cost.memory.commBufferBytes, sequence: load.sequence }) : null;
-  const updateLoad = (key, value) => setLoads((current) => ({ ...current, [phase]: { ...current[phase], [key]: value } }));
+  const updateLoad = (key, value) => updateLoads({ ...loads, [phase]: { ...loads[phase], [key]: value } });
   const toggleLens = (name) => {
     const next = new Set(lenses);
     if (name === "none") next.clear();

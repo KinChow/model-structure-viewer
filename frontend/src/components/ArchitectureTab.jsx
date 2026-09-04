@@ -68,6 +68,7 @@ function ArchitectureTab({
   gpusPerNode = 1,
   activeMachineId,
   onMachineChange,
+  activeLoads,
   onNodeLensChange,
   chips = PUBLIC_CHIPS,
   onAddChip,
@@ -111,6 +112,7 @@ function ArchitectureTab({
     () => ({ chip, plan }),
     [chip, plan],
   );
+  const load = activeLoads?.[phase] || { batch: 1, sequence: 2048 };
   const candidateScenario = useMemo(
     () => ({ chip: candidateChip, plan: { tp: compareTp, ep: compareEp, attnMode: compareAttnMode } }),
     [candidateChip, compareTp, compareEp, compareAttnMode],
@@ -129,8 +131,8 @@ function ArchitectureTab({
     [etaFlops, etaHbm, etaComm],
   );
   const nodeLensResult = useMemo(
-    () => buildNodeLens(structure, chip, { phase, plan: primaryScenario.plan, efficiency }),
-    [structure, chip, phase, primaryScenario, efficiency],
+    () => buildNodeLens(structure, chip, { phase, batch: load.batch, sequence: load.sequence, plan: primaryScenario.plan, efficiency }),
+    [structure, chip, phase, load, primaryScenario, efficiency],
   );
   const compareLensResult = useMemo(
     () => compareScenario

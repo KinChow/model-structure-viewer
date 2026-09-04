@@ -70,7 +70,11 @@ export function layoutDiagram(root, expandedGroups) {
       y: top,
       width: right - left,
       height: bottom - top,
-      label: item.displayName,
+      label: [
+        item.displayName,
+        item.repeat > 1 ? `×${item.repeat}` : null,
+        item.node?.attributes?.range || null,
+      ].filter(Boolean).join(" · "),
       depth: item.depth,
     };
   });

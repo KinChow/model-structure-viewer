@@ -41,6 +41,9 @@ function ArchitectureTab({
   const [ep, setEp] = useState(1);
   const [compareEnabled, setCompareEnabled] = useState(false);
   const [compareChipId, setCompareChipId] = useState(chips[1]?.id || chips[0]?.id || "");
+  const [etaFlops, setEtaFlops] = useState(0.7);
+  const [etaHbm, setEtaHbm] = useState(0.9);
+  const [etaComm, setEtaComm] = useState(0.8);
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
@@ -55,8 +58,8 @@ function ArchitectureTab({
       actInBytes: 0,
       actOutBytes: 0,
       commBytes: nodeCommunicationBytes(row.node, config, { tp, ep }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }),
-    }, chip)]));
-  }, [structure, chip, phase, tp, ep]);
+    }, chip, { efficiency: { flops: etaFlops, hbm: etaHbm, intra_node_comm: etaComm } })]));
+  }, [structure, chip, phase, tp, ep, etaFlops, etaHbm, etaComm]);
   const compareNodeLens = useMemo(() => {
     if (!compareEnabled || !structure?.root || !structure.extra_config || !compareChip) return {};
     const config = normalizeConfig(structure.extra_config);
@@ -64,8 +67,8 @@ function ArchitectureTab({
     return Object.fromEntries(rows.map((row) => [row.path, classifyRoofline({
       macs: row.macs, weightBytes: row.weightBytes, actInBytes: 0, actOutBytes: 0,
       commBytes: nodeCommunicationBytes(row.node, config, { tp, ep }, { batch: 1, tokens: phase === "decode" ? 1 : 2048, bytesPerElement: 2 }),
-    }, compareChip)]));
-  }, [structure, compareChip, compareEnabled, phase, tp, ep]);
+    }, compareChip, { efficiency: { flops: etaFlops, hbm: etaHbm, intra_node_comm: etaComm } })]));
+  }, [structure, compareChip, compareEnabled, phase, tp, ep, etaFlops, etaHbm, etaComm]);
   const flips = useMemo(() => compareEnabled ? boundFlips(nodeLens, compareNodeLens) : [], [compareEnabled, nodeLens, compareNodeLens]);
   return (
     <section className="diagram-panel">
@@ -83,6 +86,9 @@ function ArchitectureTab({
           <label className="lens-control">EP<input type="number" min="1" value={ep} onChange={(event) => setEp(Math.max(1, Number(event.target.value) || 1))} /></label>
           <label className="lens-control"><input type="checkbox" checked={compareEnabled} onChange={(event) => setCompareEnabled(event.target.checked)} />双卡对比</label>
           {compareEnabled && <label className="lens-control">对比卡<select value={compareChip?.id || ""} onChange={(event) => setCompareChipId(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>}
+          <label className="lens-control">ηF<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
+          <label className="lens-control">ηHBM<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
+          <label className="lens-control">ηComm<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
           <button onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button onClick={onFit}>Fit</button>
           <button onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>

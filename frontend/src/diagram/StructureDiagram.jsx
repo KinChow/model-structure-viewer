@@ -57,6 +57,7 @@ function StructureDiagram({
   const matched = matchedPaths instanceof Set ? matchedPaths : new Set();
   const [hoveredPath, setHoveredPath] = useState(null);
   const activeHoveredPath = externalHoveredPath ?? hoveredPath;
+  const activeRelationPath = activeHoveredPath ?? selectedPath;
   const markerId = `diagram-arrow-${useId().replaceAll(":", "")}`;
 
   useEffect(() => {
@@ -189,9 +190,9 @@ function StructureDiagram({
                         node.y + node.height / 2
                       }, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`}
                       fill="none"
-                      className={activeHoveredPath && isEdgeRelated(node.path, target.path, activeHoveredPath) ? "diagram-edge related" : "diagram-edge"}
+                      className={activeRelationPath && isEdgeRelated(node.path, target.path, activeRelationPath) ? "diagram-edge related" : "diagram-edge"}
                       stroke="var(--diagram-arrow)"
-                      strokeWidth={activeHoveredPath && isEdgeRelated(node.path, target.path, activeHoveredPath) ? "2.8" : "1.5"}
+                      strokeWidth={activeRelationPath && isEdgeRelated(node.path, target.path, activeRelationPath) ? "2.8" : "1.5"}
                       markerEnd={`url(#${markerId})`}
                     />
                   );
@@ -211,7 +212,7 @@ function StructureDiagram({
                   activeLenses.has("vram") && ["V", metrics.vramBytes, true],
                 ].filter(Boolean).map(([label, value, isBytes]) => value == null ? `${label} -` : `${label} ${isBytes ? formatBytes(value) : formatMetric(value)}`);
                 const isHovered = activeHoveredPath === node.path;
-                const isRelated = activeHoveredPath && isPathRelated(node.path, activeHoveredPath);
+                const isRelated = activeRelationPath && isPathRelated(node.path, activeRelationPath);
                 const comparisonActive = comparisonPaths instanceof Set && comparisonPaths.size > 0;
                 const isComparisonChange = comparisonActive && comparisonPaths.has(node.path);
                 const isComparisonStable = comparisonActive && !isComparisonChange;

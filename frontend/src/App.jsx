@@ -149,6 +149,7 @@ function App() {
   }
 
   function handleToggleLayerPath(path) {
+    setSelectedNodePath(path);
     setLayersExpandedPaths((prev) => {
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);

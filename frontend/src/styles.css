@@ -332,6 +332,8 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .mini-node.selected { stroke: #f4ab52; stroke-width: 3; opacity: 1; }
 .mini-node.ancestor { stroke: rgba(244,171,82,.75); stroke-width: 2; opacity: 1; }
 .mini-viewport { fill: rgba(244,171,82,.12); stroke: #f4ab52; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.detail-page.theme-light .diagram-minimap { border-color: #cbd7e2; background: rgba(255,255,255,.94); box-shadow: 0 6px 18px rgba(38,55,73,.16); }
+.detail-page.theme-light .diagram-minimap-toggle { border-color: #cbd7e2; background: rgba(255,255,255,.94); color: #526678; }
 
 .diagram-scroll {
   width: 100%;

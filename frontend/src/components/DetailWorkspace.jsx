@@ -6,6 +6,7 @@ import CostSummary from "./CostSummary";
 import ExportTab from "./ExportTab";
 import RawConfigTab from "./RawConfigTab";
 import NodeDetailPanel from "./NodeDetailPanel";
+import { structureStatus } from "../diagnostics";
 
 function breadcrumbForPath(root, path) {
   if (!root || !path) return [];
@@ -23,6 +24,7 @@ function breadcrumbForPath(root, path) {
 
 function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath }) {
   const summary = structure?.summary || {};
+  const status = structureStatus(structure);
   const english = language === "en";
   const rows = [
     [english ? "Architecture" : "架构", summary.architecture],
@@ -32,9 +34,9 @@ function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath }) {
     ["Experts", summary.num_local_experts ?? summary.n_routed_experts],
     ["Context", summary.max_position_embeddings],
     [english ? "Source" : "来源", sourceLabel],
-    [english ? "Status" : "状态", summary.strategy || "-"],
+    [english ? "Status" : "状态", status.label],
   ];
-  return <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><section className="summary-module-section"><h3>{english ? "Top-level modules" : "顶层模块"}</h3><div className="summary-module-list">{(structure?.root?.children || []).map((node, index) => <button type="button" key={`${node.id}-${index}`} onClick={() => onSelectPath?.(`root.${index}`)}><span className="summary-module-kind">{node.type}</span><strong>{node.name}</strong>{node.repeat > 1 && <b>×{node.repeat}</b>}<span className="summary-module-arrow">→</span></button>)}</div></section><p>{english ? "Select a module or structure node to inspect details." : "选择模块或结构节点查看详情。"}</p><div className="inspector-rule" /></div>;
+  return <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><p className="model-summary-status" title={status.detail}>{status.detail}</p><section className="summary-module-section"><h3>{english ? "Top-level modules" : "顶层模块"}</h3><div className="summary-module-list">{(structure?.root?.children || []).map((node, index) => <button type="button" key={`${node.id}-${index}`} onClick={() => onSelectPath?.(`root.${index}`)}><span className="summary-module-kind">{node.type}</span><strong>{node.name}</strong>{node.repeat > 1 && <b>×{node.repeat}</b>}<span className="summary-module-arrow">→</span></button>)}</div></section><p>{english ? "Select a module or structure node to inspect details." : "选择模块或结构节点查看详情。"}</p><div className="inspector-rule" /></div>;
 }
 
 function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onThemeChange, theme, onBack, onSettings }) {

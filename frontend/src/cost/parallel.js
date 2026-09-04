@@ -7,6 +7,10 @@ function positiveInteger(value) {
   return Number.isInteger(value) && value > 0;
 }
 
+function positiveNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
 /** 校验用户给定的并行计划，避免静默接受不可能的卡数配置。 */
 export function validatePlan(plan = {}, config = {}) {
   const normalized = {
@@ -92,11 +96,11 @@ function layerSpanForNode(node) {
   }
   const path = String(node?.id || "");
   const match = path.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
-  if (match && Number.isFinite(node?.repeat) && node.repeat > 1) {
+  if (match && !/(^|\.)experts(\.|$)/.test(path) && Number.isFinite(node?.repeat) && node.repeat > 1) {
     const start = Number(match[1]);
     return { start, end: start + node.repeat - 1 };
   }
-  if (Number.isFinite(node?.repeat) && node.repeat > 1 && node?.children?.length === 1) {
+  if (!/(^|\.)experts(\.|$)/.test(path) && Number.isFinite(node?.repeat) && node.repeat > 1 && node?.children?.length === 1) {
     const childMatch = String(node.children[0]?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
     if (childMatch) {
       const start = Number(childMatch[1]);
@@ -178,6 +182,10 @@ export function projectNodePlan({ root, kvBytes = 0, config = {}, plan = {} } = 
     const expertRange = expertWeightRange(stage.expertWeightBytes, config.experts, checked.plan.ep);
     stage.expertWeightAverageBytes = expertRange.averageBytes;
     stage.expertWeightWorstBytes = expertRange.worstBytes;
+    stage.weightAverageBytes = stage.weightBytes;
+    stage.weightWorstBytes = expertRange.averageBytes != null
+      ? stage.weightBytes - expertRange.averageBytes + expertRange.worstBytes
+      : stage.weightBytes;
     delete stage.expertWeightBytes;
   }
   return { ok: true, errors: [], plan: checked.plan, stages, kvShardFactor: kv.shardFactor };
@@ -188,17 +196,30 @@ export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, config = {}, 
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
   function side(plan, chip) {
-    const projection = root
-      ? projectNodePlan({ root, kvBytes, config, plan })
-      : projectPlan({ weightBytes, kvBytes, config, plan });
+    const projection = projectPlan({ root, weightBytes, kvBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
       const totalBytes = stage.weightBytes + stage.kvBytes + activationBytes + runtimeBytes;
-      return { ...stage, totalBytes, fit: positiveInteger(capacity) ? totalBytes <= capacity : null };
+      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + activationBytes + runtimeBytes;
+      return { ...stage, totalBytes, worstTotalBytes,
+        fit: positiveNumber(capacity) ? totalBytes <= capacity : null,
+        worstFit: positiveNumber(capacity) ? worstTotalBytes <= capacity : null };
     });
-    return { chipId: chip?.id || null, capacityBytes: capacity ?? null, stages, fit: stages.every((stage) => stage.fit === true) };
+    const fit = positiveNumber(capacity) ? stages.every((stage) => stage.fit === true) : null;
+    return { chipId: chip?.id || null, capacityBytes: capacity ?? null, stages, fit };
   }
   return { ok: true, errors: [], prefill: side(checked.prefillPlan, prefillChip), decode: side(checked.decodePlan, decodeChip) };
+}
+
+/** 给定 stage 投影下，由最紧张 stage 决定最大上下文。 */
+export function maxContextForStages(stages = [], { capacityBytes, activationBytes = 0, runtimeBytes = 0, sequence = 1 } = {}) {
+  if (!positiveNumber(capacityBytes) || !positiveNumber(sequence) || stages.length === 0) return null;
+  const limits = stages.map((stage) => {
+    const kvPerContextToken = stage.kvBytes / sequence;
+    if (!positiveNumber(kvPerContextToken)) return null;
+    return Math.max(0, Math.floor((capacityBytes - stage.weightBytes - activationBytes - runtimeBytes) / kvPerContextToken));
+  }).filter((value) => value != null);
+  return limits.length ? Math.min(...limits) : null;
 }
 
 /** 校验 PD 分离的 prefill/decode 两侧计划；两侧可以使用不同 TP/PP/DP。 */

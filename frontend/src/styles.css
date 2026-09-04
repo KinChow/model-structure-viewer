@@ -1158,8 +1158,11 @@ label {
 .detail-page .truth-section { border-color: #365e68; background: #14272d; }
 .detail-page .truth-section.muted { border-color: #303b49; background: #171e27; }
 .detail-error { position: fixed; right: 18px; bottom: 18px; z-index: 30; max-width: 440px; margin: 0; }
+.detail-loading-overlay { position: fixed; inset: 0; z-index: 35; display: flex; align-items: center; justify-content: center; gap: 9px; background: rgba(13,17,23,.66); color: #edf2f7; font-size: 13px; backdrop-filter: blur(3px); }
+.detail-loading-dot { width: 8px; height: 8px; border-radius: 50%; background: #f4ab52; box-shadow: 0 0 0 5px rgba(244,171,82,.14); }
 .entry-error { position: fixed; right: 18px; bottom: 18px; z-index: 30; max-width: min(440px, calc(100vw - 36px)); margin: 0; }
 .detail-page.theme-light { background: #f5f7fa; color: #19212c; }
+.detail-page.theme-light .detail-loading-overlay { background: rgba(245,247,250,.72); color: #19212c; }
 .theme-light .detail-header { border-color: #dce3eb; background: rgba(245,247,250,.94); }
 .theme-light .detail-brand, .theme-light .model-inspector-summary h2, .theme-light .detail-page .panel-toolbar h2, .theme-light .detail-page .detail-panel h3, .theme-light .detail-page .detail-panel h4 { color: #19212c; }
 .theme-light .detail-model-id, .theme-light .detail-header-actions button, .theme-light .detail-cost-summary { color: #657386; }

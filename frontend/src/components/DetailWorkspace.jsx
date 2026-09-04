@@ -85,6 +85,7 @@ export default function DetailWorkspace({
   onExpandAllLayers,
   onCollapseAllLayers,
   exporter,
+  loading = false,
 }) {
   const [auxView, setAuxView] = useState(null);
   const [costOpen, setCostOpen] = useState(false);
@@ -125,6 +126,7 @@ export default function DetailWorkspace({
         </div>
         <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>
       </section>
+      {loading && <div className="detail-loading-overlay" role="status" aria-live="polite"><span className="detail-loading-dot" />{language === "en" ? "Opening model..." : "正在打开模型..."}</div>}
     </main>
   );
 }

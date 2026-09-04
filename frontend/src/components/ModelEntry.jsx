@@ -25,6 +25,7 @@ export default function ModelEntry({
   onLanguageChange,
   theme = "dark",
   onThemeChange,
+  loading = false,
 }) {
   const [mode, setMode] = useState("model");
   const [endpoint, setEndpoint] = useState("huggingface");
@@ -60,6 +61,7 @@ export default function ModelEntry({
     local: "Open local model directory",
     placeholder: "Hugging Face / ModelScope model ID or URL",
     open: "Open model",
+    opening: "Opening...",
     localPlaceholder: "Path on the backend machine, or choose a folder",
     browse: "Browse by Provider",
     browseHint: "Choose a provider to view mapped models",
@@ -78,6 +80,7 @@ export default function ModelEntry({
     local: "打开本地模型目录",
     placeholder: "Hugging Face / ModelScope 模型 ID 或地址",
     open: "打开模型",
+    opening: "打开中...",
     localPlaceholder: "后端机器上的路径，或选择本地目录",
     browse: "按 Provider 浏览",
     browseHint: "选择厂商查看已映射模型",
@@ -113,7 +116,7 @@ export default function ModelEntry({
           <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); const id = modelId.trim(); const builtin = builtinModels.some((entry) => entry.modelId === id); onOpenModel?.(id, builtin ? "builtin" : "hf", endpoint); }}>
             <select className="entry-source-select" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} aria-label="model source"><option value="huggingface">Hugging Face</option><option value="modelscope">ModelScope</option></select><input list="builtin-models" value={modelId} onChange={(event) => onModelIdChange?.(event.target.value)} placeholder={t.placeholder} aria-label="model id" />
             <datalist id="builtin-models">{builtinModels.map((entry) => <option key={entry.modelId} value={entry.modelId} />)}</datalist>
-            <button className="entry-primary" type="submit">{t.open}</button>
+            <button className="entry-primary" type="submit" disabled={loading}>{loading ? t.opening : t.open}</button>
           </form>
         ) : (
           <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); if (localPath.trim()) onOpenLocalPath?.(localPath.trim()); }}>

@@ -288,6 +288,7 @@ function App() {
           onLanguageChange={handleLanguageChange}
           theme={theme}
           onThemeChange={handleThemeChange}
+          loading={loading}
         />
         {error && <div className="error entry-error" role="alert">{error}</div>}
       </main>
@@ -327,6 +328,7 @@ function App() {
           onExpandAllLayers={handleExpandAllLayers}
           onCollapseAllLayers={handleCollapseAllLayers}
           exporter={exporter}
+          loading={loading}
         />
         {error && <div className="error detail-error">{error}</div>}
         <Drawer

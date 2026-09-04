@@ -21,7 +21,7 @@ function breadcrumbForPath(root, path) {
   return items;
 }
 
-function ModelSummaryPanel({ structure, sourceLabel, language }) {
+function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath }) {
   const summary = structure?.summary || {};
   const english = language === "en";
   const rows = [
@@ -34,7 +34,7 @@ function ModelSummaryPanel({ structure, sourceLabel, language }) {
     [english ? "Source" : "来源", sourceLabel],
     [english ? "Status" : "状态", summary.strategy || "-"],
   ];
-  return <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><p>{english ? "Select a structure node to inspect module-level details." : "选择结构节点查看模块级详情。"}</p><div className="inspector-rule" /></div>;
+  return <div className="model-inspector-summary"><span className="inspector-kicker">MODEL SUMMARY</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><section className="summary-module-section"><h3>{english ? "Top-level modules" : "顶层模块"}</h3><div className="summary-module-list">{(structure?.root?.children || []).map((node, index) => <button type="button" key={`${node.id}-${index}`} onClick={() => onSelectPath?.(`root.${index}`)}><span className="summary-module-kind">{node.type}</span><strong>{node.name}</strong>{node.repeat > 1 && <b>×{node.repeat}</b>}<span className="summary-module-arrow">→</span></button>)}</div></section><p>{english ? "Select a module or structure node to inspect details." : "选择模块或结构节点查看详情。"}</p><div className="inspector-rule" /></div>;
 }
 
 function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onThemeChange, theme, onBack, onSettings }) {
@@ -114,7 +114,7 @@ export default function DetailWorkspace({
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
         </div>
-        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} onSelectPath={onSelectNode} onClose={onCloseNode} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} />}</div>
+        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} onSelectPath={onSelectNode} onClose={onCloseNode} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} onSelectPath={onSelectNode} />}</div>
       </section>
     </main>
   );

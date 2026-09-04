@@ -1052,6 +1052,15 @@ label {
 .model-summary-grid span { min-width: 0; padding-top: 7px; border-top: 1px solid #2a3545; }
 .model-summary-grid dt { color: #8190a2; font-size: 10px; text-transform: uppercase; }
 .model-summary-grid dd { margin: 4px 0 0; overflow: hidden; color: #e2e9f0; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.summary-module-section { margin-top: 18px; }
+.summary-module-section h3 { margin: 0 0 8px; color: #9aa8b8; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.summary-module-list { display: grid; gap: 5px; }
+.summary-module-list button { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 7px; width: 100%; border: 1px solid #2a3545; border-radius: 5px; padding: 7px 8px; background: #121923; color: #dce5ee; text-align: left; }
+.summary-module-list button:hover { border-color: #f4ab52; background: #1d2936; }
+.summary-module-kind { color: #7f8da0; font-size: 9px; text-transform: uppercase; }
+.summary-module-list strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.summary-module-list b { color: #f4ab52; font-size: 10px; }
+.summary-module-arrow { color: #8d9aaa; }
 .model-inspector-summary p { margin: 0; color: #8f9bad; font-size: 12px; line-height: 1.5; }
 .inspector-rule { height: 1px; margin-top: 18px; background: #2a3545; }
 .detail-inspector-slot .detail-panel { max-height: calc(100vh - 96px); overflow: auto; }

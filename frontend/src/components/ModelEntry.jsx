@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const PROVIDER_MARKS = { MiniMax: "M", Qwen: "Q", DeepSeek: "D", "zai-org": "Z" };
 
@@ -42,6 +42,14 @@ export default function ModelEntry({
     return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [builtinModels]);
   const providerModels = providers.find(([name]) => name === provider)?.[1] || [];
+  useEffect(() => {
+    if (!provider) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setProvider(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [provider]);
   const t = language === "en" ? {
     title: "Understand the model.",
     subtitle: "Explore architecture, inspect modules, and estimate the cost on your hardware.",
@@ -118,7 +126,7 @@ export default function ModelEntry({
         <div className="entry-section-heading"><h2>{t.browse}</h2><span>{t.browseHint}</span></div>
         <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><span className="provider-mark">{PROVIDER_MARKS[name] || name[0]?.toUpperCase() || "+"}</span><strong>{name}</strong><small>{entries.length} models</small></button>)}</div>
       </section>}
-      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider}><div className="provider-picker"><header><div><h2>{provider}</h2><p>{t.choose}</p></div><button type="button" aria-label="Close" onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelName(entry.modelId)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
+      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider}><div className="provider-picker"><header><div><h2>{provider}</h2><p>{t.choose}</p></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelName(entry.modelId)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
       {helpOpen && <div className="entry-help-overlay" role="dialog" aria-modal="true" aria-label={t.helpTitle}><div className="entry-help-panel"><header><h2>{t.helpTitle}</h2><button type="button" aria-label={t.close} onClick={() => setHelpOpen(false)}>×</button></header><ul>{t.helpItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div>}
     </main>
   );

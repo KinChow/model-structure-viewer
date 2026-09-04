@@ -25,3 +25,8 @@ test("本地配置支持 {chips: []} 并校验基本字段", async () => {
   const result = await loadLocalChipOverrides({ fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ chips: [{ id: "x", vendor: "v", name: "n", source: "local" }] }) }) });
   assert.equal(result[0].id, "x");
 });
+
+test("同 id 本地覆盖后保留 local 标记", () => {
+  const merged = mergeChipCatalog([{ id: "a", vendor: "v", name: "A", source: "s", confidence: "official" }], [{ id: "a", confidence: "local" }]);
+  assert.equal(merged[0].confidence, "local");
+});

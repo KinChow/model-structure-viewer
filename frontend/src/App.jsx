@@ -17,6 +17,8 @@ import { useHfSearch } from "./hooks/useHfSearch";
 import { useStructure } from "./hooks/useStructure";
 import { useExport } from "./hooks/useExport";
 import { computeMatches } from "./diagram/match";
+import { PUBLIC_CHIPS } from "./cost/chips/public.js";
+import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal.js";
 
 const TAB_ITEMS = ["Architecture", "Layers", "Export", "Raw Config"];
 
@@ -87,6 +89,19 @@ function App() {
   const [selectedNodePath, setSelectedNodePath] = useState(null);
   const [layersExpandedPaths, setLayersExpandedPaths] = useState(() => new Set());
   const [searchTerm, setSearchTerm] = useState("");
+  const [chips, setChips] = useState(PUBLIC_CHIPS);
+
+  useEffect(() => {
+    let active = true;
+    loadLocalChipOverrides()
+      .then((localChips) => {
+        if (active && localChips.length > 0) setChips(mergeChipCatalog(PUBLIC_CHIPS, localChips));
+      })
+      .catch(() => {
+        // 本地配置是可选项；格式错误由用户通过配置校验或后续设置入口处理。
+      });
+    return () => { active = false; };
+  }, []);
 
   const error = parseError || structureError || hf.error || settingsError || exporter.error;
   const sourceLabel = structure?.source?.kind || "not loaded";
@@ -259,6 +274,7 @@ function App() {
               searchActive={searchActive}
               hitCount={matchedPaths.size}
               onSelectNode={handleSelectNode}
+              chips={chips}
             />
           )}
           {activeTab === "Layers" && (

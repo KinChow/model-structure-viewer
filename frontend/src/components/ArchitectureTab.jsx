@@ -32,14 +32,15 @@ function ArchitectureTab({
   searchActive,
   hitCount,
   onSelectNode,
+  chips = PUBLIC_CHIPS,
 }) {
   const [phase, setPhase] = useState("prefill");
-  const [chipId, setChipId] = useState(PUBLIC_CHIPS[0]?.id || "");
+  const [chipId, setChipId] = useState(chips[0]?.id || "");
   const [tp, setTp] = useState(1);
   const [ep, setEp] = useState(1);
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
-  const chip = PUBLIC_CHIPS.find((entry) => entry.id === chipId) || PUBLIC_CHIPS[0];
+  const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const nodeLens = useMemo(() => {
     if (!structure?.root || !structure.extra_config || !chip) return {};
     const config = normalizeConfig(structure.extra_config);
@@ -62,7 +63,7 @@ function ArchitectureTab({
           )}
         </h2>
         <div className="toolbar-actions">
-          <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => setChipId(event.target.value)}>{PUBLIC_CHIPS.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
+          <label className="lens-control">Lens<select value={chip?.id || ""} onChange={(event) => setChipId(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.confidence === "local" ? " (local)" : ""}</option>)}</select></label>
           <label className="lens-control">阶段<select value={phase} onChange={(event) => setPhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
           <label className="lens-control">TP<input type="number" min="1" value={tp} onChange={(event) => setTp(Math.max(1, Number(event.target.value) || 1))} /></label>
           <label className="lens-control">EP<input type="number" min="1" value={ep} onChange={(event) => setEp(Math.max(1, Number(event.target.value) || 1))} /></label>

@@ -281,7 +281,7 @@ function ArchitectureTab({
           <label className="lens-control">{ui.flops}<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
           <label className="lens-control">{ui.hbm}<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
           <label className="lens-control">{ui.comm}<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
-          <ManualChipForm language={language} onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />
+          {!compactControls && <ManualChipForm language={language} onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />}
           </div>}
           {compactControls && <>
             <button type="button" onClick={onExpandAllGroups}>{ui.expandAll}</button>

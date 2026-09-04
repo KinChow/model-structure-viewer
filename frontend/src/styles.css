@@ -1124,6 +1124,9 @@ label {
 .detail-page.theme-light .formula-strip-toggle:hover { background: rgba(31,95,145,.06) !important; }
 .theme-light .formula-strip-count { border-color: #b7c5d3; color: #607184; }
 .theme-light .formula-strip-active { color: #607184; }
+@media (min-width: 961px) {
+  .detail-page .diagram-frame { height: clamp(470px, calc(100vh - 258px), 720px); }
+}
 .detail-page .formula-section { border-color: #2a3545; }
 .detail-page .formula-section code { color: #f2c27b; }
 .detail-page .formula-section p { color: #aebaca; }

@@ -52,17 +52,40 @@ function modulePath(node) {
   return String(node?.id || node?.name || "").toLowerCase();
 }
 
+function isRoutedExpertPath(path) {
+  return /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(path);
+}
+
 /** 按模块类别计算权重在单卡上的 TP/EP 投影；PP 只负责 stage 归属。 */
 export function weightBytesPerCard(totalBytes, node, plan = {}) {
   const path = modulePath(node);
   const tp = plan.tp ?? plan.TP ?? 1;
   const ep = plan.ep ?? plan.EP ?? 1;
   const vocabParallel = plan.vocabParallel ?? plan.vocab_parallel ?? true;
-  if (/(^|\.)(experts)(\.|$)/.test(path) && ep > 1) return { bytes: totalBytes / ep, divisor: ep, axis: "ep" };
+  if (isRoutedExpertPath(path) && ep > 1) return { bytes: totalBytes / ep, divisor: ep, axis: "ep" };
   if (/(^|\.)[^.]*norm[^.]*($|\.)/.test(path)) return { bytes: totalBytes, divisor: 1, axis: "replicated" };
   if (/(embed|lm_head|output)/.test(path) && !vocabParallel) return { bytes: totalBytes, divisor: 1, axis: "replicated" };
   if (tp > 1) return { bytes: totalBytes / tp, divisor: tp, axis: "tp" };
   return { bytes: totalBytes, divisor: 1, axis: "replicated" };
+}
+
+/**
+ * 把单个图节点的理论成本投影到一个 rank。
+ * 来源：llm-analysis@d841e40aec8c 的 get_latency_fwd_per_layer_attn/mlp 与
+ * get_activation_memory_per_layer_attn/mlp：逐卡计算量、权重和激活按并行轴切分；
+ * MoE 专家沿用本文件的 EP 归属规则。这里仅做解析式除法，不模拟 kernel、通信重叠或负载不均衡。
+ */
+export function nodeCostPerCard(cost = {}, node, plan = {}) {
+  const projection = weightBytesPerCard(cost.weightBytes || 0, node, plan);
+  const divide = (value) => value == null ? value : value / projection.divisor;
+  return {
+    ...cost,
+    macs: divide(cost.macs),
+    weightBytes: projection.bytes,
+    actInBytes: divide(cost.actInBytes),
+    actOutBytes: divide(cost.actOutBytes),
+    projection: { axis: projection.axis, divisor: projection.divisor },
+  };
 }
 
 /** 专家权重在 EP rank 上的平均/最坏区间；来源：vLLM MoE 负载不均衡建模讨论。 */
@@ -166,7 +189,7 @@ export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, config =
     const layerSpan = ownLayerSpan || inheritedLayerSpan;
     const rawWeight = nodeWeightBytes(node) * inheritedRepeat * weightScale;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
-    const isExpert = /(^|\.)experts(\.|$)/.test(path);
+    const isExpert = isRoutedExpertPath(path);
     if (layerSpan && config.layers) {
       for (const stage of stages) {
         const bounds = stageLayerBounds(stage.stage, config.layers, pp);

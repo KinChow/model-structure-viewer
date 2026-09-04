@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { layoutDiagram } from "./layout";
 import { fitDiagramViewport, sameDiagramViewport } from "./viewport";
 import { isEdgeRelated, isPathRelated } from "./hover";
@@ -15,6 +15,8 @@ function StructureDiagram({
   onToggleGroup,
   nodeLens,
   externalHoveredPath,
+  comparisonPaths,
+  onHoverPathChange,
   showGroupToggle = true,
 }) {
   const nodes = useMemo(
@@ -38,6 +40,7 @@ function StructureDiagram({
   const matched = matchedPaths instanceof Set ? matchedPaths : new Set();
   const [hoveredPath, setHoveredPath] = useState(null);
   const activeHoveredPath = externalHoveredPath ?? hoveredPath;
+  const markerId = `diagram-arrow-${useId().replaceAll(":", "")}`;
 
   useEffect(() => {
     const element = frameRef.current;
@@ -82,7 +85,7 @@ function StructureDiagram({
             aria-label="Model architecture diagram"
           >
             <defs>
-              <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <marker id={markerId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
                 <path d="M0,0 L8,4 L0,8 Z" fill="var(--diagram-arrow)" />
               </marker>
             </defs>
@@ -101,7 +104,7 @@ function StructureDiagram({
                       className={activeHoveredPath && isEdgeRelated(node.path, target.path, activeHoveredPath) ? "diagram-edge related" : "diagram-edge"}
                       stroke="var(--diagram-arrow)"
                       strokeWidth={activeHoveredPath && isEdgeRelated(node.path, target.path, activeHoveredPath) ? "2.8" : "1.5"}
-                      markerEnd="url(#arrow)"
+                      markerEnd={`url(#${markerId})`}
                     />
                   );
                 })
@@ -113,6 +116,9 @@ function StructureDiagram({
                 const bound = nodeLens?.[node.path]?.bound || "unknown";
                 const isHovered = activeHoveredPath === node.path;
                 const isRelated = activeHoveredPath && isPathRelated(node.path, activeHoveredPath);
+                const comparisonActive = comparisonPaths instanceof Set && comparisonPaths.size > 0;
+                const isComparisonChange = comparisonActive && comparisonPaths.has(node.path);
+                const isComparisonStable = comparisonActive && !isComparisonChange;
                 const classes = [
                   "diagram-node",
                   node.typeClass,
@@ -122,6 +128,7 @@ function StructureDiagram({
                   isSelected ? "selected" : "",
                   isMatch ? "match" : "",
                   isDimmed ? "dimmed" : "",
+                  isComparisonChange ? "comparison-change" : "",
                 ]
                   .filter(Boolean)
                   .join(" ");
@@ -129,10 +136,16 @@ function StructureDiagram({
                   <g
                     key={node.path}
                     transform={`translate(${node.x}, ${node.y})`}
-                    className={classes}
+                    className={`${classes}${isComparisonStable ? " comparison-stable" : ""}`}
                     style={{ cursor: "pointer" }}
-                    onMouseEnter={() => setHoveredPath(node.path)}
-                    onMouseLeave={() => setHoveredPath(null)}
+                    onMouseEnter={() => {
+                      setHoveredPath(node.path);
+                      onHoverPathChange?.(node.path);
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredPath(null);
+                      onHoverPathChange?.(null);
+                    }}
                     onClick={() => onSelectNode && onSelectNode(node.path)}
                   >
                     <rect width={node.width} height={node.height} rx="10" className={classes} />

@@ -20,9 +20,9 @@ export function ringAllReduceBytes({ batch = 1, tokens = 1, hidden, bytesPerElem
  * Expert all-to-all 的近似通信字节数。
  * 注意使用每 token 激活的专家数，不使用专家总数。
  */
-export function expertAllToAllBytes({ batch = 1, tokens = 1, hidden, expertsPerToken, bytesPerElement = 2 } = {}) {
+export function expertAllToAllBytes({ batch = 1, tokens = 1, hidden, expertsPerToken, bytesPerElement = 2, operations = 2 } = {}) {
   if (!Number.isFinite(hidden) || hidden < 0 || !Number.isFinite(expertsPerToken) || expertsPerToken < 0) return 0;
-  return 2 * batch * tokens * expertsPerToken * hidden * bytesPerElement;
+  return operations * batch * tokens * expertsPerToken * hidden * bytesPerElement;
 }
 
 /** PP 相邻 stage 间一次激活传输的字节数；总量按 stage 边界数线性扩展。 */
@@ -40,13 +40,15 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
   const bytesPerElement = options.bytesPerElement ?? 2;
   const batch = options.batch ?? 1;
   const tokens = options.tokens ?? options.sequence ?? 1;
-  if (/(o_proj|output projection|down_proj)/.test(path)) {
+  const routedExpert = /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(path);
+  if (/(o_proj|output projection|down_proj)/.test(path) && !routedExpert) {
     if (attnMode === "dp" && /(self_attn|attention|o_proj)/.test(path) && !/down_proj/.test(path)) return 0;
     return ringAllReduceBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, tp, operations: 1 });
   }
-  if (/(experts|expert_mlp|dispatch|combine)/.test(path)) {
+  // 来源：evolution_design.md F12；dispatch 与 combine 各归因一次，合计正好两次 all-to-all。
+  if (/(?:^|\.)(?:dispatch|combine)(?:\.|$)/.test(path)) {
     if (ep <= 1) return 0;
-    return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: config.expertsPerToken, bytesPerElement });
+    return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: config.expertsPerToken, bytesPerElement, operations: 1 });
   }
   return 0;
 }
@@ -89,7 +91,8 @@ export function planCommunicationBytes({ root, config = {}, plan = {}, batch = 1
   function visit(node, multiplier = 1) {
     nodeBytes += nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement }) * multiplier;
     const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
-    for (const child of node?.children || []) visit(child, multiplier * repeat);
+    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
+    for (const child of node?.children || []) visit(child, multiplier * (childHasExplicitRepeat ? 1 : repeat));
   }
   if (root) visit(root);
   const ppBytes = pipelineP2PBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, pp: plan.pp ?? plan.PP ?? 1 });

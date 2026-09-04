@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expertWeightRange, kvBytesPerCard, maxContextForStages, projectNodePlan, projectPdFit, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, projectNodePlan, projectPdFit, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
@@ -28,7 +28,18 @@ test("DP-attention 下每个 rank 持有完整 KV", () => {
 test("权重按模块类别选择 TP/EP/复制投影", () => {
   assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.self_attn.q_proj" }, { tp: 4 }).bytes, 25);
   assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.mlp.experts.0.up_proj" }, { tp: 4, ep: 2 }).bytes, 50);
+  assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.moe.expert_mlp" }, { tp: 4, ep: 2 }).bytes, 50);
   assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.input_layernorm" }, { tp: 4 }).bytes, 100);
+});
+
+test("节点 roofline 成本按 TP、EP 或复制规则投影到单卡", () => {
+  const cost = { macs: 80, weightBytes: 40, actInBytes: 24, actOutBytes: 16 };
+  assert.deepEqual(nodeCostPerCard(cost, { id: "decoder.0.self_attn.q_proj" }, { tp: 4 }), {
+    macs: 20, weightBytes: 10, actInBytes: 6, actOutBytes: 4,
+    projection: { axis: "tp", divisor: 4 },
+  });
+  assert.equal(nodeCostPerCard(cost, { id: "decoder.0.mlp.experts.0.up_proj" }, { tp: 4, ep: 2 }).macs, 40);
+  assert.equal(nodeCostPerCard(cost, { id: "decoder.0.input_layernorm" }, { tp: 4 }).macs, 80);
 });
 
 test("PP 层归属和逐 stage 投影返回结构", () => {

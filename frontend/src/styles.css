@@ -268,6 +268,8 @@ textarea {
 
 .toolbar-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   align-items: center;
 }
@@ -279,10 +281,19 @@ textarea {
 .lens-control { display: inline-flex; align-items: center; gap: 5px; color: #607184; font-size: 12px; }
 .lens-control select { max-width: 145px; padding: 5px 7px; border: 1px solid #bdcbd8; border-radius: 4px; background: #fff; color: #34495b; }
 .lens-control input { width: 42px; padding: 5px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }
+.lens-mode-switch { display: inline-flex; align-items: center; color: #607184; font-size: 12px; }
+.lens-mode-switch > span { margin-right: 5px; }
+.lens-mode-switch button { min-width: 0; padding: 5px 8px; border-radius: 0; color: #526678; }
+.lens-mode-switch button:first-of-type { border-radius: 4px 0 0 4px; }
+.lens-mode-switch button:last-of-type { border-radius: 0 4px 4px 0; }
+.lens-mode-switch button + button { margin-left: -1px; }
+.lens-mode-switch button.active { position: relative; z-index: 1; border-color: #3178b7; background: #eaf5fc; color: #1f5f91; font-weight: 700; }
 .diagram-bound { margin-left: 5px; padding: 1px 4px; border-radius: 3px; font-size: 9px; text-transform: uppercase; letter-spacing: 0; background: #e9eef3; color: #687786; }
 .bound-compute .diagram-bound { background: #f8e4c5; color: #8b5613; }
 .bound-memory .diagram-bound { background: #d9edf8; color: #1e6488; }
 .bound-comm .diagram-bound { background: #f4d8dc; color: #8b2938; }
+.diagram-node.comparison-stable { opacity: 0.3; }
+rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-node.related { stroke: #7fa9c8; stroke-width: 2px; }
 .diagram-node.hovered { stroke: #1e6fa8; stroke-width: 3px; }
 .diagram-node.dimmed { opacity: 0.32; }
@@ -290,7 +301,7 @@ textarea {
 .formula-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; padding: 7px 9px; border: 1px solid #dce5ed; border-radius: 5px; background: #f8fafc; }
 .formula-strip-label { color: #607184; font-size: 11px; }.formula-strip button { padding: 3px 7px; border: 1px solid #b7d0e3; border-radius: 4px; background: #fff; color: #2d6790; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; }.formula-strip button:hover { border-color: #3178b7; background: #eaf5fc; }
 .formula-section { border-top: 1px solid #e0e7ef; padding-top: 12px; margin-top: 12px; }.formula-section h4 { margin: 0 0 8px; }.formula-section code { display: block; white-space: pre-wrap; color: #28516d; font-size: 12px; }.formula-section p { margin: 8px 0 0; color: #667788; font-size: 12px; line-height: 1.45; }
-.diagram-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }.diagram-compare-label { margin: 0 0 6px; color: #526678; font-size: 12px; font-weight: 700; }.diagram-compare .diagram-frame { min-width: 0; }.lens-flips { margin: -2px 0 10px; padding: 6px 8px; border: 1px solid #e4bd72; border-radius: 4px; background: #fff7e6; color: #7c5418; font-size: 11px; }
+.diagram-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }.diagram-compare-label { min-height: 30px; margin: 0 0 6px; color: #526678; font-size: 12px; font-weight: 700; line-height: 1.35; }.diagram-compare .diagram-frame { min-width: 0; }.lens-flips { margin: -2px 0 10px; padding: 6px 8px; border: 1px solid #e4bd72; border-radius: 4px; background: #fff7e6; color: #7c5418; font-size: 11px; }.lens-flips.empty { border-color: #dce5ed; background: #f8fafc; color: #607184; }
 @media (max-width: 900px) { .diagram-compare { grid-template-columns: 1fr; } }
 .manual-chip { display: inline-flex; align-items: center; position: relative; }.manual-chip-form { position: absolute; z-index: 5; right: 0; top: 34px; width: 250px; padding: 10px; display: grid; gap: 7px; border: 1px solid #bdcbd8; border-radius: 5px; background: #fff; box-shadow: 0 8px 20px rgba(47,65,86,.16); }.manual-chip-form label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 6px; color: #607184; font-size: 11px; }.manual-chip-form input { min-width: 0; width: 100%; padding: 4px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }
 .lens-coverage { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: -4px 0 10px; color: #6d5a35; font-size: 11px; }.lens-coverage b { color: #405365; }.lens-coverage a { color: #286f9f; }
@@ -924,6 +935,10 @@ label {
 }
 
 @media (max-width: 640px) {
+  .app-header {
+    position: static;
+  }
+
   .app-header,
   .content {
     padding: 14px;
@@ -935,5 +950,15 @@ label {
 
   .hero-panel {
     padding: 12px;
+  }
+
+  .panel-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
 }

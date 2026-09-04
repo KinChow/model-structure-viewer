@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import Header from "./components/Header";
-import Tabs from "./components/Tabs";
-import SummaryChips from "./components/SummaryChips";
-import ArchitectureTab from "./components/ArchitectureTab";
-import LayersTab from "./components/LayersTab";
-import ExportTab from "./components/ExportTab";
-import RawConfigTab from "./components/RawConfigTab";
+import DetailWorkspace from "./components/DetailWorkspace";
 import Drawer from "./components/Drawer";
-import StructureSearchBox from "./components/StructureSearchBox";
-import NodeDetailPanel from "./components/NodeDetailPanel";
-import CostSummary from "./components/CostSummary";
+import ModelEntry from "./components/ModelEntry";
 import { useSettings } from "./hooks/useSettings";
 import { useBuiltinModels } from "./hooks/useBuiltinModels";
 import { useLocalModels } from "./hooks/useLocalModels";
@@ -19,8 +11,6 @@ import { useExport } from "./hooks/useExport";
 import { computeMatches } from "./diagram/match";
 import { PUBLIC_CHIPS } from "./cost/chips/public.js";
 import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal.js";
-
-const TAB_ITEMS = ["Architecture", "Layers", "Export", "Raw Config"];
 
 function findNodeByPath(root, path) {
   if (!root || !path) return null;
@@ -81,16 +71,17 @@ function App() {
   const [selectedConfigPath, setSelectedConfigPath] = useState("");
   const [revision, setRevision] = useState("main");
   const [configText, setConfigText] = useState("");
-  const [activeTab, setActiveTab] = useState("Architecture");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [fitNonce, setFitNonce] = useState(0);
   const [parseError, setParseError] = useState("");
   const [selectedNodePath, setSelectedNodePath] = useState(null);
-  const [layersExpandedPaths, setLayersExpandedPaths] = useState(() => new Set());
+  const [layersExpandedPaths, setLayersExpandedPaths] = useState(() => new Set(["root"]));
   const [searchTerm, setSearchTerm] = useState("");
   const [chips, setChips] = useState(PUBLIC_CHIPS);
   const [chipError, setChipError] = useState("");
+  const [language, setLanguage] = useState(() => localStorage.getItem("msv-language") || (navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en"));
+  const [theme, setTheme] = useState(() => localStorage.getItem("msv-theme") || "dark");
   function handleAddChip(chip) {
     setChips((current) => [...current.filter((entry) => entry.id !== chip.id), chip]);
   }
@@ -109,10 +100,6 @@ function App() {
 
   const error = parseError || structureError || hf.error || settingsError || exporter.error || chipError;
   const sourceLabel = structure?.source?.kind || "not loaded";
-  const rawJson = useMemo(
-    () => (structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : ""),
-    [structure]
-  );
   const allCollapsiblePaths = useMemo(
     () => collectCollapsiblePaths(structure?.root),
     [structure]
@@ -145,23 +132,13 @@ function App() {
   }, [matchedPaths, searchActive, structure]);
 
   const selectedNode = useMemo(
-    () => (selectedNodePath && structure ? findNodeByPath(structure.root, selectedNodePath) : null),
+    () => (selectedNodePath && structure ? { node: findNodeByPath(structure.root, selectedNodePath), path: selectedNodePath } : null),
     [structure, selectedNodePath]
   );
 
   function handleSelectNode(path) {
     setSelectedNodePath(path);
     setDrawerOpen(false);
-  }
-
-  function handleSourceChange(value) {
-    setSource(value);
-    setSelectedConfigPath("");
-  }
-
-  function handleModelIdChange(value) {
-    setModelId(value);
-    setSelectedConfigPath("");
   }
 
   function handleToggleLayerPath(path) {
@@ -189,22 +166,26 @@ function App() {
     });
   }
 
-  async function handleGenerate() {
+  async function handleGenerate(overrides = {}) {
     setParseError("");
     let configJson = null;
-    if (source === "config") {
+    const activeSource = overrides.source ?? source;
+    const activeModelId = overrides.modelId ?? modelId;
+    const activeConfigPath = overrides.configPath ?? selectedConfigPath;
+    const activeEndpoint = overrides.endpoint ?? endpoint;
+    if (activeSource === "config") {
       try {
-        configJson = JSON.parse(configText);
+        configJson = overrides.configJson ?? JSON.parse(configText);
       } catch (err) {
         setParseError(err.message);
         return;
       }
     }
     const payload = {
-      source,
-      endpoint,
-      model_id: source === "config" || selectedConfigPath ? null : modelId.trim(),
-      config_path: source === "config" ? null : selectedConfigPath || null,
+      source: activeSource,
+      endpoint: activeEndpoint,
+      model_id: activeSource === "config" || activeConfigPath ? null : activeModelId.trim(),
+      config_path: activeSource === "config" ? null : activeConfigPath || null,
       config_json: configJson,
       revision,
       cache_policy: settings.offline ? "offline" : settings.cache_policy,
@@ -216,11 +197,10 @@ function App() {
     const data = await build(payload);
     if (data) {
       exporter.reset();
-      setActiveTab("Architecture");
       setZoom(1);
       setFitNonce((value) => value + 1);
       setSelectedNodePath(null);
-      setLayersExpandedPaths(new Set());
+      setLayersExpandedPaths(new Set(["root"]));
       setSearchTerm("");
     }
   }
@@ -231,125 +211,116 @@ function App() {
     }
   }
 
-  return (
-    <main className="app-shell">
-      <Header
-        sourceLabel={sourceLabel}
-        source={source}
-        onSourceChange={handleSourceChange}
-        endpoint={endpoint}
-        onEndpointChange={setEndpoint}
-        modelId={modelId}
-        onModelIdChange={handleModelIdChange}
-        cachePolicy={settings.cache_policy}
-        onCachePolicyChange={(value) => setSettings({ ...settings, cache_policy: value })}
-        onOpenDrawer={handleOpenDrawer}
-        onGenerate={handleGenerate}
-        loading={loading}
-      />
+  async function handleOpenLocalFiles(files) {
+    const configFile = files.find((file) => file.name === "config.json") || files.find((file) => file.name.endsWith("config.json"));
+    if (!configFile) {
+      setParseError(language === "en" ? "No config.json found in the selected model directory" : "所选模型目录中没有找到 config.json");
+      return;
+    }
+    try {
+      const config = JSON.parse(await configFile.text());
+      await handleGenerate({ source: "config", configJson: config });
+    } catch (err) {
+      setParseError(err.message);
+    }
+  }
 
-      {error && <div className="error">{error}</div>}
+  function handleLanguageChange(next) {
+    setLanguage(next);
+    localStorage.setItem("msv-language", next);
+  }
 
-      <section className="content">
-        <section className="hero-panel">
-          <SummaryChips structure={structure} sourceLabel={sourceLabel} />
-          <CostSummary structure={structure} chips={chips} />
-          {structure && (
-            <StructureSearchBox
-              value={searchTerm}
-              onChange={setSearchTerm}
-              hitCount={matchedPaths.size}
-            />
-          )}
-          <Tabs items={TAB_ITEMS} active={activeTab} onChange={setActiveTab} />
-          {activeTab === "Architecture" && (
-            <ArchitectureTab
-              structure={structure}
-              zoom={zoom}
-              onZoomChange={setZoom}
-              fitNonce={fitNonce}
-              onFit={() => {
-                setZoom(1);
-                setFitNonce((value) => value + 1);
-              }}
-              selectedPath={selectedNodePath}
-              matchedPaths={matchedPaths}
-              expandedGroups={allCollapsiblePaths}
-              searchActive={searchActive}
-              hitCount={matchedPaths.size}
-              onSelectNode={handleSelectNode}
-              chips={chips}
-              onAddChip={handleAddChip}
-            />
-          )}
-          {activeTab === "Layers" && (
-            <LayersTab
-              structure={structure}
-              selectedPath={selectedNodePath}
-              matchedPaths={matchedPaths}
-              expandedGroups={layersExpandedPaths}
-              searchActive={searchActive}
-              onSelectNode={handleSelectNode}
-              onToggleGroup={handleToggleLayerPath}
-              onExpandAllGroups={handleExpandAllLayers}
-              onCollapseAllGroups={handleCollapseAllLayers}
-            />
-          )}
-          {activeTab === "Export" && (
-            <ExportTab
-              format={exporter.format}
-              onFormatChange={exporter.setFormat}
-              text={exporter.text}
-              onRun={() => exporter.run(structure)}
-            />
-          )}
-          {activeTab === "Raw Config" && <RawConfigTab rawJson={rawJson} />}
-        </section>
+  function handleThemeChange() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("msv-theme", next);
+  }
 
-        {selectedNode ? (
-          <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNodePath(null)} />
-        ) : (
-          <Drawer
-            open={drawerOpen}
-            revision={revision}
-            onRevisionChange={setRevision}
-            configText={configText}
-            onConfigTextChange={setConfigText}
-            builtinModels={builtinModels}
-            onRefreshBuiltinModels={refreshBuiltinModels}
-            onPickBuiltinModel={(entry) => {
-              setModelId(entry.modelId);
-              setSelectedConfigPath("");
-              setSource("builtin");
-              setDrawerOpen(false);
-            }}
-            models={models}
-            onRefreshModels={refreshModels}
-            onPickLocalModel={(entry) => {
-              setModelId(entry.model_id);
-              setSelectedConfigPath(entry.load_by === "config_path" ? entry.config_path : "");
-              setSource("local");
-              setDrawerOpen(false);
-            }}
-            searchQuery={hf.query}
-            onSearchQueryChange={hf.setQuery}
-            searchResults={hf.results}
-            onSearch={hf.search}
-            searchDisabled={settings.offline}
-            onPickHfModel={(id) => {
-              setModelId(id);
-              setSelectedConfigPath("");
-              setSource("hf");
-              setDrawerOpen(false);
-            }}
-            settings={settings}
-            onSettingsChange={setSettings}
-            onSaveSettings={handleSaveSettings}
-          />
-        )}
-      </section>
-    </main>
-  );
+  if (!structure) {
+    return (
+      <main className="app-shell">
+        <ModelEntry
+          builtinModels={builtinModels}
+          modelId={modelId}
+          onModelIdChange={setModelId}
+          onOpenModel={(id, selectedSource = "auto", selectedEndpoint = endpoint) => {
+            void handleGenerate({ source: selectedSource, modelId: id, endpoint: selectedEndpoint });
+          }}
+          onOpenLocalFiles={handleOpenLocalFiles}
+          onOpenLocalPath={(path) => {
+            setSource("local");
+            setSelectedConfigPath(path);
+            void build({ source: "local", config_path: path, model_root: settings.model_root, detail_level: "compressed" });
+          }}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          theme={theme}
+          onThemeChange={handleThemeChange}
+        />
+      </main>
+    );
+  }
+
+  if (structure) {
+    return (
+      <>
+        <DetailWorkspace
+          structure={structure}
+          sourceLabel={sourceLabel}
+          language={language}
+          theme={theme}
+          onLanguageChange={handleLanguageChange}
+          onThemeChange={handleThemeChange}
+          onBack={() => window.location.reload()}
+          onSettings={handleOpenDrawer}
+          selectedNode={selectedNode}
+          selectedNodePath={selectedNodePath}
+          onSelectNode={handleSelectNode}
+          onCloseNode={() => setSelectedNodePath(null)}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          matchedPaths={matchedPaths}
+          expandedGroups={layersExpandedPaths}
+          zoom={zoom}
+          onZoomChange={setZoom}
+          fitNonce={fitNonce}
+          onFit={() => { setZoom(1); setFitNonce((value) => value + 1); }}
+          chips={chips}
+          onAddChip={handleAddChip}
+          allCollapsiblePaths={allCollapsiblePaths}
+          layersExpandedPaths={layersExpandedPaths}
+          onToggleLayerPath={handleToggleLayerPath}
+          onExpandAllLayers={handleExpandAllLayers}
+          onCollapseAllLayers={handleCollapseAllLayers}
+          exporter={exporter}
+        />
+        {error && <div className="error detail-error">{error}</div>}
+        <Drawer
+          open={drawerOpen}
+          revision={revision}
+          onRevisionChange={setRevision}
+          configText={configText}
+          onConfigTextChange={setConfigText}
+          builtinModels={builtinModels}
+          onRefreshBuiltinModels={refreshBuiltinModels}
+          onPickBuiltinModel={(entry) => { void handleGenerate({ source: "builtin", modelId: entry.modelId }); setDrawerOpen(false); }}
+          models={models}
+          onRefreshModels={refreshModels}
+          onPickLocalModel={(entry) => { void handleGenerate({ source: "local", modelId: entry.model_id, configPath: entry.load_by === "config_path" ? entry.config_path : "" }); setDrawerOpen(false); }}
+          searchQuery={hf.query}
+          onSearchQueryChange={hf.setQuery}
+          searchResults={hf.results}
+          onSearch={hf.search}
+          searchDisabled={settings.offline}
+          onPickHfModel={(id) => { void handleGenerate({ source: "hf", modelId: id }); setDrawerOpen(false); }}
+          settings={settings}
+          onSettingsChange={setSettings}
+          onSaveSettings={handleSaveSettings}
+        />
+      </>
+    );
+  }
+
 }
 
 export default App;

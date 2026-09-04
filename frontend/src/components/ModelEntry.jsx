@@ -1,0 +1,111 @@
+import { useMemo, useRef, useState } from "react";
+
+const PROVIDER_MARKS = { MiniMax: "M", Qwen: "Q", DeepSeek: "D", "zai-org": "Z" };
+
+function providerName(modelId) {
+  return String(modelId || "").split("/")[0] || "Other";
+}
+
+function modelName(modelId) {
+  return String(modelId || "").split("/").pop() || modelId;
+}
+
+function EntryButton({ active, children, onClick }) {
+  return <button type="button" className={active ? "entry-mode active" : "entry-mode"} onClick={onClick}>{children}</button>;
+}
+
+export default function ModelEntry({
+  builtinModels = [],
+  modelId,
+  onModelIdChange,
+  onOpenModel,
+  onOpenLocalFiles,
+  onOpenLocalPath,
+  language = "zh",
+  onLanguageChange,
+  theme = "dark",
+  onThemeChange,
+}) {
+  const [mode, setMode] = useState("model");
+  const [endpoint, setEndpoint] = useState("huggingface");
+  const [provider, setProvider] = useState(null);
+  const [localPath, setLocalPath] = useState("");
+  const fileRef = useRef(null);
+  const providers = useMemo(() => {
+    const grouped = new Map();
+    builtinModels.forEach((entry) => {
+      const name = providerName(entry.modelId);
+      if (!grouped.has(name)) grouped.set(name, []);
+      grouped.get(name).push(entry);
+    });
+    return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [builtinModels]);
+  const providerModels = providers.find(([name]) => name === provider)?.[1] || [];
+  const t = language === "en" ? {
+    title: "Understand the model.",
+    subtitle: "Explore architecture, inspect modules, and estimate the cost on your hardware.",
+    model: "Enter / choose model",
+    local: "Open local model directory",
+    placeholder: "Hugging Face / ModelScope model ID or URL",
+    open: "Open model",
+    localPlaceholder: "Path on the backend machine, or choose a folder",
+    browse: "Browse by Provider",
+    browseHint: "Choose a provider to view mapped models",
+    choose: "Choose a model",
+    empty: "No mapped models for this provider",
+  } : {
+    title: "理解模型。",
+    subtitle: "Browse architecture, inspect modules, and estimate the cost on your hardware.",
+    model: "输入 / 选择模型",
+    local: "打开本地模型目录",
+    placeholder: "Hugging Face / ModelScope 模型 ID 或地址",
+    open: "打开模型",
+    localPlaceholder: "后端机器上的路径，或选择本地目录",
+    browse: "按 Provider 浏览",
+    browseHint: "选择厂商查看已映射模型",
+    choose: "选择模型",
+    empty: "该 Provider 暂无已映射模型",
+  };
+
+  function handleFiles(event) {
+    const files = [...(event.target.files || [])];
+    if (files.length > 0) onOpenLocalFiles?.(files);
+    event.target.value = "";
+  }
+
+  return (
+    <main className={`model-entry-page theme-${theme}`}>
+      <section className="entry-hero">
+        <div className="entry-topline"><div className="entry-brand">Model Structure Viewer<span>.</span></div><div className="entry-top-actions"><button type="button" onClick={() => { const next = language === "en" ? "zh" : "en"; onLanguageChange?.(next); }}>{language === "en" ? "EN / 中" : "中 / EN"}</button><button type="button" onClick={onThemeChange}>{theme}</button><button type="button" title="Help">帮助 / Help</button></div></div>
+        <h1>{t.title}</h1>
+        <p>{t.subtitle}</p>
+      </section>
+      <section className="entry-box" aria-label="Model entry">
+        <div className="entry-modes">
+          <EntryButton active={mode === "model"} onClick={() => setMode("model")}>{t.model}</EntryButton>
+          <EntryButton active={mode === "local"} onClick={() => setMode("local")}>{t.local}</EntryButton>
+        </div>
+        {mode === "model" ? (
+          <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); onOpenModel?.(modelId.trim(), "hf", endpoint); }}>
+            <select className="entry-source-select" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} aria-label="model source"><option value="huggingface">Hugging Face</option><option value="modelscope">ModelScope</option></select><input list="builtin-models" value={modelId} onChange={(event) => onModelIdChange?.(event.target.value)} placeholder={t.placeholder} aria-label="model id" />
+            <datalist id="builtin-models">{builtinModels.map((entry) => <option key={entry.modelId} value={entry.modelId} />)}</datalist>
+            <button className="entry-primary" type="submit">{t.open}</button>
+          </form>
+        ) : (
+          <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); if (localPath.trim()) onOpenLocalPath?.(localPath.trim()); }}>
+            <input value={localPath} onChange={(event) => setLocalPath(event.target.value)} placeholder={t.localPlaceholder} aria-label="local model path" />
+            <button className="entry-secondary" type="button" onClick={() => fileRef.current?.click()}>打开文件夹</button>
+            <button className="entry-primary" type="submit">打开路径</button>
+            <input ref={fileRef} className="visually-hidden" type="file" webkitdirectory="true" multiple tabIndex="-1" aria-hidden="true" onChange={handleFiles} />
+          </form>
+        )}
+        {mode === "model" && <div className="entry-quick">{builtinModels.slice(0, 5).map((entry) => <button type="button" key={entry.modelId} onClick={() => { onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}>{modelName(entry.modelId)}</button>)}</div>}
+      </section>
+      {mode === "model" && <section className="provider-section">
+        <div className="entry-section-heading"><h2>{t.browse}</h2><span>{t.browseHint}</span></div>
+        <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><span className="provider-mark">{PROVIDER_MARKS[name] || name[0]?.toUpperCase() || "+"}</span><strong>{name}</strong><small>{entries.length} models</small></button>)}</div>
+      </section>}
+      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider}><div className="provider-picker"><header><div><h2>{provider}</h2><p>{t.choose}</p></div><button type="button" aria-label="Close" onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelName(entry.modelId)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
+    </main>
+  );
+}

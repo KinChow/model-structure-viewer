@@ -28,7 +28,9 @@ export function layoutDiagram(root, expandedGroups) {
       typeClass: typeClass(node.type),
       repeat: node.repeat,
       fullName: node.name,
-      displayName: node.name,
+      displayName: node.repeat > 1 && String(node.type).includes("layer")
+        ? "Decoder layer group"
+        : node.name,
       metaLines,
       isCollapsible,
       isExpanded,

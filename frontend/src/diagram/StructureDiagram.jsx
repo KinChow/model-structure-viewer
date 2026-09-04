@@ -137,7 +137,7 @@ function StructureDiagram({
                     key={node.path}
                     data-node-path={node.path}
                     transform={`translate(${node.x}, ${node.y})`}
-                    className={`${classes}${isComparisonStable ? " comparison-stable" : ""}`}
+                    className={`${classes}${node.isCollapsible ? " diagram-group-node" : ""}${node.isExpanded ? " diagram-group-open" : " diagram-group-closed"}${isComparisonStable ? " comparison-stable" : ""}`}
                     style={{ cursor: "pointer" }}
                     onMouseEnter={() => {
                       setHoveredPath(node.path);
@@ -157,7 +157,10 @@ function StructureDiagram({
                             {node.displayName}
                           </span>
                           {node.repeat && (
-                            <span className="diagram-repeat">×{node.repeat}</span>
+                            <span className="diagram-repeat" title={`${node.repeat} repeated layers`}>×{node.repeat}</span>
+                          )}
+                          {node.node?.attributes?.range && (
+                            <span className="diagram-range" title="Layer range">{node.node.attributes.range}</span>
                           )}
                           {node.node?.attributes?.formula_id && (
                             <span className="diagram-formula" title={node.node.attributes.explanation || node.node.attributes.formula_id}>

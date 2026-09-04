@@ -103,8 +103,8 @@ function ArchitectureTab({
     [etaFlops, etaHbm, etaComm],
   );
   const nodeLensResult = useMemo(
-    () => compactControls ? { ok: true, errors: [], nodes: {} } : buildNodeLens(structure, chip, { phase, plan: primaryScenario.plan, efficiency }),
-    [compactControls, structure, chip, phase, primaryScenario, efficiency],
+    () => buildNodeLens(structure, chip, { phase, plan: primaryScenario.plan, efficiency }),
+    [structure, chip, phase, primaryScenario, efficiency],
   );
   const compareLensResult = useMemo(
     () => compareScenario

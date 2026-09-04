@@ -35,13 +35,17 @@ export function pipelineP2PBytes({ batch = 1, tokens = 1, hidden, bytesPerElemen
 export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {}) {
   const path = String(node?.id || node?.name || "").toLowerCase();
   const tp = plan.tp ?? plan.TP ?? 1;
+  const ep = plan.ep ?? plan.EP ?? 1;
+  const attnMode = plan.attnMode ?? plan.attn_mode ?? "tp";
   const bytesPerElement = options.bytesPerElement ?? 2;
   const batch = options.batch ?? 1;
   const tokens = options.tokens ?? options.sequence ?? 1;
   if (/(o_proj|output projection|down_proj)/.test(path)) {
+    if (attnMode === "dp" && /(self_attn|attention|o_proj)/.test(path) && !/down_proj/.test(path)) return 0;
     return ringAllReduceBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, tp, operations: 1 });
   }
   if (/(experts|expert_mlp|dispatch|combine)/.test(path)) {
+    if (ep <= 1) return 0;
     return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: config.expertsPerToken, bytesPerElement });
   }
   return 0;

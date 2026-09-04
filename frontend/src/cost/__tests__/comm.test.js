@@ -17,7 +17,13 @@ test("PP P2P 按相邻 stage 边界计算", () => {
 
 test("节点路径可识别 TP 与 EP 通信模块", () => {
   assert.equal(nodeCommunicationBytes({ id: "decoder.0.self_attn.o_proj" }, { hiddenSize: 4 }, { tp: 2 }, { batch: 1, tokens: 1, bytesPerElement: 2 }), 8);
-  assert.equal(nodeCommunicationBytes({ id: "decoder.0.mlp.experts.0.dispatch" }, { hiddenSize: 4, expertsPerToken: 2 }, { tp: 2 }, { batch: 1, tokens: 1, bytesPerElement: 2 }), 32);
+  assert.equal(nodeCommunicationBytes({ id: "decoder.0.mlp.experts.0.dispatch" }, { hiddenSize: 4, expertsPerToken: 2 }, { tp: 2, ep: 2 }, { batch: 1, tokens: 1, bytesPerElement: 2 }), 32);
+});
+
+test("EP=1 不产生 all-to-all，DP-attention 不产生 attention TP all-reduce", () => {
+  assert.equal(nodeCommunicationBytes({ id: "decoder.0.moe.dispatch" }, { hiddenSize: 4, expertsPerToken: 2 }, { ep: 1 }), 0);
+  assert.equal(nodeCommunicationBytes({ id: "decoder.0.self_attn.o_proj" }, { hiddenSize: 4 }, { tp: 4, attnMode: "dp" }), 0);
+  assert.ok(nodeCommunicationBytes({ id: "decoder.0.mlp.down_proj" }, { hiddenSize: 4 }, { tp: 4, attnMode: "dp" }) > 0);
 });
 
 test("PD KV 传输量按 decode 侧 GQA 布局计算", () => {

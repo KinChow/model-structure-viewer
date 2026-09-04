@@ -19,10 +19,14 @@ function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   const summary = structure?.summary || {};
   const status = structureStatus(structure);
   const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype);
+  const modelId = structure?.source?.model_id || "";
+  const provider = modelId.includes("/") ? modelId.split("/")[0] : null;
   const english = language === "en";
-  const label = english ? { model: "Model", architecture: "Architecture", layers: "Layers", hidden: "Hidden", heads: "Heads", experts: "Experts", context: "Context", params: "Params", source: "Source", status: "Status" } : { model: "模型", architecture: "架构", layers: "层数", hidden: "Hidden Size", heads: "Heads", experts: "Experts", context: "Context", params: "Params", source: "来源", status: "状态" };
+  const label = english ? { model: "Model", provider: "Provider", modelType: "Model type", architecture: "Architecture", layers: "Layers", hidden: "Hidden", heads: "Heads", experts: "Experts", context: "Context", params: "Params", source: "Source", status: "Status" } : { model: "模型", provider: "Provider", modelType: "Model type", architecture: "架构", layers: "层数", hidden: "Hidden Size", heads: "Heads", experts: "Experts", context: "Context", params: "Params", source: "来源", status: "状态" };
   const chips = [
     [label.model, summary.model_family || summary.model_type],
+    [label.provider, provider],
+    [label.modelType, summary.model_type],
     [label.architecture, summary.architecture],
     [label.layers, summary.text_layers],
     [label.hidden, summary.hidden_size],

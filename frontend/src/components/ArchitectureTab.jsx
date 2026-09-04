@@ -150,6 +150,7 @@ function ArchitectureTab({
     externalHoveredPath: sharedHoveredPath,
     searchActive,
     onSelectNode,
+    onFit,
     activeLenses,
   };
   return (

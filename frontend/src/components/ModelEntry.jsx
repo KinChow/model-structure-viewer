@@ -75,7 +75,7 @@ export default function ModelEntry({
     openPath: "Open path",
   } : {
     title: "理解模型。",
-    subtitle: "Browse architecture, inspect modules, and estimate the cost on your hardware.",
+    subtitle: "浏览模型架构、检查模块，并估算模型在目标硬件上的成本。",
     model: "输入 / 选择模型",
     local: "打开本地模型目录",
     placeholder: "Hugging Face / ModelScope 模型 ID 或地址",
@@ -130,7 +130,7 @@ export default function ModelEntry({
       </section>
       {mode === "model" && <section className="provider-section">
         <div className="entry-section-heading"><h2>{t.browse}</h2><span>{t.browseHint}</span></div>
-        <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><span className="provider-mark">{PROVIDER_MARKS[name] || name[0]?.toUpperCase() || "+"}</span><strong>{name}</strong><small>{entries.length} models</small></button>)}</div>
+        <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><span className="provider-mark">{PROVIDER_MARKS[name] || name[0]?.toUpperCase() || "+"}</span><strong>{name}</strong><small>{entries.length} {language === "en" ? "models" : "个模型"}</small></button>)}</div>
       </section>}
       {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider} onMouseDown={(event) => { if (event.target === event.currentTarget) setProvider(null); }}><div className="provider-picker"><header><div><h2>{provider}</h2><p>{t.choose}</p></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelName(entry.modelId)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
       {helpOpen && <div className="entry-help-overlay" role="dialog" aria-modal="true" aria-label={t.helpTitle} onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpOpen(false); }}><div className="entry-help-panel"><header><h2>{t.helpTitle}</h2><button type="button" aria-label={t.close} onClick={() => setHelpOpen(false)}>×</button></header><ul>{t.helpItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div>}

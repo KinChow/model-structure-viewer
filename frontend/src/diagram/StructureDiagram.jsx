@@ -56,7 +56,10 @@ function StructureDiagram({
       const target = event.target;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return;
       const selected = nodes.find((node) => node.path === selectedPath);
-      if (event.key === "0") {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onSelectNode?.(null);
+      } else if (event.key === "0") {
         event.preventDefault();
         onFit?.();
       } else if ((event.key === "e" || event.key === "E") && selected?.isCollapsible && !selected.isExpanded) {

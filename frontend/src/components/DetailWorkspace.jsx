@@ -70,6 +70,7 @@ export default function DetailWorkspace({
 }) {
   const [auxView, setAuxView] = useState(null);
   const [costOpen, setCostOpen] = useState(false);
+  const [activeLenses, setActiveLenses] = useState(() => new Set(["vram"]));
   const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement" } : { export: "导出", raw: "原始配置", cost: "成本与部署" };
   const rawJson = structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : "";
   const selectedData = selectedNode?.node || selectedNode;
@@ -83,8 +84,8 @@ export default function DetailWorkspace({
         <div className="detail-main">
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={onSelectNode} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
           <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen}><span>{t.cost}</span><span className="detail-cost-summary">VRAM · {structure?.summary?.parameters_total ? "model loaded" : "estimate"}</span><span>{costOpen ? "−" : "+"}</span></button></div>
-          {costOpen && <div className="detail-cost-panel"><CostSummary structure={structure} chips={chips} onAddChip={onAddChip} language={language} /></div>}
-          <ArchitectureTab structure={structure} zoom={zoom} onZoomChange={onZoomChange} fitNonce={fitNonce} onFit={onFit} selectedPath={selectedPath} matchedPaths={matchedPaths} expandedGroups={expandedGroups} searchActive={Boolean(searchTerm.trim())} hitCount={matchedPaths.size} onSelectNode={onSelectNode} onToggleGroup={onToggleLayerPath} onExpandAllGroups={onExpandAllLayers} onCollapseAllGroups={onCollapseAllLayers} chips={chips} onAddChip={onAddChip} compactControls />
+          {costOpen && <div className="detail-cost-panel"><CostSummary structure={structure} chips={chips} onAddChip={onAddChip} language={language} lenses={activeLenses} onLensesChange={setActiveLenses} /></div>}
+          <ArchitectureTab structure={structure} zoom={zoom} onZoomChange={onZoomChange} fitNonce={fitNonce} onFit={onFit} selectedPath={selectedPath} matchedPaths={matchedPaths} expandedGroups={expandedGroups} searchActive={Boolean(searchTerm.trim())} hitCount={matchedPaths.size} onSelectNode={onSelectNode} onToggleGroup={onToggleLayerPath} onExpandAllGroups={onExpandAllLayers} onCollapseAllGroups={onCollapseAllLayers} chips={chips} onAddChip={onAddChip} activeLenses={activeLenses} compactControls />
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
         </div>

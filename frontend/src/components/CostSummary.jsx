@@ -45,7 +45,7 @@ function PlanFields({ plan, onChange }) {
   </div>;
 }
 
-export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh" }) {
+export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", lenses: controlledLenses, onLensesChange }) {
   const english = language === "en";
   const text = {
     estimate: english ? "Theoretical cost estimate" : "理论成本估算",
@@ -63,7 +63,8 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   };
   const [phase, setPhase] = useState("prefill");
   const [mode, setMode] = useState("centralized");
-  const [lenses, setLenses] = useState(() => new Set(["vram"]));
+  const [internalLenses, setInternalLenses] = useState(() => new Set(["vram"]));
+  const lenses = controlledLenses || internalLenses;
   const [machineId, setMachineId] = useState(chips[0]?.id || "");
   const [nodes, setNodes] = useState({ centralized: 1, prefill: 1, decode: 2 });
   const [gpusPerNode, setGpusPerNode] = useState(8);
@@ -99,7 +100,13 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const planFitsTopology = requiredGpus <= totalGpus;
   const planMaxContext = projected?.ok ? maxContextForStages(projected.stages, { capacityBytes: available, activationBytes: peakCost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes + cost.memory.commBufferBytes, sequence: load.sequence }) : null;
   const updateLoad = (key, value) => setLoads((current) => ({ ...current, [phase]: { ...current[phase], [key]: value } }));
-  const toggleLens = (name) => setLenses((current) => { const next = new Set(current); if (name === "none") next.clear(); else next.has(name) ? next.delete(name) : next.add(name); return next; });
+  const toggleLens = (name) => {
+    const next = new Set(lenses);
+    if (name === "none") next.clear();
+    else next.has(name) ? next.delete(name) : next.add(name);
+    if (controlledLenses) onLensesChange?.(next);
+    else setInternalLenses(next);
+  };
   return <section className="cost-summary cost-summary-modern" aria-label={text.estimate}>
     <div className="cost-summary-header"><div><b>{text.estimate}</b><span className="cost-disclaimer">{text.disclaimer}</span></div><button className="cost-expand-button" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? text.collapse : text.expand}</button></div>
     <div className="cost-lens-row"><span>Cost Lens</span>{[["none", "None"], ["vram", "VRAM"], ["compute", "Compute"], ["memory", "Memory"], ["kv", "KV Cache"]].map(([id, label]) => <button type="button" key={id} className={(id === "none" ? lenses.size === 0 : lenses.has(id)) ? "active" : ""} aria-pressed={id === "none" ? lenses.size === 0 : lenses.has(id)} onClick={() => toggleLens(id)}>{label}</button>)}</div>

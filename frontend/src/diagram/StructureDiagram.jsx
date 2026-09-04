@@ -18,6 +18,7 @@ function StructureDiagram({
   comparisonPaths,
   onHoverPathChange,
   showGroupToggle = true,
+  activeLenses = new Set(),
 }) {
   const nodes = useMemo(
     () => layoutDiagram(structure.root, expandedGroups),
@@ -73,7 +74,7 @@ function StructureDiagram({
   const contentTransform = `translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`;
 
   return (
-    <div className="diagram-frame" ref={frameRef}>
+    <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
       <div className="diagram-scroll" ref={scrollRef}>
         <div className="diagram-zoom" style={{ width, height }}>
           <svg

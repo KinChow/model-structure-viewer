@@ -61,10 +61,11 @@ export function layoutDiagram(root, expandedGroups) {
     if (!item.isCollapsible || !item.isExpanded) return;
     const descendants = items.filter((candidate) => candidate.path.startsWith(`${item.path}.`));
     if (descendants.length === 0) return;
-    const left = Math.min(...descendants.map((candidate) => candidate.x)) - 14;
-    const top = Math.min(...descendants.map((candidate) => candidate.y)) - 22;
-    const right = Math.max(...descendants.map((candidate) => candidate.x + candidate.width)) + 14;
-    const bottom = Math.max(...descendants.map((candidate) => candidate.y + candidate.height)) + 14;
+    const frameItems = [item, ...descendants];
+    const left = Math.min(...frameItems.map((candidate) => candidate.x)) - 14;
+    const top = Math.min(...frameItems.map((candidate) => candidate.y)) - 22;
+    const right = Math.max(...frameItems.map((candidate) => candidate.x + candidate.width)) + 14;
+    const bottom = Math.max(...frameItems.map((candidate) => candidate.y + candidate.height)) + 14;
     item.containerFrame = {
       x: left,
       y: top,

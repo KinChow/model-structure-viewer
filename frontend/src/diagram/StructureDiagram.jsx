@@ -14,6 +14,7 @@ function StructureDiagram({
   onSelectNode,
   onToggleGroup,
   nodeLens,
+  externalHoveredPath,
   showGroupToggle = true,
 }) {
   const nodes = useMemo(
@@ -36,6 +37,7 @@ function StructureDiagram({
   );
   const matched = matchedPaths instanceof Set ? matchedPaths : new Set();
   const [hoveredPath, setHoveredPath] = useState(null);
+  const activeHoveredPath = externalHoveredPath ?? hoveredPath;
 
   useEffect(() => {
     const element = frameRef.current;
@@ -96,9 +98,9 @@ function StructureDiagram({
                         node.y + node.height / 2
                       }, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`}
                       fill="none"
-                      className={hoveredPath && isEdgeRelated(node.path, target.path, hoveredPath) ? "diagram-edge related" : "diagram-edge"}
+                      className={activeHoveredPath && isEdgeRelated(node.path, target.path, activeHoveredPath) ? "diagram-edge related" : "diagram-edge"}
                       stroke="var(--diagram-arrow)"
-                      strokeWidth={hoveredPath && isEdgeRelated(node.path, target.path, hoveredPath) ? "2.8" : "1.5"}
+                      strokeWidth={activeHoveredPath && isEdgeRelated(node.path, target.path, activeHoveredPath) ? "2.8" : "1.5"}
                       markerEnd="url(#arrow)"
                     />
                   );
@@ -109,8 +111,8 @@ function StructureDiagram({
                 const isMatch = matched.has(node.path);
                 const isDimmed = searchActive && !isMatch;
                 const bound = nodeLens?.[node.path]?.bound || "unknown";
-                const isHovered = hoveredPath === node.path;
-                const isRelated = hoveredPath && isPathRelated(node.path, hoveredPath);
+                const isHovered = activeHoveredPath === node.path;
+                const isRelated = activeHoveredPath && isPathRelated(node.path, activeHoveredPath);
                 const classes = [
                   "diagram-node",
                   node.typeClass,

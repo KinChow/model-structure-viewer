@@ -48,6 +48,13 @@ function TruthSection({ node }) {
   );
 }
 
+function FormulaSection({ node }) {
+  const formula = node.attributes?.formula;
+  const formulaId = node.attributes?.formula_id;
+  if (!formulaId && !formula) return null;
+  return <section className="formula-section"><h4>公式 <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
+}
+
 function NodeDetailPanel({ node, onClose }) {
   if (!node) return null;
   const confidence = typeof node.confidence === "number" ? node.confidence.toFixed(2) : null;
@@ -72,6 +79,7 @@ function NodeDetailPanel({ node, onClose }) {
         </button>
       </header>
       <TruthSection node={node} />
+      <FormulaSection node={node} />
       <ShapeFlow attributes={node.attributes} />
       <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />
     </aside>

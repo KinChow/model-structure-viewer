@@ -6,6 +6,7 @@ import { computeNodeCosts } from "../cost/compute.js";
 import { classifyRoofline } from "../cost/roofline.js";
 import { nodeCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
+import { collectFormulaLinks } from "../diagram/formulaLinks.js";
 
 function downloadSvg(structure) {
   const svg = document.querySelector(".diagram-svg");
@@ -36,6 +37,8 @@ function ArchitectureTab({
   const [chipId, setChipId] = useState(PUBLIC_CHIPS[0]?.id || "");
   const [tp, setTp] = useState(1);
   const [ep, setEp] = useState(1);
+  const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
+  const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = PUBLIC_CHIPS.find((entry) => entry.id === chipId) || PUBLIC_CHIPS[0];
   const nodeLens = useMemo(() => {
     if (!structure?.root || !structure.extra_config || !chip) return {};
@@ -71,6 +74,7 @@ function ArchitectureTab({
           </button>
         </div>
       </div>
+      {formulaLinks.length > 0 && <div className="formula-strip" aria-label="公式索引"><span className="formula-strip-label">公式</span>{formulaLinks.map((link) => <button key={link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>}
       {structure ? (
         <StructureDiagram
           structure={structure}
@@ -80,6 +84,7 @@ function ArchitectureTab({
           matchedPaths={matchedPaths}
           expandedGroups={expandedGroups}
           nodeLens={nodeLens}
+          externalHoveredPath={formulaHoveredPath}
           searchActive={searchActive}
           onSelectNode={onSelectNode}
           showGroupToggle={false}

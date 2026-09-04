@@ -38,7 +38,9 @@ function StructureDiagram({
   onExitFocus,
   scrollSync,
   scrollSyncId,
+  language = "en",
 }) {
+  const english = language === "en";
   const nodes = useMemo(
     () => layoutDiagram(structure.root, expandedGroups),
     [structure, expandedGroups]
@@ -210,7 +212,7 @@ function StructureDiagram({
             width={width}
             height={height}
             role="img"
-            aria-label="Model architecture diagram"
+            aria-label={english ? "Model architecture diagram" : "模型架构图"}
           >
             <defs>
               <marker id={markerId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
@@ -317,8 +319,8 @@ function StructureDiagram({
                                 e.stopPropagation();
                                 onToggleGroup && onToggleGroup(node.path);
                               }}
-                              title={node.isExpanded ? "Collapse" : "Expand"}
-                              aria-label={node.isExpanded ? "Collapse" : "Expand"}
+                              title={node.isExpanded ? (english ? "Collapse" : "收起") : (english ? "Expand" : "展开")}
+                              aria-label={node.isExpanded ? (english ? "Collapse" : "收起") : (english ? "Expand" : "展开")}
                             >
                               {node.isExpanded ? "−" : "+"}
                             </button>
@@ -358,9 +360,9 @@ function StructureDiagram({
           </svg>
         </div>
       </div>
-      <button type="button" className="diagram-minimap-toggle" aria-label={miniMapOpen ? "Hide structure overview" : "Show structure overview"} title={miniMapOpen ? "Hide structure overview" : "Show structure overview"} onClick={() => setMiniMapOpen((value) => !value)}>{miniMapOpen ? "×" : "map"}</button>
-      {miniMapOpen && <button type="button" className="diagram-minimap" aria-label="Structure overview" title="Click to navigate the structure" onClick={jumpFromMiniMap}>
-        <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label="Structure overview map">
+      <button type="button" className="diagram-minimap-toggle" aria-label={miniMapOpen ? (english ? "Hide structure overview" : "隐藏结构概览") : (english ? "Show structure overview" : "显示结构概览")} title={miniMapOpen ? (english ? "Hide structure overview" : "隐藏结构概览") : (english ? "Show structure overview" : "显示结构概览")} onClick={() => setMiniMapOpen((value) => !value)}>{miniMapOpen ? "×" : "map"}</button>
+      {miniMapOpen && <button type="button" className="diagram-minimap" aria-label={english ? "Structure overview" : "结构概览"} title={english ? "Click to navigate the structure" : "点击定位结构"} onClick={jumpFromMiniMap}>
+        <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label={english ? "Structure overview map" : "结构概览图"}>
           <g transform={`scale(${miniScale})`}>
             {nodes.filter((node) => node.containerFrame).map((node) => <rect key={`mini-frame-${node.path}`} x={node.containerFrame.x} y={node.containerFrame.y} width={node.containerFrame.width} height={node.containerFrame.height} className="mini-frame" />)}
             {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}${selectedPath === node.path ? " selected" : ""}${selectedPath && selectedPath.startsWith(`${node.path}.`) ? " ancestor" : ""}`} />)}

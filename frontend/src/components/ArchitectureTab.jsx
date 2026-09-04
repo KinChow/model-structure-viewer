@@ -231,6 +231,7 @@ function ArchitectureTab({
     focusMode: canvasFocus,
     onExitFocus: () => setCanvasFocus(false),
     scrollSync: { group: compareScrollGroup.current },
+    language,
   };
   useEffect(() => {
     onNodeLensChange?.(nodeLens);

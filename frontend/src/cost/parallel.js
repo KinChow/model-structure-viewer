@@ -111,7 +111,10 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = 
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
-  if (arguments[0]?.root) return projectNodePlan({ root: arguments[0].root, kvBytes, config, plan: checked.plan });
+  if (arguments[0]?.root) {
+    const projected = projectNodePlan({ root: arguments[0].root, kvBytes, config, plan: checked.plan });
+    if (projected.stages.some((stage) => stage.weightBytes > 0) || weightBytes <= 0) return projected;
+  }
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
   const perStageWeight = weightBytes / pp;
   return {

@@ -92,7 +92,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS }) {
     ? Math.max(0, Math.floor((available - cost.memory.weightBytes - cost.memory.activationBytes - cost.memory.runtimeBytes) / cost.memory.kvBytesPerToken))
     : null;
   const parts = [
-    ["权重", cost.memory.weightBytes], ["KV", cost.memory.kvBytes],
+    [`权重${cost.weightSource === "derived" ? "（估算）" : ""}`, cost.memory.weightBytes], ["KV", cost.memory.kvBytes],
     ["激活峰值", cost.memory.activationBytes], ["运行时", cost.memory.runtimeBytes],
     ["通信缓冲", cost.memory.commBufferBytes],
   ];

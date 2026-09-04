@@ -46,6 +46,7 @@ function StructureDiagram({
   const scrollRef = useRef(null);
   const panRef = useRef({ active: false, moved: false, x: 0, y: 0, left: 0, top: 0 });
   const [scrollPosition, setScrollPosition] = useState({ left: 0, top: 0 });
+  const [miniMapOpen, setMiniMapOpen] = useState(true);
   const fitNonceRef = useRef(fitNonce);
   const [viewport, setViewport] = useState(() =>
     fitDiagramViewport({
@@ -324,7 +325,8 @@ function StructureDiagram({
           </svg>
         </div>
       </div>
-      <button type="button" className="diagram-minimap" aria-label="Structure overview" title="Click to navigate the structure" onClick={jumpFromMiniMap}>
+      <button type="button" className="diagram-minimap-toggle" aria-label={miniMapOpen ? "Hide structure overview" : "Show structure overview"} title={miniMapOpen ? "Hide structure overview" : "Show structure overview"} onClick={() => setMiniMapOpen((value) => !value)}>{miniMapOpen ? "×" : "map"}</button>
+      {miniMapOpen && <button type="button" className="diagram-minimap" aria-label="Structure overview" title="Click to navigate the structure" onClick={jumpFromMiniMap}>
         <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label="Structure overview map">
           <g transform={`scale(${miniScale})`}>
             {nodes.filter((node) => node.containerFrame).map((node) => <rect key={`mini-frame-${node.path}`} x={node.containerFrame.x} y={node.containerFrame.y} width={node.containerFrame.width} height={node.containerFrame.height} className="mini-frame" />)}
@@ -332,7 +334,7 @@ function StructureDiagram({
             <rect x={miniViewport.x / miniScale} y={miniViewport.y / miniScale} width={miniViewport.width / miniScale} height={miniViewport.height / miniScale} className="mini-viewport" />
           </g>
         </svg>
-      </button>
+      </button>}
     </div>
   );
 }

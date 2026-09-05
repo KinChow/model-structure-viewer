@@ -76,6 +76,7 @@ function ArchitectureTab({
   language = "zh",
   compactControls = false,
 }) {
+  const english = language === "en";
   const [internalPhase, setInternalPhase] = useState("prefill");
   const phase = activePhase || internalPhase;
   const [internalChipId, setInternalChipId] = useState(chips[0]?.id || "");
@@ -242,7 +243,7 @@ function ArchitectureTab({
         <h2>
           {ui.architecture}
           {searchActive && (
-            <span className="hit-count inline"> · {hitCount} match{hitCount === 1 ? "" : "es"}</span>
+            <span className="hit-count inline"> · {english ? `${hitCount} match${hitCount === 1 ? "" : "es"}` : `${hitCount} 个匹配`}</span>
           )}
         </h2>
         <div className="toolbar-actions">
@@ -300,12 +301,12 @@ function ArchitectureTab({
         </div>
       </div>
       <div className="diagram-lens-status" aria-label="Active Cost Lens">
-        <span className="lens-status-mode">{activeMode === "pd" ? "PD" : "Centralized"}</span>
+        <span className="lens-status-mode">{activeMode === "pd" ? "PD" : english ? "Centralized" : "集中式"}</span>
         <span>{chip?.name || "Unknown GPU"}</span>
         <span>{phase}</span>
-        <span>{activeNodes?.[activeMode === "pd" ? phase : "centralized"] || 1} {activeNodes?.[activeMode === "pd" ? phase : "centralized"] === 1 ? "node" : "nodes"} × {gpusPerNode} GPU</span>
+        <span>{activeNodes?.[activeMode === "pd" ? phase : "centralized"] || 1} {activeNodes?.[activeMode === "pd" ? phase : "centralized"] === 1 ? (english ? "node" : "节点") : (english ? "nodes" : "节点")} × {gpusPerNode} GPU</span>
         <span>TP{plan.tp} / PP{plan.pp || 1} / EP{plan.ep} / DP{plan.dp || 1}</span>
-        <span>Cost Lens: {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</span>
+        <span>{english ? "Cost Lens" : "成本 Lens"}: {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</span>
       </div>
       <div className="diagram-legend" aria-label={language === "en" ? "Node type legend" : "节点类型图例"}>{[["model", language === "en" ? "Container" : "容器"], ["embedding", "Embedding"], ["attention", "Attention"], ["mlp", "MLP / MoE"], ["output", language === "en" ? "Output" : "输出"]].map(([kind, label]) => <span key={kind}><i className={`legend-dot ${kind}`} />{label}</span>)}</div>
       {formulaLinks.length > 0 && <div className={`formula-strip${formulaOpen ? " is-open" : ""}`} aria-label={language === "en" ? "Formula index" : "公式索引"}>

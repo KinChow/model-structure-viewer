@@ -28,7 +28,8 @@ function parameterTotalForStructure(structure) {
   const reported = structure?.summary?.parameters_total;
   if (reported != null) return { value: reported, derived: false };
   if (!structure?.extra_config) return { value: null, derived: false };
-  return { value: derivedWeightParameters(normalizeConfig(structure.extra_config)), derived: true };
+  const derived = derivedWeightParameters(normalizeConfig(structure.extra_config));
+  return { value: derived > 0 ? derived : null, derived: derived > 0 };
 }
 
 function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath, parameterTotal }) {

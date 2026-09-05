@@ -20,9 +20,10 @@ function dtypeBreakdown(byDtype) {
 function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   const summary = structure?.summary || {};
   const status = structureStatus(structure);
-  const derivedParameters = summary.parameters_total == null && structure?.extra_config
+  const derivedCandidate = summary.parameters_total == null && structure?.extra_config
     ? derivedWeightParameters(normalizeConfig(structure.extra_config))
     : null;
+  const derivedParameters = derivedCandidate > 0 ? derivedCandidate : null;
   const parameterTotal = summary.parameters_total ?? derivedParameters;
   const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype) || (derivedParameters != null ? (language === "en" ? "derived from model config" : "由模型配置推导") : undefined);
   const modelId = structure?.source?.model_id || "";

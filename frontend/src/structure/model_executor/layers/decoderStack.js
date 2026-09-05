@@ -21,7 +21,7 @@ export function decoderStackNetwork(id, normalized, options = {}) {
       layerKind: range.kind,
       attentionKind,
     });
-    layer.name = `${range.start} (DecoderLayer)${repeat > 1 ? ` x${repeat}` : ""}`;
+    layer.name = `${range.start} (DecoderLayer)`;
     layer.type = "layer-group";
     layer.repeat = repeat;
     layer.attributes = {

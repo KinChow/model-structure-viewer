@@ -78,6 +78,15 @@ export async function layoutGraphWithElk(graph) {
     : { id: "__graph_root__", layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT" }, children: [] };
 
   const result = await elk.layout(layoutRoot);
+  // ELK centers short siblings against a large expanded compound node. That
+  // is technically valid, but it pushes embedding/norm/head far below the
+  // container headers and makes the top-level execution chain look broken.
+  // Keep the root pipeline on one baseline; nested containers retain ELK's
+  // own placement.
+  if (result.id === "root" && result.children?.length) {
+    const topLevelY = Math.min(...result.children.map((child) => child.y || 0));
+    for (const child of result.children) child.y = topLevelY;
+  }
   const positions = new Map();
   const routedEdges = new Map();
   const groupFrames = [];

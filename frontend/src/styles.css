@@ -1209,6 +1209,15 @@ label {
 .theme-light .formula-strip-active { color: #607184; }
 @media (min-width: 961px) {
   .detail-page .diagram-frame { height: clamp(470px, calc(100vh - 258px), 720px); }
+  .detail-page .detail-cost-toggle {
+    position: fixed;
+    left: max(24px, calc((100vw - 1500px) / 2 + 24px));
+    right: max(368px, calc((100vw - 1500px) / 2 + 368px));
+    bottom: 12px;
+    z-index: 7;
+    margin-bottom: 0;
+  }
+  .detail-page .detail-cost-panel { margin-bottom: 64px; }
 }
 .detail-page .formula-section { border-color: #2a3545; }
 .detail-page .formula-section code { color: #f2c27b; }

@@ -176,4 +176,62 @@ test("adds readable tensor shapes to modules and operators", () => {
   const rope = attention.children.find((node) => node.name === "rotary position embedding");
   assert.equal(rope.attributes.input_shape, "[batch, sequence, attention heads=8, head dimension=256], [batch, sequence, key value heads=2, head dimension=256]");
   assert.equal(rope.attributes.position_shape, "[batch, sequence]");
+  const scores = attention.children.find((node) => node.name === "attention scores");
+  assert.equal(scores.attributes.input_shape, "[batch, sequence, attention heads=8, head dimension=256], [batch, sequence, key value heads=2, head dimension=256]");
+  assert.equal(scores.attributes.output_shape, "[batch, attention heads, query sequence, key sequence]");
+  assert.equal(scores.attributes.formula, "S = Q K^T / sqrt(d)");
+  assert.deepEqual(scores.attributes.inputs, ["Q", "K"]);
+  const weighted = attention.children.find((node) => node.name === "weighted value");
+  assert.equal(weighted.attributes.input_shape, "[batch, attention heads, query sequence, key sequence], [batch, sequence, key value heads=2, value head dimension=256]");
+  assert.equal(weighted.attributes.output_shape, "[batch, sequence, attention heads=8, value head dimension=256]");
+  assert.equal(weighted.attributes.formula, "O = P V");
+  assert.deepEqual(weighted.attributes.inputs, ["probabilities", "V"]);
+});
+
+test("multi-input MLP and MoE operators expose complete shape flows", () => {
+  const denseNormalized = normalizeConfig({
+    model_type: "qwen3",
+    architectures: ["Qwen3ForCausalLM"],
+    num_hidden_layers: 1,
+    hidden_size: 1024,
+    num_attention_heads: 8,
+    num_key_value_heads: 2,
+    head_dim: 128,
+    intermediate_size: 4096,
+    vocab_size: 32000,
+  });
+  const denseResolved = resolveArchitecture(denseNormalized, { modelId: "Qwen/Qwen3-1B" });
+  const denseNetwork = buildNetwork(denseResolved, denseNormalized);
+  const denseStructure = materializeModelStructure(createStructureIr({ network: denseNetwork, normalized: denseNormalized, resolved: denseResolved }));
+  const denseLayer = denseStructure.root.children.find((node) => node.name === "Decoder Layers").children[0];
+  const mlp = denseLayer.children.find((node) => node.type === "mlp");
+  const swiglu = mlp.children.find((node) => node.name === "SwiGLU activation");
+  assert.match(swiglu.attributes.input_shape, /^\[.*\], \[.*\]$/);
+  assert.ok(swiglu.attributes.output_shape);
+
+  const moeNormalized = normalizeConfig({
+    model_type: "qwen3_moe",
+    architectures: ["Qwen3MoeForCausalLM"],
+    num_hidden_layers: 1,
+    hidden_size: 1024,
+    num_attention_heads: 8,
+    num_key_value_heads: 2,
+    head_dim: 128,
+    intermediate_size: 4096,
+    moe_intermediate_size: 2048,
+    n_routed_experts: 16,
+    num_experts_per_tok: 2,
+    vocab_size: 32000,
+  });
+  const moeResolved = resolveArchitecture(moeNormalized, { modelId: "Qwen/Qwen3-MoE" });
+  const moeNetwork = buildNetwork(moeResolved, moeNormalized);
+  const moeStructure = materializeModelStructure(createStructureIr({ network: moeNetwork, normalized: moeNormalized, resolved: moeResolved }));
+  const moeLayer = moeStructure.root.children.find((node) => node.name === "Decoder Layers").children[0];
+  const moe = moeLayer.children.find((node) => node.type === "moe");
+  const dispatch = moe.children.find((node) => node.name === "expert dispatch");
+  const combine = moe.children.find((node) => node.name === "expert combine");
+  assert.match(dispatch.attributes.input_shape, /^\[.*\], \[.*\]$/);
+  assert.match(combine.attributes.input_shape, /^\[.*\], \[.*\]$/);
+  assert.ok(dispatch.attributes.output_shape);
+  assert.ok(combine.attributes.output_shape);
 });

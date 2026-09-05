@@ -108,7 +108,7 @@ function StructureDiagram({
   }, [baseGraph]);
   const { nodes, edges, containerFrames } = graph;
   const renderEdges = useMemo(
-    () => edges.filter((edge) => edge.kind !== "structure" || edge.source === "root"),
+    () => edges.filter((edge) => edge.kind !== "structure" || edge.source === "root" || edge.evidence === "module-order"),
     [edges]
   );
   const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
@@ -464,7 +464,7 @@ function StructureDiagram({
                         data-edge-id={edge.id}
                         d={pathData}
                         fill="none"
-                        className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${edge.evidence === "module-order" ? " mainflow" : ""}${related ? " related" : ""}${searchRelated ? "" : " search-dimmed"}`}
+                      className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${edge.evidence === "module-order" ? " module-order" : ""}${edge.evidence === "module-order" && edge.kind === "dataflow" ? " mainflow" : ""}${related ? " related" : ""}${searchRelated ? "" : " search-dimmed"}`}
                         stroke="var(--diagram-arrow)"
                         strokeWidth={related ? "2.8" : edgeStrokeWidth(edge, node)}
                         markerEnd={edge.kind === "dataflow" ? `url(#${flowMarkerId})` : undefined}

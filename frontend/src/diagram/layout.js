@@ -105,6 +105,16 @@ export function layoutGraph(root, expandedGroups) {
     target,
     kind: "structure",
   })));
+  const moduleOrderEdges = items.flatMap((item) => {
+    const children = item.childItems?.filter((child) => child.node?.type !== "operator") || [];
+    return children.slice(0, -1).map((source, index) => ({
+      id: `${source.path}~${children[index + 1].path}`,
+      source: source.path,
+      target: children[index + 1].path,
+      kind: "structure",
+      evidence: "module-order",
+    }));
+  });
   const dataflowEdges = items.flatMap((item) => {
     const operators = item.childItems?.filter((child) => child.node?.type === "operator") || [];
     const edges = [];
@@ -137,7 +147,7 @@ export function layoutGraph(root, expandedGroups) {
     kind: "dataflow",
     evidence: "module-order",
   }));
-  const edges = [...structureEdges, ...dataflowEdges, ...stageFlowEdges];
+  const edges = [...structureEdges, ...moduleOrderEdges, ...dataflowEdges, ...stageFlowEdges];
   // Keep the synchronous state graph-first while ELK is loading or unavailable.
   // Top-level modules form columns; their visible operators stack inside each column.
   const moduleIndex = new Map(topLevelPaths.map((path, index) => [path, index]));

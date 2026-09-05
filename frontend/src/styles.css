@@ -442,13 +442,18 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-edge.dataflow { cursor: pointer; }
 .diagram-edge.structure { stroke: #8291a2; stroke-dasharray: 3 4; opacity: .22; }
 .diagram-edge.structure.related { stroke: #7fa9c8; opacity: .7; }
-.diagram-edge.dataflow { stroke: #d08a3a; stroke-dasharray: 7 4; opacity: .9; }
+.diagram-edge.dataflow { stroke: #d08a3a; stroke-dasharray: 7 4; opacity: .9; animation: diagram-flow 1.35s linear infinite; }
 .diagram-edge.dataflow.mainflow { stroke: #f4ab52; stroke-dasharray: none; opacity: 1; }
+.diagram-edge.dataflow.mainflow { stroke-dasharray: 11 8; }
 .diagram-edge.dataflow.related { stroke: #f4ab52; opacity: 1; }
+.diagram-edge.structure.module-order { stroke: #91a0ae; stroke-dasharray: none; opacity: .62; }
+.diagram-edge.structure.module-order.related { stroke: #c0ccd7; opacity: .95; }
 .diagram-edge.search-dimmed { opacity: .08; }
 .detail-page.theme-light .diagram-edge.dataflow { stroke: #b86f20; }
 .detail-page.theme-light .diagram-edge.dataflow.mainflow { stroke: #a9621d; }
 .detail-page.theme-light .diagram-edge.dataflow.related { stroke: #a9621d; }
+@keyframes diagram-flow { to { stroke-dashoffset: -22; } }
+@media (prefers-reduced-motion: reduce) { .diagram-edge.dataflow { animation: none; } }
 
 .diagram-container-frame { pointer-events: none; }
 .diagram-stage-bands { pointer-events: none; }

@@ -15,7 +15,7 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
     ],
   }, new Set(["root", "root.1"]));
 
-  assert.deepEqual(graph.edges.filter((edge) => edge.kind === "structure").map(({ source, target }) => [source, target]), [
+  assert.deepEqual(graph.edges.filter((edge) => edge.kind === "structure" && !edge.evidence).map(({ source, target }) => [source, target]), [
     ["root", "root.0"],
     ["root", "root.1"],
     ["root.1", "root.1.0"],
@@ -23,7 +23,7 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
   assert.equal(graph.nodes.find((node) => node.path === "root.1").children, undefined);
   assert.equal(graph.nodes.find((node) => node.path === "root.0").stage, "input");
   assert.equal(graph.nodes.find((node) => node.path === "root.1.0").stage, "decoder");
-  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "module-order").map(({ source, target }) => [source, target]), [["root.0", "root.1"]]);
+  assert.deepEqual(graph.edges.filter((edge) => edge.kind === "structure" && edge.evidence === "module-order").map(({ source, target }) => [source, target]), [["root.0", "root.1"]]);
   assert.ok(graph.nodes.find((node) => node.path === "root.0").x < graph.nodes.find((node) => node.path === "root.1").x);
   assert.equal(graph.nodes.find((node) => node.path === "root.1").x, graph.nodes.find((node) => node.path === "root.1.0").x);
   assert.deepEqual(graph.containerFrames, []);

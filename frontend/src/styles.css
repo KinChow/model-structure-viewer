@@ -356,6 +356,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .mini-edge { fill: none; stroke: rgba(125,145,165,.52); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
 .mini-edge.dataflow { stroke: rgba(208,138,58,.7); stroke-dasharray: 3 2; }
 .mini-edge.mainflow { stroke: rgba(244,171,82,.95); stroke-width: 1.8; stroke-dasharray: none; }
+.mini-edge.related { stroke: #f4ab52; stroke-width: 2.4; opacity: 1; }
 .detail-page.theme-light .mini-edge { stroke: rgba(93,117,139,.5); }
 .detail-page.theme-light .mini-edge.dataflow { stroke: rgba(184,111,32,.72); }
 .detail-page.theme-light .mini-edge.mainflow { stroke: rgba(169,98,29,.9); }

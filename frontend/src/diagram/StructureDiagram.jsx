@@ -557,7 +557,10 @@ function StructureDiagram({
               const source = nodesByPath.get(edge.source);
               const target = nodesByPath.get(edge.target);
               if (!source || !target) return null;
-              return <path key={`mini-edge-${edge.id}`} d={edgePath(edge, source, target)} className={`mini-edge${edge.kind === "dataflow" ? " dataflow" : " structure"}${edge.evidence === "module-order" ? " mainflow" : ""}`} />;
+              const related = activeRelationPath && (edge.kind === "dataflow"
+                ? relatedDataflowEdges.has(edge.id)
+                : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath));
+              return <path key={`mini-edge-${edge.id}`} d={edgePath(edge, source, target)} className={`mini-edge${edge.kind === "dataflow" ? " dataflow" : " structure"}${edge.evidence === "module-order" ? " mainflow" : ""}${related ? " related" : ""}`} />;
             })}
             {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}${selectedPath === node.path ? " selected" : ""}${selectedPath && selectedPath.startsWith(`${node.path}.`) ? " ancestor" : ""}`} />)}
             <rect x={miniViewport.x / miniScale} y={miniViewport.y / miniScale} width={miniViewport.width / miniScale} height={miniViewport.height / miniScale} className="mini-viewport" />

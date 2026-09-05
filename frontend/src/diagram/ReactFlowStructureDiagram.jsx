@@ -59,6 +59,25 @@ function nodeGeometry(node) {
   };
 }
 
+function absoluteNodeBox(node, getNode) {
+  let x = node.position?.x || 0;
+  let y = node.position?.y || 0;
+  let parentId = node.parentId;
+  while (parentId) {
+    const parent = getNode(parentId);
+    if (!parent) break;
+    x += parent.position?.x || 0;
+    y += parent.position?.y || 0;
+    parentId = parent.parentId;
+  }
+  return {
+    x,
+    y,
+    width: node.measured?.width || node.width || 0,
+    height: node.measured?.height || node.height || 0,
+  };
+}
+
 function MsvNode({ data, selected }) {
   const { node, english, showGroupToggle, onSelect, onToggle, onHover, nodeLens, activeLenses, activeRelationPath, matched, searchActive, comparisonPaths } = data;
   const verticalFlow = node.depth > 1;
@@ -168,7 +187,7 @@ function MsvEdge({ source, target, markerEnd, style, data }) {
 }
 
 function ReactFlowCanvas({ graph, props }) {
-  const { fitView, setCenter, setViewport, getNode, getViewport, zoomTo } = useReactFlow();
+  const { fitBounds, fitView, setCenter, setViewport, getNode, getNodes, getViewport, zoomTo } = useReactFlow();
   const lastZoom = useRef(props.zoom);
   useEffect(() => {
     if (!props.scrollSync?.group || !props.scrollSyncId) return undefined;
@@ -272,22 +291,34 @@ function ReactFlowCanvas({ graph, props }) {
       const isFrame = graph.containerFrames.some((frame) => frame.id === props.selectedPath);
       const node = getNode(isFrame ? `frame-${props.selectedPath}` : props.selectedPath);
       if (!node) return;
-      let absoluteX = node.internals?.positionAbsolute?.x ?? node.position.x;
-      let absoluteY = node.internals?.positionAbsolute?.y ?? node.position.y;
-      if (!node.internals?.positionAbsolute) {
-        let parentId = node.parentId;
-        while (parentId) {
-          const parent = getNode(parentId);
-          if (!parent) break;
-          absoluteX += parent.position.x;
-          absoluteY += parent.position.y;
-          parentId = parent.parentId;
-        }
+      // Node positions are relative inside compound parents. Reconstruct the
+      // absolute point from the parent chain instead of trusting a measured
+      // absolute cache, which can still describe the previous layout during
+      // an expand/collapse transition.
+      let absoluteX = node.position.x;
+      let absoluteY = node.position.y;
+      let parentId = node.parentId;
+      while (parentId) {
+        const parent = getNode(parentId);
+        if (!parent) break;
+        absoluteX += parent.position.x;
+        absoluteY += parent.position.y;
+        parentId = parent.parentId;
+      }
+      const siblings = getNodes().filter((candidate) => candidate.parentId === node.parentId && candidate.type !== "stageBand");
+      if (siblings.length > 1) {
+        const boxes = siblings.map((candidate) => absoluteNodeBox(candidate, getNode));
+        const left = Math.min(...boxes.map((box) => box.x));
+        const top = Math.min(...boxes.map((box) => box.y));
+        const right = Math.max(...boxes.map((box) => box.x + box.width));
+        const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+        void fitBounds({ x: left, y: top, width: right - left, height: bottom - top }, { padding: 0.16, duration: 260 });
+        return;
       }
       setCenter(absoluteX + (node.measured?.width || node.width || 220) / 2, absoluteY + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
     }, 360);
     return () => window.clearTimeout(timer);
-  }, [props.selectedPath, graph, getNode, setCenter]);
+  }, [props.selectedPath, graph, fitBounds, getNode, getNodes, setCenter]);
   function handleMove(_, viewport) {
     const group = props.scrollSync?.group;
     if (!group || !props.scrollSyncId || group.busy) return;

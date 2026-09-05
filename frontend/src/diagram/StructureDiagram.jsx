@@ -337,6 +337,14 @@ function StructureDiagram({
     if (node.isCollapsible && !node.isExpanded) onToggleGroup?.(node.path);
   }
 
+  function handleGraphPointerDown(event) {
+    const edgeTarget = event.target.closest?.("[data-edge-target]")?.getAttribute("data-edge-target");
+    if (!edgeTarget) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onSelectNode?.(edgeTarget);
+  }
+
   return (
     <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
       {selectedNode && <div className="diagram-context-bar" role="status">
@@ -367,6 +375,7 @@ function StructureDiagram({
             height={height}
             role="img"
             aria-label={english ? "Model architecture diagram" : "模型架构图"}
+            onPointerDownCapture={handleGraphPointerDown}
           >
             <defs>
               <marker id={markerId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
@@ -419,8 +428,7 @@ function StructureDiagram({
                         stroke="transparent"
                         strokeWidth="12"
                         pointerEvents="stroke"
-                        onPointerDown={selectDataflowTarget}
-                        onClick={selectDataflowTarget}
+                        data-edge-target={edge.target}
                       />}
                       <path
                         data-edge-id={edge.id}

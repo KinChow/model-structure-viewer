@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
 import { fitDiagramViewport, sameDiagramViewport } from "./viewport";
-import { isEdgeRelated, isPathRelated } from "./hover";
+import { isGraphEdgeRelated, isPathRelated } from "./hover.js";
 
 function formatMetric(seconds) {
   if (!Number.isFinite(seconds)) return null;
@@ -297,7 +297,9 @@ function StructureDiagram({
                   const node = nodesByPath.get(edge.source);
                   const target = nodesByPath.get(edge.target);
                   if (!node || !target) return null;
-                  const related = activeRelationPath && isEdgeRelated(edge.source, edge.target, activeRelationPath);
+                  const related = activeRelationPath && (edge.kind === "dataflow"
+                    ? edge.source === activeRelationPath || edge.target === activeRelationPath
+                    : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath));
                   return (
                     <path
                       key={edge.id}

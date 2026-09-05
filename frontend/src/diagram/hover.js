@@ -8,3 +8,9 @@ export function isPathRelated(path, hoveredPath) {
 export function isEdgeRelated(sourcePath, targetPath, hoveredPath) {
   return isPathRelated(sourcePath, hoveredPath) || isPathRelated(targetPath, hoveredPath);
 }
+
+export function isGraphEdgeRelated(sourcePath, targetPath, focusedPath) {
+  return isEdgeRelated(sourcePath, targetPath, focusedPath)
+    || sourcePath === focusedPath
+    || targetPath === focusedPath;
+}

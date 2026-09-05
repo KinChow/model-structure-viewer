@@ -293,7 +293,7 @@ function StructureDiagram({
   }
 
   function startPan(event) {
-    if (event.target.closest("button, a, input, select, textarea")) return;
+    if (event.target.closest?.("button, a, input, select, textarea, g[data-node-path], [data-edge-target]")) return;
     const scroll = scrollRef.current;
     if (!scroll) return;
     panRef.current = { active: true, moved: false, x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop };
@@ -317,6 +317,11 @@ function StructureDiagram({
     const scroll = scrollRef.current;
     if (scroll?.hasPointerCapture?.(event.pointerId)) scroll.releasePointerCapture(event.pointerId);
     panRef.current.active = false;
+  }
+
+  function selectNodeOnPointerUp(event, node) {
+    if (panRef.current.moved || event.target.closest?.("button, a, input, select, textarea")) return;
+    selectNode(node);
   }
 
   function preventClickAfterPan(event) {
@@ -526,6 +531,7 @@ function StructureDiagram({
                       setHoveredPath(null);
                       onHoverPathChange?.(null);
                     }}
+                    onPointerUp={(event) => selectNodeOnPointerUp(event, node)}
                     onClick={() => selectNode(node)}
                     onKeyDown={(event) => {
                       if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button, a, input, select, textarea")) {

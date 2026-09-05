@@ -93,7 +93,7 @@ function MsvNode({ data, selected }) {
         {node.repeat && <span className="diagram-repeat">×{node.repeat}</span>}
         {node.node?.attributes?.range && <span className="diagram-range">{node.node.attributes.range}</span>}
         {node.node?.attributes?.formula_id && <span className="diagram-formula">{node.node.attributes.formula_id}</span>}
-        {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {node.node.children.length === 1 ? "child" : "children"}</span>}
+        {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {english ? (node.node.children.length === 1 ? "child" : "children") : "个子模块"}</span>}
         {lensEnabled && nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
       </div>
       {!isOpenGroup && node.metaLines.length > 0 && <ul className="rf-node-meta">{node.metaLines.map((line) => <li key={line} title={line}>{line}</li>)}</ul>}
@@ -139,10 +139,11 @@ function ReactFlowCanvas({ graph, props }) {
   };
   const relatedDataflowEdges = useMemo(() => relatedDataflowEdgeIds(graph.edges, activeRelationPath), [graph.edges, activeRelationPath]);
   const nodes = useMemo(() => {
+    const stageLabels = props.english ? { input: "Input", representation: "Representation", decoder: "Decoder", output: "Output" } : { input: "输入", representation: "表示层", decoder: "解码器", output: "输出" };
     const stageBands = ["input", "representation", "decoder", "output"].flatMap((stage) => {
       const members = graph.nodes.filter((node) => node.stage === stage);
       if (!members.length) return [];
-      return [{ id: `stage-${stage}`, type: "stageBand", position: { x: Math.min(...members.map((n) => n.x)) - 24, y: 0 }, style: { width: Math.max(...members.map((n) => n.x + n.width)) - Math.min(...members.map((n) => n.x)) + 48, height: Math.max(...graph.nodes.map((n) => n.y + n.height)) + 48 }, data: { stage, label: `${stage[0].toUpperCase()}${stage.slice(1)} · ${members.length} node${members.length === 1 ? "" : "s"}` }, selectable: false, draggable: false, connectable: false, zIndex: -20 }];
+      return [{ id: `stage-${stage}`, type: "stageBand", position: { x: Math.min(...members.map((n) => n.x)) - 24, y: 0 }, style: { width: Math.max(...members.map((n) => n.x + n.width)) - Math.min(...members.map((n) => n.x)) + 48, height: Math.max(...graph.nodes.map((n) => n.y + n.height)) + 48 }, data: { stage, label: `${stageLabels[stage]} · ${members.length} ${props.english ? `node${members.length === 1 ? "" : "s"}` : "个节点"}` }, selectable: false, draggable: false, connectable: false, zIndex: -20 }];
     });
     const frames = graph.containerFrames.map((frame) => ({ id: `frame-${frame.id}`, type: "groupFrame", position: { x: frame.x, y: frame.y }, style: { width: frame.width, height: frame.height }, data: frame, selectable: false, draggable: false, connectable: false, zIndex: -10 }));
     const modelNodes = graph.nodes.map((node) => ({ id: node.path, type: "msvNode", position: { x: node.x, y: node.y }, style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height }, data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, onHover: props.onHoverPathChange, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths }, selected: props.selectedPath === node.path, draggable: false }));

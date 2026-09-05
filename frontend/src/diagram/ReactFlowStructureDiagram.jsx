@@ -229,21 +229,26 @@ function ReactFlowCanvas({ graph, props }) {
   }, [props.zoom, getViewport, zoomTo]);
   useEffect(() => {
     if (!props.selectedPath) return;
-    const node = getNode(props.selectedPath);
-    if (!node) return;
-    let absoluteX = node.position.x;
-    let absoluteY = node.position.y;
-    let parentId = node.parentId;
-    while (parentId) {
-      const parent = getNode(parentId);
-      if (!parent) break;
-      absoluteX += parent.position.x;
-      absoluteY += parent.position.y;
-      parentId = parent.parentId;
-    }
     const depth = props.selectedPath.split(".").length - 1;
-    setCenter(absoluteX + (node.measured?.width || node.width || 220) / 2, absoluteY + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
-  }, [props.selectedPath, getNode, setCenter]);
+    const timer = window.setTimeout(() => {
+      const node = getNode(props.selectedPath);
+      if (!node) return;
+      let absoluteX = node.internals?.positionAbsolute?.x ?? node.position.x;
+      let absoluteY = node.internals?.positionAbsolute?.y ?? node.position.y;
+      if (!node.internals?.positionAbsolute) {
+        let parentId = node.parentId;
+        while (parentId) {
+          const parent = getNode(parentId);
+          if (!parent) break;
+          absoluteX += parent.position.x;
+          absoluteY += parent.position.y;
+          parentId = parent.parentId;
+        }
+      }
+      setCenter(absoluteX + (node.measured?.width || node.width || 220) / 2, absoluteY + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
+    }, 360);
+    return () => window.clearTimeout(timer);
+  }, [props.selectedPath, graph.nodes.length, getNode, setCenter]);
   function handleMove(_, viewport) {
     const group = props.scrollSync?.group;
     if (!group || !props.scrollSyncId || group.busy) return;

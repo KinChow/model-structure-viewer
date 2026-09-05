@@ -105,13 +105,17 @@ export function layoutGraph(root, expandedGroups) {
     target,
     kind: "structure",
   })));
+  const orderedPairs = new Set(items.flatMap((item) => {
+    const children = item.childItems || [];
+    return children.slice(0, -1).map((source, index) => `${source.path}=>${children[index + 1].path}`);
+  }));
   const moduleOrderEdges = items.flatMap((item) => {
-    const children = item.childItems?.filter((child) => child.node?.type !== "operator") || [];
+    const children = item.childItems || [];
     return children.slice(0, -1).map((source, index) => ({
       id: `${source.path}~${children[index + 1].path}`,
       source: source.path,
       target: children[index + 1].path,
-      kind: "structure",
+      kind: "dataflow",
       evidence: "module-order",
     }));
   });
@@ -131,6 +135,7 @@ export function layoutGraph(root, expandedGroups) {
           source: source.path,
           target: target.path,
           kind: "dataflow",
+          evidence: orderedPairs.has(`${source.path}=>${target.path}`) ? "module-order" : undefined,
         });
       }
     });
@@ -140,14 +145,9 @@ export function layoutGraph(root, expandedGroups) {
     .filter((item) => item.path.split(".").length === 2)
     .sort((left, right) => Number(left.path.split(".")[1]) - Number(right.path.split(".")[1]))
     .map((item) => item.path);
-  const stageFlowEdges = topLevelPaths.slice(0, -1).map((source, index) => ({
-    id: `${source}~>${topLevelPaths[index + 1]}`,
-    source,
-    target: topLevelPaths[index + 1],
-    kind: "dataflow",
-    evidence: "module-order",
-  }));
-  const edges = [...structureEdges, ...moduleOrderEdges, ...dataflowEdges, ...stageFlowEdges];
+  const dataflowPairs = new Set(dataflowEdges.map((edge) => `${edge.source}=>${edge.target}`));
+  const missingOrderEdges = moduleOrderEdges.filter((edge) => !dataflowPairs.has(`${edge.source}=>${edge.target}`));
+  const edges = [...structureEdges, ...dataflowEdges, ...missingOrderEdges];
   // Keep the synchronous state graph-first while ELK is loading or unavailable.
   // Top-level modules form columns; their visible operators stack inside each column.
   const moduleIndex = new Map(topLevelPaths.map((path, index) => [path, index]));

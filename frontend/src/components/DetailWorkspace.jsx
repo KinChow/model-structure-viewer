@@ -126,7 +126,7 @@ export default function DetailWorkspace({
     : costFitStatus?.fit ? "fit" : costFitStatus?.known ? "no-fit" : "unknown";
   const deploymentSummary = activeMode === "pd"
     ? `PD · ${activeMachineName} · P ${activeNodes.prefill || 1}×${activeGpusPerNode} GPU · D ${activeNodes.decode || 1}×${activeGpusPerNode} GPU · ${activePhase}`
-    : `${activeMachineName} · ${activePhase} · ${activeNodeCount}×${activeGpusPerNode} GPU`;
+    : `${activeMachineName} · ${activeNodeCount}×${activeGpusPerNode} GPU`;
   const changeActivePhase = (next) => { setCostFitStatus(null); setActivePhase(next); };
   const changeActiveMode = (next) => { setCostFitStatus(null); setActiveMode(next); };
   const selectSearchResult = (path) => {

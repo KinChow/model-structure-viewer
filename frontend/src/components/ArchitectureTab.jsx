@@ -281,7 +281,7 @@ function ArchitectureTab({
           {advancedOpen && <div className="toolbar-analysis" aria-label={ui.analysis}>
           {!compactControls && <label className="lens-control">GPU<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
           {!compactControls && <>
-            <label className="lens-control">{ui.phase}<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
+            {activeMode === "pd" && <label className="lens-control">{ui.phase}<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>}
             <label className="lens-control">TP<input type="number" min="1" value={plan.tp} onChange={(event) => updatePlan({ ...plan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>
             <label className="lens-control">EP<input type="number" min="1" value={plan.ep} onChange={(event) => updatePlan({ ...plan, ep: Math.max(1, Number(event.target.value) || 1) })} /></label>
             <label className="lens-control">{ui.attention}<select value={plan.attnMode} onChange={(event) => updatePlan({ ...plan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>
@@ -328,7 +328,7 @@ function ArchitectureTab({
       <div className="diagram-lens-status" aria-label="Active Cost Lens">
         <span className="lens-status-mode">{activeMode === "pd" ? "PD" : english ? "Centralized" : "集中式"}</span>
         <span>{chip?.name || "Unknown GPU"}</span>
-        <span>{phase}</span>
+        {activeMode === "pd" && <span>{phase}</span>}
         <span>{activeNodes?.[activeMode === "pd" ? phase : "centralized"] || 1} {activeNodes?.[activeMode === "pd" ? phase : "centralized"] === 1 ? (english ? "node" : "节点") : (english ? "nodes" : "节点")} × {gpusPerNode} GPU</span>
         <span>TP{plan.tp} / PP{plan.pp || 1} / EP{plan.ep} / DP{plan.dp || 1}</span>
         <span>{english ? "Cost Lens" : "成本 Lens"}: {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</span>

@@ -10,8 +10,8 @@ function modelName(modelId) {
   return String(modelId || "").split("/").pop() || modelId;
 }
 
-function EntryButton({ active, children, onClick }) {
-  return <button type="button" className={active ? "entry-mode active" : "entry-mode"} aria-pressed={active} onClick={onClick}>{children}</button>;
+function EntryButton({ active, children, onClick, disabled = false }) {
+  return <button type="button" className={active ? "entry-mode active" : "entry-mode"} aria-pressed={active} disabled={disabled} onClick={onClick}>{children}</button>;
 }
 
 export default function ModelEntry({
@@ -109,8 +109,8 @@ export default function ModelEntry({
       </section>
       <section className="entry-box" aria-label="Model entry">
         <div className="entry-modes">
-          <EntryButton active={mode === "model"} onClick={() => setMode("model")}>{t.model}</EntryButton>
-          <EntryButton active={mode === "local"} onClick={() => setMode("local")}>{t.local}</EntryButton>
+          <EntryButton active={mode === "model"} disabled={loading} onClick={() => setMode("model")}>{t.model}</EntryButton>
+          <EntryButton active={mode === "local"} disabled={loading} onClick={() => setMode("local")}>{t.local}</EntryButton>
         </div>
         {mode === "model" ? (
           <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); const id = modelId.trim(); const builtin = builtinModels.some((entry) => entry.modelId === id); onOpenModel?.(id, builtin ? "builtin" : "hf", endpoint); }}>
@@ -121,8 +121,8 @@ export default function ModelEntry({
         ) : (
           <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); if (localPath.trim()) onOpenLocalPath?.(localPath.trim()); }}>
             <input value={localPath} onChange={(event) => setLocalPath(event.target.value)} placeholder={t.localPlaceholder} aria-label="local model path" />
-            <button className="entry-secondary" type="button" onClick={() => fileRef.current?.click()}>{t.chooseFolder}</button>
-            <button className="entry-primary" type="submit" disabled={!localPath.trim()}>{t.openPath}</button>
+            <button className="entry-secondary" type="button" disabled={loading} onClick={() => fileRef.current?.click()}>{t.chooseFolder}</button>
+            <button className="entry-primary" type="submit" disabled={loading || !localPath.trim()}>{t.openPath}</button>
             <input ref={fileRef} className="visually-hidden" type="file" webkitdirectory="true" multiple tabIndex="-1" aria-hidden="true" onChange={handleFiles} />
           </form>
         )}

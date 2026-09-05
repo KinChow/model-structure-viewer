@@ -2,7 +2,14 @@ let elkPromise;
 
 function getElk() {
   if (!elkPromise) {
-    elkPromise = import("elkjs/lib/elk.bundled.js").then(({ default: Elk }) => new Elk());
+    elkPromise = (typeof Worker === "undefined"
+      ? import("elkjs/lib/elk.bundled.js")
+      : import("elkjs/lib/elk-api.js")).then(({ default: Elk }) => {
+      if (typeof Worker === "undefined") return new Elk();
+      return new Elk({
+        workerFactory: () => new Worker(new URL("elkjs/lib/elk-worker.min.js", import.meta.url), { type: "classic" }),
+      });
+    });
   }
   return elkPromise;
 }

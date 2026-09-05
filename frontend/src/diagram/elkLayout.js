@@ -73,7 +73,8 @@ export async function layoutGraphWithElk(graph) {
     const x = offsetX + (shape.x || 0);
     const y = offsetY + (shape.y || 0);
     if (shape.id !== "__graph_root__") positions.set(shape.id, { x, y });
-    if (shape.id !== "__graph_root__" && shape.children?.length && nodeByPath.has(shape.id)) {
+    if (shape.id !== "__graph_root__" && shape.children?.length && nodeByPath.has(shape.id)
+      && nodeByPath.get(shape.id).depth <= 2) {
       const node = nodeByPath.get(shape.id);
       groupFrames.push({
         id: shape.id,

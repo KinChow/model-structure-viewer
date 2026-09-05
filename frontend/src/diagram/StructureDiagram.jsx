@@ -43,6 +43,7 @@ function StructureDiagram({
   onHoverPathChange,
   showGroupToggle = true,
   activeLenses = new Set(),
+  edgeMode = "all",
   onFit,
   focusMode = false,
   onExitFocus,
@@ -292,7 +293,7 @@ function StructureDiagram({
                   <text x={frame.x + 10} y={frame.y + 15}>{frame.label}</text>
                 </g>;
               })}
-              {edges.map((edge) => {
+              {edges.filter((edge) => edgeMode === "all" || edge.kind === edgeMode).map((edge) => {
                   const node = nodesByPath.get(edge.source);
                   const target = nodesByPath.get(edge.target);
                   if (!node || !target) return null;

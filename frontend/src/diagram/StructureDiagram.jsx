@@ -495,6 +495,12 @@ function StructureDiagram({
         <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label={english ? "Structure overview map" : "结构概览图"}>
           <g transform={`scale(${miniScale})`}>
             {containerFrames.map((frame) => <rect key={`mini-frame-${frame.id}`} x={frame.x} y={frame.y} width={frame.width} height={frame.height} className="mini-frame" />)}
+            {edges.map((edge) => {
+              const source = nodesByPath.get(edge.source);
+              const target = nodesByPath.get(edge.target);
+              if (!source || !target) return null;
+              return <path key={`mini-edge-${edge.id}`} d={edgePath(edge, source, target)} className={`mini-edge${edge.kind === "dataflow" ? " dataflow" : " structure"}${edge.evidence === "module-order" ? " mainflow" : ""}`} />;
+            })}
             {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}${selectedPath === node.path ? " selected" : ""}${selectedPath && selectedPath.startsWith(`${node.path}.`) ? " ancestor" : ""}`} />)}
             <rect x={miniViewport.x / miniScale} y={miniViewport.y / miniScale} width={miniViewport.width / miniScale} height={miniViewport.height / miniScale} className="mini-viewport" />
           </g>

@@ -69,6 +69,22 @@ export function createModelArtifacts({
   };
 }
 
+/** Resolve a deferred checkpoint lookup without rebuilding the config path. */
+export async function resolveDeferredCheckpointTruth(artifacts, { fetchTruth = fetchCheckpointTruth } = {}) {
+  if (!artifacts?.deferredTruth) return artifacts;
+  const { modelId, endpoint, revision } = artifacts.deferredTruth;
+  return withRemoteTruth(
+    { config: artifacts.config, source: artifacts.source },
+    {
+      modelId,
+      endpoint,
+      revision,
+      fetchTruth,
+      configEndpoint: artifacts.configEndpoint || "built-in",
+    },
+  );
+}
+
 async function loadRemoteTruth({ modelId, endpoint, revision, fetchTruth }) {
   if (!modelId) {
     return { truth: null, status: CHECKPOINT_TRUTH_STATUS.NOT_REQUESTED, error: null };
@@ -153,6 +169,7 @@ export async function loadModelArtifacts(
     fetchHfConfig = fetchHfConfigDirect,
     fetchLocalConfig = fetchLocalConfigApi,
     fetchTruth = fetchCheckpointTruth,
+    deferCheckpointTruth = false,
   } = {},
 ) {
   if (payload.source === "config" && payload.config_json) {
@@ -171,6 +188,17 @@ export async function loadModelArtifacts(
       const modelId = data.model_id || payload.model_id;
       const endpoint = payload.endpoint || "huggingface";
       const revision = revisionForEndpoint(endpoint, payload.revision);
+      if (deferCheckpointTruth) {
+        const artifacts = createModelArtifacts({
+          config: data.config,
+          modelId,
+          revision,
+          source: data.source || "built-in config",
+          checkpointTruthStatus: CHECKPOINT_TRUTH_STATUS.NOT_REQUESTED,
+          configEndpoint: "built-in",
+        });
+        return { ...artifacts, deferredTruth: { modelId, endpoint, revision } };
+      }
       return withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, configEndpoint: "built-in" });
     } catch (error) {
       if (payload.source !== "auto") throw error;

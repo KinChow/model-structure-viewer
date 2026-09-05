@@ -176,6 +176,53 @@ test("built-in model enriches its config with remote safetensors truth", async (
   assert.equal(structure.summary.parameters_total, 32000 * 1024);
 });
 
+test("built-in config returns before deferred safetensors truth and updates in background", async () => {
+  let resolveTruth;
+  let truthRequests = 0;
+  let backgroundStructure = null;
+  const truthPromise = new Promise((resolve) => { resolveTruth = resolve; });
+  const structure = await buildStructureForPayload(
+    {
+      source: "builtin",
+      model_id: "Qwen/Qwen3.5-0.8B",
+      endpoint: "huggingface",
+      revision: "main",
+    },
+    async () => { throw new Error("structure API should not be called"); },
+    async () => { throw new Error("local config should not be called"); },
+    async () => { throw new Error("HF config should not be called"); },
+    async ({ modelId }) => ({
+      model_id: modelId,
+      source: { kind: "built-in config" },
+      config: {
+        model_type: "qwen3",
+        architectures: ["Qwen3ForCausalLM"],
+        num_hidden_layers: 1,
+        hidden_size: 1024,
+        num_attention_heads: 16,
+      },
+    }),
+    async () => {
+      truthRequests += 1;
+      return truthPromise;
+    },
+    (updated) => { backgroundStructure = updated; },
+  );
+
+  assert.equal(truthRequests, 1);
+  assert.equal(structure.source.checkpoint_truth, "not-requested");
+  assert.equal(backgroundStructure, null);
+
+  resolveTruth({
+    tensors: [{ name: "model.embed_tokens.weight", dtype: "BF16", shape: [32000, 1024] }],
+    parameterCount: { BF16: 32000 * 1024 },
+    parameterTotal: 32000 * 1024,
+  });
+  for (let attempt = 0; attempt < 10 && !backgroundStructure; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(backgroundStructure?.source.checkpoint_truth, "available");
+  assert.equal(backgroundStructure?.summary.parameters_total, 32000 * 1024);
+});
+
 test("buildStructureForPayload reads HF config then builds in frontend", async () => {
   let apiCalled = false;
   const structure = await buildStructureForPayload(

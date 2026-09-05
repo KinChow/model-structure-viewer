@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { buildStructureApi } from "../api/client.js";
 import { buildStructureFromArtifacts } from "../structure/buildStructure.js";
-import { loadModelArtifacts } from "../structure/modelArtifacts.js";
+import { loadModelArtifacts, resolveDeferredCheckpointTruth } from "../structure/modelArtifacts.js";
 
 export async function buildStructureForPayload(
   payload,
@@ -10,14 +10,24 @@ export async function buildStructureForPayload(
   fetchHfConfig,
   fetchBuiltinConfig,
   fetchTruth,
+  onBackgroundUpdate,
 ) {
   const artifacts = await loadModelArtifacts(payload, {
     fetchLocalConfig,
     fetchHfConfig,
     fetchBuiltinConfig,
     fetchTruth,
+    deferCheckpointTruth: Boolean(onBackgroundUpdate && (payload.source === "builtin" || payload.source === "auto")),
   });
-  if (artifacts) return buildStructureFromArtifacts(artifacts);
+  if (artifacts) {
+    const structure = buildStructureFromArtifacts(artifacts);
+    if (artifacts.deferredTruth) {
+      void resolveDeferredCheckpointTruth(artifacts, { fetchTruth }).then((updatedArtifacts) => {
+        onBackgroundUpdate?.(buildStructureFromArtifacts(updatedArtifacts));
+      });
+    }
+    return structure;
+  }
   return buildApi(payload);
 }
 
@@ -33,7 +43,17 @@ export function useStructure() {
     setError("");
     setLoading(true);
     try {
-      const data = await buildStructureForPayload(payload);
+      const data = await buildStructureForPayload(
+        payload,
+        buildStructureApi,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        (updated) => {
+          if (requestId === requestRef.current) setStructure(updated);
+        },
+      );
       if (requestId !== requestRef.current) return null;
       setStructure(data);
       return data;

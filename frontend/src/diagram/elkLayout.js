@@ -1,6 +1,11 @@
-import ELK from "elkjs/lib/elk.bundled.js";
+let elkPromise;
 
-const elk = new ELK();
+function getElk() {
+  if (!elkPromise) {
+    elkPromise = import("elkjs/lib/elk.bundled.js").then(({ default: Elk }) => new Elk());
+  }
+  return elkPromise;
+}
 const BASE_LAYOUT = {
   "elk.algorithm": "layered",
   "elk.layered.spacing.nodeNodeBetweenLayers": "44",
@@ -24,6 +29,7 @@ function directChildren(node, nodeByPath) {
  * internals read top-to-bottom, keeping the canvas graph-first and readable.
  */
 export async function layoutGraphWithElk(graph) {
+  const elk = await getElk();
   const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
   const directDataflow = (path) => graph.edges
     .filter((edge) => edge.kind === "dataflow" && parentPath(edge.source) === path && parentPath(edge.target) === path)

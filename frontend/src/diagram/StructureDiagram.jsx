@@ -107,6 +107,10 @@ function StructureDiagram({
     return () => { active = false; };
   }, [baseGraph]);
   const { nodes, edges, containerFrames } = graph;
+  const renderEdges = useMemo(
+    () => edges.filter((edge) => edge.kind !== "structure" || edge.source === "root"),
+    [edges]
+  );
   const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
   const selectedNode = selectedPath ? nodesByPath.get(selectedPath) : null;
   const selectedInputShape = selectedNode && formatShape(selectedNode.node?.input_shape || selectedNode.node?.attributes?.input_shape);
@@ -420,7 +424,7 @@ function StructureDiagram({
                   <text x={frame.x + 10} y={frame.y + 15}>{frame.label}</text>
                 </g>;
               })}
-              {edges.filter((edge) => edgeMode === "all" || edge.kind === edgeMode).map((edge) => {
+              {renderEdges.filter((edge) => edgeMode === "all" || edge.kind === edgeMode).map((edge) => {
                   const node = nodesByPath.get(edge.source);
                   const target = nodesByPath.get(edge.target);
                   if (!node || !target) return null;
@@ -603,7 +607,7 @@ function StructureDiagram({
         <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label={english ? "Structure overview map" : "结构概览图"}>
           <g transform={`scale(${miniScale})`}>
             {containerFrames.map((frame) => <rect key={`mini-frame-${frame.id}`} x={frame.x} y={frame.y} width={frame.width} height={frame.height} className="mini-frame" />)}
-            {edges.map((edge) => {
+            {renderEdges.map((edge) => {
               const source = nodesByPath.get(edge.source);
               const target = nodesByPath.get(edge.target);
               if (!source || !target) return null;

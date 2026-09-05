@@ -18,6 +18,15 @@ function formatBytes(bytes) {
   return `${Math.round(bytes)} B`;
 }
 
+function edgePath(edge, source, target) {
+  const section = edge.sections?.[0];
+  if (section?.startPoint && section?.endPoint) {
+    const points = [section.startPoint, ...(section.bendPoints || []), section.endPoint];
+    return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  }
+  return `M ${source.x + source.width} ${source.y + source.height / 2} C ${source.x + source.width + 36} ${source.y + source.height / 2}, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`;
+}
+
 function StructureDiagram({
   structure,
   zoom,
@@ -100,6 +109,7 @@ function StructureDiagram({
   const activeHoveredPath = externalHoveredPath ?? hoveredPath;
   const activeRelationPath = activeHoveredPath ?? selectedPath;
   const markerId = `diagram-arrow-${useId().replaceAll(":", "")}`;
+  const flowMarkerId = `${markerId}-flow`;
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -248,6 +258,9 @@ function StructureDiagram({
               <marker id={markerId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
                 <path d="M0,0 L8,4 L0,8 Z" fill="var(--diagram-arrow)" />
               </marker>
+              <marker id={flowMarkerId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#d08a3a" />
+              </marker>
             </defs>
             <g transform={contentTransform}>
               {containerFrames.sort((a, b) => nodesByPath.get(a.id).depth - nodesByPath.get(b.id).depth).map((frame) => {
@@ -265,14 +278,12 @@ function StructureDiagram({
                   return (
                     <path
                       key={edge.id}
-                      d={`M ${node.x + node.width} ${node.y + node.height / 2} C ${node.x + node.width + 36} ${
-                        node.y + node.height / 2
-                      }, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`}
+                      d={edgePath(edge, node, target)}
                       fill="none"
                       className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${related ? " related" : ""}`}
                       stroke="var(--diagram-arrow)"
                       strokeWidth={related ? "2.8" : edge.kind === "dataflow" ? "2" : "1.5"}
-                      markerEnd={`url(#${markerId})`}
+                      markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
                     />
                   );
                 })}
@@ -336,6 +347,8 @@ function StructureDiagram({
                   >
                     <title>{[node.fullName, node.path, node.repeat ? `×${node.repeat}` : null, node.node?.attributes?.formula_id].filter(Boolean).join(" · ")}</title>
                     <rect width={node.width} height={node.height} rx="10" className={classes} />
+                    <circle cx="0" cy={node.height / 2} r="3.5" className="diagram-port input" />
+                    <circle cx={node.width} cy={node.height / 2} r="3.5" className="diagram-port output" />
                     <foreignObject x="0" y="0" width={node.width} height={node.height}>
                       <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content" onMouseDown={(event) => { if (!event.target.closest("button, a, input, select, textarea")) onSelectNode?.(node.path); }} onClick={() => onSelectNode?.(node.path)}>
                         <div className="diagram-node-header">

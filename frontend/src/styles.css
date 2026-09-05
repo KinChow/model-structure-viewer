@@ -379,6 +379,12 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   filter: drop-shadow(var(--node-shadow));
   transition: opacity 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
 }
+.diagram-port { stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.diagram-port.input { fill: #f7f8fa; stroke: #7c8798; }
+.diagram-port.output { fill: #d08a3a; stroke: #fff4e4; }
+.detail-page.theme-dark .diagram-port.input { fill: #1a2029; stroke: #93a0b2; }
+.detail-page.theme-dark .diagram-port.output { fill: #d08a3a; stroke: #2a3340; }
+.detail-page.theme-light .diagram-port.output { fill: #b86f20; stroke: #fff8ee; }
 
 .diagram-group-node {
   stroke-width: 2;

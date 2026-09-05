@@ -34,7 +34,8 @@ test("ELK lays out the graph without changing stable node paths", async () => {
   const laidOut = await layoutGraphWithElk(graph);
   assert.deepEqual(laidOut.nodes.map((node) => node.path), ["root", "root.0", "root.1"]);
   assert.ok(laidOut.nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y)));
-  assert.deepEqual(laidOut.edges, graph.edges);
+  assert.deepEqual(laidOut.edges.map(({ id, source, target, kind }) => ({ id, source, target, kind })), graph.edges);
+  assert.ok(laidOut.edges.some((edge) => edge.sections.length > 0));
   assert.deepEqual(laidOut.containerFrames, []);
 });
 

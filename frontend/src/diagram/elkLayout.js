@@ -28,6 +28,7 @@ export async function layoutGraphWithElk(graph) {
   });
 
   const positions = new Map((result.children || []).map((child) => [child.id, child]));
+  const routes = new Map((result.edges || []).map((edge) => [edge.id, edge.sections || []]));
   const nodes = graph.nodes.map((node) => {
     const position = positions.get(node.path);
     return position ? { ...node, x: position.x, y: position.y } : node;
@@ -35,6 +36,7 @@ export async function layoutGraphWithElk(graph) {
   return {
     ...graph,
     nodes,
+    edges: graph.edges.map((edge) => ({ ...edge, sections: routes.get(edge.id) || [] })),
     // ELK positions all visible nodes directly; old hierarchy frames are not
     // used because they would imply a tree-shaped canvas.
     containerFrames: [],

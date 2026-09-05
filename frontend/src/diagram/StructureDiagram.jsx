@@ -284,6 +284,11 @@ function StructureDiagram({
     onZoomChange?.(zoomForWheel(zoom, event.deltaY));
   }
 
+  function selectNode(node) {
+    onSelectNode?.(node.path);
+    if (node.isCollapsible && !node.isExpanded) onToggleGroup?.(node.path);
+  }
+
   return (
     <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
       <div className="diagram-scroll" ref={scrollRef} onScroll={handleScroll} onWheel={handleWheel} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
@@ -392,11 +397,11 @@ function StructureDiagram({
                       setHoveredPath(null);
                       onHoverPathChange?.(null);
                     }}
-                    onClick={() => onSelectNode && onSelectNode(node.path)}
+                    onClick={() => selectNode(node)}
                     onKeyDown={(event) => {
                       if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button, a, input, select, textarea")) {
                         event.preventDefault();
-                        onSelectNode?.(node.path);
+                        selectNode(node);
                       }
                     }}
                   >
@@ -409,7 +414,7 @@ function StructureDiagram({
                     <circle cx="0" cy={node.height / 2} r="3.5" className="diagram-port input" />
                     <circle cx={node.width} cy={node.height / 2} r="3.5" className="diagram-port output" />
                     <foreignObject x="0" y="0" width={node.width} height={node.height}>
-                      <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content" onMouseDown={(event) => { if (!event.target.closest("button, a, input, select, textarea")) onSelectNode?.(node.path); }} onClick={() => onSelectNode?.(node.path)}>
+                      <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content" onMouseDown={(event) => { if (!event.target.closest("button, a, input, select, textarea")) selectNode(node); }} onClick={(event) => { if (!event.target.closest("button, a, input, select, textarea")) selectNode(node); }}>
                         <div className="diagram-node-header">
                           <span className="diagram-title" title={node.fullName}>
                             {node.displayName}

@@ -42,6 +42,11 @@ function formatShape(shape) {
   }
 }
 
+function parentPath(path) {
+  const index = path.lastIndexOf(".");
+  return index > 0 ? path.slice(0, index) : null;
+}
+
 function edgePathFromSections(sections) {
   const section = sections?.[0];
   if (!section?.startPoint || !section?.endPoint) return null;
@@ -103,7 +108,16 @@ function MsvNode({ data, selected }) {
 }
 
 function MsvGroupFrame({ data }) {
-  return <div className={`rf-group-frame depth-${Math.min(data.depth || 0, 4)}`} title={data.label}><strong>{data.label}</strong></div>;
+  const node = data.node;
+  return <div className={`rf-group-frame depth-${Math.min(data.depth || 0, 4)}`} title={data.label} onClick={(event) => {
+    if (event.target.closest("button")) return;
+    data.onSelect?.(node?.path);
+  }}>
+    <div className="rf-group-header">
+      {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={data.english ? "Collapse" : "收起"}>−</button>}
+      <strong>{data.label}</strong>
+    </div>
+  </div>;
 }
 
 function MsvStageBand({ data }) {
@@ -145,11 +159,65 @@ function ReactFlowCanvas({ graph, props }) {
       if (!members.length) return [];
       return [{ id: `stage-${stage}`, type: "stageBand", position: { x: Math.min(...members.map((n) => n.x)) - 24, y: 0 }, style: { width: Math.max(...members.map((n) => n.x + n.width)) - Math.min(...members.map((n) => n.x)) + 48, height: Math.max(...graph.nodes.map((n) => n.y + n.height)) + 48 }, data: { stage, label: `${stageLabels[stage]} · ${members.length} ${props.english ? `node${members.length === 1 ? "" : "s"}` : "个节点"}` }, selectable: false, draggable: false, connectable: false, zIndex: -20 }];
     });
-    const frames = graph.containerFrames.map((frame) => ({ id: `frame-${frame.id}`, type: "groupFrame", position: { x: frame.x, y: frame.y }, style: { width: frame.width, height: frame.height }, data: frame, selectable: false, draggable: false, connectable: false, zIndex: -10 }));
-    const modelNodes = graph.nodes.map((node) => ({ id: node.path, type: "msvNode", position: { x: node.x, y: node.y }, style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height }, data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, onHover: props.onHoverPathChange, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths }, selected: props.selectedPath === node.path, draggable: false }));
+    const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
+    const frameByPath = new Map(graph.containerFrames.map((frame) => [frame.id, frame]));
+    const nearestFrame = (path) => {
+      let current = parentPath(path);
+      while (current) {
+        if (frameByPath.has(current)) return current;
+        current = parentPath(current);
+      }
+      return null;
+    };
+    const originForFrame = (frameId) => {
+      const frame = frameByPath.get(frameId);
+      return frame ? { x: frame.x, y: frame.y } : { x: 0, y: 0 };
+    };
+    const frames = graph.containerFrames.map((frame) => {
+      const parentFrame = nearestFrame(frame.id);
+      const parentOrigin = originForFrame(parentFrame);
+      return {
+        id: `frame-${frame.id}`,
+        type: "groupFrame",
+        position: { x: frame.x - parentOrigin.x, y: frame.y - parentOrigin.y },
+        parentId: parentFrame ? `frame-${parentFrame}` : undefined,
+        style: { width: frame.width, height: frame.height },
+        data: { ...frame, node: nodeByPath.get(frame.id), english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup },
+        selected: props.selectedPath === frame.id,
+        selectable: true,
+        draggable: false,
+        connectable: false,
+        zIndex: -10,
+      };
+    });
+    const modelNodes = graph.nodes.filter((node) => !frameByPath.has(node.path)).map((node) => {
+      const parentFrame = nearestFrame(node.path);
+      const parentOrigin = originForFrame(parentFrame);
+      return {
+        id: node.path,
+        type: "msvNode",
+        position: { x: node.x - parentOrigin.x, y: node.y - parentOrigin.y },
+        parentId: parentFrame ? `frame-${parentFrame}` : undefined,
+        style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height },
+        data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, onHover: props.onHoverPathChange, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths },
+        selected: props.selectedPath === node.path,
+        draggable: false,
+      };
+    });
     return [...stageBands, ...frames, ...modelNodes];
   }, [graph, props, activeRelationPath, matched, selectNode]);
-  const edges = useMemo(() => renderEdges.filter((edge) => props.edgeMode === "all" || edge.kind === props.edgeMode).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, type: "msvEdge", markerEnd: { type: MarkerType.ArrowClosed, color: edge.kind === "dataflow" ? "#d08a3a" : "#8291a2" }, data: { ...edge, related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections } })) , [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes]);
+  const edges = useMemo(() => {
+    const framePaths = new Set(graph.containerFrames.map((frame) => frame.id));
+    const targetId = (path) => framePaths.has(path) ? `frame-${path}` : path;
+    return renderEdges.filter((edge) => props.edgeMode === "all" || edge.kind === props.edgeMode).map((edge) => ({
+      id: edge.id,
+      source: targetId(edge.source),
+      target: targetId(edge.target),
+      type: "msvEdge",
+      markerEnd: { type: MarkerType.ArrowClosed, color: edge.kind === "dataflow" ? "#d08a3a" : "#8291a2" },
+      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
+    }));
+  }, [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
   useEffect(() => { fitView({ padding: 0.12, duration: 260 }); }, [props.fitNonce, graph.nodes.length, fitView]);
   useEffect(() => {
     if (props.zoom === lastZoom.current) return;
@@ -163,8 +231,18 @@ function ReactFlowCanvas({ graph, props }) {
     if (!props.selectedPath) return;
     const node = getNode(props.selectedPath);
     if (!node) return;
+    let absoluteX = node.position.x;
+    let absoluteY = node.position.y;
+    let parentId = node.parentId;
+    while (parentId) {
+      const parent = getNode(parentId);
+      if (!parent) break;
+      absoluteX += parent.position.x;
+      absoluteY += parent.position.y;
+      parentId = parent.parentId;
+    }
     const depth = props.selectedPath.split(".").length - 1;
-    setCenter(node.position.x + (node.measured?.width || node.width || 220) / 2, node.position.y + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
+    setCenter(absoluteX + (node.measured?.width || node.width || 220) / 2, absoluteY + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
   }, [props.selectedPath, getNode, setCenter]);
   function handleMove(_, viewport) {
     const group = props.scrollSync?.group;
@@ -173,7 +251,7 @@ function ReactFlowCanvas({ graph, props }) {
     group.forEach((entry, id) => { if (id !== props.scrollSyncId) entry.setViewport(viewport); });
     group.busy = false;
   }
-  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id)} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.target); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
+  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id.replace(/^frame-/, ""))} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.data.originalTarget || edge.target.replace(/^frame-/, "")); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
     <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
     <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
     <Controls position="top-left" showInteractive={false} />

@@ -355,7 +355,8 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .rf-node-badges { display: flex; flex-wrap: wrap; gap: 4px; min-height: 14px; align-items: center; }
 .rf-node-meta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rf-node-meta li { overflow: hidden; color: #526172; font-size: 10px; white-space: nowrap; text-overflow: ellipsis; }
-.rf-group-frame { box-sizing: border-box; pointer-events: none; border: 1.7px solid rgba(103,137,171,.55); border-radius: 12px; padding: 8px 12px; background: rgba(255,255,255,.62); color: #536b80; font-size: 10px; font-weight: 700; }
+.rf-group-frame { box-sizing: border-box; pointer-events: auto; border: 1.7px solid rgba(103,137,171,.55); border-radius: 12px; padding: 8px 12px; background: rgba(255,255,255,.62); color: #536b80; font-size: 10px; font-weight: 700; }
+.rf-group-header { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 .rf-group-frame.depth-0 { border-width: 2px; background: rgba(255,255,255,.72); }
 .rf-group-frame.depth-1 { border-color: rgba(103,137,171,.48); background: rgba(255,255,255,.54); }
 .rf-group-frame.depth-2 { border-color: rgba(103,137,171,.38); background: rgba(255,255,255,.42); }

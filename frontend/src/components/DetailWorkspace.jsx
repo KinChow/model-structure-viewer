@@ -7,6 +7,8 @@ import ExportTab from "./ExportTab";
 import RawConfigTab from "./RawConfigTab";
 import NodeDetailPanel from "./NodeDetailPanel";
 import { structureStatus } from "../diagnostics";
+import { normalizeConfig } from "../structure/config/normalize.js";
+import { derivedWeightParameters } from "../cost/derivedWeights.js";
 
 function breadcrumbForPath(root, path) {
   if (!root || !path) return [];
@@ -22,13 +24,20 @@ function breadcrumbForPath(root, path) {
   return items;
 }
 
-function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath }) {
+function parameterTotalForStructure(structure) {
+  const reported = structure?.summary?.parameters_total;
+  if (reported != null) return { value: reported, derived: false };
+  if (!structure?.extra_config) return { value: null, derived: false };
+  return { value: derivedWeightParameters(normalizeConfig(structure.extra_config)), derived: true };
+}
+
+function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath, parameterTotal }) {
   const summary = structure?.summary || {};
   const status = structureStatus(structure);
   const english = language === "en";
   const rows = [
     [english ? "Architecture" : "架构", summary.architecture],
-    [english ? "Parameters" : "参数量", summary.parameters_total ? `${(summary.parameters_total / 1e9).toFixed(2)}B` : "-"],
+    [english ? "Parameters" : "参数量", parameterTotal.value != null ? `${(parameterTotal.value / 1e9).toFixed(2)}B${parameterTotal.derived ? " · derived" : ""}` : "-"],
     [english ? "Layers" : "层数", summary.text_layers],
     ["Hidden Size", summary.hidden_size],
     ["Experts", summary.num_local_experts ?? summary.n_routed_experts],
@@ -104,6 +113,7 @@ export default function DetailWorkspace({
   const rawJson = structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : "";
   const selectedData = selectedNode?.node || selectedNode;
   const selectedPath = selectedNodePath || selectedNode?.path || null;
+  const parameterTotal = parameterTotalForStructure(structure);
   const breadcrumbs = breadcrumbForPath(structure?.root, selectedPath);
   const activeMachineName = chips?.find((chip) => chip.id === activeMachineId)?.name || "GPU";
   const activeNodeCount = activeNodes?.[activeMode === "pd" ? activePhase : "centralized"] || 1;
@@ -136,7 +146,7 @@ export default function DetailWorkspace({
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
         </div>
-        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={structure?.summary?.parameters_total} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>
+        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={parameterTotal.value} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} parameterTotal={parameterTotal} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>
       </section>
       {loading && <div className="detail-loading-overlay" role="status" aria-live="polite"><span className="detail-loading-dot" />{language === "en" ? "Opening model..." : "正在打开模型..."}</div>}
     </main>

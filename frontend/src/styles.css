@@ -1011,6 +1011,7 @@ label {
 .summary-chips .chip.truth b {
   color: #2e6a3a;
 }
+.summary-chips .chip.derived b { color: #d1a05f; }
 
 @media (max-width: 1040px) {
   .app-header {
@@ -1242,6 +1243,7 @@ label {
 .detail-page.theme-light .detail-summary .chip { border-color: #dce3eb; background: transparent; color: #364555; }
 .detail-page.theme-light .diagram-lens-status span { border-color: #dce5ed; }
 .detail-page.theme-light .detail-summary .chip b { color: #657386; }
+.detail-page.theme-light .summary-chips .chip.derived b { color: #a9621d; }
 .detail-page.theme-light .toolbar-actions > button,
 .detail-page.theme-light .toolbar-actions .lens-mode-switch button,
 .detail-page.theme-light .toolbar-analysis button {

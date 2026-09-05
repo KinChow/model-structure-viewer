@@ -1,4 +1,6 @@
 import { structureStatus } from "../diagnostics";
+import { normalizeConfig } from "../structure/config/normalize.js";
+import { derivedWeightParameters } from "../cost/derivedWeights.js";
 
 function formatCount(n) {
   if (n == null || !Number.isFinite(n)) return null;
@@ -18,7 +20,11 @@ function dtypeBreakdown(byDtype) {
 function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   const summary = structure?.summary || {};
   const status = structureStatus(structure);
-  const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype);
+  const derivedParameters = summary.parameters_total == null && structure?.extra_config
+    ? derivedWeightParameters(normalizeConfig(structure.extra_config))
+    : null;
+  const parameterTotal = summary.parameters_total ?? derivedParameters;
+  const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype) || (derivedParameters != null ? (language === "en" ? "derived from model config" : "由模型配置推导") : undefined);
   const modelId = structure?.source?.model_id || "";
   const provider = modelId.includes("/") ? modelId.split("/")[0] : null;
   const english = language === "en";
@@ -33,7 +39,7 @@ function SummaryChips({ structure, sourceLabel, language = "zh" }) {
     [label.heads, summary.num_attention_heads],
     [label.experts, summary.num_local_experts ?? summary.n_routed_experts],
     [label.context, summary.max_position_embeddings],
-    [label.params, formatCount(summary.parameters_total), "truth", paramsTitle],
+    [label.params, formatCount(parameterTotal), derivedParameters != null ? "derived" : "truth", paramsTitle],
     [label.source, sourceLabel],
     [label.status, status.label, status.tone, status.detail],
   ];

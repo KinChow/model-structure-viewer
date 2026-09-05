@@ -518,6 +518,8 @@ function StructureDiagram({
                     <rect width={node.width} height={visualHeight} rx="10" className={classes} />
                     <circle cx="0" cy={visualHeight / 2} r="3.5" className="diagram-port input" />
                     <circle cx={node.width} cy={visualHeight / 2} r="3.5" className="diagram-port output" />
+                    <circle cx={node.width / 2} cy="0" r="3.5" className="diagram-port input vertical" />
+                    <circle cx={node.width / 2} cy={visualHeight} r="3.5" className="diagram-port output vertical" />
                     <foreignObject x="0" y="0" width={node.width} height={visualHeight}>
                       <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content" onClick={(event) => {
                         if (event.target.closest("button, a, input, select, textarea")) return;

@@ -1288,6 +1288,10 @@ label {
 .formula-strip-links button { flex: 0 0 auto; }
 .detail-page .formula-strip-toggle:hover { border-color: transparent; color: inherit; }
 .detail-page.theme-light .formula-strip-toggle:hover { background: rgba(31,95,145,.06) !important; }
+.detail-page.theme-light .formula-strip { border-color: #dce5ed; background: #f8fafc; }
+.detail-page.theme-light .formula-strip button:not(.formula-strip-toggle) { border-color: #b7d0e3; background: #fff; color: #2d6790; }
+.detail-page.theme-light .formula-strip button:not(.formula-strip-toggle):hover,
+.detail-page.theme-light .formula-strip button:not(.formula-strip-toggle).active { border-color: #3178b7; background: #dff0fa; color: #174e75; }
 .theme-light .formula-strip-count { border-color: #b7c5d3; color: #607184; }
 .theme-light .formula-strip-active { color: #607184; }
 @media (min-width: 961px) {

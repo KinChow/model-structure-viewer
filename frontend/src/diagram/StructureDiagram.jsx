@@ -315,6 +315,21 @@ function StructureDiagram({
     onZoomChange?.(zoomForWheel(zoom, event.deltaY));
   }
 
+  function centerSelectedNode() {
+    const scroll = scrollRef.current;
+    if (!scroll || !selectedPath) return;
+    const selectedElement = [...scroll.querySelectorAll("g[data-node-path]")]
+      .find((element) => element.getAttribute("data-node-path") === selectedPath);
+    if (!selectedElement) return;
+    const scrollRect = scroll.getBoundingClientRect();
+    const nodeRect = selectedElement.getBoundingClientRect();
+    scroll.scrollBy({
+      left: (nodeRect.left + nodeRect.width / 2) - (scrollRect.left + scrollRect.width / 2),
+      top: (nodeRect.top + nodeRect.height / 2) - (scrollRect.top + scrollRect.height / 2),
+      behavior: "smooth",
+    });
+  }
+
   function selectNode(node) {
     onSelectNode?.(node.path);
     if (node.isCollapsible && !node.isExpanded) onToggleGroup?.(node.path);
@@ -336,6 +351,7 @@ function StructureDiagram({
         <div className="diagram-context-meta">
           <span>{selectedNode.type}</span>
           {selectedNode.children?.length > 0 && <span>{selectedNode.children.length} {english ? "children" : "个子模块"}</span>}
+          <button type="button" onClick={centerSelectedNode}>{english ? "Center" : "居中"}</button>
           {parentPath(selectedPath) && <button type="button" onClick={() => onSelectNode?.(parentPath(selectedPath))}>{english ? "Up" : "上一级"}</button>}
         </div>
       </div>}

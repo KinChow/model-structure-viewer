@@ -390,6 +390,14 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .detail-page.theme-dark .diagram-port.input { fill: #1a2029; stroke: #93a0b2; }
 .detail-page.theme-dark .diagram-port.output { fill: #d08a3a; stroke: #2a3340; }
 .detail-page.theme-light .diagram-port.output { fill: #b86f20; stroke: #fff8ee; }
+.diagram-stack-card { pointer-events: none; fill: none; stroke-width: 1.2; opacity: .38; transform-box: fill-box; }
+.diagram-stack-card.model { stroke: #7c8798; }
+.diagram-stack-card.embedding { stroke: #4e63c8; }
+.diagram-stack-card.attention { stroke: #c6537e; }
+.diagram-stack-card.mlp, .diagram-stack-card.moe, .diagram-stack-card.projector { stroke: #2e8f84; }
+.diagram-stack-card.output { stroke: #8593a6; }
+.diagram-stack-card.vision, .diagram-stack-card.layer { stroke: #7c8798; }
+.detail-page.theme-dark .diagram-stack-card { opacity: .5; }
 
 .diagram-group-node {
   stroke-width: 2;

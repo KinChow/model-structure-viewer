@@ -382,6 +382,10 @@ function StructureDiagram({
                     }}
                   >
                     <title>{[node.fullName, node.path, node.repeat ? `×${node.repeat}` : null, node.node?.attributes?.formula_id].filter(Boolean).join(" · ")}</title>
+                    {node.repeat > 1 && <>
+                      <rect x="5" y="-5" width={node.width} height={node.height} rx="10" className={`diagram-stack-card ${node.typeClass}`} />
+                      <rect x="2.5" y="-2.5" width={node.width} height={node.height} rx="10" className={`diagram-stack-card ${node.typeClass}`} />
+                    </>}
                     <rect width={node.width} height={node.height} rx="10" className={classes} />
                     <circle cx="0" cy={node.height / 2} r="3.5" className="diagram-port input" />
                     <circle cx={node.width} cy={node.height / 2} r="3.5" className="diagram-port output" />

@@ -126,7 +126,18 @@ export function layoutGraph(root, expandedGroups) {
     });
     return edges;
   });
-  const edges = [...structureEdges, ...dataflowEdges];
+  const topLevelPaths = items
+    .filter((item) => item.path.split(".").length === 2)
+    .sort((left, right) => Number(left.path.split(".")[1]) - Number(right.path.split(".")[1]))
+    .map((item) => item.path);
+  const stageFlowEdges = topLevelPaths.slice(0, -1).map((source, index) => ({
+    id: `${source}~>${topLevelPaths[index + 1]}`,
+    source,
+    target: topLevelPaths[index + 1],
+    kind: "dataflow",
+    evidence: "module-order",
+  }));
+  const edges = [...structureEdges, ...dataflowEdges, ...stageFlowEdges];
   const containerFrames = items
     .filter((item) => item.containerFrame)
     .map((item) => ({ id: item.path, ...item.containerFrame }));

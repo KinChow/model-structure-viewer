@@ -1,44 +1,87 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 
 const elk = new ELK();
+const BASE_LAYOUT = {
+  "elk.algorithm": "layered",
+  "elk.layered.spacing.nodeNodeBetweenLayers": "44",
+  "elk.spacing.nodeNode": "24",
+};
 
-/** Lay out the visible graph independently from the source model tree. */
+function parentPath(path) {
+  const index = path.lastIndexOf(".");
+  return index < 0 ? null : path.slice(0, index);
+}
+
+function directChildren(node, nodeByPath) {
+  if (!node.isExpanded) return [];
+  return (node.node?.children || [])
+    .map((_, index) => nodeByPath.get(`${node.path}.${index}`))
+    .filter(Boolean);
+}
+
+/**
+ * Compound graph layout: top-level modules read left-to-right while module
+ * internals read top-to-bottom, keeping the canvas graph-first and readable.
+ */
 export async function layoutGraphWithElk(graph) {
-  const result = await elk.layout({
-    id: "model-graph",
-    layoutOptions: {
-      "elk.algorithm": "layered",
-      "elk.direction": "RIGHT",
-      "elk.edgeRouting": "ORTHOGONAL",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "72",
-      "elk.spacing.nodeNode": "28",
-      "elk.padding": "32",
-      "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
-    },
-    children: graph.nodes.map((node) => ({
-      id: node.path,
-      width: node.width,
-      height: node.height,
-    })),
-    edges: graph.edges.map((edge) => ({
-      id: edge.id,
-      sources: [edge.source],
-      targets: [edge.target],
-    })),
-  });
+  const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
+  const directDataflow = (path) => graph.edges
+    .filter((edge) => edge.kind === "dataflow" && parentPath(edge.source) === path && parentPath(edge.target) === path)
+    .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }));
 
-  const positions = new Map((result.children || []).map((child) => [child.id, child]));
-  const routes = new Map((result.edges || []).map((edge) => [edge.id, edge.sections || []]));
-  const nodes = graph.nodes.map((node) => {
-    const position = positions.get(node.path);
-    return position ? { ...node, x: position.x, y: position.y } : node;
-  });
+  function makeShape(node, depth) {
+    const children = directChildren(node, nodeByPath);
+    if (children.length === 0) return { id: node.path, width: node.width, height: node.height };
+    return {
+      id: node.path,
+      layoutOptions: {
+        ...BASE_LAYOUT,
+        "elk.direction": depth <= 1 ? "RIGHT" : "DOWN",
+        "elk.padding": "[top=32,left=24,bottom=24,right=24]",
+      },
+      children: children.map((child) => makeShape(child, depth + 1)),
+      edges: directDataflow(node.path),
+    };
+  }
+
+  const root = nodeByPath.get("root");
+  const topChildren = root ? directChildren(root, nodeByPath) : [];
+  const topEdges = graph.edges
+    .filter((edge) => (edge.kind === "structure" && edge.source === "root" && edge.target !== "root")
+      || (edge.kind === "dataflow" && parentPath(edge.source) === "root" && parentPath(edge.target) === "root"))
+    .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }));
+  const layoutRoot = {
+    id: "__graph_root__",
+    layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT", "elk.padding": "32" },
+    children: [root, ...topChildren].filter(Boolean).map((node) => node.path === "root"
+      ? { id: "root", width: node.width, height: node.height }
+      : makeShape(node, 1)),
+    edges: topEdges,
+  };
+
+  const result = await elk.layout(layoutRoot);
+  const positions = new Map();
+  const routedEdges = new Map();
+  function walk(shape, offsetX = 0, offsetY = 0) {
+    const x = offsetX + (shape.x || 0);
+    const y = offsetY + (shape.y || 0);
+    if (shape.id !== "__graph_root__") positions.set(shape.id, { x, y });
+    for (const edge of shape.edges || []) {
+      routedEdges.set(edge.id, (edge.sections || []).map((section) => ({
+        ...section,
+        startPoint: { x: section.startPoint.x + offsetX, y: section.startPoint.y + offsetY },
+        endPoint: { x: section.endPoint.x + offsetX, y: section.endPoint.y + offsetY },
+        bendPoints: (section.bendPoints || []).map((point) => ({ x: point.x + offsetX, y: point.y + offsetY })),
+      })));
+    }
+    for (const child of shape.children || []) walk(child, x, y);
+  }
+  walk(result);
+
   return {
     ...graph,
-    nodes,
-    edges: graph.edges.map((edge) => ({ ...edge, sections: routes.get(edge.id) || [] })),
-    // ELK positions all visible nodes directly; old hierarchy frames are not
-    // used because they would imply a tree-shaped canvas.
+    nodes: graph.nodes.map((node) => ({ ...node, ...(positions.get(node.path) || {}) })),
+    edges: graph.edges.map((edge) => ({ ...edge, sections: routedEdges.get(edge.id) || [] })),
     containerFrames: [],
   };
 }

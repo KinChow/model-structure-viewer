@@ -308,7 +308,7 @@ function StructureDiagram({
                       strokeWidth={related ? "2.8" : edge.kind === "dataflow" ? "2" : "1.5"}
                       markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
                     >
-                      <title>{edge.kind === "dataflow" ? (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）") : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}</title>
+                      <title>{edge.kind === "dataflow" ? (edge.evidence === "module-order" ? (english ? "Model stage flow" : "模型阶段流") : (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）")) : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}</title>
                     </path>
                   );
                 })}

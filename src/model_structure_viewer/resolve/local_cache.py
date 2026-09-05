@@ -102,13 +102,14 @@ class LocalModelCache:
 
     def resolve_config_path(self, config_path: str, detail_level: str) -> ResolvedConfig:
         path = Path(config_path).expanduser()
-        if path.is_dir():
+        is_directory = path.is_dir()
+        if is_directory:
             path = path / "config.json"
         if not path.exists():
             raise NotFoundError(f"Config file not found: {path}")
         return ResolvedConfig(
             config=self.load_json(path),
-            source={"kind": "local file", "config_path": str(path), "detail_level": detail_level},
+            source={"kind": "local directory" if is_directory else "local file", "config_path": str(path), "detail_level": detail_level},
             local_dir=path.parent,
         )
 

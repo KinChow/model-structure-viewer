@@ -100,6 +100,7 @@ def test_resolve_config_path_accepts_model_directory(tmp_path):
     resolved = resolver.resolve(source="local", config_path=str(model_dir), detail_level="compressed")
 
     assert resolved.config["model_type"] == "deepseek_v3"
+    assert resolved.source["kind"] == "local directory"
     assert resolved.source["config_path"] == str(model_dir / "config.json")
     assert resolved.local_dir == model_dir
 

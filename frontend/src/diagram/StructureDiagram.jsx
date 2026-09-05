@@ -82,7 +82,8 @@ function StructureDiagram({
       if (members.length === 0) return [];
       const left = Math.min(...members.map((node) => node.x)) - 24;
       const right = Math.max(...members.map((node) => node.x + node.width)) + 24;
-      return [{ stage, label: labels[stage], x: left, width: right - left }];
+      const countLabel = english ? `${members.length} node${members.length === 1 ? "" : "s"}` : `${members.length} 个节点`;
+      return [{ stage, label: `${labels[stage]} · ${countLabel}`, x: left, width: right - left }];
     });
   }, [english, nodes]);
   const frameRef = useRef(null);

@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
 import { fitDiagramViewport, sameDiagramViewport, scrollForZoomAnchor, zoomForWheel } from "./viewport.js";
-import { isGraphEdgeRelated, isPathRelated } from "./hover.js";
+import { isGraphEdgeRelated, isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgeStrokeWidth } from "./edgeStyle.js";
 
 function formatMetric(seconds) {
@@ -135,6 +135,10 @@ function StructureDiagram({
   const [hoveredPath, setHoveredPath] = useState(null);
   const activeHoveredPath = externalHoveredPath ?? hoveredPath;
   const activeRelationPath = activeHoveredPath ?? selectedPath;
+  const relatedDataflowEdges = useMemo(
+    () => relatedDataflowEdgeIds(edges, activeRelationPath),
+    [edges, activeRelationPath]
+  );
   const activeStage = nodesByPath.get(activeRelationPath)?.stage;
   const markerId = `diagram-arrow-${useId().replaceAll(":", "")}`;
   const flowMarkerId = `${markerId}-flow`;
@@ -351,7 +355,7 @@ function StructureDiagram({
                   const target = nodesByPath.get(edge.target);
                   if (!node || !target) return null;
                   const related = activeRelationPath && (edge.kind === "dataflow"
-                    ? edge.source === activeRelationPath || edge.target === activeRelationPath
+                    ? relatedDataflowEdges.has(edge.id)
                     : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath));
                   const searchRelated = !searchActive || matched.has(edge.source) || matched.has(edge.target)
                     || [...matched].some((path) => isPathRelated(edge.source, path) || isPathRelated(edge.target, path));
@@ -373,6 +377,8 @@ function StructureDiagram({
               {nodes.map((node) => {
                 const isSelected = selectedPath === node.path;
                 const isAncestor = Boolean(selectedPath && selectedPath.startsWith(`${node.path}.`));
+                const isOpenGroup = node.isCollapsible && node.isExpanded;
+                const visualHeight = isOpenGroup ? 28 : node.height;
                 const isMatch = matched.has(node.path);
                 const isDimmed = searchActive && !isMatch;
                 const lensEnabled = activeLenses.size > 0;
@@ -430,14 +436,18 @@ function StructureDiagram({
                   >
                     <title>{[node.fullName, node.path, node.repeat ? `×${node.repeat}` : null, node.node?.attributes?.formula_id].filter(Boolean).join(" · ")}</title>
                     {node.repeat > 1 && <>
-                      <rect x="5" y="-5" width={node.width} height={node.height} rx="10" className={`diagram-stack-card ${node.typeClass}`} />
-                      <rect x="2.5" y="-2.5" width={node.width} height={node.height} rx="10" className={`diagram-stack-card ${node.typeClass}`} />
+                      <rect x="5" y="-5" width={node.width} height={visualHeight} rx="10" className={`diagram-stack-card ${node.typeClass}`} />
+                      <rect x="2.5" y="-2.5" width={node.width} height={visualHeight} rx="10" className={`diagram-stack-card ${node.typeClass}`} />
                     </>}
-                    <rect width={node.width} height={node.height} rx="10" className={classes} />
-                    <circle cx="0" cy={node.height / 2} r="3.5" className="diagram-port input" />
-                    <circle cx={node.width} cy={node.height / 2} r="3.5" className="diagram-port output" />
-                    <foreignObject x="0" y="0" width={node.width} height={node.height}>
-                      <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content" onMouseDown={(event) => { if (!event.target.closest("button, a, input, select, textarea")) selectNode(node); }} onClick={(event) => { if (!event.target.closest("button, a, input, select, textarea")) selectNode(node); }}>
+                    <rect width={node.width} height={visualHeight} rx="10" className={classes} />
+                    <circle cx="0" cy={visualHeight / 2} r="3.5" className="diagram-port input" />
+                    <circle cx={node.width} cy={visualHeight / 2} r="3.5" className="diagram-port output" />
+                    <foreignObject x="0" y="0" width={node.width} height={visualHeight}>
+                      <div xmlns="http://www.w3.org/1999/xhtml" className="diagram-node-content" onClick={(event) => {
+                        if (event.target.closest("button, a, input, select, textarea")) return;
+                        event.stopPropagation();
+                        selectNode(node);
+                      }}>
                         <div className="diagram-node-header">
                           <span className="diagram-title" title={node.fullName}>
                             {node.displayName}
@@ -471,7 +481,7 @@ function StructureDiagram({
                           {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {node.node.children.length === 1 ? "child" : "children"}</span>}
                           {lensEnabled && nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
                         </div>
-                        {node.metaLines.length > 0 && (
+                        {!isOpenGroup && node.metaLines.length > 0 && (
                           <ul className="diagram-meta">
                             {node.metaLines.map((line) => (
                               <li key={line} title={line}>
@@ -480,7 +490,7 @@ function StructureDiagram({
                             ))}
                           </ul>
                         )}
-                        {lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map(({ id, text }) => <span key={id} className={`diagram-lens-value lens-${id}`}>{text}</span>)}</div>}
+                        {!isOpenGroup && lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map(({ id, text }) => <span key={id} className={`diagram-lens-value lens-${id}`}>{text}</span>)}</div>}
                       </div>
                     </foreignObject>
                   </g>

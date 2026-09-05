@@ -482,6 +482,9 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   overflow: hidden;
   color: #17202c;
 }
+.diagram-group-open .diagram-node-content { padding: 5px 12px; gap: 1px; }
+.diagram-group-open .diagram-node-header { min-height: 17px; }
+.diagram-group-open .diagram-node-badges { min-height: 0; }
 
 .diagram-node-header {
   display: flex;

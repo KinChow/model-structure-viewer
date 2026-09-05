@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
-import { fitDiagramViewport, sameDiagramViewport } from "./viewport";
+import { fitDiagramViewport, sameDiagramViewport, zoomForWheel } from "./viewport.js";
 import { isGraphEdgeRelated, isPathRelated } from "./hover.js";
 
 function formatMetric(seconds) {
@@ -44,6 +44,7 @@ function StructureDiagram({
   showGroupToggle = true,
   activeLenses = new Set(),
   edgeMode = "all",
+  onZoomChange,
   onFit,
   focusMode = false,
   onExitFocus,
@@ -255,8 +256,7 @@ function StructureDiagram({
     const scroll = scrollRef.current;
     if (!scroll || (!event.ctrlKey && !event.metaKey)) return;
     event.preventDefault();
-    const direction = event.deltaY < 0 ? 1 : -1;
-    onZoomChange?.(Math.min(2.5, Math.max(0.25, zoom + direction * 0.1)));
+    onZoomChange?.(zoomForWheel(zoom, event.deltaY));
   }
 
   return (

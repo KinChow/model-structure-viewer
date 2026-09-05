@@ -55,3 +55,8 @@ export function sameDiagramViewport(left, right) {
     left.canvasHeight === right.canvasHeight
   );
 }
+
+export function zoomForWheel(zoom, deltaY, min = 0.25, max = 2.5, step = 0.1) {
+  const direction = deltaY < 0 ? 1 : -1;
+  return Math.min(max, Math.max(min, zoom + direction * step));
+}

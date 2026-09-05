@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fitDiagramViewport, sameDiagramViewport } from "./viewport.js";
+import { fitDiagramViewport, sameDiagramViewport, zoomForWheel } from "./viewport.js";
 
 test("fitDiagramViewport centers a smaller diagram inside the available viewport", () => {
   const result = fitDiagramViewport({
@@ -67,6 +67,12 @@ test("sameDiagramViewport suppresses duplicate viewport updates", () => {
 
   assert.equal(sameDiagramViewport(viewport, { ...viewport }), true);
   assert.equal(sameDiagramViewport(viewport, { ...viewport, offsetX: viewport.offsetX + 1 }), false);
+});
+
+test("zoomForWheel keeps modifier-wheel zoom inside the canvas bounds", () => {
+  assert.equal(zoomForWheel(1, -100), 1.1);
+  assert.equal(zoomForWheel(2.5, -100), 2.5);
+  assert.equal(zoomForWheel(0.25, 100), 0.25);
 });
 
 test("fitDiagramViewport keeps small diagrams within the visible frame", () => {

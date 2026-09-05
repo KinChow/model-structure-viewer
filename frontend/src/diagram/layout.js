@@ -110,16 +110,19 @@ export function layoutGraph(root, expandedGroups) {
     const edges = [];
     operators.forEach((source) => {
       if (!source.node?.output_shape) return;
-      operators.forEach((target) => {
-        if (source.path === target.path || !target.node?.input_shape) return;
-        if (JSON.stringify(source.node.output_shape) !== JSON.stringify(target.node.input_shape)) return;
+      const target = operators.find((candidate) => {
+        if (source.path === candidate.path || !candidate.node?.input_shape) return false;
+        if (candidate.path <= source.path) return false;
+        return JSON.stringify(source.node.output_shape) === JSON.stringify(candidate.node.input_shape);
+      });
+      if (target) {
         edges.push({
           id: `${source.path}=>${target.path}`,
           source: source.path,
           target: target.path,
           kind: "dataflow",
         });
-      });
+      }
     });
     return edges;
   });

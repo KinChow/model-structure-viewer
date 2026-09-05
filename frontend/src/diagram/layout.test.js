@@ -46,10 +46,12 @@ test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
     name: "block", type: "module", children: [
       { name: "gate", type: "operator", input_shape: [1, 4], output_shape: [1, 8], children: [] },
       { name: "activation", type: "operator", input_shape: [1, 8], output_shape: [1, 8], children: [] },
+      { name: "same-shape", type: "operator", input_shape: [1, 8], output_shape: [1, 8], children: [] },
       { name: "other", type: "operator", input_shape: [1, 16], output_shape: [1, 16], children: [] },
     ],
   }, new Set(["root"]));
   assert.deepEqual(graph.edges.filter((edge) => edge.kind === "dataflow").map(({ source, target }) => [source, target]), [
     ["root.0", "root.1"],
+    ["root.1", "root.2"],
   ]);
 });

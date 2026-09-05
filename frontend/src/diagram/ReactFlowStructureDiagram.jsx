@@ -300,7 +300,9 @@ export default function ReactFlowStructureDiagram(props) {
   }, [graph.nodes, props]);
   useEffect(() => {
     let active = true;
-    setGraph(baseGraph);
+    // Keep the current compound graph visible while ELK computes the next
+    // one. Publishing the provisional graph first creates a visible second
+    // layer during expand/collapse because React Flow measures both states.
     layoutGraphWithElk(baseGraph).then((next) => { if (active) setGraph(next); }).catch(() => {});
     return () => { active = false; };
   }, [baseGraph]);

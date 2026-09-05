@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const modelsRoot = path.join(repoRoot, "models");
-const allowedMetadata = /^(configuration_.*\.py|modeling_.*\.py|tokenization_.*\.py)$/;
+const allowedMetadata = /^(configuration_.*\.py|modeling_.*\.py|tokenization_.*\.py|model\.safetensors\.index\.json)$/;
 
 async function exists(filePath) {
   try {

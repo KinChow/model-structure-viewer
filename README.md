@@ -118,11 +118,11 @@ npm run dev
 
 - `local`：只读取 `$MODEL_ROOT/<org>/<model>/config.json`
 - `builtin`：读取仓库内置 `models/<org>/<model>/config.json`；网页静态部署时不需要后端，CLI/API 会从仓库内置目录读取
-- `hf`：网页优先直连 Hugging Face 或 ModelScope 获取 `config.json` 与 checkpoint header；直连失败时可回退后端代理
+- `hf`：网页优先直连 Hugging Face 获取 `config.json` 与 checkpoint header；Hugging Face 失败后按优先级切到 ModelScope，两个远程源都失败时降级为 config-only
 - `auto`：优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页端和后端保持相同顺序
 - `config`：使用粘贴或上传的 JSON
 
-允许缓存的 Hugging Face 元数据只有 `config.json`、`README.md`、`configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py`。
+仓库内置的轻量 Hugging Face 元数据包括 `config.json`、`model.safetensors.index.json`、`README.md`、`configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py`。其中 `model.safetensors.index.json` 只保存分片映射，不包含 tensor header；dtype、shape 和参数量真值仍在运行时按 HF → ModelScope 读取。
 
 下面这些权重或模型文件不会被这个工具缓存：
 

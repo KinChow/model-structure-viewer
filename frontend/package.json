@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "catalog": "node ../scripts/generate-model-catalog.mjs",
+    "sync:metadata": "node ../scripts/download-builtin-metadata.mjs",
     "dev": "vite",
     "test": "node --test",
     "verify:models": "node ../scripts/verify-builtin-models.mjs",

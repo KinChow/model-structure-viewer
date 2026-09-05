@@ -11,6 +11,7 @@ models/<org>/<model>/config.json
 这里只放轻量文件：
 
 - `config.json`
+- `model.safetensors.index.json`（只保存分片映射，不保存权重）
 - `configuration_*.py`
 - `modeling_*.py`
 - `tokenization_*.py`
@@ -22,6 +23,15 @@ models/<org>/<model>/config.json
 ```bash
 node scripts/generate-model-catalog.mjs
 ```
+
+补充内置模型的轻量配置元数据，在仓库根目录执行：
+
+```bash
+node scripts/download-builtin-metadata.mjs
+```
+
+下载顺序为 Hugging Face mirror，再回退 ModelScope。脚本不会下载
+其它 tokenizer、generation 或 processor metadata，也不会覆盖已有文件；如需覆盖已有 index，显式增加 `--overwrite`。
 
 ## 快速使用
 

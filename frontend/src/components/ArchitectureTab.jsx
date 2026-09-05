@@ -251,6 +251,7 @@ function ArchitectureTab({
     scrollSync: { group: compareScrollGroup.current },
     language,
     edgeMode,
+    onEdgeModeChange: setEdgeMode,
   };
   useEffect(() => {
     onNodeLensChange?.(nodeLens);

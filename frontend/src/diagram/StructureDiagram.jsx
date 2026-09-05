@@ -45,6 +45,7 @@ function StructureDiagram({
   showGroupToggle = true,
   activeLenses = new Set(),
   edgeMode = "all",
+  onEdgeModeChange,
   onZoomChange,
   onFit,
   focusMode = false,
@@ -143,6 +144,9 @@ function StructureDiagram({
       } else if (event.key === "0") {
         event.preventDefault();
         onFit?.();
+      } else if (event.key === "1" || event.key === "2" || event.key === "3") {
+        event.preventDefault();
+        onEdgeModeChange?.({ "1": "all", "2": "structure", "3": "dataflow" }[event.key]);
       } else if ((event.key === "e" || event.key === "E") && selected?.isCollapsible && !selected.isExpanded) {
         event.preventDefault();
         onToggleGroup?.(selected.path);
@@ -153,7 +157,7 @@ function StructureDiagram({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [nodes, selectedPath, onFit, onToggleGroup, focusMode, onExitFocus]);
+  }, [nodes, selectedPath, onFit, onToggleGroup, onEdgeModeChange, focusMode, onExitFocus]);
 
   useEffect(() => {
     if (!selectedPath) return;

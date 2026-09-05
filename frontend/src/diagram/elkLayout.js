@@ -99,7 +99,7 @@ export async function layoutGraphWithElk(graph) {
         y: y - 22,
         width: shape.width + 32,
         height: shape.height + 38,
-        label: `${node.displayName}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
+        label: `${node.displayName} · ${node.node?.type || "module"}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
         kind: "graph-group",
       });
     }

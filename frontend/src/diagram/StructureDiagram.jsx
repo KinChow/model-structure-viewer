@@ -385,19 +385,37 @@ function StructureDiagram({
                     : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath));
                   const searchRelated = !searchActive || matched.has(edge.source) || matched.has(edge.target)
                     || [...matched].some((path) => isPathRelated(edge.source, path) || isPathRelated(edge.target, path));
+                  const pathData = edgePath(edge, node, target);
+                  const selectDataflowTarget = (event) => {
+                    if (edge.kind !== "dataflow") return;
+                    event.stopPropagation();
+                    onSelectNode?.(edge.target);
+                  };
                   return (
-                    <path
-                      key={edge.id}
-                      data-edge-id={edge.id}
-                      d={edgePath(edge, node, target)}
-                      fill="none"
-                      className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${edge.evidence === "module-order" ? " mainflow" : ""}${related ? " related" : ""}${searchRelated ? "" : " search-dimmed"}`}
-                      stroke="var(--diagram-arrow)"
-                      strokeWidth={related ? "2.8" : edgeStrokeWidth(edge, node)}
-                      markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
-                    >
-                      <title>{edge.kind === "dataflow" ? (edge.evidence === "module-order" ? (english ? "Model stage flow" : "模型阶段流") : (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）")) : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}{tensorHint}</title>
-                    </path>
+                    <g key={edge.id}>
+                      {edge.kind === "dataflow" && <path
+                        d={pathData}
+                        fill="none"
+                        className="diagram-edge-hit"
+                        stroke="transparent"
+                        strokeWidth="12"
+                        pointerEvents="stroke"
+                        onClick={selectDataflowTarget}
+                      />}
+                      <path
+                        data-edge-id={edge.id}
+                        d={pathData}
+                        fill="none"
+                        className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${edge.evidence === "module-order" ? " mainflow" : ""}${related ? " related" : ""}${searchRelated ? "" : " search-dimmed"}`}
+                        stroke="var(--diagram-arrow)"
+                        strokeWidth={related ? "2.8" : edgeStrokeWidth(edge, node)}
+                        markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
+                        data-edge-target={edge.kind === "dataflow" ? edge.target : undefined}
+                        onClick={selectDataflowTarget}
+                      >
+                        <title>{edge.kind === "dataflow" ? (edge.evidence === "module-order" ? (english ? "Model stage flow" : "模型阶段流") : (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）")) : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}{tensorHint}</title>
+                      </path>
+                    </g>
                   );
                 })}
               {nodes.map((node) => {

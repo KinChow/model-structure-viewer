@@ -434,6 +434,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-edge {
   transition: opacity 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
 }
+.diagram-edge.dataflow { cursor: pointer; }
 .diagram-edge.structure { opacity: .48; }
 .diagram-edge.dataflow { stroke: #d08a3a; stroke-dasharray: 7 4; opacity: .9; }
 .diagram-edge.dataflow.mainflow { stroke: #f4ab52; stroke-dasharray: none; opacity: 1; }

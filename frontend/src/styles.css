@@ -308,7 +308,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 8px; color: #718196; font-size: 10px; }
 .diagram-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend-dot { display: inline-block; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
-.legend-dot.model { color: #69a8d8; background: #eef6ff; }.legend-dot.embedding { color: #df8ca0; background: #fde9ee; }.legend-dot.attention { color: #dfa942; background: #fff0cf; }.legend-dot.mlp { color: #79aa82; background: #e9f4ec; }.legend-dot.output { color: #9c8da9; background: #f0edf4; }
+.legend-dot.model { color: #7c8798; background: #eef1f5; }.legend-dot.embedding { color: #4e63c8; background: #e9edff; }.legend-dot.attention { color: #c6537e; background: #fbeaf0; }.legend-dot.mlp { color: #2e8f84; background: #e5f3f1; }.legend-dot.output { color: #8593a6; background: #eef1f5; }
 .formula-strip-label { color: #607184; font-size: 11px; }.formula-strip button { padding: 3px 7px; border: 1px solid #b7d0e3; border-radius: 4px; background: #fff; color: #2d6790; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; }.formula-strip button:hover, .formula-strip button.active { border-color: #3178b7; background: #dff0fa; color: #174e75; }
 .formula-section { border-top: 1px solid #e0e7ef; padding-top: 12px; margin-top: 12px; }.formula-section h4 { margin: 0 0 8px; }.formula-section code { display: block; white-space: pre-wrap; color: #28516d; font-size: 12px; }.formula-section p { margin: 8px 0 0; color: #667788; font-size: 12px; line-height: 1.45; }
 .diagram-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }.diagram-compare-label { min-height: 30px; margin: 0 0 6px; color: #526678; font-size: 12px; font-weight: 700; line-height: 1.35; }.diagram-compare .diagram-frame { min-width: 0; }.lens-flips { margin: -2px 0 10px; padding: 6px 8px; border: 1px solid #e4bd72; border-radius: 4px; background: #fff7e6; color: #7c5418; font-size: 11px; }.lens-flips.empty { border-color: #dce5ed; background: #f8fafc; color: #607184; }
@@ -332,7 +332,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-minimap svg { display: block; width: 100%; height: 100%; }
 .mini-frame { fill: rgba(123,153,181,.12); stroke: rgba(151,177,201,.4); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .mini-node { stroke: rgba(255,255,255,.35); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .85; }
-.mini-node.model { fill: #69a8d8; }.mini-node.embedding { fill: #df8ca0; }.mini-node.attention { fill: #dfa942; }.mini-node.mlp, .mini-node.moe { fill: #79aa82; }.mini-node.output { fill: #9c8da9; }.mini-node.projector { fill: #6bb4aa; }.mini-node.layer { fill: #9ca8b6; }
+.mini-node.model { fill: #7c8798; }.mini-node.embedding { fill: #4e63c8; }.mini-node.attention { fill: #c6537e; }.mini-node.mlp, .mini-node.moe { fill: #2e8f84; }.mini-node.output { fill: #8593a6; }.mini-node.projector { fill: #2e8f84; }.mini-node.layer { fill: #93a0b2; }
 .mini-node.selected { stroke: #f4ab52; stroke-width: 3; opacity: 1; }
 .mini-node.ancestor { stroke: rgba(244,171,82,.75); stroke-width: 2; opacity: 1; }
 .mini-viewport { fill: rgba(244,171,82,.12); stroke: #f4ab52; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -467,25 +467,13 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   min-width: 0;
 }
 
-.diagram-node.model {
-  fill: #eef6ff;
-  stroke: #69a8d8;
-}
+.diagram-node.model { fill: #f1f3f6; stroke: #7c8798; }
 
-.diagram-node.embedding {
-  fill: #fde9ee;
-  stroke: #df8ca0;
-}
+.diagram-node.embedding { fill: #e9edff; stroke: #4e63c8; }
 
-.diagram-node.attention {
-  fill: #fff0cf;
-  stroke: #dfa942;
-}
+.diagram-node.attention { fill: #fbeaf0; stroke: #c6537e; }
 
-.diagram-node.mlp {
-  fill: #e9f4ec;
-  stroke: #79aa82;
-}
+.diagram-node.mlp { fill: #e5f3f1; stroke: #2e8f84; }
 
 .diagram-node.moe {
   fill: #eee9ff;
@@ -497,10 +485,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   stroke: #6bb4aa;
 }
 
-.diagram-node.output {
-  fill: #f0edf4;
-  stroke: #9c8da9;
-}
+.diagram-node.output { fill: #eef1f5; stroke: #8593a6; }
 
 .diagram-node.vision {
   fill: #eaf2ff;
@@ -1181,13 +1166,13 @@ label {
 .detail-page .diagram-lens-status span { border-color: #2a3545; }
 .detail-page .diagram-lens-status .lens-status-mode { color: #f4ab52; }
 .detail-page.theme-light .diagram-frame { border-color: #dce3eb; background-color: #f8fbfd; background-image: radial-gradient(#d7e1ea 1px, transparent 1px); }
-.detail-page.theme-dark .diagram-node.model { fill: #182432; stroke: #6ca6d7; }
-.detail-page.theme-dark .diagram-node.embedding { fill: #2b2028; stroke: #d3869f; }
-.detail-page.theme-dark .diagram-node.attention { fill: #302719; stroke: #d5a64b; }
-.detail-page.theme-dark .diagram-node.mlp { fill: #1c2d25; stroke: #7eae89; }
+.detail-page.theme-dark .diagram-node.model { fill: #20262f; stroke: #93a0b2; }
+.detail-page.theme-dark .diagram-node.embedding { fill: #202641; stroke: #8194e8; }
+.detail-page.theme-dark .diagram-node.attention { fill: #38232d; stroke: #e27ea2; }
+.detail-page.theme-dark .diagram-node.mlp { fill: #19312f; stroke: #4fb3a7; }
 .detail-page.theme-dark .diagram-node.moe { fill: #29233a; stroke: #9a86d9; }
 .detail-page.theme-dark .diagram-node.projector { fill: #1d302f; stroke: #6fb4aa; }
-.detail-page.theme-dark .diagram-node.output { fill: #28242e; stroke: #a18eaa; }
+.detail-page.theme-dark .diagram-node.output { fill: #242a33; stroke: #8593a6; }
 .detail-page.theme-dark .diagram-node.vision { fill: #1d2939; stroke: #7ca7dc; }
 .detail-page.theme-dark .diagram-node.layer { fill: #1a222b; stroke: #9ca8b6; }
 .detail-page.theme-dark .diagram-node-header .diagram-repeat { color: #a9c9e7; background: rgba(108,166,215,.16); }

@@ -119,8 +119,14 @@ function MsvEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPos
 }
 
 function ReactFlowCanvas({ graph, props }) {
-  const { fitView, setCenter, getNode, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, setCenter, setViewport, getNode, zoomIn, zoomOut } = useReactFlow();
   const lastZoom = useRef(props.zoom);
+  useEffect(() => {
+    if (!props.scrollSync?.group || !props.scrollSyncId) return undefined;
+    const entry = { setViewport: (viewport) => setViewport(viewport, { duration: 0 }) };
+    props.scrollSync.group.set(props.scrollSyncId, entry);
+    return () => props.scrollSync.group.delete(props.scrollSyncId);
+  }, [props.scrollSync, props.scrollSyncId, setViewport]);
   const renderEdges = useMemo(() => graph.edges.filter((edge) => edge.kind !== "structure" || edge.source === "root" || edge.evidence === "module-order"), [graph.edges]);
   const matched = props.matchedPaths instanceof Set ? props.matchedPaths : new Set();
   const activeRelationPath = props.externalHoveredPath ?? props.hoveredPath ?? props.selectedPath;
@@ -157,7 +163,14 @@ function ReactFlowCanvas({ graph, props }) {
     if (!node) return;
     setCenter(node.position.x + (node.measured?.width || node.width || 220) / 2, node.position.y + (node.measured?.height || node.height || 76) / 2, { duration: 260 });
   }, [props.selectedPath, getNode, setCenter]);
-  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onNodeClick={(_, node) => selectNode(node.id)} onPaneClick={() => props.onHoverPathChange?.(null)}>
+  function handleMove(_, viewport) {
+    const group = props.scrollSync?.group;
+    if (!group || !props.scrollSyncId || group.busy) return;
+    group.busy = true;
+    group.forEach((entry, id) => { if (id !== props.scrollSyncId) entry.setViewport(viewport); });
+    group.busy = false;
+  }
+  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id)} onPaneClick={() => props.onHoverPathChange?.(null)}>
     <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
     <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
     <Controls showInteractive={false} />

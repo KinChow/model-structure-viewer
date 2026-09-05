@@ -121,7 +121,7 @@ function MsvEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPos
 }
 
 function ReactFlowCanvas({ graph, props }) {
-  const { fitView, setCenter, setViewport, getNode, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, setCenter, setViewport, getNode, getViewport, zoomTo } = useReactFlow();
   const lastZoom = useRef(props.zoom);
   useEffect(() => {
     if (!props.scrollSync?.group || !props.scrollSyncId) return undefined;
@@ -155,11 +155,10 @@ function ReactFlowCanvas({ graph, props }) {
     if (props.zoom === lastZoom.current) return;
     const ratio = props.zoom / Math.max(lastZoom.current, 0.1);
     if (ratio > 0) {
-      if (ratio > 1) zoomIn({ factor: ratio });
-      else zoomOut({ factor: 1 / ratio });
+      zoomTo(Math.max(0.1, Math.min(2.5, getViewport().zoom * ratio)), { duration: 120 });
     }
     lastZoom.current = props.zoom;
-  }, [props.zoom, zoomIn, zoomOut]);
+  }, [props.zoom, getViewport, zoomTo]);
   useEffect(() => {
     if (!props.selectedPath) return;
     const node = getNode(props.selectedPath);

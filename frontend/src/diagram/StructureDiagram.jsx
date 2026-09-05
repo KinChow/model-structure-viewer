@@ -299,13 +299,16 @@ function StructureDiagram({
                   return (
                     <path
                       key={edge.id}
+                      data-edge-id={edge.id}
                       d={edgePath(edge, node, target)}
                       fill="none"
                       className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${related ? " related" : ""}`}
                       stroke="var(--diagram-arrow)"
                       strokeWidth={related ? "2.8" : edge.kind === "dataflow" ? "2" : "1.5"}
                       markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
-                    />
+                    >
+                      <title>{edge.kind === "dataflow" ? (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）") : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}</title>
+                    </path>
                   );
                 })}
               {nodes.map((node) => {

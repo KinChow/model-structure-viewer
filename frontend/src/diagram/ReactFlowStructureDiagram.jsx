@@ -182,6 +182,32 @@ export default function ReactFlowStructureDiagram(props) {
   const [graph, setGraph] = useState(baseGraph);
   const [hoveredPath, setHoveredPath] = useState(null);
   useEffect(() => {
+    const onKeyDown = (event) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return;
+      const selected = graph.nodes.find((node) => node.path === props.selectedPath);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (props.focusMode) props.onExitFocus?.();
+        else props.onSelectNode?.(null);
+      } else if (event.key === "0") {
+        event.preventDefault();
+        props.onFit?.();
+      } else if (["1", "2", "3"].includes(event.key)) {
+        event.preventDefault();
+        props.onEdgeModeChange?.({ 1: "all", 2: "structure", 3: "dataflow" }[event.key]);
+      } else if ((event.key === "e" || event.key === "E" || event.key === "c" || event.key === "C") && selected?.isCollapsible) {
+        const shouldExpand = event.key.toLowerCase() === "e";
+        if (selected.isExpanded !== shouldExpand) {
+          event.preventDefault();
+          props.onToggleGroup?.(selected.path);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [graph.nodes, props]);
+  useEffect(() => {
     let active = true;
     setGraph(baseGraph);
     layoutGraphWithElk(baseGraph).then((next) => { if (active) setGraph(next); }).catch(() => {});

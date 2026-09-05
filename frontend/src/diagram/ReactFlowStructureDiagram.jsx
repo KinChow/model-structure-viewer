@@ -9,7 +9,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
-  getSmoothStepPath,
+  getBezierPath,
   useReactFlow,
 } from "@xyflow/react";
 import { layoutGraph } from "./layout.js";
@@ -49,15 +49,19 @@ function parentPath(path) {
   return index > 0 ? path.slice(0, index) : null;
 }
 
-function edgePathFromSections(sections) {
-  const section = sections?.[0];
-  if (!section?.startPoint || !section?.endPoint) return null;
-  const points = [section.startPoint, ...(section.bendPoints || []), section.endPoint];
-  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+function nodeGeometry(node) {
+  const position = node?.internals?.positionAbsolute || node?.positionAbsolute || node?.position;
+  return {
+    x: position?.x || 0,
+    y: position?.y || 0,
+    width: node?.measured?.width || node?.width || 0,
+    height: node?.measured?.height || node?.height || 0,
+  };
 }
 
 function MsvNode({ data, selected }) {
   const { node, english, showGroupToggle, onSelect, onToggle, onHover, nodeLens, activeLenses, activeRelationPath, matched, searchActive, comparisonPaths } = data;
+  const verticalFlow = node.depth > 1;
   const isOpenGroup = node.isCollapsible && node.isExpanded;
   const height = isOpenGroup ? 28 : node.height;
   const related = activeRelationPath && isPathRelated(node.path, activeRelationPath);
@@ -87,10 +91,8 @@ function MsvNode({ data, selected }) {
     if (event.target.closest("button, a, input, select, textarea")) return;
     onSelect(node.path);
   }}>
-    <Handle type="target" position={Position.Left} className="rf-port" isConnectable={false} />
-    <Handle type="source" position={Position.Right} className="rf-port" isConnectable={false} />
-    <Handle type="target" position={Position.Top} className="rf-port" isConnectable={false} />
-    <Handle type="source" position={Position.Bottom} className="rf-port" isConnectable={false} />
+    <Handle id="target" type="target" position={verticalFlow ? Position.Top : Position.Left} className="rf-port" isConnectable={false} />
+    <Handle id="source" type="source" position={verticalFlow ? Position.Bottom : Position.Right} className="rf-port" isConnectable={false} />
     <div className="rf-node-content">
       <div className="rf-node-header">
         <span className="rf-node-title" title={node.fullName}>{node.displayName}</span>
@@ -111,10 +113,13 @@ function MsvNode({ data, selected }) {
 
 function MsvGroupFrame({ data }) {
   const node = data.node;
+  const verticalFlow = (data.depth || 0) > 1;
   return <div className={`rf-group-frame depth-${Math.min(data.depth || 0, 4)}`} title={data.label} onClick={(event) => {
     if (event.target.closest("button")) return;
     data.onSelect?.(node?.path);
   }}>
+    <Handle id="target" type="target" position={verticalFlow ? Position.Top : Position.Left} className="rf-port rf-group-port" isConnectable={false} />
+    <Handle id="source" type="source" position={verticalFlow ? Position.Bottom : Position.Right} className="rf-port rf-group-port" isConnectable={false} />
     <div className="rf-group-header">
       {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={data.english ? "Collapse" : "收起"}>−</button>}
       <strong>{data.label}</strong>
@@ -129,11 +134,37 @@ function MsvStageBand({ data }) {
 const RF_NODE_TYPES = { msvNode: MsvNode, groupFrame: MsvGroupFrame, stageBand: MsvStageBand };
 const RF_EDGE_TYPES = { msvEdge: MsvEdge };
 
-function MsvEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
-  const route = edgePathFromSections(data?.sections);
-  const [fallback] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+function MsvEdge({ source, target, markerEnd, style, data }) {
+  const { getNode } = useReactFlow();
+  const sourceNode = getNode(source);
+  const targetNode = getNode(target);
+  if (!sourceNode || !targetNode) return null;
+  const sourceBox = nodeGeometry(sourceNode);
+  const targetBox = nodeGeometry(targetNode);
+  const vertical = data?.flowDirection === "vertical";
+  const sourceFrame = source.startsWith("frame-");
+  const targetFrame = target.startsWith("frame-");
+  const headerOffset = 24;
+  const geometry = vertical
+    ? {
+      sourceX: sourceBox.x + sourceBox.width / 2,
+      sourceY: sourceBox.y + sourceBox.height,
+      sourcePosition: Position.Bottom,
+      targetX: targetBox.x + targetBox.width / 2,
+      targetY: targetBox.y + (targetFrame ? headerOffset : 0),
+      targetPosition: Position.Top,
+    }
+    : {
+      sourceX: sourceBox.x + sourceBox.width,
+      sourceY: sourceBox.y + (sourceFrame ? headerOffset : sourceBox.height / 2),
+      sourcePosition: Position.Right,
+      targetX: targetBox.x,
+      targetY: targetBox.y + (targetFrame ? headerOffset : targetBox.height / 2),
+      targetPosition: Position.Left,
+    };
+  const [fallback] = getBezierPath(geometry);
   const className = `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.related ? " related" : ""}`;
-  return <BaseEdge path={route || fallback} markerEnd={data?.kind === "dataflow" ? markerEnd : undefined} style={{ ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: data?.kind === "dataflow" && data?.evidence !== "module-order" ? "7 4" : undefined }} className={className} />;
+  return <BaseEdge path={fallback} markerEnd={data?.kind === "dataflow" ? markerEnd : undefined} style={{ ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: data?.kind === "dataflow" && data?.evidence !== "module-order" ? "7 4" : undefined }} className={className} />;
 }
 
 function ReactFlowCanvas({ graph, props }) {
@@ -212,9 +243,11 @@ function ReactFlowCanvas({ graph, props }) {
       id: edge.id,
       source: targetId(edge.source),
       target: targetId(edge.target),
+      sourceHandle: "source",
+      targetHandle: "target",
       type: "msvEdge",
       markerEnd: { type: MarkerType.ArrowClosed, color: edge.kind === "dataflow" ? "#d08a3a" : "#8291a2" },
-      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
+      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
     }));
   }, [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
   // ELK keeps the same node count while replacing the provisional positions;
@@ -236,7 +269,8 @@ function ReactFlowCanvas({ graph, props }) {
     if (!props.selectedPath) return;
     const depth = props.selectedPath.split(".").length - 1;
     const timer = window.setTimeout(() => {
-      const node = getNode(props.selectedPath);
+      const isFrame = graph.containerFrames.some((frame) => frame.id === props.selectedPath);
+      const node = getNode(isFrame ? `frame-${props.selectedPath}` : props.selectedPath);
       if (!node) return;
       let absoluteX = node.internals?.positionAbsolute?.x ?? node.position.x;
       let absoluteY = node.internals?.positionAbsolute?.y ?? node.position.y;
@@ -253,7 +287,7 @@ function ReactFlowCanvas({ graph, props }) {
       setCenter(absoluteX + (node.measured?.width || node.width || 220) / 2, absoluteY + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
     }, 360);
     return () => window.clearTimeout(timer);
-  }, [props.selectedPath, graph.nodes.length, getNode, setCenter]);
+  }, [props.selectedPath, graph, getNode, setCenter]);
   function handleMove(_, viewport) {
     const group = props.scrollSync?.group;
     if (!group || !props.scrollSyncId || group.busy) return;

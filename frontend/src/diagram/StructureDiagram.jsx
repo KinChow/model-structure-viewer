@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { layoutDiagram } from "./layout";
+import { layoutGraph } from "./layout";
 import { fitDiagramViewport, sameDiagramViewport } from "./viewport";
 import { isEdgeRelated, isPathRelated } from "./hover";
 
@@ -41,10 +41,11 @@ function StructureDiagram({
   language = "en",
 }) {
   const english = language === "en";
-  const nodes = useMemo(
-    () => layoutDiagram(structure.root, expandedGroups),
+  const graph = useMemo(
+    () => layoutGraph(structure.root, expandedGroups),
     [structure, expandedGroups]
   );
+  const { nodes, edges, containerFrames } = graph;
   const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
   const contentWidth = Math.max(1, ...nodes.map((node) => node.x + node.width + 28));
   const contentHeight = Math.max(1, ...nodes.map((node) => node.y + node.height + 28));
@@ -237,32 +238,31 @@ function StructureDiagram({
               </marker>
             </defs>
             <g transform={contentTransform}>
-              {nodes.filter((node) => node.containerFrame).sort((a, b) => a.depth - b.depth).map((node) => {
-                const frame = node.containerFrame;
-                return <g key={`frame-${node.path}`} className={`diagram-container-frame depth-${Math.min(node.depth, 3)}`} data-container-path={node.path}>
+              {containerFrames.sort((a, b) => nodesByPath.get(a.id).depth - nodesByPath.get(b.id).depth).map((frame) => {
+                const depth = nodesByPath.get(frame.id)?.depth || 0;
+                return <g key={`frame-${frame.id}`} className={`diagram-container-frame depth-${Math.min(depth, 3)}`} data-container-path={frame.id}>
                   <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx="12" />
                   <text x={frame.x + 10} y={frame.y + 15}>{frame.label}</text>
                 </g>;
               })}
-              {nodes.flatMap((node) =>
-                node.children.map((child) => {
-                  const target = nodesByPath.get(child);
+              {edges.map((edge) => {
+                  const node = nodesByPath.get(edge.source);
+                  const target = nodesByPath.get(edge.target);
                   if (!target) return null;
                   return (
                     <path
-                      key={`${node.path}-${child}`}
+                      key={edge.id}
                       d={`M ${node.x + node.width} ${node.y + node.height / 2} C ${node.x + node.width + 36} ${
                         node.y + node.height / 2
                       }, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`}
                       fill="none"
-                      className={activeRelationPath && isEdgeRelated(node.path, target.path, activeRelationPath) ? "diagram-edge related" : "diagram-edge"}
+                      className={activeRelationPath && isEdgeRelated(edge.source, edge.target, activeRelationPath) ? "diagram-edge related" : "diagram-edge"}
                       stroke="var(--diagram-arrow)"
-                      strokeWidth={activeRelationPath && isEdgeRelated(node.path, target.path, activeRelationPath) ? "2.8" : "1.5"}
+                      strokeWidth={activeRelationPath && isEdgeRelated(edge.source, edge.target, activeRelationPath) ? "2.8" : "1.5"}
                       markerEnd={`url(#${markerId})`}
                     />
                   );
-                })
-              )}
+                })}
               {nodes.map((node) => {
                 const isSelected = selectedPath === node.path;
                 const isAncestor = Boolean(selectedPath && selectedPath.startsWith(`${node.path}.`));
@@ -381,7 +381,7 @@ function StructureDiagram({
       {miniMapOpen && <button type="button" className="diagram-minimap" aria-label={english ? "Structure overview" : "结构概览"} title={english ? "Click to navigate the structure" : "点击定位结构"} onClick={jumpFromMiniMap}>
         <svg viewBox={`0 0 ${miniMapWidth} ${miniMapHeight}`} role="img" aria-label={english ? "Structure overview map" : "结构概览图"}>
           <g transform={`scale(${miniScale})`}>
-            {nodes.filter((node) => node.containerFrame).map((node) => <rect key={`mini-frame-${node.path}`} x={node.containerFrame.x} y={node.containerFrame.y} width={node.containerFrame.width} height={node.containerFrame.height} className="mini-frame" />)}
+            {containerFrames.map((frame) => <rect key={`mini-frame-${frame.id}`} x={frame.x} y={frame.y} width={frame.width} height={frame.height} className="mini-frame" />)}
             {nodes.map((node) => <rect key={`mini-node-${node.path}`} x={node.x} y={node.y} width={node.width} height={node.height} className={`mini-node ${node.typeClass}${selectedPath === node.path ? " selected" : ""}${selectedPath && selectedPath.startsWith(`${node.path}.`) ? " ancestor" : ""}`} />)}
             <rect x={miniViewport.x / miniScale} y={miniViewport.y / miniScale} width={miniViewport.width / miniScale} height={miniViewport.height / miniScale} className="mini-viewport" />
           </g>

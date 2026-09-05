@@ -1,4 +1,4 @@
-import { metaForNode, typeClass } from "./meta";
+import { metaForNode, typeClass } from "./meta.js";
 
 export const NODE_WIDTH = 220;
 const NODE_HEIGHTS = [56, 76, 96];
@@ -80,4 +80,22 @@ export function layoutDiagram(root, expandedGroups) {
     };
   });
   return items;
+}
+
+/**
+ * Convert the visible hierarchy into a graph view model. Analysis code keeps
+ * the original tree paths; the canvas consumes these independent collections.
+ */
+export function layoutGraph(root, expandedGroups) {
+  const items = layoutDiagram(root, expandedGroups);
+  const nodes = items.map((item) => ({ ...item, children: undefined, childItems: undefined }));
+  const edges = items.flatMap((item) => item.children.map((target) => ({
+    id: `${item.path}->${target}`,
+    source: item.path,
+    target,
+  })));
+  const containerFrames = items
+    .filter((item) => item.containerFrame)
+    .map((item) => ({ id: item.path, ...item.containerFrame }));
+  return { nodes, edges, containerFrames };
 }

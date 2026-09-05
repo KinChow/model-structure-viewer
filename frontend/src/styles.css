@@ -1112,6 +1112,40 @@ label {
 .inspector-rule { height: 1px; margin-top: 18px; background: #2a3545; }
 .detail-inspector-slot .detail-panel { max-height: calc(100vh - 96px); overflow: auto; }
 .detail-page .panel-toolbar h2, .detail-page .detail-panel h3, .detail-page .detail-panel h4 { color: #edf2f7; }
+.detail-page .toolbar-actions > button,
+.detail-page .toolbar-actions .lens-mode-switch button,
+.detail-page .toolbar-analysis button {
+  border-color: #344154;
+  background: #151e29;
+  color: #b9c5d2;
+}
+.detail-page .toolbar-actions > button:hover:not(:disabled),
+.detail-page .toolbar-actions .lens-mode-switch button:hover:not(:disabled),
+.detail-page .toolbar-analysis button:hover:not(:disabled) {
+  border-color: #f4ab52;
+  color: #f4ab52;
+}
+.detail-page .toolbar-actions .lens-mode-switch button.active {
+  border-color: #f4ab52;
+  background: #3a2a19;
+  color: #f4ab52;
+}
+.detail-page .toolbar-analysis {
+  border-color: #273444;
+  background: #111821;
+}
+.detail-page .lens-control,
+.detail-page .lens-mode-switch {
+  color: #8d9aaa;
+}
+.detail-page .lens-control input,
+.detail-page .lens-control select,
+.detail-page .toolbar-analysis input,
+.detail-page .toolbar-analysis select {
+  border-color: #344154;
+  background: #151e29;
+  color: #e2e9f0;
+}
 .detail-page .diagram-frame { border-color: #2a3545; background-color: #0f151e; background-image: radial-gradient(#253042 1px, transparent 1px); background-size: 20px 20px; }
 .detail-page .toolbar-analysis { border-color: #2a3545; background: #121923; }
 .detail-page .diagram-lens-status span { border-color: #2a3545; }
@@ -1193,6 +1227,31 @@ label {
 .detail-page.theme-light .detail-summary .chip { border-color: #dce3eb; background: transparent; color: #364555; }
 .detail-page.theme-light .diagram-lens-status span { border-color: #dce5ed; }
 .detail-page.theme-light .detail-summary .chip b { color: #657386; }
+.detail-page.theme-light .toolbar-actions > button,
+.detail-page.theme-light .toolbar-actions .lens-mode-switch button,
+.detail-page.theme-light .toolbar-analysis button {
+  border-color: #dce3eb;
+  background: #fff;
+  color: #526172;
+}
+.detail-page.theme-light .toolbar-actions > button:hover:not(:disabled),
+.detail-page.theme-light .toolbar-actions .lens-mode-switch button:hover:not(:disabled),
+.detail-page.theme-light .toolbar-analysis button:hover:not(:disabled) {
+  border-color: #c58b45;
+  color: #a9621d;
+}
+.detail-page.theme-light .toolbar-actions .lens-mode-switch button.active {
+  border-color: #c58b45;
+  background: #fff1df;
+  color: #a9621d;
+}
+.detail-page.theme-light .toolbar-analysis { border-color: #dce3eb; background: #f8fafc; }
+.detail-page.theme-light .lens-control,
+.detail-page.theme-light .lens-mode-switch { color: #657386; }
+.detail-page.theme-light .lens-control input,
+.detail-page.theme-light .lens-control select,
+.detail-page.theme-light .toolbar-analysis input,
+.detail-page.theme-light .toolbar-analysis select { border-color: #dce3eb; background: #fff; color: #364555; }
 .detail-page.theme-light .detail-fit-status.fit { background: #e6f4e8; color: #2e6a3a; }
 .detail-page.theme-light .detail-fit-status.no-fit { background: #fce9e5; color: #a84432; }
 .detail-page.theme-light .detail-fit-status.unknown { background: #eef2f5; color: #68798a; }

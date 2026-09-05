@@ -301,13 +301,15 @@ function StructureDiagram({
                   const related = activeRelationPath && (edge.kind === "dataflow"
                     ? edge.source === activeRelationPath || edge.target === activeRelationPath
                     : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath));
+                  const searchRelated = !searchActive || matched.has(edge.source) || matched.has(edge.target)
+                    || [...matched].some((path) => isPathRelated(edge.source, path) || isPathRelated(edge.target, path));
                   return (
                     <path
                       key={edge.id}
                       data-edge-id={edge.id}
                       d={edgePath(edge, node, target)}
                       fill="none"
-                      className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${edge.evidence === "module-order" ? " mainflow" : ""}${related ? " related" : ""}`}
+                      className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${edge.evidence === "module-order" ? " mainflow" : ""}${related ? " related" : ""}${searchRelated ? "" : " search-dimmed"}`}
                       stroke="var(--diagram-arrow)"
                       strokeWidth={related ? "2.8" : edgeStrokeWidth(edge, node)}
                       markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}

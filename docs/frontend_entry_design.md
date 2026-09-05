@@ -1,6 +1,6 @@
 # Model Structure Viewer 前端入口设计
 
-> 状态：已确认，待开发
+> 状态：已实现，持续优化
 > 日期：2026-09-04
 > 范围：首页模型入口、模型详情页信息层级和成本配置入口；成本公式与数据协议仍需单独确认。
 
@@ -207,6 +207,12 @@ PD · P: H20 × 8 · TP8
 2. 中英文切换的默认语言、持久化方式和未翻译字段的降级规则。
 
 这些事项应在详情页进入正式开发前确认；不影响当前入口和详情页的总体信息层级。
+
+## 10.1 当前实现边界
+
+当前前端已经落地：统一模型输入与内置模型选择、Hugging Face / ModelScope 配置读取、本地目录 config 与 safetensors header 读取、Provider 弹层、双语与深浅主题、单一结构详情工作区、公式/Shape/权重 Inspector、Cost Lens 多选、给定 TP / PP / EP / DP 投影、集中式与 PD 分离配置、Fit 摘要和结构导出。
+
+仍明确不做：Hugging Face 热门模型服务、最近模型持久化、调度与吞吐仿真、KV transfer overlap、最优 parallel plan 搜索，以及 modelmap 式脉冲回放动画。
 
 ## 11. 已确认的详情交互
 

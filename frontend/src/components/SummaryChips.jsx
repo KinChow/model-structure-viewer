@@ -45,8 +45,8 @@ function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   ];
   return (
     <div className="summary-chips">
-      {chips.map(([label, value, tone, title]) => (
-        <span className={`chip ${tone || ""}`.trim()} key={label} title={title || undefined}>
+      {chips.map(([label, value, tone, title], index) => (
+        <span className={`chip ${tone || ""} ${index === 0 ? "identity" : ""} ${index === 1 ? "identity" : ""} ${index === 9 || index === 11 ? "primary" : ""}`.trim()} key={label} title={title || undefined}>
           <b>{label}</b>
           {value ?? "-"}
         </span>

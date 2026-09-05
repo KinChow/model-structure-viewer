@@ -176,7 +176,7 @@ function ReactFlowCanvas({ graph, props }) {
   return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id)} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.target); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
     <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
     <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
-    <Controls showInteractive={false} />
+    <Controls position="top-left" showInteractive={false} />
   </ReactFlow>;
 }
 

@@ -19,6 +19,17 @@ function formatBytes(bytes) {
   return `${Math.round(bytes)} B`;
 }
 
+function formatShape(shape) {
+  if (shape == null) return null;
+  if (Array.isArray(shape)) return `[${shape.join(", ")}]`;
+  if (typeof shape === "string") return shape;
+  try {
+    return JSON.stringify(shape);
+  } catch {
+    return String(shape);
+  }
+}
+
 function edgePath(edge, source, target) {
   const section = edge.sections?.[0];
   if (section?.startPoint && section?.endPoint) {
@@ -364,6 +375,11 @@ function StructureDiagram({
                   const node = nodesByPath.get(edge.source);
                   const target = nodesByPath.get(edge.target);
                   if (!node || !target) return null;
+                  const sourceShape = formatShape(node.node?.output_shape || node.node?.attributes?.output_shape);
+                  const targetShape = formatShape(target.node?.input_shape || target.node?.attributes?.input_shape);
+                  const tensorHint = edge.kind === "dataflow" && (sourceShape || targetShape)
+                    ? ` · Tensor ${sourceShape || "?"} → ${targetShape || "?"}`
+                    : "";
                   const related = activeRelationPath && (edge.kind === "dataflow"
                     ? relatedDataflowEdges.has(edge.id)
                     : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath));
@@ -380,7 +396,7 @@ function StructureDiagram({
                       strokeWidth={related ? "2.8" : edgeStrokeWidth(edge, node)}
                       markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
                     >
-                      <title>{edge.kind === "dataflow" ? (edge.evidence === "module-order" ? (english ? "Model stage flow" : "模型阶段流") : (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）")) : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}</title>
+                      <title>{edge.kind === "dataflow" ? (edge.evidence === "module-order" ? (english ? "Model stage flow" : "模型阶段流") : (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）")) : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}{tensorHint}</title>
                     </path>
                   );
                 })}

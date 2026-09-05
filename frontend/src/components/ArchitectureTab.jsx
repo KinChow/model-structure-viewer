@@ -250,10 +250,12 @@ function ArchitectureTab({
           <button type="button" onClick={() => setCanvasFocus((value) => !value)}>{canvasFocus ? ui.exitFocus : ui.focus}</button>
           {advancedOpen && <div className="toolbar-analysis" aria-label={ui.analysis}>
           {!compactControls && <label className="lens-control">GPU<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
-          <label className="lens-control">{ui.phase}<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
-          <label className="lens-control">TP<input type="number" min="1" value={plan.tp} onChange={(event) => updatePlan({ ...plan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>
-          <label className="lens-control">EP<input type="number" min="1" value={plan.ep} onChange={(event) => updatePlan({ ...plan, ep: Math.max(1, Number(event.target.value) || 1) })} /></label>
-          <label className="lens-control">{ui.attention}<select value={plan.attnMode} onChange={(event) => updatePlan({ ...plan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>
+          {!compactControls && <>
+            <label className="lens-control">{ui.phase}<select value={phase} onChange={(event) => changePhase(event.target.value)}><option value="prefill">Prefill</option><option value="decode">Decode</option></select></label>
+            <label className="lens-control">TP<input type="number" min="1" value={plan.tp} onChange={(event) => updatePlan({ ...plan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>
+            <label className="lens-control">EP<input type="number" min="1" value={plan.ep} onChange={(event) => updatePlan({ ...plan, ep: Math.max(1, Number(event.target.value) || 1) })} /></label>
+            <label className="lens-control">{ui.attention}<select value={plan.attnMode} onChange={(event) => updatePlan({ ...plan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>
+          </>}
           <div className="lens-mode-switch" role="group" aria-label={ui.compare}>
             <span>{ui.compare}</span>
             {[

@@ -316,7 +316,7 @@ function ArchitectureTab({
         <span>TP{plan.tp} / PP{plan.pp || 1} / EP{plan.ep} / DP{plan.dp || 1}</span>
         <span>{english ? "Cost Lens" : "成本 Lens"}: {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</span>
       </div>
-      <div className="diagram-legend" aria-label={language === "en" ? "Node type legend" : "节点类型图例"}>{[["model", language === "en" ? "Container" : "容器"], ["embedding", "Embedding"], ["attention", "Attention"], ["mlp", "MLP / MoE"], ["output", language === "en" ? "Output" : "输出"]].map(([kind, label]) => <span key={kind}><i className={`legend-dot ${kind}`} />{label}</span>)}</div>
+      <div className="diagram-legend" aria-label={language === "en" ? "Node and edge legend" : "节点与连线图例"}>{[["model", language === "en" ? "Container" : "容器"], ["embedding", "Embedding"], ["attention", "Attention"], ["mlp", "MLP / MoE"], ["output", language === "en" ? "Output" : "输出"]].map(([kind, label]) => <span key={kind}><i className={`legend-dot ${kind}`} />{label}</span>)}<span><i className="legend-line structure" />{language === "en" ? "Structure" : "结构"}</span><span><i className="legend-line dataflow" />{language === "en" ? "Data flow" : "数据流"}</span></div>
       {formulaLinks.length > 0 && <div className={`formula-strip${formulaOpen ? " is-open" : ""}`} aria-label={language === "en" ? "Formula index" : "公式索引"}>
         <button type="button" className="formula-strip-toggle" aria-expanded={formulaOpen} aria-controls="formula-index-items" onClick={() => setFormulaOpen((value) => !value)}>
           <span className="formula-strip-label">{language === "en" ? "Formula index" : "公式索引"}</span>

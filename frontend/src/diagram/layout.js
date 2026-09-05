@@ -89,11 +89,31 @@ export function layoutDiagram(root, expandedGroups) {
 export function layoutGraph(root, expandedGroups) {
   const items = layoutDiagram(root, expandedGroups);
   const nodes = items.map((item) => ({ ...item, children: undefined, childItems: undefined }));
-  const edges = items.flatMap((item) => item.children.map((target) => ({
+  const structureEdges = items.flatMap((item) => item.children.map((target) => ({
     id: `${item.path}->${target}`,
     source: item.path,
     target,
+    kind: "structure",
   })));
+  const dataflowEdges = items.flatMap((item) => {
+    const operators = item.childItems?.filter((child) => child.node?.type === "operator") || [];
+    const edges = [];
+    operators.forEach((source) => {
+      if (!source.node?.output_shape) return;
+      operators.forEach((target) => {
+        if (source.path === target.path || !target.node?.input_shape) return;
+        if (JSON.stringify(source.node.output_shape) !== JSON.stringify(target.node.input_shape)) return;
+        edges.push({
+          id: `${source.path}=>${target.path}`,
+          source: source.path,
+          target: target.path,
+          kind: "dataflow",
+        });
+      });
+    });
+    return edges;
+  });
+  const edges = [...structureEdges, ...dataflowEdges];
   const containerFrames = items
     .filter((item) => item.containerFrame)
     .map((item) => ({ id: item.path, ...item.containerFrame }));

@@ -260,7 +260,8 @@ function StructureDiagram({
               {edges.map((edge) => {
                   const node = nodesByPath.get(edge.source);
                   const target = nodesByPath.get(edge.target);
-                  if (!target) return null;
+                  if (!node || !target) return null;
+                  const related = activeRelationPath && isEdgeRelated(edge.source, edge.target, activeRelationPath);
                   return (
                     <path
                       key={edge.id}
@@ -268,9 +269,9 @@ function StructureDiagram({
                         node.y + node.height / 2
                       }, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`}
                       fill="none"
-                      className={activeRelationPath && isEdgeRelated(edge.source, edge.target, activeRelationPath) ? "diagram-edge related" : "diagram-edge"}
+                      className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${related ? " related" : ""}`}
                       stroke="var(--diagram-arrow)"
-                      strokeWidth={activeRelationPath && isEdgeRelated(edge.source, edge.target, activeRelationPath) ? "2.8" : "1.5"}
+                      strokeWidth={related ? "2.8" : edge.kind === "dataflow" ? "2" : "1.5"}
                       markerEnd={`url(#${markerId})`}
                     />
                   );

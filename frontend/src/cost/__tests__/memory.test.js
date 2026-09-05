@@ -37,3 +37,7 @@ test("动态数值 shape 分别解析普通张量和 attention 矩阵", () => {
   assert.equal(tensorElements([-1, -1, -1, -1], { batch: 2, sequence: 3, phase: "decode", attentionHeads: 2 }), 12);
   assert.equal(activationTensorBytes([-1, -1, 4], { batch: 2, sequence: 3 }, 2), 48);
 });
+
+test("未知视觉输入尺寸不被当作文本 sequence", () => {
+  assert.equal(tensorElements([-1, -1, -1, -1, -1], { batch: 1, sequence: 2048 }), 0);
+});

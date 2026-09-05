@@ -79,6 +79,8 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
     ? Math.min(100, Math.max(0, (node.params / totalParameters) * 100))
     : null;
   const english = language === "en";
+  const hasShape = Boolean(node.attributes?.input_shape || node.attributes?.output_shape);
+  const hasAttributes = Object.entries(node.attributes || {}).some(([key]) => key !== "class") || (node.source_fields?.length > 0);
   async function copyPath() {
     if (!path) return;
     try {
@@ -115,8 +117,14 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
       <LensSection lens={costLens} activeLenses={activeLenses} language={language} />
       <FormulaSection node={node} language={language} />
       <ChildModulesSection node={node} path={path} language={language} onSelectPath={onSelectPath} />
-      <ShapeFlow attributes={node.attributes} />
-      <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />
+      {hasShape && <details className="inspector-disclosure" open>
+        <summary>{english ? "Shape / tensor flow" : "Shape / Tensor 流"}</summary>
+        <ShapeFlow attributes={node.attributes} />
+      </details>}
+      {hasAttributes && <details className="inspector-disclosure" open>
+        <summary>{english ? "Attributes" : "属性"}</summary>
+        <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />
+      </details>}
     </aside>
   );
 }

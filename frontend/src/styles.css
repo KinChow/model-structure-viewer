@@ -934,6 +934,36 @@ label {
   padding: 0 4px;
   color: #5a6b7e;
 }
+.inspector-disclosure {
+  margin-top: 13px;
+  border-top: 1px solid #2a3545;
+  padding-top: 10px;
+}
+.inspector-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #9aa8b8;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  list-style: none;
+  text-transform: uppercase;
+}
+.inspector-disclosure > summary::-webkit-details-marker { display: none; }
+.inspector-disclosure > summary::after {
+  content: "+";
+  color: #f4ab52;
+  font: 16px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.inspector-disclosure[open] > summary::after { content: "−"; }
+.inspector-disclosure > summary:hover { color: #f4ab52; }
+.inspector-disclosure .shape-flow,
+.inspector-disclosure .attribute-grid { margin-top: 9px; }
+.detail-page.theme-light .inspector-disclosure { border-color: #dce3eb; }
+.detail-page.theme-light .inspector-disclosure > summary { color: #657386; }
+.detail-page.theme-light .inspector-disclosure > summary:hover { color: #a9621d; }
 
 .truth-section {
   margin: 12px 0;

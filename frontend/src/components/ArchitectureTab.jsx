@@ -103,7 +103,7 @@ function ArchitectureTab({
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const [formulaOpen, setFormulaOpen] = useState(false);
-  const [edgeMode, setEdgeMode] = useState("all");
+  const [edgeMode, setEdgeMode] = useState("dataflow");
   const compareScrollGroup = useRef(new Map());
   const [advancedOpen, setAdvancedOpen] = useState(!compactControls);
   const [canvasFocus, setCanvasFocus] = useState(false);

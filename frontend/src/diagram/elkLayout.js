@@ -49,7 +49,7 @@ export async function layoutGraphWithElk(graph) {
   const elk = await getElk();
   const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
   const directEdges = (path, allowedIds) => graph.edges
-    .filter((edge) => (edge.kind === "structure" || edge.kind === "dataflow")
+    .filter((edge) => edge.kind === "dataflow"
       && parentPath(edge.source) === path && parentPath(edge.target) === path
       && (!allowedIds || (allowedIds.has(edge.source) && allowedIds.has(edge.target))))
     .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }));
@@ -88,7 +88,7 @@ export async function layoutGraphWithElk(graph) {
   const modelShape = root ? makeShape(root, 0) : null;
   const topEdges = root
     ? graph.edges
-      .filter((edge) => (edge.kind === "structure" || edge.kind === "dataflow")
+      .filter((edge) => edge.kind === "dataflow"
         && rootChildren.some((child) => child.path === edge.source)
         && rootChildren.some((child) => child.path === edge.target)
         && (externalIds.has(edge.source) || externalIds.has(edge.target)))

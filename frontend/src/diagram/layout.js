@@ -99,12 +99,6 @@ export function layoutGraph(root, expandedGroups) {
     return "model";
   };
   const nodes = items.map((item) => ({ ...item, stage: stageForPath(item.path), children: undefined, childItems: undefined }));
-  const structureEdges = items.flatMap((item) => item.children.map((target) => ({
-    id: `${item.path}->${target}`,
-    source: item.path,
-    target,
-    kind: "structure",
-  })));
   const orderedPairs = new Set(items.flatMap((item) => {
     const children = item.childItems || [];
     return children.slice(0, -1).map((source, index) => `${source.path}=>${children[index + 1].path}`);
@@ -147,7 +141,7 @@ export function layoutGraph(root, expandedGroups) {
     .map((item) => item.path);
   const dataflowPairs = new Set(dataflowEdges.map((edge) => `${edge.source}=>${edge.target}`));
   const missingOrderEdges = moduleOrderEdges.filter((edge) => !dataflowPairs.has(`${edge.source}=>${edge.target}`));
-  const edges = [...structureEdges, ...dataflowEdges, ...missingOrderEdges];
+  const edges = [...dataflowEdges, ...missingOrderEdges];
   // Keep the synchronous state graph-first while ELK is loading or unavailable.
   // Top-level modules form columns; their visible operators stack inside each column.
   const moduleIndex = new Map(topLevelPaths.map((path, index) => [path, index]));

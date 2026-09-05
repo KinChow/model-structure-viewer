@@ -9,9 +9,24 @@ import ManualChipForm from "./ManualChipForm.jsx";
 import { getChipCoverage } from "../cost/chips/coverage.js";
 
 function downloadSvg(structure) {
-  const svg = document.querySelector(".diagram-svg");
-  if (!svg) return;
-  const blob = new Blob([svg.outerHTML], { type: "image/svg+xml" });
+  const legacySvg = document.querySelector(".diagram-svg");
+  const flow = document.querySelector(".react-flow");
+  const viewport = flow?.querySelector(".react-flow__viewport");
+  if (!legacySvg && !viewport) return;
+  const source = legacySvg
+    ? legacySvg.outerHTML
+    : (() => {
+      const rect = flow.getBoundingClientRect();
+      const styles = [...document.styleSheets].flatMap((sheet) => {
+        try {
+          return [...sheet.cssRules].map((rule) => rule.cssText);
+        } catch {
+          return [];
+        }
+      }).join("\n");
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}" viewBox="0 0 ${rect.width} ${rect.height}"><style>${styles}</style><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${rect.width}px;height:${rect.height}px;overflow:hidden">${viewport.innerHTML}</div></foreignObject></svg>`;
+    })();
+  const blob = new Blob([source], { type: "image/svg+xml" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

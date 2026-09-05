@@ -1081,9 +1081,11 @@ label {
 .detail-header-actions button { border: 1px solid #2a3545; border-radius: 5px; background: transparent; color: #9aa7b7; padding: 6px 8px; font-size: 11px; }
 .detail-header-actions button:hover:not(:disabled) { border-color: #f4ab52; color: #edf2f7; }
 .detail-summary { padding: 10px 24px 0; border-bottom: 1px solid #202a38; }
-.detail-summary .summary-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); max-width: 1440px; margin: 0 auto; padding-bottom: 10px; gap: 0; }
-.detail-summary .chip { display: grid; min-width: 0; gap: 3px; border: 0; border-left: 1px solid #2a3545; border-radius: 0; padding: 3px 12px; background: transparent; color: #d5dde6; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
-.detail-summary .chip.identity { min-width: 150px; }
+.detail-summary .summary-chips { display: flex; flex-wrap: nowrap; max-width: 1440px; margin: 0 auto; overflow-x: auto; overflow-y: hidden; padding-bottom: 10px; gap: 0; scrollbar-width: none; }
+.detail-summary .summary-chips::-webkit-scrollbar { display: none; }
+.detail-summary .chip { display: grid; flex: 1 1 108px; min-width: 0; gap: 3px; border: 0; border-left: 1px solid #2a3545; border-radius: 0; padding: 3px 12px; background: transparent; color: #d5dde6; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.detail-summary .chip-value { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-summary .chip.identity { flex: 1.35 1 150px; }
 .detail-summary .chip.primary { background: rgba(244,171,82,.045); }
 .detail-summary .chip.primary b { color: #d1a05f; }
 .detail-summary .chip:first-child { border-left: 0; padding-left: 0; }

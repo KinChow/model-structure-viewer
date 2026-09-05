@@ -466,6 +466,11 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   text-overflow: ellipsis;
   min-width: 0;
 }
+.diagram-lens-values { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; min-width: 0; }
+.diagram-lens-value { padding: 2px 5px; border: 1px solid currentColor; border-radius: 4px; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.1; opacity: .9; }
+.diagram-lens-value.lens-vram { color: #d9a35f; background: rgba(244,171,82,.1); }
+.diagram-lens-value.lens-compute { color: #d984a3; background: rgba(198,83,126,.1); }
+.diagram-lens-value.lens-memory { color: #63b9ae; background: rgba(46,143,132,.1); }
 
 .diagram-node.model { fill: #f1f3f6; stroke: #7c8798; }
 

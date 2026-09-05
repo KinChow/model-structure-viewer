@@ -264,10 +264,10 @@ function StructureDiagram({
                 const bound = lensEnabled ? nodeLens?.[node.path]?.bound || "unknown" : "unknown";
                 const metrics = lensEnabled ? nodeLens?.[node.path]?.metrics || {} : {};
                 const lensValues = [
-                  activeLenses.has("compute") && ["C", metrics.computeSeconds],
-                  activeLenses.has("memory") && ["M", metrics.memoryBytes, true],
-                  activeLenses.has("vram") && ["V", metrics.vramBytes, true],
-                ].filter(Boolean).map(([label, value, isBytes]) => value == null ? `${label} -` : `${label} ${isBytes ? formatBytes(value) : formatMetric(value)}`);
+                  activeLenses.has("compute") && ["compute", "C", metrics.computeSeconds],
+                  activeLenses.has("memory") && ["memory", "M", metrics.memoryBytes, true],
+                  activeLenses.has("vram") && ["vram", "V", metrics.vramBytes, true],
+                ].filter(Boolean).map(([id, label, value, isBytes]) => ({ id, text: value == null ? `${label} -` : `${label} ${isBytes ? formatBytes(value) : formatMetric(value)}` }));
                 const isHovered = activeHoveredPath === node.path;
                 const isRelated = activeRelationPath && isPathRelated(node.path, activeRelationPath);
                 const comparisonActive = comparisonPaths instanceof Set && comparisonPaths.size > 0;
@@ -359,7 +359,7 @@ function StructureDiagram({
                             ))}
                           </ul>
                         )}
-                        {lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map((value) => <span key={value} className="diagram-lens-value">{value}</span>)}</div>}
+                        {lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map(({ id, text }) => <span key={id} className={`diagram-lens-value lens-${id}`}>{text}</span>)}</div>}
                       </div>
                     </foreignObject>
                   </g>

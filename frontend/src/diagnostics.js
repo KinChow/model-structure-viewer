@@ -10,6 +10,7 @@ export function structureStatus(structure) {
   const summary = structure?.summary || {};
   const diagnostics = structure?.source?.diagnostics || {};
   const strategy = summary.strategy || structure?.source?.strategy;
+  const checkpointStatus = structure?.source?.checkpoint_truth;
   const [label, tone, defaultDetail] = STRATEGY_LABELS[strategy] || [
     "Not loaded",
     "neutral",
@@ -18,7 +19,10 @@ export function structureStatus(structure) {
   return {
     label,
     tone,
-    detail: detailFor(strategy, diagnostics, defaultDetail),
+    detail: checkpointDetail(
+      detailFor(strategy, diagnostics, defaultDetail),
+      checkpointStatus,
+    ),
   };
 }
 
@@ -27,4 +31,10 @@ function detailFor(strategy, diagnostics, defaultDetail) {
     return `Repaired by ${diagnostics.repair_strategy}`;
   }
   return defaultDetail;
+}
+
+function checkpointDetail(detail, status) {
+  if (status === "unavailable") return `${detail}; checkpoint metadata unavailable, using config-only structure`;
+  if (status === "empty") return `${detail}; no safetensors metadata found`;
+  return detail;
 }

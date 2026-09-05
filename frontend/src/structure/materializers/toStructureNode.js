@@ -85,6 +85,11 @@ export function materializeModelStructure(ir) {
       model_id: options.modelId,
       revision: options.revision,
       strategy: effectiveStrategy,
+      checkpoint_truth: options.checkpointTruthStatus || (truth ? "available" : "not-requested"),
+      checkpoint_truth_method: options.checkpointTruthMethod || truth?.method || null,
+      checkpoint_truth_error: options.checkpointTruthError || null,
+      config_endpoint: options.configEndpoint || null,
+      checkpoint_truth_endpoint: options.checkpointTruthEndpoint || null,
       diagnostics: mergedDiagnostics,
     },
     root: {

@@ -36,8 +36,10 @@ export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
     operatorSpec(`${prefix}.k_proj`, "k projection", "linear", shapeFlow(shapes.hidden, shapes.attentionKey), { input: dims.hidden, output: dims.attentionKey }),
     operatorSpec(`${prefix}.v_proj`, "v projection", "linear", shapeFlow(shapes.hidden, shapes.attentionValue), { input: dims.hidden, output: dims.attentionValue }),
     operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
+      input_shape: `${shapes.attentionQuery}, ${shapes.attentionKey}`,
       query_shape: shapes.attentionQuery,
       key_shape: shapes.attentionKey,
+      position_shape: "[batch, sequence]",
       output_shape: `${shapes.attentionQuery}, ${shapes.attentionKey}`,
     }, { input: dims.attentionQuery, output: dims.attentionQuery }),
     operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {

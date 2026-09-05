@@ -340,7 +340,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .react-flow-diagram .react-flow__controls-button { width: 34px; height: 34px; border-bottom: 1px solid #dbe4ec; background: #fff; color: #526678; fill: currentColor; }
 .react-flow-diagram .react-flow__controls-button:hover { background: #f0f4f8; color: #1f5f91; }
 .react-flow-diagram .react-flow__controls-button svg { fill: currentColor; }
-.react-flow-diagram .react-flow__minimap { margin: 0 12px 12px 0; }
+.react-flow-diagram .react-flow__minimap { top: 12px; right: 12px; bottom: auto; width: 164px; height: 108px; margin: 0; border: 1px solid #cbd7e2; border-radius: 6px; box-shadow: 0 6px 18px rgba(38,55,73,.16); }
 .rf-model-node { position: relative; box-sizing: border-box; overflow: visible; border: 1.5px solid #7c8798; border-radius: 10px; background: #f1f3f6; color: #17202c; box-shadow: 0 3px 10px rgba(38,55,73,.12); cursor: pointer; }
 .rf-model-node.selected { border-color: #f4ab52; box-shadow: 0 0 0 2px rgba(244,171,82,.3), 0 3px 10px rgba(38,55,73,.12); }
 .rf-model-node.related { border-color: #7fa9c8; }
@@ -390,10 +390,12 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .detail-page.theme-dark .rf-stage-band { border-color: rgba(147,160,178,.2); color: #9ba8b8; }
 .detail-page.theme-dark .react-flow-diagram .react-flow__controls-button { border-color: #344154; background: #151c26; color: #b9c6d4; }
 .detail-page.theme-dark .react-flow-diagram .react-flow__controls-button:hover { background: #202a37; color: #f4ab52; }
+.detail-page.theme-dark .react-flow-diagram .react-flow__minimap { border-color: #344154; background: #151c26; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
 .detail-page.theme-light .rf-group-frame { border-color: rgba(82,110,136,.85); color: #536b80; }
 .detail-page.theme-light .rf-group-frame::before { border-color: rgba(103,137,171,.42); background: rgba(103,137,171,.14); }
 .detail-page.theme-light .react-flow-diagram .react-flow__controls-button { border-color: #dbe4ec; background: #fff; color: #526678; }
 .detail-page.theme-light .react-flow-diagram .react-flow__controls-button:hover { background: #edf3f8; color: #1f5f91; }
+.detail-page.theme-light .react-flow-diagram .react-flow__minimap { border-color: #cbd7e2; background: rgba(255,255,255,.94); box-shadow: 0 6px 18px rgba(38,55,73,.16); }
 .diagram-context-bar { position: absolute; z-index: 2; top: 10px; left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; min-height: 28px; padding: 5px 8px; border: 1px solid rgba(137,157,180,.45); border-radius: 5px; background: rgba(248,251,253,.9); box-shadow: 0 3px 12px rgba(38,55,73,.08); backdrop-filter: blur(8px); color: #607184; font-size: 10px; }
 .diagram-context-path { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; overflow: hidden; }
 .diagram-context-path span { display: inline-flex; min-width: 0; align-items: center; }

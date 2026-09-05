@@ -173,4 +173,7 @@ test("adds readable tensor shapes to modules and operators", () => {
   assert.equal(attention.attributes.query_shape, "[batch, sequence, attention heads=8, head dimension=256]");
   assert.equal(attention.attributes.key_shape, "[batch, sequence, key value heads=2, head dimension=256]");
   assert.equal(qProjection.attributes.output_shape, "[batch, sequence, attention heads=8, head dimension=256]");
+  const rope = attention.children.find((node) => node.name === "rotary position embedding");
+  assert.equal(rope.attributes.input_shape, "[batch, sequence, attention heads=8, head dimension=256], [batch, sequence, key value heads=2, head dimension=256]");
+  assert.equal(rope.attributes.position_shape, "[batch, sequence]");
 });

@@ -25,6 +25,15 @@ test("structureStatus explains frontend architecture template output", () => {
   assert.equal(status.detail, "Config-driven frontend structure");
 });
 
+test("structureStatus reports when checkpoint truth falls back to config", () => {
+  const status = structureStatus({
+    summary: { strategy: "frontend-architecture-template" },
+    source: { checkpoint_truth: "unavailable" },
+  });
+
+  assert.equal(status.detail, "Config-driven frontend structure; checkpoint metadata unavailable, using config-only structure");
+});
+
 test("structureStatus 区分 checkpoint 骨架真值与模板合并真值", () => {
   assert.deepEqual(structureStatus({ summary: { strategy: "skeleton-truth" } }), {
     label: "Checkpoint 骨架真值",

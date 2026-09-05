@@ -121,12 +121,59 @@ test("buildStructureForPayload reads built-in config without backend API", async
         num_attention_heads: 16,
       },
     }),
+    async () => null,
   );
 
   assert.equal(apiCalled, false);
   assert.equal(localCalled, false);
   assert.equal(structure.source.kind, "built-in config");
   assert.equal(structure.summary.canonical_architecture, "gqa-decoder");
+});
+
+test("built-in model enriches its config with remote safetensors truth", async () => {
+  let truthRequest = null;
+  const structure = await buildStructureForPayload(
+    {
+      source: "builtin",
+      model_id: "Qwen/Qwen3.5-0.8B",
+      endpoint: "huggingface",
+      revision: "main",
+    },
+    async () => { throw new Error("structure API should not be called"); },
+    async () => { throw new Error("local config should not be called"); },
+    async () => { throw new Error("HF config should not be called"); },
+    async ({ modelId }) => ({
+      model_id: modelId,
+      source: { kind: "built-in config" },
+      config: {
+        model_type: "qwen3",
+        architectures: ["Qwen3ForCausalLM"],
+        num_hidden_layers: 1,
+        hidden_size: 1024,
+        num_attention_heads: 16,
+        num_key_value_heads: 8,
+      },
+    }),
+    async (request) => {
+      truthRequest = request;
+      return {
+        tensors: [{ name: "model.embed_tokens.weight", dtype: "BF16", shape: [32000, 1024] }],
+        parameterCount: { BF16: 32000 * 1024 },
+        parameterTotal: 32000 * 1024,
+      };
+    },
+  );
+
+  assert.deepEqual(truthRequest, {
+    modelId: "Qwen/Qwen3.5-0.8B",
+    revision: "main",
+    hubUrl: "https://huggingface.co",
+    resolvePrefix: "",
+  });
+  assert.equal(structure.source.kind, "built-in config");
+  assert.equal(structure.source.checkpoint_truth, "available");
+  assert.equal(structure.summary.strategy, "template+truth");
+  assert.equal(structure.summary.parameters_total, 32000 * 1024);
 });
 
 test("buildStructureForPayload reads HF config then builds in frontend", async () => {
@@ -153,11 +200,51 @@ test("buildStructureForPayload reads HF config then builds in frontend", async (
       n_routed_experts: 64,
     }),
     async () => null, // 离线：无真值 → 降级模板路径
+    async () => null,
   );
 
   assert.equal(apiCalled, false);
   assert.equal(structure.source.kind, "hf config (huggingface)");
   assert.equal(structure.summary.canonical_architecture, "mla-moe-decoder");
+});
+
+test("HF config failure falls back to ModelScope before backend", async () => {
+  const configRequests = [];
+  const structure = await buildStructureForPayload(
+    {
+      source: "hf",
+      model_id: "org/example",
+      revision: "main",
+      endpoint: "huggingface",
+    },
+    async () => { throw new Error("structure API should not be called"); },
+    async () => { throw new Error("local config should not be called"); },
+    async ({ endpoint }) => {
+      configRequests.push(endpoint);
+      if (endpoint === "huggingface") throw new Error("HF unavailable");
+      return {
+        model_type: "qwen3",
+        architectures: ["Qwen3ForCausalLM"],
+        num_hidden_layers: 1,
+        hidden_size: 1024,
+        num_attention_heads: 16,
+        num_key_value_heads: 8,
+      };
+    },
+    async () => { throw new Error("built-in config should not be called"); },
+    async ({ hubUrl, revision }) => ({
+      tensors: [{ name: "model.embed_tokens.weight", dtype: "BF16", shape: [32000, 1024] }],
+      parameterCount: { BF16: 32000 * 1024 },
+      parameterTotal: 32000 * 1024,
+      method: `${hubUrl}:${revision}`,
+    }),
+  );
+
+  assert.deepEqual(configRequests, ["huggingface", "modelscope"]);
+  assert.equal(structure.source.kind, "hf config (modelscope)");
+  assert.equal(structure.source.config_endpoint, "modelscope");
+  assert.equal(structure.source.checkpoint_truth_endpoint, "modelscope");
+  assert.equal(structure.summary.strategy, "template+truth");
 });
 
 test("buildStructureForPayload enriches HF tree with checkpoint truth when available", async () => {

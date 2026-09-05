@@ -19,6 +19,14 @@ const BASE_LAYOUT = {
   "elk.spacing.nodeNode": "24",
 };
 
+const SEMANTIC_LAYOUT = {
+  ...BASE_LAYOUT,
+  // Keep every operation at the longest dependency distance from the
+  // module inputs. This prevents a side input such as MLA's value projection
+  // from being compressed into the middle of the main q/k path.
+  "elk.layered.layering.strategy": "LONGEST_PATH",
+};
+
 function parentPath(path) {
   const index = path.lastIndexOf(".");
   return index < 0 ? null : path.slice(0, index);
@@ -61,6 +69,10 @@ export async function layoutGraphWithElk(graph) {
     if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
     const semanticFlow = graph.edges.some((edge) => edge.evidence === "semantic-flow"
       && parentPath(edge.source) === node.path && parentPath(edge.target) === node.path);
+    const internalEdges = directEdges(node.path, childIds);
+    const inputIds = new Set(children
+      .filter((child) => !internalEdges.some((edge) => edge.targets.includes(child.path)))
+      .map((child) => child.path));
     const orderEdges = semanticFlow ? [] : children.slice(0, -1).map((child, index) => ({
       id: `__order__${node.path}__${index}`,
       sources: [child.path],
@@ -69,14 +81,25 @@ export async function layoutGraphWithElk(graph) {
     return {
       id: node.path,
       layoutOptions: {
-        ...BASE_LAYOUT,
+        ...(semanticFlow ? SEMANTIC_LAYOUT : BASE_LAYOUT),
         // Keep the model's top-level modules in a readable pipeline. Once a
         // module is opened, its implementation is a vertical sibling flow.
         "elk.direction": depth === 0 ? "RIGHT" : "DOWN",
         "elk.padding": "[top=32,left=24,bottom=24,right=24]",
       },
-      children: children.map((child) => makeShape(child, depth + 1)),
-      edges: [...directEdges(node.path, childIds), ...orderEdges],
+      children: children.map((child) => {
+        const shape = makeShape(child, depth + 1);
+        if (semanticFlow && inputIds.has(child.path)) {
+          shape.layoutOptions = {
+            ...(shape.layoutOptions || {}),
+            // ELK's FIRST constraint is the explicit contract for module
+            // inputs; LONGEST_PATH keeps the remaining graph well layered.
+            "elk.layered.layering.layerConstraint": "FIRST",
+          };
+        }
+        return shape;
+      }),
+      edges: [...internalEdges, ...orderEdges],
     };
   }
 
@@ -109,7 +132,8 @@ export async function layoutGraphWithElk(graph) {
   // Cross-boundary edges can make ELK place an external head above the
   // compound model. The canvas root has a deliberate left-to-right contract:
   // keep the model container on the left and its external siblings to the
-  // right, centered against the model's height.
+  // right, aligned to the top execution baseline rather than the center of a
+  // very tall expanded decoder.
   if (result.id === "__graph_root__") {
     const modelResult = result.children?.find((child) => child.id === "root");
     if (modelResult) {
@@ -118,7 +142,7 @@ export async function layoutGraphWithElk(graph) {
       for (const child of result.children || []) {
         if (child.id === "root") continue;
         child.x = externalX;
-        child.y = modelY + Math.max(0, ((modelResult.height || 0) - (child.height || 0)) / 2);
+        child.y = modelY + 32;
         externalX += (child.width || 0) + 80;
       }
     }
@@ -134,7 +158,6 @@ export async function layoutGraphWithElk(graph) {
     for (const child of modelLayout.children) child.y = topLevelY;
   }
   const positions = new Map();
-  const routedEdges = new Map();
   const groupFrames = [];
   function walk(shape, offsetX = 0, offsetY = 0) {
     const x = offsetX + (shape.x || 0);
@@ -153,16 +176,9 @@ export async function layoutGraphWithElk(graph) {
           : `${node.displayName} · ${node.node?.type || "module"}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
         classLabel: node.path === "root" ? (node.node?.attributes?.class || node.node?.name || null) : null,
         depth: node.depth,
+        edgeAnchorOffset: node.depth === 1 ? 70 : null,
         kind: "graph-group",
       });
-    }
-    for (const edge of shape.edges || []) {
-      routedEdges.set(edge.id, (edge.sections || []).map((section) => ({
-        ...section,
-        startPoint: { x: section.startPoint.x + offsetX, y: section.startPoint.y + offsetY },
-        endPoint: { x: section.endPoint.x + offsetX, y: section.endPoint.y + offsetY },
-        bendPoints: (section.bendPoints || []).map((point) => ({ x: point.x + offsetX, y: point.y + offsetY })),
-      })));
     }
     for (const child of shape.children || []) walk(child, x, y);
   }
@@ -172,7 +188,7 @@ export async function layoutGraphWithElk(graph) {
     ...graph,
     layoutReady: true,
     nodes: graph.nodes.map((node) => ({ ...node, ...(positions.get(node.path) || {}) })),
-    edges: graph.edges.map((edge) => ({ ...edge, sections: routedEdges.get(edge.id) || [] })),
+    edges: graph.edges.map((edge) => ({ ...edge })),
     containerFrames: groupFrames,
   };
 }

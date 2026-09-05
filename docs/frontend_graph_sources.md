@@ -6,9 +6,16 @@ MSV should use mature graph primitives for the canvas rather than expanding the
 custom SVG interaction layer. The target stack is:
 
 - `@xyflow/react` for nodes, handles, selection, pan, zoom, and minimap.
-- `elkjs` for compound graph layout and routed edge sections.
+- `elkjs` for compound graph node placement and container sizing.
+- `@tisoap/react-flow-smart-edge` for obstacle-aware paths between leaf nodes.
 - A thin MSV adapter that maps the existing structure IR, formula metadata,
   Tensor Shape data, Cost Lens data, and PD data into graph nodes and edges.
+
+ELK edge sections are intentionally not passed to React Flow. ELK and React
+Flow use different coordinate representations for nested nodes and compound
+frames; Smart Edge reads the current controlled React Flow nodes instead. Edges
+whose source or target is a compound frame use React Flow's native geometry so
+they enter the frame directly rather than routing around the frame's children.
 
 ## Reference Source
 
@@ -25,6 +32,17 @@ MSV does not copy modelmap's model extraction, trace data, cost planner, or
 flow replay engine. Those parts depend on modelmap-specific data contracts and
 would conflict with MSV's config/safetensors truth, formulas, Cost Lens, and
 PD analysis.
+
+## Edge Routing
+
+The semantic adapter owns the graph meaning: MLA, MLP, and MoE branches are
+represented as dataflow edges, while parent-child containment is represented by
+React Flow `parentId` and compound frames. `react-flow-smart-edge` owns only
+the final obstacle-aware SVG path for edges between ordinary nodes. The
+dependency is MIT licensed; see its package documentation and repository:
+
+- https://github.com/tisoap/react-flow-smart-edge
+- https://reactflow.dev/learn/layouting/layouting#routing-edges
 
 ## ONNX Boundary
 

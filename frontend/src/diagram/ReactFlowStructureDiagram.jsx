@@ -10,14 +10,17 @@ import {
   ReactFlow,
   ReactFlowProvider,
   getBezierPath,
+  getSmoothStepPath,
   useReactFlow,
 } from "@xyflow/react";
+import { SmartEdgeProvider, useSmartEdgePath } from "@tisoap/react-flow-smart-edge";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
 import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgeStrokeWidth } from "./edgeStyle.js";
 
 const EMPTY_SET = new Set();
+const DATAFLOW_MARKER = { type: MarkerType.ArrowClosed, width: 10, height: 10, color: "#d08a3a" };
 const HoverContext = createContext({ activeRelationPath: null, onHover: null });
 
 function formatMetric(seconds) {
@@ -126,12 +129,13 @@ function MsvNode({ data, selected }) {
 function MsvGroupFrame({ data }) {
   const node = data.node;
   const verticalFlow = (data.depth || 0) > 1;
+  const anchorStyle = data.edgeAnchorOffset == null ? undefined : { top: data.edgeAnchorOffset };
   return <div className={`rf-group-frame depth-${Math.min(data.depth || 0, 4)}`} title={data.label} onClick={(event) => {
     if (event.target.closest("button")) return;
     data.onSelect?.(node?.path);
   }}>
-    <Handle id="target" type="target" position={verticalFlow ? Position.Top : Position.Left} className="rf-port rf-group-port" isConnectable={false} />
-    <Handle id="source" type="source" position={verticalFlow ? Position.Bottom : Position.Right} className="rf-port rf-group-port" isConnectable={false} />
+    <Handle id="target" type="target" position={verticalFlow ? Position.Top : Position.Left} className="rf-port rf-group-port" style={anchorStyle} isConnectable={false} />
+    <Handle id="source" type="source" position={verticalFlow ? Position.Bottom : Position.Right} className="rf-port rf-group-port" style={anchorStyle} isConnectable={false} />
     <div className="rf-group-header">
       {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={data.english ? "Collapse" : "收起"}>−</button>}
       <strong>{data.label}</strong>
@@ -145,21 +149,42 @@ function MsvStageBand({ data }) {
 }
 
 const RF_NODE_TYPES = { msvNode: MsvNode, groupFrame: MsvGroupFrame, stageBand: MsvStageBand };
-const RF_EDGE_TYPES = { msvEdge: MsvEdge };
+const RF_EDGE_TYPES = { msvEdge: MsvEdge, msvNativeEdge: MsvNativeEdge };
 
-function MsvEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
-  // React Flow has already resolved the actual Handle bounds, including
-  // compound-parent offsets. Use those coordinates directly so the path
-  // terminates on the visible input/output ports.
-  const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
-  const className = `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.evidence === "semantic-flow" ? " semantic-flow" : ""}${data?.related ? " related" : ""}`;
+function edgeClassName(data) {
+  return `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.evidence === "semantic-flow" ? " semantic-flow" : ""}${data?.related ? " related" : ""}`;
+}
+
+function edgeStyle(style, data) {
   const mainFlow = data?.evidence === "module-order" || data?.evidence === "semantic-flow";
-  return <BaseEdge path={path} markerEnd={markerEnd} style={{ ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: mainFlow ? undefined : "7 4" }} className={className} />;
+  return { ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: mainFlow ? undefined : "7 4" };
+}
+
+function MsvNativeEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
+  const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} />;
+}
+
+function MsvEdge(props) {
+  const { id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data } = props;
+  const { route } = useSmartEdgePath({
+    ...props,
+    // A routed MLA side branch can contain several obstacle-avoidance
+    // waypoints. Smoothstep keeps those turns legible instead of bending all
+    // waypoints into a visually confusing Bezier loop.
+    preset: "smoothstep",
+    options: { gridRatio: 12, nodePadding: 8, borderRadius: 6 },
+  });
+  const [fallbackPath] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 6 });
+  const path = route && route.kind !== "clear" ? route.svgPathString : fallbackPath;
+  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} />;
 }
 
 function ReactFlowCanvas({ graph, props }) {
   const { fitBounds, fitView, setCenter, setViewport, getNode, getNodes, getViewport, zoomTo } = useReactFlow();
   const lastZoom = useRef(props.zoom);
+  const lastFitNonce = useRef(props.fitNonce);
+  const lastModelKey = useRef(null);
   useEffect(() => {
     if (!props.scrollSync?.group || !props.scrollSyncId) return undefined;
     const entry = { setViewport: (viewport) => setViewport(viewport, { duration: 0 }) };
@@ -202,6 +227,7 @@ function ReactFlowCanvas({ graph, props }) {
         parentId: parentFrame ? `frame-${parentFrame}` : undefined,
         width: frame.width,
         height: frame.height,
+        measured: { width: frame.width, height: frame.height },
         style: { width: frame.width, height: frame.height },
         data: { ...frame, node: nodeByPath.get(frame.id), english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup },
         selected: props.selectedPath === frame.id,
@@ -214,14 +240,16 @@ function ReactFlowCanvas({ graph, props }) {
     const modelNodes = graph.nodes.filter((node) => !frameByPath.has(node.path)).map((node) => {
       const parentFrame = nearestFrame(node.path);
       const parentOrigin = originForFrame(parentFrame);
+      const nodeHeight = node.isCollapsible && node.isExpanded ? 28 : node.height;
       return {
         id: node.path,
         type: "msvNode",
         position: { x: node.x - parentOrigin.x, y: node.y - parentOrigin.y },
         parentId: parentFrame ? `frame-${parentFrame}` : undefined,
         width: node.width,
-        height: node.isCollapsible && node.isExpanded ? 28 : node.height,
-        style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height },
+        height: nodeHeight,
+        measured: { width: node.width, height: nodeHeight },
+        style: { width: node.width, height: nodeHeight },
         data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, nodeLens: props.nodeLens, activeLenses: props.activeLenses, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths },
         selected: props.selectedPath === node.path,
         draggable: false,
@@ -238,18 +266,24 @@ function ReactFlowCanvas({ graph, props }) {
       target: targetId(edge.target),
       sourceHandle: "source",
       targetHandle: "target",
-      type: "msvEdge",
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#d08a3a" },
-      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
+      type: framePaths.has(edge.source) || framePaths.has(edge.target) ? "msvNativeEdge" : "msvEdge",
+      markerEnd: DATAFLOW_MARKER,
+      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)) },
     }));
   }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
-  // ELK keeps the same node count while replacing the provisional positions;
-  // fitting only on node-count changes leaves the canvas focused on the
-  // provisional layout after the compound layout resolves.
+  const modelKey = graph.nodes.find((node) => node.path === "root")?.fullName || graph.nodes[0]?.fullName || "";
+  // Fit once after the real ELK layout arrives, on model changes, or when the
+  // user explicitly requests it. Expanding a nested module must preserve the
+  // current viewport so the selected-module focus below can take over.
   useEffect(() => {
     if (!graph.layoutReady) return;
+    const modelChanged = modelKey !== lastModelKey.current;
+    const fitRequested = props.fitNonce !== lastFitNonce.current;
+    if (!modelChanged && !fitRequested) return;
+    lastModelKey.current = modelKey;
+    lastFitNonce.current = props.fitNonce;
     fitView({ padding: 0.12, duration: 260 });
-  }, [props.fitNonce, graph, fitView]);
+  }, [graph.layoutReady, modelKey, props.fitNonce, fitView]);
   useEffect(() => {
     if (props.zoom === lastZoom.current) return;
     const ratio = props.zoom / Math.max(lastZoom.current, 0.1);
@@ -279,6 +313,19 @@ function ReactFlowCanvas({ graph, props }) {
         absoluteY += parent.position.y;
         parentId = parent.parentId;
       }
+      // A deep compound module is the user's current reading context. Focus
+      // that frame at a readable zoom instead of fitting all of its siblings,
+      // which makes every operator card too small to inspect.
+      if (isFrame && depth >= 2) {
+        const box = absoluteNodeBox(node, getNode);
+        void fitBounds({ x: box.x, y: box.y, width: box.width, height: box.height }, {
+          duration: 260,
+          padding: 0.14,
+          minZoom: 0.5,
+          maxZoom: 0.9,
+        });
+        return;
+      }
       const siblings = getNodes().filter((candidate) => candidate.parentId === node.parentId && candidate.type !== "stageBand");
       if (siblings.length > 1) {
         const boxes = siblings.map((candidate) => absoluteNodeBox(candidate, getNode));
@@ -301,11 +348,13 @@ function ReactFlowCanvas({ graph, props }) {
     group.busy = false;
   }
   const hoverContext = useMemo(() => ({ activeRelationPath, onHover: props.onHoverPathChange }), [activeRelationPath, props.onHoverPathChange]);
-  return <HoverContext.Provider value={hoverContext}><ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id.replace(/^frame-/, ""))} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.data.originalTarget || edge.target.replace(/^frame-/, "")); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
-    <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
-    <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
-    <Controls position="top-left" showInteractive={false} />
-  </ReactFlow></HoverContext.Provider>;
+  return <HoverContext.Provider value={hoverContext}><SmartEdgeProvider nodes={nodes}>
+    <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id.replace(/^frame-/, ""))} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.data.originalTarget || edge.target.replace(/^frame-/, "")); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
+      <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
+      <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
+      <Controls position="top-left" showInteractive={false} />
+    </ReactFlow>
+  </SmartEdgeProvider></HoverContext.Provider>;
 }
 
 export default function ReactFlowStructureDiagram(props) {

@@ -40,8 +40,9 @@ test("ELK lays out the graph without changing stable node paths", async () => {
   assert.ok(laidOut.nodes.find((node) => node.path === "root.0.0").y > laidOut.nodes.find((node) => node.path === "root.0").y);
   assert.ok(laidOut.nodes.find((node) => node.path === "root.0.0").y < laidOut.nodes.find((node) => node.path === "root.0.1").y);
   assert.deepEqual(JSON.parse(JSON.stringify(laidOut.edges.map(({ id, source, target, kind, evidence }) => ({ id, source, target, kind, evidence })))), graph.edges);
-  assert.ok(laidOut.edges.some((edge) => edge.sections.length > 0));
+  assert.ok(laidOut.edges.every((edge) => edge.sections === undefined));
   assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
+  assert.equal(laidOut.containerFrames.find((frame) => frame.id === "root.0").edgeAnchorOffset, 70);
 });
 
 test("keeps an output head outside the model compound", async () => {
@@ -98,4 +99,68 @@ test("layoutGraph models MLA as a branched attention graph", () => {
     ["root.0.2", "root.0.6"],
     ["root.0.6", "root.0.7"],
   ]);
+});
+
+test("ELK keeps all MLA input projections on the first internal layer", async () => {
+  const graph = layoutGraph({
+    name: "model", type: "model", children: [
+      { name: "MLA Attention", type: "attention", children: [
+        { name: "q projection", type: "operator", children: [] },
+        { name: "k projection", type: "operator", children: [] },
+        { name: "v projection", type: "operator", children: [] },
+        { name: "rotary position embedding", type: "operator", children: [] },
+        { name: "attention scores", type: "operator", children: [] },
+        { name: "attention probabilities", type: "operator", children: [] },
+        { name: "weighted value", type: "operator", children: [] },
+        { name: "output projection", type: "operator", children: [] },
+      ] },
+    ],
+  }, new Set(["root", "root.0"]));
+  const laidOut = await layoutGraphWithElk(graph);
+  const get = (name) => laidOut.nodes.find((node) => node.node.name === name);
+  const inputs = [get("q projection"), get("k projection"), get("v projection")];
+  const firstLayerY = Math.min(...laidOut.nodes.filter((node) => node.path.startsWith("root.0.")).map((node) => node.y));
+  assert.ok(inputs.every((node) => node.y === firstLayerY));
+  assert.ok(get("v projection").y < get("weighted value").y);
+});
+
+test("layoutGraph models MLP as a gated branch instead of a sequential chain", () => {
+  const graph = layoutGraph({
+    name: "model", type: "model", children: [
+      { name: "MLP", type: "mlp", children: [
+        { name: "gate projection", type: "operator", children: [] },
+        { name: "up projection", type: "operator", children: [] },
+        { name: "SwiGLU activation", type: "operator", children: [] },
+        { name: "down projection", type: "operator", children: [] },
+      ] },
+    ],
+  }, new Set(["root", "root.0"]));
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "semantic-flow").map(({ source, target }) => [source, target]), [
+    ["root.0.0", "root.0.2"],
+    ["root.0.1", "root.0.2"],
+    ["root.0.2", "root.0.3"],
+  ]);
+  assert.equal(graph.edges.some((edge) => edge.source === "root.0.0" && edge.target === "root.0.1"), false);
+});
+
+test("layoutGraph models MoE routing and combine branches semantically", () => {
+  const graph = layoutGraph({
+    name: "model", type: "model", children: [
+      { name: "Routed MoE", type: "moe", children: [
+        { name: "router logits", type: "operator", children: [] },
+        { name: "top-k expert routing", type: "operator", children: [] },
+        { name: "expert dispatch", type: "operator", children: [] },
+        { name: "expert MLP", type: "operator", children: [] },
+        { name: "expert combine", type: "operator", children: [] },
+      ] },
+    ],
+  }, new Set(["root", "root.0"]));
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "semantic-flow").map(({ source, target }) => [source, target]), [
+    ["root.0.0", "root.0.1"],
+    ["root.0.1", "root.0.2"],
+    ["root.0.2", "root.0.3"],
+    ["root.0.1", "root.0.4"],
+    ["root.0.3", "root.0.4"],
+  ]);
+  assert.equal(graph.edges.some((edge) => edge.source === "root.0.0" && edge.target === "root.0.1" && edge.evidence === "module-order"), false);
 });

@@ -1,7 +1,7 @@
 import { metaForNode, typeClass } from "./meta.js";
 
-export const NODE_WIDTH = 220;
-const NODE_HEIGHTS = [56, 76, 96];
+export const NODE_WIDTH = 260;
+const NODE_HEIGHTS = [64, 84, 108];
 const NODE_GAP_Y = 18;
 const NODE_GAP_X = 60;
 const LAYOUT_TOP = 28;
@@ -82,13 +82,61 @@ export function layoutDiagram(root, expandedGroups) {
   return items;
 }
 
-function attentionSemanticEdges(item) {
+function semanticEdges(item) {
   if (!item?.childItems?.length) return null;
   const type = String(item.node?.type || "").toLowerCase();
   const name = String(item.node?.name || "").toLowerCase();
-  if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;
   const children = item.childItems;
   const find = (pattern) => children.find((child) => pattern.test(String(child.node?.name || "").toLowerCase()));
+
+  if (type === "mlp" || /(^|\b)mlp(\b|$)/.test(name)) {
+    const gate = find(/gate\s*(projection|proj)|gate_proj/);
+    const up = find(/up\s*(projection|proj)|up_proj/);
+    const activation = find(/swiglu|activation/);
+    const down = find(/down\s*(projection|proj)|down_proj/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({
+        id: `${source.path}=>${target.path}`,
+        source: source.path,
+        target: target.path,
+        kind: "dataflow",
+        evidence: "semantic-flow",
+      });
+    };
+    add(gate, activation);
+    add(up, activation);
+    add(activation, down);
+    return edges.length >= 2 ? edges : null;
+  }
+
+  if (type === "moe" || /(^|\b)(moe|mixture.?of.?experts)(\b|$)/.test(name)) {
+    const router = find(/router|logits/);
+    const topk = find(/top.?k|expert routing|routing/);
+    const dispatch = find(/dispatch/);
+    const expert = find(/expert.*(mlp|feed.?forward)|expert mlp/);
+    const combine = find(/combine|scatter/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({
+        id: `${source.path}=>${target.path}`,
+        source: source.path,
+        target: target.path,
+        kind: "dataflow",
+        evidence: "semantic-flow",
+      });
+    };
+    add(router, topk);
+    add(topk, dispatch);
+    add(dispatch, expert);
+    add(topk, combine);
+    add(expert, combine);
+    return edges.length >= 3 ? edges : null;
+  }
+
+  if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;
   const q = find(/(^|\b)q\s*(projection|proj)\b|q_proj|query/);
   const k = find(/(^|\b)k\s*(projection|proj)\b|k_proj|key/);
   const v = find(/(^|\b)v\s*(projection|proj)\b|v_proj|value/);
@@ -135,7 +183,7 @@ export function layoutGraph(root, expandedGroups) {
     return "model";
   };
   const nodes = items.map((item) => ({ ...item, stage: stageForPath(item.path), children: undefined, childItems: undefined }));
-  const semanticParents = new Set(items.filter((item) => attentionSemanticEdges(item)).map((item) => item.path));
+  const semanticParents = new Set(items.filter((item) => semanticEdges(item)).map((item) => item.path));
   const orderedPairs = new Set(items.flatMap((item) => {
     const children = item.childItems || [];
     return children.slice(0, -1).map((source, index) => `${source.path}=>${children[index + 1].path}`);
@@ -152,7 +200,7 @@ export function layoutGraph(root, expandedGroups) {
     }));
   });
   const dataflowEdges = items.flatMap((item) => {
-    const semantic = attentionSemanticEdges(item);
+    const semantic = semanticEdges(item);
     if (semantic) return semantic;
     const operators = item.childItems?.filter((child) => child.node?.type === "operator") || [];
     const edges = [];

@@ -117,7 +117,16 @@ function StructureDiagram({
     const scroll = scrollRef.current;
     if (!scroll) return;
     const selectedNode = [...scroll.querySelectorAll("g[data-node-path]")].find((element) => element.getAttribute("data-node-path") === selectedPath);
-    selectedNode?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    if (!selectedNode) return;
+    // Keep selection framing inside the diagram; scrollIntoView can move the
+    // page itself and break the fixed cost bar / mobile inspector layout.
+    const scrollRect = scroll.getBoundingClientRect();
+    const nodeRect = selectedNode.getBoundingClientRect();
+    scroll.scrollBy({
+      left: (nodeRect.left + nodeRect.width / 2) - (scrollRect.left + scrollRect.width / 2),
+      top: (nodeRect.top + nodeRect.height / 2) - (scrollRect.top + scrollRect.height / 2),
+      behavior: "smooth",
+    });
   }, [selectedPath, nodes]);
 
   useEffect(() => {

@@ -130,8 +130,8 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
       onFitStatusChange?.(null);
       return;
     }
-    onFitStatusChange?.({ fit: planFitsTopology && planFitsMemory === true, known: planFitsMemory != null, status: planStatus });
-  }, [cost, machine, onFitStatusChange, planFitsTopology, planFitsMemory, planStatus]);
+    onFitStatusChange?.({ fit: planFitsTopology && planFitsMemory === true, known: planFitsMemory != null, status: planStatus, phaseFits: mode === "pd" ? { prefill: pdFit?.prefill?.fit, decode: pdFit?.decode?.fit } : null });
+  }, [cost, machine, mode, onFitStatusChange, pdFit, planFitsTopology, planFitsMemory, planStatus]);
   if (!cost || !machine) return null;
   const planMaxContext = projected?.ok ? maxContextForStages(projected.stages, { capacityBytes: available, activationBytes: peakCost.memory.activationBytes, runtimeBytes: cost.memory.runtimeBytes + cost.memory.commBufferBytes, sequence: load.sequence }) : null;
   const updateLoad = (key, value) => updateLoads({ ...loads, [phase]: { ...loads[phase], [key]: value } });

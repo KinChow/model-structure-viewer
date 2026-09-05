@@ -88,6 +88,22 @@ def test_resolve_config_path_supports_standalone_model_json(tmp_path):
     assert resolved.local_dir == config_path.parent
 
 
+def test_resolve_config_path_accepts_model_directory(tmp_path):
+    model_dir = tmp_path / "deepseek-ai" / "DeepSeek-V3.1"
+    model_dir.mkdir(parents=True)
+    (model_dir / "config.json").write_text(
+        json.dumps({"model_type": "deepseek_v3", "num_hidden_layers": 2}),
+        encoding="utf-8",
+    )
+
+    resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
+    resolved = resolver.resolve(source="local", config_path=str(model_dir), detail_level="compressed")
+
+    assert resolved.config["model_type"] == "deepseek_v3"
+    assert resolved.source["config_path"] == str(model_dir / "config.json")
+    assert resolved.local_dir == model_dir
+
+
 def test_local_model_cache_accepts_string_model_root(tmp_path):
     model_dir = tmp_path / "Org" / "Model"
     model_dir.mkdir(parents=True)

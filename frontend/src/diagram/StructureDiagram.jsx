@@ -39,6 +39,26 @@ function edgePath(edge, source, target) {
   return `M ${source.x + source.width} ${source.y + source.height / 2} C ${source.x + source.width + 36} ${source.y + source.height / 2}, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`;
 }
 
+function structureEdgePath(source, target) {
+  const sourceRight = source.x + source.width;
+  const sourceBottom = source.y + source.height;
+  const targetRight = target.x + target.width;
+  const targetBottom = target.y + target.height;
+  if (target.x >= sourceRight - 8) {
+    const y = source.y + source.height / 2;
+    const targetY = target.y + target.height / 2;
+    const x = (sourceRight + target.x) / 2;
+    return `M ${sourceRight} ${y} L ${x} ${y} L ${x} ${targetY} L ${target.x} ${targetY}`;
+  }
+  if (target.y >= sourceBottom - 8) {
+    const x = source.x + source.width / 2;
+    const targetX = target.x + target.width / 2;
+    const y = (sourceBottom + target.y) / 2;
+    return `M ${x} ${sourceBottom} L ${x} ${y} L ${targetX} ${y} L ${targetX} ${target.y}`;
+  }
+  return `M ${source.x + source.width / 2} ${source.y + source.height / 2} L ${target.x + target.width / 2} ${target.y + target.height / 2}`;
+}
+
 function parentPath(path) {
   const index = path?.lastIndexOf(".") ?? -1;
   return index > 0 ? path.slice(0, index) : null;
@@ -414,7 +434,7 @@ function StructureDiagram({
                     : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath));
                   const searchRelated = !searchActive || matched.has(edge.source) || matched.has(edge.target)
                     || [...matched].some((path) => isPathRelated(edge.source, path) || isPathRelated(edge.target, path));
-                  const pathData = edgePath(edge, node, target);
+                  const pathData = edge.kind === "structure" ? structureEdgePath(node, target) : edgePath(edge, node, target);
                   const selectDataflowTarget = (event) => {
                     if (edge.kind !== "dataflow") return;
                     event.stopPropagation();
@@ -438,7 +458,7 @@ function StructureDiagram({
                         className={`diagram-edge ${edge.kind === "dataflow" ? "dataflow" : "structure"}${edge.evidence === "module-order" ? " mainflow" : ""}${related ? " related" : ""}${searchRelated ? "" : " search-dimmed"}`}
                         stroke="var(--diagram-arrow)"
                         strokeWidth={related ? "2.8" : edgeStrokeWidth(edge, node)}
-                        markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
+                        markerEnd={edge.kind === "dataflow" ? `url(#${flowMarkerId})` : undefined}
                         data-edge-target={edge.kind === "dataflow" ? edge.target : undefined}
                         onPointerDown={selectDataflowTarget}
                         onClick={selectDataflowTarget}

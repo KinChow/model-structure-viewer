@@ -77,10 +77,10 @@ export async function layoutGraphWithElk(graph) {
       const node = nodeByPath.get(shape.id);
       groupFrames.push({
         id: shape.id,
-        x,
-        y,
-        width: shape.width,
-        height: shape.height,
+        x: x - 16,
+        y: y - 22,
+        width: shape.width + 32,
+        height: shape.height + 38,
         label: `${node.displayName}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
         kind: "graph-group",
       });

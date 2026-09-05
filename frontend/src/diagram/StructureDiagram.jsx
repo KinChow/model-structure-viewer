@@ -127,6 +127,7 @@ function StructureDiagram({
   const [hoveredPath, setHoveredPath] = useState(null);
   const activeHoveredPath = externalHoveredPath ?? hoveredPath;
   const activeRelationPath = activeHoveredPath ?? selectedPath;
+  const activeStage = nodesByPath.get(activeRelationPath)?.stage;
   const markerId = `diagram-arrow-${useId().replaceAll(":", "")}`;
   const flowMarkerId = `${markerId}-flow`;
 
@@ -282,7 +283,7 @@ function StructureDiagram({
             </defs>
             <g transform={contentTransform}>
               <g className="diagram-stage-bands" aria-hidden="true">
-                {stageBands.map((band) => <g key={band.stage} className={`diagram-stage-band stage-${band.stage}`}>
+                {stageBands.map((band) => <g key={band.stage} className={`diagram-stage-band stage-${band.stage}${activeStage && activeStage === band.stage ? " active" : ""}${activeStage && activeStage !== band.stage ? " dimmed" : ""}`}>
                   <rect x={band.x} y={0} width={band.width} height={contentHeight} rx="10" />
                   <text x={band.x + 12} y={18}>{band.label}</text>
                 </g>)}

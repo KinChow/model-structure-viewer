@@ -18,7 +18,7 @@ test("fitDiagramViewport centers a smaller diagram inside the available viewport
   assert.equal(result.canvasHeight, 600);
 });
 
-test("fitDiagramViewport scales a wide diagram down with balanced padding", () => {
+test("fitDiagramViewport scales a wide diagram down and aligns it for scanning", () => {
   const result = fitDiagramViewport({
     contentWidth: 1800,
     contentHeight: 600,
@@ -31,7 +31,7 @@ test("fitDiagramViewport scales a wide diagram down with balanced padding", () =
   assert.ok(result.offsetX >= 30);
   assert.ok(result.offsetX < 31);
   assert.equal(result.canvasWidth, 900);
-  assert.ok(result.offsetY > 100);
+  assert.equal(result.offsetY, 30);
 });
 
 test("fitDiagramViewport treats zoom as a multiplier over the fitted scale", () => {

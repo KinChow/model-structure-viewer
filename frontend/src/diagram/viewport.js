@@ -33,12 +33,13 @@ export function fitDiagramViewport({
   const scaledHeight = safeContentHeight * scale;
   const canvasWidth = Math.max(safeViewportWidth, Math.ceil(scaledWidth + padding * 2));
   const canvasHeight = Math.max(safeViewportHeight, Math.ceil(scaledHeight + padding * 2));
+  const widthLimited = rawBaseScale < maxScale && availableWidth / safeContentWidth < availableHeight / safeContentHeight;
 
   return {
     baseScale,
     scale,
     offsetX: floor4(Math.max(padding, (canvasWidth - scaledWidth) / 2)),
-    offsetY: floor4(Math.max(padding, (canvasHeight - scaledHeight) / 2)),
+    offsetY: floor4(widthLimited ? padding : Math.max(padding, (canvasHeight - scaledHeight) / 2)),
     canvasWidth,
     canvasHeight,
   };

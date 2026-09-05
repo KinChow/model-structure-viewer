@@ -78,6 +78,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     context: english ? "Current context length" : "当前上下文长度",
     independent: english ? "P/D workloads, node counts, and parallel plans are saved independently; only the current phase is shown." : "P/D 负载、节点规模和并行策略独立保存；当前只显示当前阶段结果。",
     theoretical: english ? "Cost is a theoretical estimate; no scheduling, pipeline bubble, or transfer overlap simulation." : "理论计算，不模拟调度、流水线气泡或传输重叠。",
+    chunkedSummary: (total, peak) => english ? `Total uses ${total} input tokens; peak uses ${peak} tokens per chunk.` : `总量使用 ${total} 个输入 tokens；峰值按每个 chunk ${peak} 个 tokens 计算。`,
   };
   const [internalPhase, setInternalPhase] = useState("prefill");
   const [internalMode, setInternalMode] = useState("centralized");
@@ -166,6 +167,6 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     {projected?.ok && <div className="cost-stages">{projected.stages.map((stage) => <span key={stage.stage}><b>Stage {stage.stage}</b> {formatBytes(stage.weightBytes)} weights · {formatBytes(stage.kvBytes)} KV</span>)}</div>}
     {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>KV Transfer</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes)} / Decode rank</span><span>{pd.linkSource}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, english)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, english)}</span></div>}
     {mode === "pd" && pd && !pd.ok && <div className="cost-plan-error">PD plan invalid: {pd.errors.join("; ")}</div>}
-    <div className="cost-assumptions">{phase === "prefill" && load.chunked ? `Total uses ${load.sequence} input tokens; peak uses ${Math.min(load.sequence, load.chunkSize)} tokens per chunk. ` : ""}{text.theoretical}</div>
+    <div className="cost-assumptions">{phase === "prefill" && load.chunked ? `${text.chunkedSummary(load.sequence, Math.min(load.sequence, load.chunkSize))} ` : ""}{text.theoretical}</div>
   </section>;
 }

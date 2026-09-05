@@ -163,7 +163,8 @@ function ReactFlowCanvas({ graph, props }) {
     if (!props.selectedPath) return;
     const node = getNode(props.selectedPath);
     if (!node) return;
-    setCenter(node.position.x + (node.measured?.width || node.width || 220) / 2, node.position.y + (node.measured?.height || node.height || 76) / 2, { duration: 260 });
+    const depth = props.selectedPath.split(".").length - 1;
+    setCenter(node.position.x + (node.measured?.width || node.width || 220) / 2, node.position.y + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
   }, [props.selectedPath, getNode, setCenter]);
   function handleMove(_, viewport) {
     const group = props.scrollSync?.group;

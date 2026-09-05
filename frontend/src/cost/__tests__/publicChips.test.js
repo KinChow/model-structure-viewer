@@ -8,7 +8,14 @@ test("公开芯片目录每条都有来源且 id 唯一", () => {
   for (const chip of PUBLIC_CHIPS) {
     assert.match(chip.source, /^https:\/\//);
     assert.equal(chip.confidence, "official");
+    assert.ok(chip.peak_flops.fp32 > 0);
   }
+});
+
+test("公开芯片目录保留独立 FP32 峰值", () => {
+  assert.equal(PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-a100-80gb-sxm").peak_flops.fp32, 19.5e12);
+  assert.equal(PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-h100-80gb-sxm").peak_flops.fp32, 67e12);
+  assert.equal(PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-l40s-48gb").peak_flops.fp32, 91.6e12);
 });
 
 test("公开芯片目录不使用二进制 GiB 冒充厂商十进制 GB", () => {

@@ -14,6 +14,7 @@ export const PUBLIC_CHIPS = [
     memory_bytes: 80e9,
     memory_bandwidth: 2039e9,
     peak_flops: {
+      fp32: 19.5e12,
       bf16: 312e12,
       fp16: 312e12,
       int8: 624e12,
@@ -38,6 +39,7 @@ export const PUBLIC_CHIPS = [
     memory_bytes: 80e9,
     memory_bandwidth: 3.35e12,
     peak_flops: {
+      fp32: 67e12,
       bf16: 989.5e12,
       fp16: 989.5e12,
       fp8: 1979e12,
@@ -63,6 +65,7 @@ export const PUBLIC_CHIPS = [
     memory_bytes: 48e9,
     memory_bandwidth: 864e9,
     peak_flops: {
+      fp32: 91.6e12,
       bf16: 362.05e12,
       fp16: 362.05e12,
       fp8: 733e12,

@@ -160,11 +160,21 @@ function MsvEdge({ source, target, markerEnd, style, data }) {
   if (!sourceNode || !targetNode) return null;
   const sourceBox = nodeGeometry(sourceNode);
   const targetBox = nodeGeometry(targetNode);
+  const structural = data?.kind === "structure";
   const vertical = data?.flowDirection === "vertical";
   const sourceFrame = source.startsWith("frame-");
   const targetFrame = target.startsWith("frame-");
   const headerOffset = 24;
-  const geometry = vertical
+  const geometry = structural
+    ? {
+      sourceX: sourceBox.x + sourceBox.width / 2,
+      sourceY: sourceBox.y + 24,
+      sourcePosition: Position.Bottom,
+      targetX: targetBox.x + targetBox.width / 2,
+      targetY: targetBox.y,
+      targetPosition: Position.Top,
+    }
+    : vertical
     ? {
       sourceX: sourceBox.x + sourceBox.width / 2,
       sourceY: sourceBox.y + sourceBox.height,
@@ -195,9 +205,8 @@ function ReactFlowCanvas({ graph, props }) {
     props.scrollSync.group.set(props.scrollSyncId, entry);
     return () => props.scrollSync.group.delete(props.scrollSyncId);
   }, [props.scrollSync, props.scrollSyncId, setViewport]);
-  // Containment is the structure view. Drawing parent -> child edges on top
-  // of nested frames duplicates that relationship and creates crossings.
-  // The canvas therefore renders only sibling execution/dataflow edges.
+  // Structure is represented by nested containers. Only execution/dataflow
+  // edges are drawn, so parent-child containment cannot be mistaken for data.
   const renderEdges = useMemo(() => graph.edges.filter((edge) => edge.kind === "dataflow"), [graph.edges]);
   const matched = props.matchedPaths instanceof Set ? props.matchedPaths : EMPTY_SET;
   const activeRelationPath = props.externalHoveredPath ?? props.hoveredPath ?? props.selectedPath;
@@ -266,7 +275,7 @@ function ReactFlowCanvas({ graph, props }) {
       targetHandle: "target",
       type: "msvEdge",
       markerEnd: { type: MarkerType.ArrowClosed, color: edge.kind === "dataflow" ? "#d08a3a" : "#8291a2" },
-      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
+      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edge.kind === "structure" ? 2 : edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
     }));
   }, [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
   // ELK keeps the same node count while replacing the provisional positions;

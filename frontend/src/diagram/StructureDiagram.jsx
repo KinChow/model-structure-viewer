@@ -211,9 +211,17 @@ function StructureDiagram({
     panRef.current.moved = false;
   }
 
+  function handleWheel(event) {
+    const scroll = scrollRef.current;
+    if (!scroll || (!event.ctrlKey && !event.metaKey)) return;
+    event.preventDefault();
+    const direction = event.deltaY < 0 ? 1 : -1;
+    onZoomChange?.(Math.min(2.5, Math.max(0.25, zoom + direction * 0.1)));
+  }
+
   return (
     <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
-      <div className="diagram-scroll" ref={scrollRef} onScroll={handleScroll} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
+      <div className="diagram-scroll" ref={scrollRef} onScroll={handleScroll} onWheel={handleWheel} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
         <div className="diagram-zoom" style={{ width, height }}>
           <svg
             className="diagram-svg"

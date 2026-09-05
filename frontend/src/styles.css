@@ -345,6 +345,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   overflow: auto;
   cursor: grab;
   touch-action: none;
+  overscroll-behavior: contain;
 }
 .diagram-scroll:active { cursor: grabbing; }
 

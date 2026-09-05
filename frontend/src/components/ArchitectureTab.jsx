@@ -302,7 +302,7 @@ function ArchitectureTab({
           <button type="button" title={ui.zoomOut} aria-label={ui.zoomOut} onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
           <button type="button" title={ui.fit} aria-label={ui.fit} onClick={onFit}>{ui.fit}</button>
           <span className="zoom-level" aria-label="Zoom level">{Math.round(zoom * 100)}%</span>
-          <button type="button" title={ui.zoomIn} aria-label={ui.zoomIn} onClick={() => onZoomChange(Math.min(1.4, zoom + 0.1))}>+</button>
+          <button type="button" title={ui.zoomIn} aria-label={ui.zoomIn} onClick={() => onZoomChange(Math.min(2.5, zoom + 0.1))}>+</button>
           <button type="button" title={ui.exportSvg} aria-label={ui.exportSvg} onClick={() => downloadSvg(structure)} disabled={!structure}>
             {ui.exportSvg}
           </button>

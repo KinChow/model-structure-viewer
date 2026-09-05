@@ -146,10 +146,10 @@ export async function layoutGraphWithElk(graph) {
         y: y - 22,
         width: shape.width + 32,
         height: shape.height + 38,
-        label: node.id === "root"
+        label: node.path === "root"
           ? "model"
           : `${node.displayName} · ${node.node?.type || "module"}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
-        classLabel: node.id === "root" ? (node.node?.attributes?.class || node.node?.name || null) : null,
+        classLabel: node.path === "root" ? (node.node?.attributes?.class || node.node?.name || null) : null,
         depth: node.depth,
         kind: "graph-group",
       });

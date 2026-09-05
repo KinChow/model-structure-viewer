@@ -89,6 +89,8 @@ function StructureDiagram({
   const { nodes, edges, containerFrames } = graph;
   const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
   const selectedNode = selectedPath ? nodesByPath.get(selectedPath) : null;
+  const selectedInputShape = selectedNode && formatShape(selectedNode.node?.input_shape || selectedNode.node?.attributes?.input_shape);
+  const selectedOutputShape = selectedNode && formatShape(selectedNode.node?.output_shape || selectedNode.node?.attributes?.output_shape);
   const contentWidth = Math.max(1, ...nodes.map((node) => node.x + node.width + 28));
   const contentHeight = Math.max(1, ...nodes.map((node) => node.y + node.height + 28));
   const stageBands = useMemo(() => {
@@ -351,6 +353,7 @@ function StructureDiagram({
         <div className="diagram-context-meta">
           <span>{selectedNode.type}</span>
           {selectedNode.children?.length > 0 && <span>{selectedNode.children.length} {english ? "children" : "个子模块"}</span>}
+          {(selectedInputShape || selectedOutputShape) && <span className="diagram-context-shape" title={english ? "Selected module tensor flow" : "当前模块 Tensor 流"}>{selectedInputShape || "?"} → {selectedOutputShape || "?"}</span>}
           <button type="button" onClick={centerSelectedNode}>{english ? "Center" : "居中"}</button>
           {parentPath(selectedPath) && <button type="button" onClick={() => onSelectNode?.(parentPath(selectedPath))}>{english ? "Up" : "上一级"}</button>}
         </div>

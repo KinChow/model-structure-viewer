@@ -342,11 +342,12 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-context-path button:hover, .diagram-context-path button.current, .diagram-context-meta button:hover { color: #a9621d; }
 .diagram-context-path i { padding: 0 3px; color: #9ba8b8; font-style: normal; }
 .diagram-context-meta { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 8px; color: #7b8998; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; white-space: nowrap; }
+.diagram-context-shape { max-width: 280px; overflow: hidden; color: #657f91; text-overflow: ellipsis; text-transform: none; }
 .diagram-context-meta button { border-left: 1px solid #dce5ed; padding-left: 8px; color: #8a5d25; }
 .detail-page.theme-dark .diagram-context-bar { border-color: #354256; background: rgba(18,25,35,.9); color: #aebaca; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
 .detail-page.theme-dark .diagram-context-path i { color: #5f6d7d; }
 .detail-page.theme-dark .diagram-context-meta button { border-color: #354256; color: #f4ab52; }
-@media (max-width: 600px) { .diagram-context-bar { left: 8px; right: 8px; gap: 5px; } .diagram-context-meta span:first-child { display: none; } .diagram-context-path button { max-width: 120px; } }
+@media (max-width: 600px) { .diagram-context-bar { left: 8px; right: 8px; gap: 5px; } .diagram-context-meta span:first-child, .diagram-context-shape { display: none; } .diagram-context-path button { max-width: 120px; } }
 .diagram-minimap { position: absolute; right: 12px; bottom: 12px; z-index: 3; width: 164px; height: 108px; padding: 7px; border: 1px solid rgba(137,157,180,.5); border-radius: 6px; background: rgba(15,21,30,.9); box-shadow: 0 6px 18px rgba(0,0,0,.22); cursor: crosshair; }
 .diagram-minimap-toggle { position: absolute; right: 12px; bottom: 126px; z-index: 4; width: 24px; height: 24px; padding: 0; border: 1px solid rgba(137,157,180,.5); border-radius: 5px; background: rgba(15,21,30,.92); color: #cbd6e1; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .diagram-minimap-toggle:hover { border-color: #f4ab52; color: #f4ab52; }

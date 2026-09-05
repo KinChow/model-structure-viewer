@@ -14,7 +14,7 @@ import {
 } from "@xyflow/react";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
-import { isGraphEdgeRelated, isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
+import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgeStrokeWidth } from "./edgeStyle.js";
 
 const EMPTY_SET = new Set();
@@ -224,17 +224,17 @@ function ReactFlowCanvas({ graph, props }) {
   const edges = useMemo(() => {
     const framePaths = new Set(graph.containerFrames.map((frame) => frame.id));
     const targetId = (path) => framePaths.has(path) ? `frame-${path}` : path;
-    return renderEdges.filter((edge) => props.edgeMode === "all" || edge.kind === props.edgeMode).map((edge) => ({
+    return renderEdges.map((edge) => ({
       id: edge.id,
       source: targetId(edge.source),
       target: targetId(edge.target),
       sourceHandle: "source",
       targetHandle: "target",
       type: "msvEdge",
-      markerEnd: { type: MarkerType.ArrowClosed, color: edge.kind === "dataflow" ? "#d08a3a" : "#8291a2" },
-      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edge.kind === "structure" ? 2 : edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#d08a3a" },
+      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
     }));
-  }, [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
+  }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
   // ELK keeps the same node count while replacing the provisional positions;
   // fitting only on node-count changes leaves the canvas focused on the
   // provisional layout after the compound layout resolves.
@@ -315,9 +315,6 @@ export default function ReactFlowStructureDiagram(props) {
       } else if (event.key === "0") {
         event.preventDefault();
         props.onFit?.();
-      } else if (["1", "2", "3"].includes(event.key)) {
-        event.preventDefault();
-        props.onEdgeModeChange?.({ 1: "all", 2: "structure", 3: "dataflow" }[event.key]);
       } else if ((event.key === "e" || event.key === "E" || event.key === "c" || event.key === "C") && selected?.isCollapsible) {
         const shouldExpand = event.key.toLowerCase() === "e";
         if (selected.isExpanded !== shouldExpand) {

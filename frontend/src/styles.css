@@ -312,7 +312,6 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .legend-dot.model { color: #7c8798; background: #eef1f5; }.legend-dot.embedding { color: #4e63c8; background: #e9edff; }.legend-dot.attention { color: #c6537e; background: #fbeaf0; }.legend-dot.mlp { color: #2e8f84; background: #e5f3f1; }.legend-dot.output { color: #8593a6; background: #eef1f5; }
 .legend-dot.selected-node { color: #d08a3a; background: transparent; box-shadow: 0 0 0 1px #d08a3a; }
 .legend-line { display: inline-block; width: 18px; border-top: 2px solid currentColor; }
-.legend-line.structure { color: #8997a8; opacity: .6; }
 .legend-line.dataflow { border-top-style: dashed; color: #d08a3a; }
 .legend-line.selected-path { color: #f4ab52; border-top-width: 3px; }
 .diagram-edge-filter { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; color: #718196; font-size: 10px; }
@@ -374,8 +373,6 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .rf-stage-band.stage-output { background: rgba(224,138,0,.035); }
 .rf-edge.dataflow { stroke: #d08a3a; stroke-dasharray: 7 4; animation: diagram-flow 1.35s linear infinite; }
 .rf-edge.dataflow.module-order { stroke: #f4ab52; stroke-dasharray: none; animation: none; }
-.rf-edge.structure { stroke: #aeb9c5; stroke-dasharray: 3 5; opacity: .78; }
-.rf-edge.structure.module-order { stroke: #91a0ae; stroke-dasharray: none; opacity: .62; }
 .rf-edge.related { stroke: #f4ab52; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .rf-edge.dataflow { animation: none; } }
 .detail-page.theme-dark .rf-model-node { border-color: #93a0b2; background: #20262f; color: #edf2f7; }
@@ -500,14 +497,10 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   transition: opacity 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
 }
 .diagram-edge.dataflow { cursor: pointer; }
-.diagram-edge.structure { stroke: #8291a2; stroke-dasharray: 3 4; opacity: .22; }
-.diagram-edge.structure.related { stroke: #7fa9c8; opacity: .7; }
 .diagram-edge.dataflow { stroke: #d08a3a; stroke-dasharray: 7 4; opacity: .9; animation: diagram-flow 1.35s linear infinite; }
 .diagram-edge.dataflow.mainflow { stroke: #f4ab52; stroke-dasharray: none; opacity: 1; }
 .diagram-edge.dataflow.mainflow { stroke-dasharray: 11 8; }
 .diagram-edge.dataflow.related { stroke: #f4ab52; opacity: 1; }
-.diagram-edge.structure.module-order { stroke: #91a0ae; stroke-dasharray: none; opacity: .62; }
-.diagram-edge.structure.module-order.related { stroke: #c0ccd7; opacity: .95; }
 .diagram-edge.search-dimmed { opacity: .08; }
 .detail-page.theme-light .diagram-edge.dataflow { stroke: #b86f20; }
 .detail-page.theme-light .diagram-edge.dataflow.mainflow { stroke: #a9621d; }

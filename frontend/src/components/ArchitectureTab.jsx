@@ -123,7 +123,6 @@ function ArchitectureTab({
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const [formulaOpen, setFormulaOpen] = useState(false);
-  const [edgeMode, setEdgeMode] = useState("dataflow");
   const compareScrollGroup = useRef(new Map());
   const [advancedOpen, setAdvancedOpen] = useState(!compactControls);
   const [canvasFocus, setCanvasFocus] = useState(false);
@@ -218,8 +217,6 @@ function ArchitectureTab({
     chipComparison: "Chip comparison",
     planComparison: "Plan comparison",
     edges: "Edges",
-    allEdges: "All",
-    dataflowEdges: "Data flow",
   } : {
     architecture: "架构",
     analysis: "分析配置",
@@ -248,9 +245,6 @@ function ArchitectureTab({
     base: "基准",
     chipComparison: "芯片对比",
     planComparison: "方案对比",
-    edges: "连线",
-    allEdges: "全部",
-    dataflowEdges: "数据流",
   };
   const diagramProps = {
     structure,
@@ -268,8 +262,6 @@ function ArchitectureTab({
     onExitFocus: () => setCanvasFocus(false),
     scrollSync: { group: compareScrollGroup.current },
     language,
-    edgeMode,
-    onEdgeModeChange: setEdgeMode,
   };
   useEffect(() => {
     onNodeLensChange?.(nodeLens);
@@ -342,7 +334,6 @@ function ArchitectureTab({
         <span>{english ? "Cost Lens" : "成本 Lens"}: {["vram", "compute", "memory", "kv"].filter((id) => activeLenses.has(id)).map((id) => id === "vram" ? "VRAM" : id === "kv" ? "KV Cache" : id[0].toUpperCase() + id.slice(1)).join(" · ") || "None"}</span>
       </div>
       <div className="diagram-legend" aria-label={language === "en" ? "Node and edge legend" : "节点与连线图例"}>{[["model", language === "en" ? "Container" : "容器"], ["embedding", "Embedding"], ["attention", "Attention"], ["mlp", "MLP / MoE"], ["output", language === "en" ? "Output" : "输出"]].map(([kind, label]) => <span key={kind}><i className={`legend-dot ${kind}`} />{label}</span>)}<span><i className="legend-frame structure" />{language === "en" ? "Structure containers" : "结构容器"}</span><span><i className="legend-line dataflow" />{language === "en" ? "Data flow" : "数据流"}</span><span><i className="legend-line selected-path" />{language === "en" ? "Selected path" : "选中路径"}</span><span><i className="legend-dot selected-node" />{language === "en" ? "Path nodes" : "路径节点"}</span></div>
-      <div className="diagram-edge-filter" role="group" aria-label={ui.edges}><span>{ui.edges}</span>{[["all", ui.allEdges], ["dataflow", ui.dataflowEdges]].map(([mode, label]) => <button key={mode} type="button" className={edgeMode === mode ? "active" : ""} aria-pressed={edgeMode === mode} onClick={() => setEdgeMode(mode)}>{label}</button>)}</div>
       {formulaLinks.length > 0 && <div className={`formula-strip${formulaOpen ? " is-open" : ""}`} aria-label={language === "en" ? "Formula index" : "公式索引"}>
         <button type="button" className="formula-strip-toggle" aria-expanded={formulaOpen} aria-controls="formula-index-items" onClick={() => setFormulaOpen((value) => !value)}>
           <span className="formula-strip-label">{language === "en" ? "Formula index" : "公式索引"}</span>

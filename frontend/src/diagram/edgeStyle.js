@@ -7,7 +7,6 @@ function knownElements(shape) {
 }
 
 export function edgeStrokeWidth(edge, source) {
-  if (edge?.kind !== "dataflow") return 1.5;
   if (edge?.evidence === "module-order") return 2.4;
   const elements = knownElements(source?.node?.output_shape);
   if (elements <= 0) return 1.8;

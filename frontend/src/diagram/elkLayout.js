@@ -112,6 +112,7 @@ export async function layoutGraphWithElk(graph) {
 
   return {
     ...graph,
+    layoutReady: true,
     nodes: graph.nodes.map((node) => ({ ...node, ...(positions.get(node.path) || {}) })),
     edges: graph.edges.map((edge) => ({ ...edge, sections: routedEdges.get(edge.id) || [] })),
     containerFrames: groupFrames,

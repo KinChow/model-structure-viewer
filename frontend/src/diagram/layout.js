@@ -164,5 +164,5 @@ export function layoutGraph(root, expandedGroups) {
       y: LAYOUT_TOP + row * (node.height + NODE_GAP_Y),
     };
   });
-  return { nodes: graphNodes, edges, containerFrames: [] };
+  return { nodes: graphNodes, edges, containerFrames: [], layoutReady: false };
 }

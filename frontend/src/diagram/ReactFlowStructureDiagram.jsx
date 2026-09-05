@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BaseEdge,
@@ -16,6 +16,8 @@ import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
 import { isGraphEdgeRelated, isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgeStrokeWidth } from "./edgeStyle.js";
+
+const EMPTY_SET = new Set();
 
 function formatMetric(seconds) {
   if (!Number.isFinite(seconds)) return null;
@@ -147,13 +149,13 @@ function ReactFlowCanvas({ graph, props }) {
   // of nested frames duplicates that relationship and creates crossings.
   // The canvas therefore renders only sibling execution/dataflow edges.
   const renderEdges = useMemo(() => graph.edges.filter((edge) => edge.kind === "dataflow"), [graph.edges]);
-  const matched = props.matchedPaths instanceof Set ? props.matchedPaths : new Set();
+  const matched = props.matchedPaths instanceof Set ? props.matchedPaths : EMPTY_SET;
   const activeRelationPath = props.externalHoveredPath ?? props.hoveredPath ?? props.selectedPath;
-  const selectNode = (path) => {
+  const selectNode = useCallback((path) => {
     const modelNode = graph.nodes.find((node) => node.path === path);
     props.onSelectNode?.(path);
     if (modelNode?.isCollapsible && !modelNode.isExpanded) props.onToggleGroup?.(path);
-  };
+  }, [graph.nodes, props.onSelectNode, props.onToggleGroup]);
   const relatedDataflowEdges = useMemo(() => relatedDataflowEdgeIds(graph.edges, activeRelationPath), [graph.edges, activeRelationPath]);
   const nodes = useMemo(() => {
     const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
@@ -218,7 +220,10 @@ function ReactFlowCanvas({ graph, props }) {
   // ELK keeps the same node count while replacing the provisional positions;
   // fitting only on node-count changes leaves the canvas focused on the
   // provisional layout after the compound layout resolves.
-  useEffect(() => { fitView({ padding: 0.12, duration: 260 }); }, [props.fitNonce, graph, fitView]);
+  useEffect(() => {
+    if (!graph.layoutReady) return;
+    fitView({ padding: 0.12, duration: 260 });
+  }, [props.fitNonce, graph, fitView]);
   useEffect(() => {
     if (props.zoom === lastZoom.current) return;
     const ratio = props.zoom / Math.max(lastZoom.current, 0.1);
@@ -256,7 +261,7 @@ function ReactFlowCanvas({ graph, props }) {
     group.forEach((entry, id) => { if (id !== props.scrollSyncId) entry.setViewport(viewport); });
     group.busy = false;
   }
-  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id.replace(/^frame-/, ""))} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.data.originalTarget || edge.target.replace(/^frame-/, "")); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
+  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id.replace(/^frame-/, ""))} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.data.originalTarget || edge.target.replace(/^frame-/, "")); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
     <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
     <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
     <Controls position="top-left" showInteractive={false} />

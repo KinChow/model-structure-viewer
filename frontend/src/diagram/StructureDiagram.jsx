@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { layoutGraph } from "./layout";
+import { layoutGraph } from "./layout.js";
+import { layoutGraphWithElk } from "./elkLayout.js";
 import { fitDiagramViewport, sameDiagramViewport } from "./viewport";
 import { isEdgeRelated, isPathRelated } from "./hover";
 
@@ -41,10 +42,21 @@ function StructureDiagram({
   language = "en",
 }) {
   const english = language === "en";
-  const graph = useMemo(
+  const baseGraph = useMemo(
     () => layoutGraph(structure.root, expandedGroups),
     [structure, expandedGroups]
   );
+  const [graph, setGraph] = useState(baseGraph);
+  useEffect(() => {
+    let active = true;
+    setGraph(baseGraph);
+    layoutGraphWithElk(baseGraph).then((nextGraph) => {
+      if (active) setGraph(nextGraph);
+    }).catch(() => {
+      // Keep the synchronous graph fallback if layout calculation is unavailable.
+    });
+    return () => { active = false; };
+  }, [baseGraph]);
   const { nodes, edges, containerFrames } = graph;
   const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
   const contentWidth = Math.max(1, ...nodes.map((node) => node.x + node.width + 28));

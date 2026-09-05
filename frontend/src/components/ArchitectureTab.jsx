@@ -31,8 +31,13 @@ function downloadSvg(structure) {
   const link = document.createElement("a");
   link.href = url;
   link.download = `${structure?.summary?.model_family || "model"}-structure.svg`;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  requestAnimationFrame(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  });
 }
 
 function chipLinkText(chip, language = "zh") {

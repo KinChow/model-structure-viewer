@@ -50,7 +50,7 @@ function edgePathFromSections(sections) {
 }
 
 function MsvNode({ data, selected }) {
-  const { node, english, showGroupToggle, onSelect, onToggle, nodeLens, activeLenses, activeRelationPath, matched, searchActive } = data;
+  const { node, english, showGroupToggle, onSelect, onToggle, onHover, nodeLens, activeLenses, activeRelationPath, matched, searchActive } = data;
   const isOpenGroup = node.isCollapsible && node.isExpanded;
   const height = isOpenGroup ? 28 : node.height;
   const related = activeRelationPath && isPathRelated(node.path, activeRelationPath);
@@ -74,7 +74,7 @@ function MsvNode({ data, selected }) {
     searchActive && !isMatch ? "dimmed" : "",
     isOpenGroup ? "open-group" : "closed-group",
   ].filter(Boolean).join(" ");
-  return <div className={classes} style={{ width: node.width, height }} onClick={(event) => {
+  return <div className={classes} style={{ width: node.width, height }} onMouseEnter={() => onHover?.(node.path)} onMouseLeave={() => onHover?.(null)} onClick={(event) => {
     if (event.target.closest("button, a, input, select, textarea")) return;
     onSelect(node.path);
   }}>
@@ -137,7 +137,7 @@ function ReactFlowCanvas({ graph, props }) {
       return [{ id: `stage-${stage}`, type: "stageBand", position: { x: Math.min(...members.map((n) => n.x)) - 24, y: 0 }, style: { width: Math.max(...members.map((n) => n.x + n.width)) - Math.min(...members.map((n) => n.x)) + 48, height: Math.max(...graph.nodes.map((n) => n.y + n.height)) + 48 }, data: { stage, label: `${stage[0].toUpperCase()}${stage.slice(1)} · ${members.length} node${members.length === 1 ? "" : "s"}` }, selectable: false, draggable: false, connectable: false, zIndex: -20 }];
     });
     const frames = graph.containerFrames.map((frame) => ({ id: `frame-${frame.id}`, type: "groupFrame", position: { x: frame.x, y: frame.y }, style: { width: frame.width, height: frame.height }, data: frame, selectable: false, draggable: false, connectable: false, zIndex: -10 }));
-    const modelNodes = graph.nodes.map((node) => ({ id: node.path, type: "msvNode", position: { x: node.x, y: node.y }, style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height }, data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive }, selected: props.selectedPath === node.path, draggable: false }));
+    const modelNodes = graph.nodes.map((node) => ({ id: node.path, type: "msvNode", position: { x: node.x, y: node.y }, style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height }, data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, onHover: props.onHoverPathChange, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive }, selected: props.selectedPath === node.path, draggable: false }));
     return [...stageBands, ...frames, ...modelNodes];
   }, [graph, props, activeRelationPath, matched, selectNode]);
   const edges = useMemo(() => renderEdges.filter((edge) => props.edgeMode === "all" || edge.kind === props.edgeMode).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, type: "msvEdge", markerEnd: { type: MarkerType.ArrowClosed, color: edge.kind === "dataflow" ? "#d08a3a" : "#8291a2" }, data: { ...edge, related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections } })) , [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes]);
@@ -167,12 +167,12 @@ function ReactFlowCanvas({ graph, props }) {
 export default function ReactFlowStructureDiagram(props) {
   const baseGraph = useMemo(() => layoutGraph(props.structure.root, props.expandedGroups), [props.structure, props.expandedGroups]);
   const [graph, setGraph] = useState(baseGraph);
-  const hoveredPath = useRef(null);
+  const [hoveredPath, setHoveredPath] = useState(null);
   useEffect(() => {
     let active = true;
     setGraph(baseGraph);
     layoutGraphWithElk(baseGraph).then((next) => { if (active) setGraph(next); }).catch(() => {});
     return () => { active = false; };
   }, [baseGraph]);
-  return <div className="diagram-frame react-flow-diagram" data-active-lenses={[...props.activeLenses].join(",")}><ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath: hoveredPath.current }} /></ReactFlowProvider></div>;
+  return <div className="diagram-frame react-flow-diagram" data-active-lenses={[...props.activeLenses].join(",")}><ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider></div>;
 }

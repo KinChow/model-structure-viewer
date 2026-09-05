@@ -28,6 +28,11 @@ function edgePath(edge, source, target) {
   return `M ${source.x + source.width} ${source.y + source.height / 2} C ${source.x + source.width + 36} ${source.y + source.height / 2}, ${target.x - 36} ${target.y + target.height / 2}, ${target.x} ${target.y + target.height / 2}`;
 }
 
+function parentPath(path) {
+  const index = path?.lastIndexOf(".") ?? -1;
+  return index > 0 ? path.slice(0, index) : null;
+}
+
 function StructureDiagram({
   structure,
   zoom,
@@ -72,6 +77,7 @@ function StructureDiagram({
   }, [baseGraph]);
   const { nodes, edges, containerFrames } = graph;
   const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
+  const selectedNode = selectedPath ? nodesByPath.get(selectedPath) : null;
   const contentWidth = Math.max(1, ...nodes.map((node) => node.x + node.width + 28));
   const contentHeight = Math.max(1, ...nodes.map((node) => node.y + node.height + 28));
   const stageBands = useMemo(() => {
@@ -291,6 +297,23 @@ function StructureDiagram({
 
   return (
     <div className="diagram-frame" ref={frameRef} data-active-lenses={[...activeLenses].join(",") }>
+      {selectedNode && <div className="diagram-context-bar" role="status">
+        <div className="diagram-context-path" aria-label={english ? "Selected module path" : "当前模块路径"}>
+          {selectedNode.path.split(".").map((part, index, parts) => {
+            const path = parts.slice(0, index + 1).join(".");
+            const node = nodesByPath.get(path);
+            return <span key={path}>
+              <button type="button" className={path === selectedPath ? "current" : ""} onClick={() => onSelectNode?.(path)}>{node?.displayName || (part === "root" ? (english ? "Model" : "模型") : `#${part}`)}</button>
+              {index < parts.length - 1 && <i>/</i>}
+            </span>;
+          })}
+        </div>
+        <div className="diagram-context-meta">
+          <span>{selectedNode.type}</span>
+          {selectedNode.children?.length > 0 && <span>{selectedNode.children.length} {english ? "children" : "个子模块"}</span>}
+          {parentPath(selectedPath) && <button type="button" onClick={() => onSelectNode?.(parentPath(selectedPath))}>{english ? "Up" : "上一级"}</button>}
+        </div>
+      </div>}
       <div className="diagram-scroll" ref={scrollRef} onScroll={handleScroll} onWheel={handleWheel} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={preventClickAfterPan}>
         <div className="diagram-zoom" style={{ width, height }}>
           <svg

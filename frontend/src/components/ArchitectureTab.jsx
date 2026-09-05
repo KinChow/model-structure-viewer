@@ -310,7 +310,7 @@ function ArchitectureTab({
             <button type="button" onClick={onExpandAllGroups}>{ui.expandAll}</button>
             <button type="button" onClick={onCollapseAllGroups}>{ui.collapseAll}</button>
           </>}
-          <button type="button" title={ui.zoomOut} aria-label={ui.zoomOut} onClick={() => onZoomChange(Math.max(0.7, zoom - 0.1))}>−</button>
+          <button type="button" title={ui.zoomOut} aria-label={ui.zoomOut} onClick={() => onZoomChange(Math.max(0.25, zoom - 0.1))}>−</button>
           <button type="button" title={ui.fit} aria-label={ui.fit} onClick={onFit}>{ui.fit}</button>
           <span className="zoom-level" aria-label="Zoom level">{Math.round(zoom * 100)}%</span>
           <button type="button" title={ui.zoomIn} aria-label={ui.zoomIn} onClick={() => onZoomChange(Math.min(2.5, zoom + 0.1))}>+</button>

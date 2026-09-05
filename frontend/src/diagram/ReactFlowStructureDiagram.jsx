@@ -50,7 +50,7 @@ function edgePathFromSections(sections) {
 }
 
 function MsvNode({ data, selected }) {
-  const { node, english, showGroupToggle, onSelect, onToggle, onHover, nodeLens, activeLenses, activeRelationPath, matched, searchActive } = data;
+  const { node, english, showGroupToggle, onSelect, onToggle, onHover, nodeLens, activeLenses, activeRelationPath, matched, searchActive, comparisonPaths } = data;
   const isOpenGroup = node.isCollapsible && node.isExpanded;
   const height = isOpenGroup ? 28 : node.height;
   const related = activeRelationPath && isPathRelated(node.path, activeRelationPath);
@@ -71,6 +71,8 @@ function MsvNode({ data, selected }) {
     node.typeClass,
     selected ? "selected" : "",
     related ? "related" : "",
+    comparisonPaths?.size > 0 && comparisonPaths.has(node.path) ? "comparison-change" : "",
+    comparisonPaths?.size > 0 && !comparisonPaths.has(node.path) ? "comparison-stable" : "",
     searchActive && !isMatch ? "dimmed" : "",
     isOpenGroup ? "open-group" : "closed-group",
   ].filter(Boolean).join(" ");
@@ -143,7 +145,7 @@ function ReactFlowCanvas({ graph, props }) {
       return [{ id: `stage-${stage}`, type: "stageBand", position: { x: Math.min(...members.map((n) => n.x)) - 24, y: 0 }, style: { width: Math.max(...members.map((n) => n.x + n.width)) - Math.min(...members.map((n) => n.x)) + 48, height: Math.max(...graph.nodes.map((n) => n.y + n.height)) + 48 }, data: { stage, label: `${stage[0].toUpperCase()}${stage.slice(1)} · ${members.length} node${members.length === 1 ? "" : "s"}` }, selectable: false, draggable: false, connectable: false, zIndex: -20 }];
     });
     const frames = graph.containerFrames.map((frame) => ({ id: `frame-${frame.id}`, type: "groupFrame", position: { x: frame.x, y: frame.y }, style: { width: frame.width, height: frame.height }, data: frame, selectable: false, draggable: false, connectable: false, zIndex: -10 }));
-    const modelNodes = graph.nodes.map((node) => ({ id: node.path, type: "msvNode", position: { x: node.x, y: node.y }, style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height }, data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, onHover: props.onHoverPathChange, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive }, selected: props.selectedPath === node.path, draggable: false }));
+    const modelNodes = graph.nodes.map((node) => ({ id: node.path, type: "msvNode", position: { x: node.x, y: node.y }, style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height }, data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, onHover: props.onHoverPathChange, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths }, selected: props.selectedPath === node.path, draggable: false }));
     return [...stageBands, ...frames, ...modelNodes];
   }, [graph, props, activeRelationPath, matched, selectNode]);
   const edges = useMemo(() => renderEdges.filter((edge) => props.edgeMode === "all" || edge.kind === props.edgeMode).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, type: "msvEdge", markerEnd: { type: MarkerType.ArrowClosed, color: edge.kind === "dataflow" ? "#d08a3a" : "#8291a2" }, data: { ...edge, related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections } })) , [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes]);
@@ -170,7 +172,7 @@ function ReactFlowCanvas({ graph, props }) {
     group.forEach((entry, id) => { if (id !== props.scrollSyncId) entry.setViewport(viewport); });
     group.busy = false;
   }
-  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id)} onPaneClick={() => props.onHoverPathChange?.(null)}>
+  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} fitView minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id)} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.target); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
     <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
     <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
     <Controls showInteractive={false} />

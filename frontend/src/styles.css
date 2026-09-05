@@ -342,6 +342,8 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .rf-model-node { position: relative; box-sizing: border-box; overflow: visible; border: 1.5px solid #7c8798; border-radius: 10px; background: #f1f3f6; color: #17202c; box-shadow: 0 3px 10px rgba(38,55,73,.12); cursor: pointer; }
 .rf-model-node.selected { border-color: #f4ab52; box-shadow: 0 0 0 2px rgba(244,171,82,.3), 0 3px 10px rgba(38,55,73,.12); }
 .rf-model-node.related { border-color: #7fa9c8; }
+.rf-model-node.comparison-change { border-color: #b96b16; border-width: 3px; }
+.rf-model-node.comparison-stable { opacity: .3; }
 .rf-model-node.open-group { border-width: 2px; }
 .rf-model-node.dimmed { opacity: .3; }
 .rf-model-node .rf-port { width: 7px; height: 7px; border: 1px solid #7c8798; background: #f7f8fa; }

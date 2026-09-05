@@ -296,6 +296,7 @@ textarea {
 .diagram-node.comparison-stable { opacity: 0.3; }
 rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-node.related { stroke: #7fa9c8; stroke-width: 2px; }
+.diagram-node.flow-related { stroke: #d08a3a; stroke-width: 2.2px; }
 .diagram-node.hovered { stroke: #1e6fa8; stroke-width: 3px; }
 .diagram-node.dimmed { opacity: 0.32; }
 .diagram-edge.related { stroke: #3178b7; stroke-dasharray: 5 3; }

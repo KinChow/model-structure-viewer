@@ -139,6 +139,16 @@ function StructureDiagram({
     () => relatedDataflowEdgeIds(edges, activeRelationPath),
     [edges, activeRelationPath]
   );
+  const relatedDataflowNodes = useMemo(() => {
+    const paths = new Set();
+    edges.forEach((edge) => {
+      if (edge.kind === "dataflow" && relatedDataflowEdges.has(edge.id)) {
+        paths.add(edge.source);
+        paths.add(edge.target);
+      }
+    });
+    return paths;
+  }, [edges, relatedDataflowEdges]);
   const activeStage = nodesByPath.get(activeRelationPath)?.stage;
   const markerId = `diagram-arrow-${useId().replaceAll(":", "")}`;
   const flowMarkerId = `${markerId}-flow`;
@@ -391,6 +401,7 @@ function StructureDiagram({
                 ].filter(Boolean).map(([id, label, value, isBytes]) => ({ id, text: value == null ? `${label} -` : `${label} ${isBytes ? formatBytes(value) : formatMetric(value)}` }));
                 const isHovered = activeHoveredPath === node.path;
                 const isRelated = activeRelationPath && isPathRelated(node.path, activeRelationPath);
+                const isFlowRelated = relatedDataflowNodes.has(node.path);
                 const comparisonActive = comparisonPaths instanceof Set && comparisonPaths.size > 0;
                 const isComparisonChange = comparisonActive && comparisonPaths.has(node.path);
                 const isComparisonStable = comparisonActive && !isComparisonChange;
@@ -400,6 +411,7 @@ function StructureDiagram({
                   `bound-${bound}`,
                   isHovered ? "hovered" : "",
                   isRelated ? "related" : "",
+                  isFlowRelated ? "flow-related" : "",
                   isSelected ? "selected" : "",
                   isAncestor ? "ancestor" : "",
                   isMatch ? "match" : "",

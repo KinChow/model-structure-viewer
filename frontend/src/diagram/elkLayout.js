@@ -31,6 +31,10 @@ function directChildren(node, nodeByPath) {
     .filter(Boolean);
 }
 
+function layoutHeight(node) {
+  return node.isCollapsible && node.isExpanded ? 28 : node.height;
+}
+
 /**
  * Compound graph layout: top-level modules read left-to-right while module
  * internals read top-to-bottom, keeping the canvas graph-first and readable.
@@ -45,7 +49,7 @@ export async function layoutGraphWithElk(graph) {
 
   function makeShape(node, depth) {
     const children = directChildren(node, nodeByPath);
-    if (children.length === 0) return { id: node.path, width: node.width, height: node.height };
+    if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
     const orderEdges = children.slice(0, -1).map((child, index) => ({
       id: `__order__${node.path}__${index}`,
       sources: [child.path],
@@ -73,7 +77,7 @@ export async function layoutGraphWithElk(graph) {
     id: "__graph_root__",
     layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT", "elk.padding": "32" },
     children: [root, ...topChildren].filter(Boolean).map((node) => node.path === "root"
-      ? { id: "root", width: node.width, height: node.height }
+      ? { id: "root", width: node.width, height: layoutHeight(node) }
       : makeShape(node, 1)),
     edges: topEdges,
   };

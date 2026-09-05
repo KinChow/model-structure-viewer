@@ -313,6 +313,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .legend-line { display: inline-block; width: 18px; border-top: 2px solid currentColor; }
 .legend-line.structure { color: #8997a8; opacity: .6; }
 .legend-line.dataflow { border-top-style: dashed; color: #d08a3a; }
+.legend-line.selected-path { color: #f4ab52; border-top-width: 3px; }
 .diagram-edge-filter { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; color: #718196; font-size: 10px; }
 .diagram-edge-filter button { border: 1px solid #354256; border-radius: 4px; background: #121923; color: #9ba8b8; padding: 3px 7px; font-size: 10px; }
 .diagram-edge-filter button.active, .diagram-edge-filter button:hover { border-color: #f4ab52; background: #35291c; color: #f4ab52; }

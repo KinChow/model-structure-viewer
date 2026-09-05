@@ -10,7 +10,6 @@ import {
   ReactFlow,
   ReactFlowProvider,
   getBezierPath,
-  useInternalNode,
   useReactFlow,
 } from "@xyflow/react";
 import { layoutGraph } from "./layout.js";
@@ -48,16 +47,6 @@ function formatShape(shape) {
 function parentPath(path) {
   const index = path.lastIndexOf(".");
   return index > 0 ? path.slice(0, index) : null;
-}
-
-function nodeGeometry(node) {
-  const position = node?.internals?.positionAbsolute || node?.positionAbsolute || node?.position;
-  return {
-    x: position?.x || 0,
-    y: position?.y || 0,
-    width: node?.measured?.width || node?.width || 0,
-    height: node?.measured?.height || node?.height || 0,
-  };
 }
 
 function absoluteNodeBox(node, getNode) {
@@ -155,46 +144,13 @@ function MsvStageBand({ data }) {
 const RF_NODE_TYPES = { msvNode: MsvNode, groupFrame: MsvGroupFrame, stageBand: MsvStageBand };
 const RF_EDGE_TYPES = { msvEdge: MsvEdge };
 
-function MsvEdge({ source, target, markerEnd, style, data }) {
-  const sourceNode = useInternalNode(source);
-  const targetNode = useInternalNode(target);
-  if (!sourceNode || !targetNode) return null;
-  const sourceBox = nodeGeometry(sourceNode);
-  const targetBox = nodeGeometry(targetNode);
-  const structural = data?.kind === "structure";
-  const vertical = data?.flowDirection === "vertical";
-  const sourceFrame = source.startsWith("frame-");
-  const targetFrame = target.startsWith("frame-");
-  const headerOffset = 24;
-  const geometry = structural
-    ? {
-      sourceX: sourceBox.x + sourceBox.width / 2,
-      sourceY: sourceBox.y + 24,
-      sourcePosition: Position.Bottom,
-      targetX: targetBox.x + targetBox.width / 2,
-      targetY: targetBox.y,
-      targetPosition: Position.Top,
-    }
-    : vertical
-    ? {
-      sourceX: sourceBox.x + sourceBox.width / 2,
-      sourceY: sourceBox.y + sourceBox.height,
-      sourcePosition: Position.Bottom,
-      targetX: targetBox.x + targetBox.width / 2,
-      targetY: targetBox.y + (targetFrame ? headerOffset : 0),
-      targetPosition: Position.Top,
-    }
-    : {
-      sourceX: sourceBox.x + sourceBox.width,
-      sourceY: sourceBox.y + (sourceFrame ? headerOffset : sourceBox.height / 2),
-      sourcePosition: Position.Right,
-      targetX: targetBox.x,
-      targetY: targetBox.y + (targetFrame ? headerOffset : targetBox.height / 2),
-      targetPosition: Position.Left,
-    };
-  const [fallback] = getBezierPath(geometry);
+function MsvEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
+  // React Flow has already resolved the actual Handle bounds, including
+  // compound-parent offsets. Use those coordinates directly so the path
+  // terminates on the visible input/output ports.
+  const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   const className = `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.related ? " related" : ""}`;
-  return <BaseEdge path={fallback} markerEnd={data?.kind === "dataflow" ? markerEnd : undefined} style={{ ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: data?.kind === "dataflow" && data?.evidence !== "module-order" ? "7 4" : undefined }} className={className} />;
+  return <BaseEdge path={path} markerEnd={data?.kind === "dataflow" ? markerEnd : undefined} style={{ ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: data?.kind === "dataflow" && data?.evidence !== "module-order" ? "7 4" : undefined }} className={className} />;
 }
 
 function ReactFlowCanvas({ graph, props }) {

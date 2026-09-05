@@ -68,10 +68,23 @@ export async function layoutGraphWithElk(graph) {
   const result = await elk.layout(layoutRoot);
   const positions = new Map();
   const routedEdges = new Map();
+  const groupFrames = [];
   function walk(shape, offsetX = 0, offsetY = 0) {
     const x = offsetX + (shape.x || 0);
     const y = offsetY + (shape.y || 0);
     if (shape.id !== "__graph_root__") positions.set(shape.id, { x, y });
+    if (shape.id !== "__graph_root__" && shape.children?.length && nodeByPath.has(shape.id)) {
+      const node = nodeByPath.get(shape.id);
+      groupFrames.push({
+        id: shape.id,
+        x,
+        y,
+        width: shape.width,
+        height: shape.height,
+        label: `${node.displayName}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
+        kind: "graph-group",
+      });
+    }
     for (const edge of shape.edges || []) {
       routedEdges.set(edge.id, (edge.sections || []).map((section) => ({
         ...section,
@@ -88,6 +101,6 @@ export async function layoutGraphWithElk(graph) {
     ...graph,
     nodes: graph.nodes.map((node) => ({ ...node, ...(positions.get(node.path) || {}) })),
     edges: graph.edges.map((edge) => ({ ...edge, sections: routedEdges.get(edge.id) || [] })),
-    containerFrames: [],
+    containerFrames: groupFrames,
   };
 }

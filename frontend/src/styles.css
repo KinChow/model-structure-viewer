@@ -427,6 +427,8 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .detail-page.theme-dark .diagram-stage-band text { fill: #9ba8b8; }
 .diagram-container-frame rect { fill: rgba(103, 137, 171, 0.045); stroke: rgba(103, 137, 171, 0.38); stroke-width: 1.2; stroke-dasharray: 6 4; }
 .diagram-container-frame text { fill: #72859a; font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.diagram-container-frame.graph-group-frame rect { fill: rgba(124, 135, 152, .02); stroke: rgba(124, 135, 152, .32); stroke-width: 1.2; stroke-dasharray: none; }
+.diagram-container-frame.graph-group-frame text { fill: #738093; font-size: 10px; font-weight: 700; }
 .theme-dark .diagram-container-frame rect { fill: rgba(98, 132, 167, 0.07); stroke: rgba(132, 164, 198, 0.42); }
 .theme-dark .diagram-container-frame text { fill: #9aadc1; }
 .diagram-container-frame.depth-0 rect { stroke-width: 1.7; stroke-dasharray: 8 4; fill: rgba(103, 137, 171, 0.025); }
@@ -435,6 +437,8 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-container-frame.depth-3 rect { stroke-width: 1; stroke-dasharray: 3 3; fill: rgba(103, 137, 171, 0.07); }
 .theme-dark .diagram-container-frame.depth-0 rect { stroke: rgba(191, 156, 97, 0.58); fill: rgba(191, 156, 97, 0.035); }
 .theme-dark .diagram-container-frame.depth-1 rect { stroke: rgba(132, 164, 198, 0.5); }
+.detail-page.theme-dark .diagram-container-frame.graph-group-frame rect { fill: rgba(147, 160, 178, .035); stroke: rgba(147, 160, 178, .32); }
+.detail-page.theme-dark .diagram-container-frame.graph-group-frame text { fill: #aebaca; }
 
 .diagram-node-content {
   display: flex;

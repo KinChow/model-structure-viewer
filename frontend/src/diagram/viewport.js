@@ -60,3 +60,10 @@ export function zoomForWheel(zoom, deltaY, min = 0.25, max = 2.5, step = 0.1) {
   const direction = deltaY < 0 ? 1 : -1;
   return Math.min(max, Math.max(min, zoom + direction * step));
 }
+
+export function scrollForZoomAnchor({ contentX, contentY, pointerX, pointerY, viewport }) {
+  return {
+    left: contentX * viewport.scale + viewport.offsetX - pointerX,
+    top: contentY * viewport.scale + viewport.offsetY - pointerY,
+  };
+}

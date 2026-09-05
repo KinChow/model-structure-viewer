@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
-import { fitDiagramViewport, sameDiagramViewport, zoomForWheel } from "./viewport.js";
+import { fitDiagramViewport, sameDiagramViewport, scrollForZoomAnchor, zoomForWheel } from "./viewport.js";
 import { isGraphEdgeRelated, isPathRelated } from "./hover.js";
 import { edgeStrokeWidth } from "./edgeStyle.js";
 
@@ -93,6 +93,7 @@ function StructureDiagram({
   const frameRef = useRef(null);
   const scrollRef = useRef(null);
   const panRef = useRef({ active: false, moved: false, x: 0, y: 0, left: 0, top: 0 });
+  const zoomAnchorRef = useRef(null);
   const [scrollPosition, setScrollPosition] = useState({ left: 0, top: 0 });
   const [miniMapOpen, setMiniMapOpen] = useState(true);
   useEffect(() => {
@@ -189,6 +190,15 @@ function StructureDiagram({
         });
       const shouldResetScroll = fitNonceRef.current !== fitNonce;
       setViewport((prev) => (sameDiagramViewport(prev, nextViewport) ? prev : nextViewport));
+      const zoomAnchor = zoomAnchorRef.current;
+      if (zoomAnchor && scrollRef.current) {
+        requestAnimationFrame(() => {
+          const position = scrollForZoomAnchor({ ...zoomAnchor, viewport: nextViewport });
+          scrollRef.current.scrollLeft = Math.max(0, position.left);
+          scrollRef.current.scrollTop = Math.max(0, position.top);
+          zoomAnchorRef.current = null;
+        });
+      }
       if (shouldResetScroll && scrollRef.current) {
         scrollRef.current.scrollLeft = 0;
         scrollRef.current.scrollTop = 0;
@@ -262,6 +272,15 @@ function StructureDiagram({
     const scroll = scrollRef.current;
     if (!scroll || (!event.ctrlKey && !event.metaKey)) return;
     event.preventDefault();
+    const frame = scroll.getBoundingClientRect();
+    const pointerX = event.clientX - frame.left;
+    const pointerY = event.clientY - frame.top;
+    zoomAnchorRef.current = {
+      contentX: (scroll.scrollLeft + pointerX - viewport.offsetX) / viewport.scale,
+      contentY: (scroll.scrollTop + pointerY - viewport.offsetY) / viewport.scale,
+      pointerX,
+      pointerY,
+    };
     onZoomChange?.(zoomForWheel(zoom, event.deltaY));
   }
 

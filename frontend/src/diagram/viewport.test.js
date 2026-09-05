@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fitDiagramViewport, sameDiagramViewport, zoomForWheel } from "./viewport.js";
+import { fitDiagramViewport, sameDiagramViewport, scrollForZoomAnchor, zoomForWheel } from "./viewport.js";
 
 test("fitDiagramViewport centers a smaller diagram inside the available viewport", () => {
   const result = fitDiagramViewport({
@@ -73,6 +73,11 @@ test("zoomForWheel keeps modifier-wheel zoom inside the canvas bounds", () => {
   assert.equal(zoomForWheel(1, -100), 1.1);
   assert.equal(zoomForWheel(2.5, -100), 2.5);
   assert.equal(zoomForWheel(0.25, 100), 0.25);
+});
+
+test("scrollForZoomAnchor keeps the pointer over the same graph content", () => {
+  const position = scrollForZoomAnchor({ contentX: 400, contentY: 120, pointerX: 100, pointerY: 80, viewport: { scale: 0.5, offsetX: 32, offsetY: 32 } });
+  assert.deepEqual(position, { left: 132, top: 12 });
 });
 
 test("fitDiagramViewport keeps small diagrams within the visible frame", () => {

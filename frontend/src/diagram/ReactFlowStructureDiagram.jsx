@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BaseEdge,
@@ -18,6 +18,7 @@ import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgeStrokeWidth } from "./edgeStyle.js";
 
 const EMPTY_SET = new Set();
+const HoverContext = createContext({ activeRelationPath: null, onHover: null });
 
 function formatMetric(seconds) {
   if (!Number.isFinite(seconds)) return null;
@@ -69,7 +70,9 @@ function absoluteNodeBox(node, getNode) {
 }
 
 function MsvNode({ data, selected }) {
-  const { node, english, showGroupToggle, onSelect, onToggle, onHover, nodeLens, activeLenses, activeRelationPath, matched, searchActive, comparisonPaths } = data;
+  const { node, english, showGroupToggle, onSelect, onToggle, nodeLens, activeLenses, matched, searchActive, comparisonPaths } = data;
+  const hover = useContext(HoverContext);
+  const activeRelationPath = hover.activeRelationPath;
   const verticalFlow = node.depth > 1;
   const isOpenGroup = node.isCollapsible && node.isExpanded;
   const height = isOpenGroup ? 28 : node.height;
@@ -96,7 +99,7 @@ function MsvNode({ data, selected }) {
     searchActive && !isMatch ? "dimmed" : "",
     isOpenGroup ? "open-group" : "closed-group",
   ].filter(Boolean).join(" ");
-  return <div className={classes} style={{ width: node.width, height }} onMouseEnter={() => onHover?.(node.path)} onMouseLeave={() => onHover?.(null)} onClick={(event) => {
+  return <div className={classes} style={{ width: node.width, height }} onMouseEnter={() => hover.onHover?.(node.path)} onMouseLeave={() => hover.onHover?.(null)} onClick={(event) => {
     if (event.target.closest("button, a, input, select, textarea")) return;
     onSelect(node.path);
   }}>
@@ -149,8 +152,9 @@ function MsvEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPos
   // compound-parent offsets. Use those coordinates directly so the path
   // terminates on the visible input/output ports.
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
-  const className = `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.related ? " related" : ""}`;
-  return <BaseEdge path={path} markerEnd={data?.kind === "dataflow" ? markerEnd : undefined} style={{ ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: data?.kind === "dataflow" && data?.evidence !== "module-order" ? "7 4" : undefined }} className={className} />;
+  const className = `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.evidence === "semantic-flow" ? " semantic-flow" : ""}${data?.related ? " related" : ""}`;
+  const mainFlow = data?.evidence === "module-order" || data?.evidence === "semantic-flow";
+  return <BaseEdge path={path} markerEnd={markerEnd} style={{ ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: mainFlow ? undefined : "7 4" }} className={className} />;
 }
 
 function ReactFlowCanvas({ graph, props }) {
@@ -214,13 +218,13 @@ function ReactFlowCanvas({ graph, props }) {
         position: { x: node.x - parentOrigin.x, y: node.y - parentOrigin.y },
         parentId: parentFrame ? `frame-${parentFrame}` : undefined,
         style: { width: node.width, height: node.isCollapsible && node.isExpanded ? 28 : node.height },
-        data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, onHover: props.onHoverPathChange, nodeLens: props.nodeLens, activeLenses: props.activeLenses, activeRelationPath, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths },
+        data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, nodeLens: props.nodeLens, activeLenses: props.activeLenses, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths },
         selected: props.selectedPath === node.path,
         draggable: false,
       };
     });
     return [...frames, ...modelNodes];
-  }, [graph, props, activeRelationPath, matched, selectNode]);
+  }, [graph, props.english, props.showGroupToggle, props.onToggleGroup, props.nodeLens, props.activeLenses, props.searchActive, props.comparisonPaths, props.selectedPath, matched, selectNode]);
   const edges = useMemo(() => {
     const framePaths = new Set(graph.containerFrames.map((frame) => frame.id));
     const targetId = (path) => framePaths.has(path) ? `frame-${path}` : path;
@@ -292,11 +296,12 @@ function ReactFlowCanvas({ graph, props }) {
     group.forEach((entry, id) => { if (id !== props.scrollSyncId) entry.setViewport(viewport); });
     group.busy = false;
   }
-  return <ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id.replace(/^frame-/, ""))} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.data.originalTarget || edge.target.replace(/^frame-/, "")); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
+  const hoverContext = useMemo(() => ({ activeRelationPath, onHover: props.onHoverPathChange }), [activeRelationPath, props.onHoverPathChange]);
+  return <HoverContext.Provider value={hoverContext}><ReactFlow nodes={nodes} edges={edges} nodeTypes={RF_NODE_TYPES} edgeTypes={RF_EDGE_TYPES} minZoom={0.1} maxZoom={2.5} onMove={handleMove} onNodeClick={(_, node) => selectNode(node.id.replace(/^frame-/, ""))} onEdgeClick={(_, edge) => { if (edge.data?.kind === "dataflow") selectNode(edge.data.originalTarget || edge.target.replace(/^frame-/, "")); }} onPaneClick={() => props.onHoverPathChange?.(null)}>
     <Background gap={20} size={1} color={props.english ? "#d7e1ea" : "#253042"} />
     <MiniMap pannable zoomable nodeColor={(node) => node.type === "groupFrame" ? "#8291a2" : "#93a0b2"} />
     <Controls position="top-left" showInteractive={false} />
-  </ReactFlow>;
+  </ReactFlow></HoverContext.Provider>;
 }
 
 export default function ReactFlowStructureDiagram(props) {

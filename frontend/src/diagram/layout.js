@@ -82,6 +82,42 @@ export function layoutDiagram(root, expandedGroups) {
   return items;
 }
 
+function attentionSemanticEdges(item) {
+  if (!item?.childItems?.length) return null;
+  const type = String(item.node?.type || "").toLowerCase();
+  const name = String(item.node?.name || "").toLowerCase();
+  if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;
+  const children = item.childItems;
+  const find = (pattern) => children.find((child) => pattern.test(String(child.node?.name || "").toLowerCase()));
+  const q = find(/(^|\b)q\s*(projection|proj)\b|q_proj|query/);
+  const k = find(/(^|\b)k\s*(projection|proj)\b|k_proj|key/);
+  const v = find(/(^|\b)v\s*(projection|proj)\b|v_proj|value/);
+  const rotary = find(/rotary|rope|position/);
+  const scores = find(/attention\s*scores?|qk|score/);
+  const probabilities = find(/attention\s*probabilities?|probabilities|softmax/);
+  const weighted = find(/weighted\s*value|value\s*matmul|av/);
+  const output = find(/output\s*projection|o\s*projection|out_proj/);
+  const edges = [];
+  const add = (source, target) => {
+    if (!source || !target || source.path === target.path) return;
+    edges.push({
+      id: `${source.path}=>${target.path}`,
+      source: source.path,
+      target: target.path,
+      kind: "dataflow",
+      evidence: "semantic-flow",
+    });
+  };
+  add(q, rotary);
+  add(k, rotary);
+  add(rotary, scores);
+  add(scores, probabilities);
+  add(probabilities, weighted);
+  add(v, weighted);
+  add(weighted, output);
+  return edges.length >= 3 ? edges : null;
+}
+
 /**
  * Convert the visible hierarchy into a graph view model. Analysis code keeps
  * the original tree paths; the canvas consumes these independent collections.
@@ -99,11 +135,13 @@ export function layoutGraph(root, expandedGroups) {
     return "model";
   };
   const nodes = items.map((item) => ({ ...item, stage: stageForPath(item.path), children: undefined, childItems: undefined }));
+  const semanticParents = new Set(items.filter((item) => attentionSemanticEdges(item)).map((item) => item.path));
   const orderedPairs = new Set(items.flatMap((item) => {
     const children = item.childItems || [];
     return children.slice(0, -1).map((source, index) => `${source.path}=>${children[index + 1].path}`);
   }));
   const moduleOrderEdges = items.flatMap((item) => {
+    if (semanticParents.has(item.path)) return [];
     const children = item.childItems || [];
     return children.slice(0, -1).map((source, index) => ({
       id: `${source.path}~${children[index + 1].path}`,
@@ -114,6 +152,8 @@ export function layoutGraph(root, expandedGroups) {
     }));
   });
   const dataflowEdges = items.flatMap((item) => {
+    const semantic = attentionSemanticEdges(item);
+    if (semantic) return semantic;
     const operators = item.childItems?.filter((child) => child.node?.type === "operator") || [];
     const edges = [];
     operators.forEach((source) => {

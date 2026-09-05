@@ -373,6 +373,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .rf-stage-band.stage-output { background: rgba(224,138,0,.035); }
 .rf-edge.dataflow { stroke: #d08a3a; stroke-dasharray: 7 4; animation: diagram-flow 1.35s linear infinite; }
 .rf-edge.dataflow.module-order { stroke: #f4ab52; stroke-dasharray: none; animation: none; }
+.rf-edge.dataflow.semantic-flow { stroke: #d08a3a; stroke-dasharray: none; animation: none; }
 .rf-edge.related { stroke: #f4ab52; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .rf-edge.dataflow { animation: none; } }
 .detail-page.theme-dark .rf-model-node { border-color: #93a0b2; background: #20262f; color: #edf2f7; }

@@ -59,7 +59,9 @@ export async function layoutGraphWithElk(graph) {
     const children = node.path === "root" ? allChildren.filter((child) => !isExternalRootNode(child)) : allChildren;
     const childIds = new Set(children.map((child) => child.path));
     if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
-    const orderEdges = children.slice(0, -1).map((child, index) => ({
+    const semanticFlow = graph.edges.some((edge) => edge.evidence === "semantic-flow"
+      && parentPath(edge.source) === node.path && parentPath(edge.target) === node.path);
+    const orderEdges = semanticFlow ? [] : children.slice(0, -1).map((child, index) => ({
       id: `__order__${node.path}__${index}`,
       sources: [child.path],
       targets: [children[index + 1].path],

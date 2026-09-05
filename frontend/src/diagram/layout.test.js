@@ -73,3 +73,29 @@ test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
     ["root.2", "root.3"],
   ]);
 });
+
+test("layoutGraph models MLA as a branched attention graph", () => {
+  const graph = layoutGraph({
+    name: "model", type: "model", children: [
+      { name: "MLA Attention", type: "attention", children: [
+        { name: "q projection", type: "operator", children: [] },
+        { name: "k projection", type: "operator", children: [] },
+        { name: "v projection", type: "operator", children: [] },
+        { name: "rotary position embedding", type: "operator", children: [] },
+        { name: "attention scores", type: "operator", children: [] },
+        { name: "attention probabilities", type: "operator", children: [] },
+        { name: "weighted value", type: "operator", children: [] },
+        { name: "output projection", type: "operator", children: [] },
+      ] },
+    ],
+  }, new Set(["root", "root.0"]));
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "semantic-flow").map(({ source, target }) => [source, target]), [
+    ["root.0.0", "root.0.3"],
+    ["root.0.1", "root.0.3"],
+    ["root.0.3", "root.0.4"],
+    ["root.0.4", "root.0.5"],
+    ["root.0.5", "root.0.6"],
+    ["root.0.2", "root.0.6"],
+    ["root.0.6", "root.0.7"],
+  ]);
+});

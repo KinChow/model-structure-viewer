@@ -400,6 +400,7 @@ function StructureDiagram({
                         stroke="transparent"
                         strokeWidth="12"
                         pointerEvents="stroke"
+                        onPointerDown={selectDataflowTarget}
                         onClick={selectDataflowTarget}
                       />}
                       <path
@@ -411,6 +412,7 @@ function StructureDiagram({
                         strokeWidth={related ? "2.8" : edgeStrokeWidth(edge, node)}
                         markerEnd={`url(#${edge.kind === "dataflow" ? flowMarkerId : markerId})`}
                         data-edge-target={edge.kind === "dataflow" ? edge.target : undefined}
+                        onPointerDown={selectDataflowTarget}
                         onClick={selectDataflowTarget}
                       >
                         <title>{edge.kind === "dataflow" ? (edge.evidence === "module-order" ? (english ? "Model stage flow" : "模型阶段流") : (english ? "Data flow (matching tensor shapes)" : "数据流（Tensor Shape 匹配）")) : (english ? "Module structure" : "模块结构")} · {node.fullName} → {target.fullName}{tensorHint}</title>

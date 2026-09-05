@@ -31,6 +31,12 @@ function directChildren(node, nodeByPath) {
     .filter(Boolean);
 }
 
+function isExternalRootNode(node) {
+  const type = String(node.node?.type || node.typeClass || "").toLowerCase();
+  const name = String(node.node?.name || node.displayName || "").toLowerCase();
+  return type === "output" || type === "head" || /(^|[._ -])(lm[_ -]?head|classifier|score)$/.test(name);
+}
+
 function layoutHeight(node) {
   return node.isCollapsible && node.isExpanded ? 28 : node.height;
 }
@@ -42,13 +48,16 @@ function layoutHeight(node) {
 export async function layoutGraphWithElk(graph) {
   const elk = await getElk();
   const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
-  const directEdges = (path) => graph.edges
+  const directEdges = (path, allowedIds) => graph.edges
     .filter((edge) => (edge.kind === "structure" || edge.kind === "dataflow")
-      && parentPath(edge.source) === path && parentPath(edge.target) === path)
+      && parentPath(edge.source) === path && parentPath(edge.target) === path
+      && (!allowedIds || (allowedIds.has(edge.source) && allowedIds.has(edge.target))))
     .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }));
 
   function makeShape(node, depth) {
-    const children = directChildren(node, nodeByPath);
+    const allChildren = directChildren(node, nodeByPath);
+    const children = node.path === "root" ? allChildren.filter((child) => !isExternalRootNode(child)) : allChildren;
+    const childIds = new Set(children.map((child) => child.path));
     if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
     const orderEdges = children.slice(0, -1).map((child, index) => ({
       id: `__order__${node.path}__${index}`,
@@ -65,7 +74,7 @@ export async function layoutGraphWithElk(graph) {
         "elk.padding": "[top=32,left=24,bottom=24,right=24]",
       },
       children: children.map((child) => makeShape(child, depth + 1)),
-      edges: [...directEdges(node.path), ...orderEdges],
+      edges: [...directEdges(node.path, childIds), ...orderEdges],
     };
   }
 
@@ -73,19 +82,54 @@ export async function layoutGraphWithElk(graph) {
   // its children makes the model header look disconnected and loses the
   // parent/child containment that modelmap uses.
   const root = nodeByPath.get("root");
+  const rootChildren = root ? directChildren(root, nodeByPath) : [];
+  const externalRootChildren = rootChildren.filter(isExternalRootNode);
+  const externalIds = new Set(externalRootChildren.map((child) => child.path));
+  const modelShape = root ? makeShape(root, 0) : null;
+  const topEdges = root
+    ? graph.edges
+      .filter((edge) => (edge.kind === "structure" || edge.kind === "dataflow")
+        && rootChildren.some((child) => child.path === edge.source)
+        && rootChildren.some((child) => child.path === edge.target)
+        && (externalIds.has(edge.source) || externalIds.has(edge.target)))
+      .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }))
+    : [];
   const layoutRoot = root
-    ? makeShape(root, 0)
+    ? {
+      id: "__graph_root__",
+      layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT", "elk.padding": "32" },
+      children: [modelShape, ...externalRootChildren.map((child) => makeShape(child, 1))],
+      edges: topEdges,
+    }
     : { id: "__graph_root__", layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT" }, children: [] };
 
   const result = await elk.layout(layoutRoot);
+  // Cross-boundary edges can make ELK place an external head above the
+  // compound model. The canvas root has a deliberate left-to-right contract:
+  // keep the model container on the left and its external siblings to the
+  // right, centered against the model's height.
+  if (result.id === "__graph_root__") {
+    const modelResult = result.children?.find((child) => child.id === "root");
+    if (modelResult) {
+      let externalX = (modelResult.x || 0) + (modelResult.width || 0) + 80;
+      const modelY = modelResult.y || 0;
+      for (const child of result.children || []) {
+        if (child.id === "root") continue;
+        child.x = externalX;
+        child.y = modelY + Math.max(0, ((modelResult.height || 0) - (child.height || 0)) / 2);
+        externalX += (child.width || 0) + 80;
+      }
+    }
+  }
   // ELK centers short siblings against a large expanded compound node. That
   // is technically valid, but it pushes embedding/norm/head far below the
   // container headers and makes the top-level execution chain look broken.
   // Keep the root pipeline on one baseline; nested containers retain ELK's
   // own placement.
-  if (result.id === "root" && result.children?.length) {
-    const topLevelY = Math.min(...result.children.map((child) => child.y || 0));
-    for (const child of result.children) child.y = topLevelY;
+  const modelLayout = result.id === "root" ? result : result.children?.find((child) => child.id === "root");
+  if (modelLayout?.children?.length) {
+    const topLevelY = Math.min(...modelLayout.children.map((child) => child.y || 0));
+    for (const child of modelLayout.children) child.y = topLevelY;
   }
   const positions = new Map();
   const routedEdges = new Map();
@@ -102,7 +146,10 @@ export async function layoutGraphWithElk(graph) {
         y: y - 22,
         width: shape.width + 32,
         height: shape.height + 38,
-        label: `${node.displayName} · ${node.node?.type || "module"}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
+        label: node.id === "root"
+          ? "model"
+          : `${node.displayName} · ${node.node?.type || "module"}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
+        classLabel: node.id === "root" ? (node.node?.attributes?.class || node.node?.name || null) : null,
         depth: node.depth,
         kind: "graph-group",
       });

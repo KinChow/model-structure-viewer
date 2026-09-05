@@ -143,6 +143,7 @@ function MsvGroupFrame({ data }) {
     <div className="rf-group-header">
       {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={data.english ? "Collapse" : "收起"}>−</button>}
       <strong>{data.label}</strong>
+      {data.classLabel && <span className="rf-group-class">{data.classLabel}</span>}
     </div>
   </div>;
 }

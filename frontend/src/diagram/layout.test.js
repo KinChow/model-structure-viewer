@@ -49,6 +49,20 @@ test("ELK lays out the graph without changing stable node paths", async () => {
   assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
 });
 
+test("keeps an output head outside the model compound", async () => {
+  const graph = layoutGraph({
+    name: "DeepseekV3ForCausalLM", type: "model", children: [
+      { name: "decoder", type: "module", children: [
+        { name: "norm", type: "normalization", children: [] },
+      ] },
+      { name: "lm head", type: "output", children: [] },
+    ],
+  }, new Set(["root", "root.0"]));
+  const laidOut = await layoutGraphWithElk(graph);
+  assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
+  assert.ok(laidOut.nodes.find((node) => node.path === "root.1").x > laidOut.nodes.find((node) => node.path === "root.0").x);
+});
+
 test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
   const graph = layoutGraph({
     name: "block", type: "module", children: [

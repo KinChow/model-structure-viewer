@@ -32,16 +32,21 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
 test("ELK lays out the graph without changing stable node paths", async () => {
   const graph = layoutGraph({
     name: "model", type: "model", children: [
-      { name: "a", type: "module", children: [] },
+      { name: "a", type: "module", children: [
+        { name: "a-child", type: "operator", children: [] },
+        { name: "a-next", type: "operator", children: [] },
+      ] },
       { name: "b", type: "module", children: [] },
     ],
-  }, new Set(["root"]));
+  }, new Set(["root", "root.0"]));
   const laidOut = await layoutGraphWithElk(graph);
-  assert.deepEqual(laidOut.nodes.map((node) => node.path), ["root", "root.0", "root.1"]);
+  assert.deepEqual(laidOut.nodes.map((node) => node.path), ["root", "root.0", "root.0.0", "root.0.1", "root.1"]);
   assert.ok(laidOut.nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y)));
+  assert.ok(laidOut.nodes.find((node) => node.path === "root.0.0").y > laidOut.nodes.find((node) => node.path === "root.0").y);
+  assert.ok(laidOut.nodes.find((node) => node.path === "root.0.0").y < laidOut.nodes.find((node) => node.path === "root.0.1").y);
   assert.deepEqual(JSON.parse(JSON.stringify(laidOut.edges.map(({ id, source, target, kind, evidence }) => ({ id, source, target, kind, evidence })))), graph.edges);
   assert.ok(laidOut.edges.some((edge) => edge.sections.length > 0));
-  assert.deepEqual(laidOut.containerFrames, []);
+  assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root.0"]);
 });
 
 test("layoutGraph adds dataflow edges only when tensor shapes match", () => {

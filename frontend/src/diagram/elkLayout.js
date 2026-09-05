@@ -38,22 +38,28 @@ function directChildren(node, nodeByPath) {
 export async function layoutGraphWithElk(graph) {
   const elk = await getElk();
   const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
-  const directDataflow = (path) => graph.edges
-    .filter((edge) => edge.kind === "dataflow" && parentPath(edge.source) === path && parentPath(edge.target) === path)
+  const directEdges = (path) => graph.edges
+    .filter((edge) => (edge.kind === "structure" || edge.kind === "dataflow")
+      && parentPath(edge.source) === path && parentPath(edge.target) === path)
     .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }));
 
   function makeShape(node, depth) {
     const children = directChildren(node, nodeByPath);
     if (children.length === 0) return { id: node.path, width: node.width, height: node.height };
+    const orderEdges = children.slice(0, -1).map((child, index) => ({
+      id: `__order__${node.path}__${index}`,
+      sources: [child.path],
+      targets: [children[index + 1].path],
+    }));
     return {
       id: node.path,
       layoutOptions: {
         ...BASE_LAYOUT,
-        "elk.direction": depth <= 1 ? "RIGHT" : "DOWN",
+        "elk.direction": "DOWN",
         "elk.padding": "[top=32,left=24,bottom=24,right=24]",
       },
       children: children.map((child) => makeShape(child, depth + 1)),
-      edges: directDataflow(node.path),
+      edges: [...directEdges(node.path), ...orderEdges],
     };
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import StructureDiagram from "../diagram/StructureDiagram";
+import StructureDiagram from "../diagram/ReactFlowStructureDiagram";
 import EmptyState from "./EmptyState";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 import { collectFormulaLinks } from "../diagram/formulaLinks.js";

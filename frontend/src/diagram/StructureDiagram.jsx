@@ -70,6 +70,21 @@ function StructureDiagram({
   const nodesByPath = useMemo(() => new Map(nodes.map((node) => [node.path, node])), [nodes]);
   const contentWidth = Math.max(1, ...nodes.map((node) => node.x + node.width + 28));
   const contentHeight = Math.max(1, ...nodes.map((node) => node.y + node.height + 28));
+  const stageBands = useMemo(() => {
+    const labels = {
+      input: english ? "Input" : "输入",
+      representation: english ? "Representation" : "表示层",
+      decoder: english ? "Decoder" : "解码器",
+      output: english ? "Output" : "输出",
+    };
+    return ["input", "representation", "decoder", "output"].flatMap((stage) => {
+      const members = nodes.filter((node) => node.stage === stage);
+      if (members.length === 0) return [];
+      const left = Math.min(...members.map((node) => node.x)) - 24;
+      const right = Math.max(...members.map((node) => node.x + node.width)) + 24;
+      return [{ stage, label: labels[stage], x: left, width: right - left }];
+    });
+  }, [english, nodes]);
   const frameRef = useRef(null);
   const scrollRef = useRef(null);
   const panRef = useRef({ active: false, moved: false, x: 0, y: 0, left: 0, top: 0 });
@@ -263,6 +278,12 @@ function StructureDiagram({
               </marker>
             </defs>
             <g transform={contentTransform}>
+              <g className="diagram-stage-bands" aria-hidden="true">
+                {stageBands.map((band) => <g key={band.stage} className={`diagram-stage-band stage-${band.stage}`}>
+                  <rect x={band.x} y={0} width={band.width} height={contentHeight} rx="10" />
+                  <text x={band.x + 12} y={18}>{band.label}</text>
+                </g>)}
+              </g>
               {containerFrames.sort((a, b) => nodesByPath.get(a.id).depth - nodesByPath.get(b.id).depth).map((frame) => {
                 const depth = nodesByPath.get(frame.id)?.depth || 0;
                 return <g key={`frame-${frame.id}`} className={`diagram-container-frame depth-${Math.min(depth, 3)}`} data-container-path={frame.id}>

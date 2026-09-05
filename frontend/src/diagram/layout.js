@@ -88,7 +88,17 @@ export function layoutDiagram(root, expandedGroups) {
  */
 export function layoutGraph(root, expandedGroups) {
   const items = layoutDiagram(root, expandedGroups);
-  const nodes = items.map((item) => ({ ...item, children: undefined, childItems: undefined }));
+  const stageForPath = (path) => {
+    const firstChild = path.split(".")[1];
+    const child = firstChild == null ? root : root?.children?.[Number(firstChild)];
+    const type = String(child?.type || "model");
+    if (type.includes("embedding") || type.includes("vision")) return "input";
+    if (type.includes("projector")) return "representation";
+    if (type.includes("decoder") || type.includes("layer")) return "decoder";
+    if (type.includes("output") || type.includes("head")) return "output";
+    return "model";
+  };
+  const nodes = items.map((item) => ({ ...item, stage: stageForPath(item.path), children: undefined, childItems: undefined }));
   const structureEdges = items.flatMap((item) => item.children.map((target) => ({
     id: `${item.path}->${target}`,
     source: item.path,

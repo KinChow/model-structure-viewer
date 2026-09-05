@@ -21,6 +21,8 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
     ["root.1", "root.1.0"],
   ]);
   assert.equal(graph.nodes.find((node) => node.path === "root.1").children, undefined);
+  assert.equal(graph.nodes.find((node) => node.path === "root.0").stage, "input");
+  assert.equal(graph.nodes.find((node) => node.path === "root.1.0").stage, "decoder");
   assert.equal(graph.containerFrames.length, 2);
 });
 

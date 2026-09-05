@@ -408,6 +408,15 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .detail-page.theme-light .diagram-edge.dataflow.related { stroke: #a9621d; }
 
 .diagram-container-frame { pointer-events: none; }
+.diagram-stage-bands { pointer-events: none; }
+.diagram-stage-band rect { fill: rgba(124, 135, 152, .025); stroke: rgba(124, 135, 152, .16); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.diagram-stage-band text { fill: #8793a3; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.diagram-stage-band.stage-input rect { fill: rgba(78, 99, 200, .035); }
+.diagram-stage-band.stage-representation rect { fill: rgba(46, 143, 132, .035); }
+.diagram-stage-band.stage-decoder rect { fill: rgba(198, 83, 126, .025); }
+.diagram-stage-band.stage-output rect { fill: rgba(224, 138, 0, .035); }
+.detail-page.theme-dark .diagram-stage-band rect { stroke: rgba(147, 160, 178, .2); }
+.detail-page.theme-dark .diagram-stage-band text { fill: #9ba8b8; }
 .diagram-container-frame rect { fill: rgba(103, 137, 171, 0.045); stroke: rgba(103, 137, 171, 0.38); stroke-width: 1.2; stroke-dasharray: 6 4; }
 .diagram-container-frame text { fill: #72859a; font-size: 10px; font-weight: 700; letter-spacing: .02em; }
 .theme-dark .diagram-container-frame rect { fill: rgba(98, 132, 167, 0.07); stroke: rgba(132, 164, 198, 0.42); }

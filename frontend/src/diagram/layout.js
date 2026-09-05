@@ -138,8 +138,21 @@ export function layoutGraph(root, expandedGroups) {
     evidence: "module-order",
   }));
   const edges = [...structureEdges, ...dataflowEdges, ...stageFlowEdges];
-  const containerFrames = items
-    .filter((item) => item.containerFrame)
-    .map((item) => ({ id: item.path, ...item.containerFrame }));
-  return { nodes, edges, containerFrames };
+  // Keep the synchronous state graph-first while ELK is loading or unavailable.
+  // Top-level modules form columns; their visible operators stack inside each column.
+  const moduleIndex = new Map(topLevelPaths.map((path, index) => [path, index]));
+  const moduleRows = new Map();
+  const graphNodes = nodes.map((node) => {
+    if (node.path === "root") return { ...node, x: LAYOUT_LEFT, y: LAYOUT_TOP + 48 };
+    const topLevelPath = node.path.split(".").slice(0, 2).join(".");
+    const column = moduleIndex.get(topLevelPath) ?? 0;
+    const row = moduleRows.get(topLevelPath) || 0;
+    moduleRows.set(topLevelPath, row + 1);
+    return {
+      ...node,
+      x: LAYOUT_LEFT + 300 + column * 300,
+      y: LAYOUT_TOP + row * (node.height + NODE_GAP_Y),
+    };
+  });
+  return { nodes: graphNodes, edges, containerFrames: [] };
 }

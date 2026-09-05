@@ -24,7 +24,9 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
   assert.equal(graph.nodes.find((node) => node.path === "root.0").stage, "input");
   assert.equal(graph.nodes.find((node) => node.path === "root.1.0").stage, "decoder");
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "module-order").map(({ source, target }) => [source, target]), [["root.0", "root.1"]]);
-  assert.equal(graph.containerFrames.length, 2);
+  assert.ok(graph.nodes.find((node) => node.path === "root.0").x < graph.nodes.find((node) => node.path === "root.1").x);
+  assert.equal(graph.nodes.find((node) => node.path === "root.1").x, graph.nodes.find((node) => node.path === "root.1.0").x);
+  assert.deepEqual(graph.containerFrames, []);
 });
 
 test("ELK lays out the graph without changing stable node paths", async () => {

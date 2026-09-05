@@ -355,7 +355,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .rf-node-badges { display: flex; flex-wrap: wrap; gap: 4px; min-height: 14px; align-items: center; }
 .rf-node-meta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rf-node-meta li { overflow: hidden; color: #526172; font-size: 10px; white-space: nowrap; text-overflow: ellipsis; }
-.rf-group-frame { position: relative; box-sizing: border-box; pointer-events: auto; overflow: visible; border: 2px solid rgba(82,110,136,.9); border-radius: 12px; padding: 6px 12px; background: rgba(103,137,171,.2); color: #536b80; font-size: 10px; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,.58); }
+.rf-group-frame { position: relative; box-sizing: border-box; width: 100%; height: 100%; pointer-events: auto; overflow: visible; border: 2px solid rgba(82,110,136,.9); border-radius: 12px; padding: 6px 12px; background: rgba(103,137,171,.2); color: #536b80; font-size: 10px; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,.58); }
 .rf-group-frame::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 25px; border-bottom: 1px solid rgba(103,137,171,.34); border-radius: 10px 10px 0 0; background: rgba(103,137,171,.1); pointer-events: none; }
 .rf-group-header { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; min-height: 18px; pointer-events: auto; }
 .rf-group-class { color: #718096; font-size: 11px; font-weight: 500; }

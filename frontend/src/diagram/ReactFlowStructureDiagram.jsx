@@ -143,7 +143,10 @@ function ReactFlowCanvas({ graph, props }) {
     props.scrollSync.group.set(props.scrollSyncId, entry);
     return () => props.scrollSync.group.delete(props.scrollSyncId);
   }, [props.scrollSync, props.scrollSyncId, setViewport]);
-  const renderEdges = useMemo(() => graph.edges.filter((edge) => edge.kind !== "structure" || edge.source === "root" || edge.evidence === "module-order"), [graph.edges]);
+  // Containment is the structure view. Drawing parent -> child edges on top
+  // of nested frames duplicates that relationship and creates crossings.
+  // The canvas therefore renders only sibling execution/dataflow edges.
+  const renderEdges = useMemo(() => graph.edges.filter((edge) => edge.kind === "dataflow"), [graph.edges]);
   const matched = props.matchedPaths instanceof Set ? props.matchedPaths : new Set();
   const activeRelationPath = props.externalHoveredPath ?? props.hoveredPath ?? props.selectedPath;
   const selectNode = (path) => {
@@ -153,12 +156,6 @@ function ReactFlowCanvas({ graph, props }) {
   };
   const relatedDataflowEdges = useMemo(() => relatedDataflowEdgeIds(graph.edges, activeRelationPath), [graph.edges, activeRelationPath]);
   const nodes = useMemo(() => {
-    const stageLabels = props.english ? { input: "Input", representation: "Representation", decoder: "Decoder", output: "Output" } : { input: "输入", representation: "表示层", decoder: "解码器", output: "输出" };
-    const stageBands = ["input", "representation", "decoder", "output"].flatMap((stage) => {
-      const members = graph.nodes.filter((node) => node.stage === stage);
-      if (!members.length) return [];
-      return [{ id: `stage-${stage}`, type: "stageBand", position: { x: Math.min(...members.map((n) => n.x)) - 24, y: 0 }, style: { width: Math.max(...members.map((n) => n.x + n.width)) - Math.min(...members.map((n) => n.x)) + 48, height: Math.max(...graph.nodes.map((n) => n.y + n.height)) + 48 }, data: { stage, label: `${stageLabels[stage]} · ${members.length} ${props.english ? `node${members.length === 1 ? "" : "s"}` : "个节点"}` }, selectable: false, draggable: false, connectable: false, zIndex: -20 }];
-    });
     const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
     const frameByPath = new Map(graph.containerFrames.map((frame) => [frame.id, frame]));
     const nearestFrame = (path) => {
@@ -204,7 +201,7 @@ function ReactFlowCanvas({ graph, props }) {
         draggable: false,
       };
     });
-    return [...stageBands, ...frames, ...modelNodes];
+    return [...frames, ...modelNodes];
   }, [graph, props, activeRelationPath, matched, selectNode]);
   const edges = useMemo(() => {
     const framePaths = new Set(graph.containerFrames.map((frame) => frame.id));
@@ -218,7 +215,10 @@ function ReactFlowCanvas({ graph, props }) {
       data: { ...edge, originalSource: edge.source, originalTarget: edge.target, related: edge.kind === "dataflow" ? relatedDataflowEdges.has(edge.id) : isGraphEdgeRelated(edge.source, edge.target, activeRelationPath), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)), sections: edge.sections },
     }));
   }, [renderEdges, props.edgeMode, activeRelationPath, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
-  useEffect(() => { fitView({ padding: 0.12, duration: 260 }); }, [props.fitNonce, graph.nodes.length, fitView]);
+  // ELK keeps the same node count while replacing the provisional positions;
+  // fitting only on node-count changes leaves the canvas focused on the
+  // provisional layout after the compound layout resolves.
+  useEffect(() => { fitView({ padding: 0.12, duration: 260 }); }, [props.fitNonce, graph, fitView]);
   useEffect(() => {
     if (props.zoom === lastZoom.current) return;
     const ratio = props.zoom / Math.max(lastZoom.current, 0.1);

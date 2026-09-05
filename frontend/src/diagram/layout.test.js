@@ -46,7 +46,7 @@ test("ELK lays out the graph without changing stable node paths", async () => {
   assert.ok(laidOut.nodes.find((node) => node.path === "root.0.0").y < laidOut.nodes.find((node) => node.path === "root.0.1").y);
   assert.deepEqual(JSON.parse(JSON.stringify(laidOut.edges.map(({ id, source, target, kind, evidence }) => ({ id, source, target, kind, evidence })))), graph.edges);
   assert.ok(laidOut.edges.some((edge) => edge.sections.length > 0));
-  assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root.0"]);
+  assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
 });
 
 test("layoutGraph adds dataflow edges only when tensor shapes match", () => {

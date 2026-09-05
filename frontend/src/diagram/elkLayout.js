@@ -59,7 +59,9 @@ export async function layoutGraphWithElk(graph) {
       id: node.path,
       layoutOptions: {
         ...BASE_LAYOUT,
-        "elk.direction": "DOWN",
+        // Keep the model's top-level modules in a readable pipeline. Once a
+        // module is opened, its implementation is a vertical sibling flow.
+        "elk.direction": depth === 0 ? "RIGHT" : "DOWN",
         "elk.padding": "[top=32,left=24,bottom=24,right=24]",
       },
       children: children.map((child) => makeShape(child, depth + 1)),
@@ -67,20 +69,13 @@ export async function layoutGraphWithElk(graph) {
     };
   }
 
+  // The model itself is the outermost compound node. Placing `root` beside
+  // its children makes the model header look disconnected and loses the
+  // parent/child containment that modelmap uses.
   const root = nodeByPath.get("root");
-  const topChildren = root ? directChildren(root, nodeByPath) : [];
-  const topEdges = graph.edges
-    .filter((edge) => (edge.kind === "structure" && edge.source === "root" && edge.target !== "root")
-      || (edge.kind === "dataflow" && parentPath(edge.source) === "root" && parentPath(edge.target) === "root"))
-    .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }));
-  const layoutRoot = {
-    id: "__graph_root__",
-    layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT", "elk.padding": "32" },
-    children: [root, ...topChildren].filter(Boolean).map((node) => node.path === "root"
-      ? { id: "root", width: node.width, height: layoutHeight(node) }
-      : makeShape(node, 1)),
-    edges: topEdges,
-  };
+  const layoutRoot = root
+    ? makeShape(root, 0)
+    : { id: "__graph_root__", layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT" }, children: [] };
 
   const result = await elk.layout(layoutRoot);
   const positions = new Map();

@@ -103,7 +103,7 @@ function MsvNode({ data, selected }) {
 }
 
 function MsvGroupFrame({ data }) {
-  return <div className="rf-group-frame" title={data.label}><strong>{data.label}</strong></div>;
+  return <div className={`rf-group-frame depth-${Math.min(data.depth || 0, 4)}`} title={data.label}><strong>{data.label}</strong></div>;
 }
 
 function MsvStageBand({ data }) {

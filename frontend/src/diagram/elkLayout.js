@@ -90,8 +90,7 @@ export async function layoutGraphWithElk(graph) {
     const x = offsetX + (shape.x || 0);
     const y = offsetY + (shape.y || 0);
     if (shape.id !== "__graph_root__") positions.set(shape.id, { x, y });
-    if (shape.id !== "__graph_root__" && shape.children?.length && nodeByPath.has(shape.id)
-      && nodeByPath.get(shape.id).depth <= 2) {
+    if (shape.id !== "__graph_root__" && shape.children?.length && nodeByPath.has(shape.id)) {
       const node = nodeByPath.get(shape.id);
       groupFrames.push({
         id: shape.id,
@@ -100,6 +99,7 @@ export async function layoutGraphWithElk(graph) {
         width: shape.width + 32,
         height: shape.height + 38,
         label: `${node.displayName} · ${node.node?.type || "module"}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,
+        depth: node.depth,
         kind: "graph-group",
       });
     }

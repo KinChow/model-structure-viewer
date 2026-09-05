@@ -10,6 +10,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   getBezierPath,
+  useInternalNode,
   useReactFlow,
 } from "@xyflow/react";
 import { layoutGraph } from "./layout.js";
@@ -154,9 +155,8 @@ const RF_NODE_TYPES = { msvNode: MsvNode, groupFrame: MsvGroupFrame, stageBand: 
 const RF_EDGE_TYPES = { msvEdge: MsvEdge };
 
 function MsvEdge({ source, target, markerEnd, style, data }) {
-  const { getNode } = useReactFlow();
-  const sourceNode = getNode(source);
-  const targetNode = getNode(target);
+  const sourceNode = useInternalNode(source);
+  const targetNode = useInternalNode(target);
   if (!sourceNode || !targetNode) return null;
   const sourceBox = nodeGeometry(sourceNode);
   const targetBox = nodeGeometry(targetNode);

@@ -369,7 +369,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .rf-stage-band.stage-decoder { background: rgba(198,83,126,.025); }
 .rf-stage-band.stage-output { background: rgba(224,138,0,.035); }
 .rf-edge.dataflow { stroke: #d08a3a; stroke-dasharray: 7 4; animation: diagram-flow 1.35s linear infinite; }
-.rf-edge.dataflow.module-order { stroke: #f4ab52; stroke-dasharray: 11 8; }
+.rf-edge.dataflow.module-order { stroke: #f4ab52; stroke-dasharray: none; animation: none; }
 .rf-edge.structure.module-order { stroke: #91a0ae; stroke-dasharray: none; opacity: .62; }
 .rf-edge.related { stroke: #f4ab52; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .rf-edge.dataflow { animation: none; } }

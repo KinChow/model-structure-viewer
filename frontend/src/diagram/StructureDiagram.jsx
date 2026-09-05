@@ -395,6 +395,7 @@ function StructureDiagram({
               {containerFrames.sort((a, b) => nodesByPath.get(a.id).depth - nodesByPath.get(b.id).depth).map((frame) => {
                 const depth = nodesByPath.get(frame.id)?.depth || 0;
                 return <g key={`frame-${frame.id}`} className={`diagram-container-frame depth-${Math.min(depth, 3)}${frame.kind === "graph-group" ? " graph-group-frame" : ""}`} data-container-path={frame.id}>
+                  <title>{frame.label}</title>
                   <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx="12" />
                   <text x={frame.x + 10} y={frame.y + 15}>{frame.label}</text>
                 </g>;

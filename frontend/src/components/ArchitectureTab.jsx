@@ -35,6 +35,14 @@ function scenarioLabel(prefix, scenario, language = "zh") {
   return `${prefix} · ${chip?.name || (language === "en" ? "unknown GPU" : "未知芯片")} · TP ${plan.tp} / EP ${plan.ep} / Attention ${String(plan.attnMode).toUpperCase()} · ${chipLinkText(chip, language)}`;
 }
 
+function coverageWarningText(warning, english) {
+  if (!english) return warning;
+  if (warning.startsWith("缺少 interconnect.inter_node.bandwidth")) return "Missing interconnect.inter_node.bandwidth; cross-node uses intra-node bandwidth and may be optimistic";
+  if (warning.startsWith("缺少规格来源")) return "Missing hardware specification source";
+  if (warning.startsWith("未知 confidence")) return warning.replace("未知 confidence", "Unknown confidence");
+  return warning;
+}
+
 function DiagramPane({ label, syncId, ...diagramProps }) {
   return (
     <div>
@@ -318,10 +326,10 @@ function ArchitectureTab({
         </button>
         <div id="formula-index-items" className="formula-strip-links" hidden={!formulaOpen}>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>
       </div>}
-      {!compactControls && chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>缺失：{coverage.missing.join("、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{warning}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">规格来源</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>缺失：{compareCoverage.missing.join("、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{warning}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">规格来源</a>}</>}</div>}
+      {!compactControls && chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{coverage.missing.join(english ? ", " : "、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{coverageWarningText(warning, english)}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{compareCoverage.missing.join(english ? ", " : "、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{coverageWarningText(warning, english)}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}</>}</div>}
       {structure && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}
       {structure && compareLensResult && !compareLensResult.ok && <div className="cost-plan-error">对比方案无效：{compareLensResult.errors.join("；")}</div>}
-      {compareScenario && compareLensResult?.ok && <div className={`lens-flips${flips.length === 0 ? " empty" : ""}`}>{flips.length > 0 ? <>瓶颈类型翻转：{flips.length} 个节点（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join("、")}{flips.length > 4 ? "…" : ""}）</> : "当前条件下没有瓶颈类型翻转"}</div>}
+      {compareScenario && compareLensResult?.ok && <div className={`lens-flips${flips.length === 0 ? " empty" : ""}`}>{flips.length > 0 ? <>{english ? "Bound flips: " : "瓶颈类型翻转："}{flips.length} {english ? "nodes" : "个节点"}（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join(english ? ", " : "、")}{flips.length > 4 ? "…" : ""}）</> : (english ? "No bound flips under the current conditions" : "当前条件下没有瓶颈类型翻转")}</div>}
       {structure ? (compareScenario && compareLensResult?.ok ? <div className="diagram-compare">
         <DiagramPane
           label={scenarioLabel(ui.base, primaryScenario, language)}

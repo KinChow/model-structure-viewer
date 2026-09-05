@@ -310,6 +310,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend-dot { display: inline-block; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
 .legend-dot.model { color: #7c8798; background: #eef1f5; }.legend-dot.embedding { color: #4e63c8; background: #e9edff; }.legend-dot.attention { color: #c6537e; background: #fbeaf0; }.legend-dot.mlp { color: #2e8f84; background: #e5f3f1; }.legend-dot.output { color: #8593a6; background: #eef1f5; }
+.legend-dot.selected-node { color: #d08a3a; background: transparent; box-shadow: 0 0 0 1px #d08a3a; }
 .legend-line { display: inline-block; width: 18px; border-top: 2px solid currentColor; }
 .legend-line.structure { color: #8997a8; opacity: .6; }
 .legend-line.dataflow { border-top-style: dashed; color: #d08a3a; }

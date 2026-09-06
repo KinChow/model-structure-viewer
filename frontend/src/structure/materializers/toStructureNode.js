@@ -1,8 +1,7 @@
-import { enrichNetworkWithTruth, TEMPLATE_FAMILIES } from "../truth/mergeSemantics.js";
+import { TEMPLATE_FAMILIES } from "../truth/mergeSemantics.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 import { projectGraphToTree } from "../graph/projectGraphToTree.js";
-import { bindTruthToGraph, skeletonTruthGraph } from "../truth/graphTruth.js";
-import { buildSkeleton } from "../truth/skeleton.js";
+import { enrichGraphWithTruth } from "../truth/graphTruth.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -52,13 +51,9 @@ export function materializeModelStructure(ir) {
   const { network: templateNetwork, normalized, resolved, options = {}, diagnostics = {} } = ir;
   const truth = options.truth;
 
-  // 真值合并：有模板 → 绑定真值；无模板 → trie 树兜底；无真值 → 原样
   const hasTemplate = TEMPLATE_FAMILIES.has(resolved?.canonicalArchitecture);
-  const { network, diagnostics: truthDiagnostics } = enrichNetworkWithTruth(
-    templateNetwork,
-    truth,
-    { hasTemplate, modelName: templateNetwork?.name, canonicalArchitecture: resolved?.canonicalArchitecture },
-  );
+  const network = templateNetwork;
+  const truthDiagnostics = truth ? { strategy: "graph-truth" } : { strategy: "no-truth" };
   let mergedDiagnostics = { ...diagnostics, ...truthDiagnostics };
   const effectiveStrategy = truthDiagnostics.strategy === "no-truth" || !truth
     ? ir.strategy
@@ -77,16 +72,18 @@ export function materializeModelStructure(ir) {
     children: network.children.map(structureNodeFromSpec),
   };
   let graph = materializeStructureGraph(root);
-  if (truth?.tensors?.length) {
-    const graphTruth = bindTruthToGraph(graph, skeletonTruthGraph(buildSkeleton(truth.tensors)));
-    graph = graphTruth.graph;
-    mergedDiagnostics = { ...mergedDiagnostics, ...graphTruth.diagnostics };
-  }
+  const graphTruth = enrichGraphWithTruth(graph, truth, {
+    hasTemplate,
+    modelName: templateNetwork?.name,
+    canonicalArchitecture: resolved?.canonicalArchitecture,
+  });
+  graph = graphTruth.graph;
+  mergedDiagnostics = { ...diagnostics, ...graphTruth.diagnostics };
 
   return {
     summary: {
-      strategy: effectiveStrategy,
-      model_family: network.name,
+      strategy: graphTruth.diagnostics.strategy === "no-truth" ? ir.strategy : graphTruth.diagnostics.strategy,
+      model_family: projectGraphToTree(graph)?.name || templateNetwork.name,
       model_type: normalized.modelType,
       architecture: resolved.architecture || normalized.architecture || normalized.modelType,
       canonical_architecture: resolved.canonicalArchitecture,
@@ -109,7 +106,7 @@ export function materializeModelStructure(ir) {
       kind: options.source || "config",
       model_id: options.modelId,
       revision: options.revision,
-      strategy: effectiveStrategy,
+      strategy: graphTruth.diagnostics.strategy === "no-truth" ? effectiveStrategy : graphTruth.diagnostics.strategy,
       checkpoint_truth: options.checkpointTruthStatus || (truth ? "available" : "not-requested"),
       checkpoint_truth_method: options.checkpointTruthMethod || truth?.method || null,
       checkpoint_truth_error: options.checkpointTruthError || null,

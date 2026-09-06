@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatReleaseTime, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
+import { formatReleaseTime, sortModelsByName, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
 
 test("sorts published models newest first and keeps undated entries stable", () => {
   const models = [
@@ -21,4 +21,11 @@ test("sorts published models newest first and keeps undated entries stable", () 
 test("formats valid release times and preserves invalid values", () => {
   assert.equal(formatReleaseTime("2026-01-02T08:00:00Z", "en"), "01/02/2026");
   assert.equal(formatReleaseTime("not-a-date", "zh"), "not-a-date");
+});
+
+test("sorts models by display name when selected", () => {
+  assert.deepEqual(sortModelsByName([
+    { modelId: "org/z", displayName: "Zeta" },
+    { modelId: "org/a", displayName: "Alpha" },
+  ]).map((entry) => entry.modelId), ["org/a", "org/z"]);
 });

@@ -25,3 +25,7 @@ export function sortModelsByReleaseTime(entries) {
     })
     .map(({ entry }) => entry);
 }
+
+export function sortModelsByName(entries) {
+  return [...entries].sort((a, b) => modelDisplayName(a).localeCompare(modelDisplayName(b)));
+}

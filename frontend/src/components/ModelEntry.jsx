@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { staticAssetPath } from "../structure/catalog/manifest.js";
-import { formatReleaseTime, modelDisplayName, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
+import { formatReleaseTime, modelDisplayName, sortModelsByName, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
 
-export { formatReleaseTime, modelDisplayName, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
+export { formatReleaseTime, modelDisplayName, sortModelsByName, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
 
 const PROVIDER_MARKS = { MiniMax: "M", Qwen: "Q", DeepSeek: "D", "zai-org": "Z" };
 // Synced from the vLLM Recipes provider assets into /public/providers.
@@ -46,6 +46,7 @@ export default function ModelEntry({
   const [mode, setMode] = useState("model");
   const [endpoint, setEndpoint] = useState("huggingface");
   const [provider, setProvider] = useState(null);
+  const [providerSort, setProviderSort] = useState("release");
   const [helpOpen, setHelpOpen] = useState(false);
   const [localPath, setLocalPath] = useState("");
   const fileRef = useRef(null);
@@ -61,6 +62,7 @@ export default function ModelEntry({
       .sort(([a], [b]) => a.localeCompare(b));
   }, [builtinModels]);
   const providerModels = providers.find(([name]) => name === provider)?.[1] || [];
+  const sortedProviderModels = providerSort === "name" ? sortModelsByName(providerModels) : providerModels;
   useEffect(() => {
     if (!provider && !helpOpen) return undefined;
     const onKeyDown = (event) => {
@@ -85,6 +87,9 @@ export default function ModelEntry({
     browse: "Browse by Provider",
     browseHint: "Choose a provider to view mapped models",
     choose: "Choose a model",
+    sort: "Sort by",
+    newest: "Newest release",
+    name: "Name",
     empty: "No mapped models for this provider",
     help: "Help",
     helpTitle: "Quick guide",
@@ -105,6 +110,9 @@ export default function ModelEntry({
     browse: "按 Provider 浏览",
     browseHint: "选择厂商查看已映射模型",
     choose: "选择模型",
+    sort: "排序",
+    newest: "最新发布",
+    name: "名称",
     empty: "该 Provider 暂无已映射模型",
     help: "帮助",
     helpTitle: "快速说明",
@@ -162,7 +170,7 @@ export default function ModelEntry({
         <div className="entry-section-heading"><h2>{t.browse}</h2><span>{t.browseHint}</span></div>
         <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><ProviderIcon name={name} /><strong>{name}</strong><small>{entries.length} {language === "en" ? "models" : "个模型"}</small></button>)}</div>
       </section>}
-      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider} onMouseDown={(event) => { if (event.target === event.currentTarget) setProvider(null); }}><div className="provider-picker"><header><div className="provider-picker-title"><ProviderIcon name={provider} /><div><h2>{provider}</h2><p>{t.choose}</p></div></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelDisplayName(entry)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><small>{formatReleaseTime(entry.releaseTime, language) || entry.modelId}</small><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
+      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider} onMouseDown={(event) => { if (event.target === event.currentTarget) setProvider(null); }}><div className="provider-picker"><header><div className="provider-picker-title"><ProviderIcon name={provider} /><div><h2>{provider}</h2><p>{t.choose}</p></div></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-picker-tools"><label htmlFor="provider-sort">{t.sort}</label><select id="provider-sort" value={providerSort} onChange={(event) => setProviderSort(event.target.value)} aria-label={t.sort}><option value="release">{t.newest}</option><option value="name">{t.name}</option></select></div><div className="provider-model-list">{sortedProviderModels.length ? sortedProviderModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelDisplayName(entry)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><small>{formatReleaseTime(entry.releaseTime, language) || entry.modelId}</small><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
       {helpOpen && <div className="entry-help-overlay" role="dialog" aria-modal="true" aria-label={t.helpTitle} onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpOpen(false); }}><div className="entry-help-panel"><header><h2>{t.helpTitle}</h2><button type="button" aria-label={t.close} onClick={() => setHelpOpen(false)}>×</button></header><ul>{t.helpItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div>}
     </main>
   );

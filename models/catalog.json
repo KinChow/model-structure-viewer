@@ -2,6 +2,7 @@
   "models": [
     {
       "model_id": "MiniMaxAI/MiniMax-M2.7",
+      "release_time": "2026-04-09T03:37:12.000Z",
       "config_path": "MiniMaxAI/MiniMax-M2.7/config.json",
       "model_type": "minimax_m2",
       "architectures": [
@@ -16,6 +17,7 @@
     },
     {
       "model_id": "MiniMaxAI/MiniMax-M3",
+      "release_time": "2026-06-02T07:49:31.000Z",
       "config_path": "MiniMaxAI/MiniMax-M3/config.json",
       "model_type": "minimax_m3_vl",
       "architectures": [
@@ -29,6 +31,7 @@
     },
     {
       "model_id": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "release_time": "2026-06-02T07:50:45.000Z",
       "config_path": "MiniMaxAI/MiniMax-M3-MXFP8/config.json",
       "model_type": "minimax_m3_vl",
       "architectures": [
@@ -42,6 +45,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-0.8B",
+      "release_time": "2026-03-01T00:47:03.000Z",
       "config_path": "Qwen/Qwen3.5-0.8B/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -54,6 +58,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-0.8B-Base",
+      "release_time": "2026-03-01T01:05:51.000Z",
       "config_path": "Qwen/Qwen3.5-0.8B-Base/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -66,6 +71,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-122B-A10B",
+      "release_time": "2026-02-24T09:26:05.000Z",
       "config_path": "Qwen/Qwen3.5-122B-A10B/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -78,6 +84,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-122B-A10B-FP8",
+      "release_time": "2026-02-25T12:12:42.000Z",
       "config_path": "Qwen/Qwen3.5-122B-A10B-FP8/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -90,6 +97,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+      "release_time": "2026-03-03T06:21:14.000Z",
       "config_path": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -102,6 +110,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-27B",
+      "release_time": "2026-02-24T09:29:01.000Z",
       "config_path": "Qwen/Qwen3.5-27B/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -114,6 +123,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-27B-FP8",
+      "release_time": "2026-02-25T12:21:03.000Z",
       "config_path": "Qwen/Qwen3.5-27B-FP8/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -126,6 +136,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-27B-GPTQ-Int4",
+      "release_time": "2026-03-03T06:53:16.000Z",
       "config_path": "Qwen/Qwen3.5-27B-GPTQ-Int4/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -138,6 +149,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-2B",
+      "release_time": "2026-03-01T00:43:37.000Z",
       "config_path": "Qwen/Qwen3.5-2B/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -150,6 +162,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-2B-Base",
+      "release_time": "2026-03-01T01:01:39.000Z",
       "config_path": "Qwen/Qwen3.5-2B-Base/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -162,6 +175,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-35B-A3B",
+      "release_time": "2026-02-24T09:26:56.000Z",
       "config_path": "Qwen/Qwen3.5-35B-A3B/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -174,6 +188,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-35B-A3B-Base",
+      "release_time": "2026-02-24T09:29:54.000Z",
       "config_path": "Qwen/Qwen3.5-35B-A3B-Base/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -186,6 +201,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-35B-A3B-FP8",
+      "release_time": "2026-02-25T12:30:29.000Z",
       "config_path": "Qwen/Qwen3.5-35B-A3B-FP8/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -198,6 +214,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4",
+      "release_time": "2026-03-03T06:56:36.000Z",
       "config_path": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -210,6 +227,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-397B-A17B",
+      "release_time": "2026-02-16T03:51:50.000Z",
       "config_path": "Qwen/Qwen3.5-397B-A17B/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -222,6 +240,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "release_time": "2026-02-18T10:06:51.000Z",
       "config_path": "Qwen/Qwen3.5-397B-A17B-FP8/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -234,6 +253,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4",
+      "release_time": "2026-03-03T06:24:45.000Z",
       "config_path": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -246,6 +266,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-4B",
+      "release_time": "2026-02-27T14:58:45.000Z",
       "config_path": "Qwen/Qwen3.5-4B/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -258,6 +279,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-4B-Base",
+      "release_time": "2026-02-27T12:36:30.000Z",
       "config_path": "Qwen/Qwen3.5-4B-Base/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -270,6 +292,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-9B",
+      "release_time": "2026-02-27T11:59:55.000Z",
       "config_path": "Qwen/Qwen3.5-9B/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -282,6 +305,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.5-9B-Base",
+      "release_time": "2026-02-27T12:39:17.000Z",
       "config_path": "Qwen/Qwen3.5-9B-Base/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -294,6 +318,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.6-27B",
+      "release_time": "2026-04-22T12:00:57.000Z",
       "config_path": "Qwen/Qwen3.6-27B/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -306,6 +331,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.6-27B-FP8",
+      "release_time": "2026-04-22T12:01:36.000Z",
       "config_path": "Qwen/Qwen3.6-27B-FP8/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -318,6 +344,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.6-35B-A3B",
+      "release_time": "2026-04-16T12:58:04.000Z",
       "config_path": "Qwen/Qwen3.6-35B-A3B/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -330,6 +357,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.6-35B-A3B-FP8",
+      "release_time": "2026-04-16T13:03:42.000Z",
       "config_path": "Qwen/Qwen3.6-35B-A3B-FP8/config.json",
       "model_type": "qwen3_5_moe",
       "architectures": [
@@ -342,6 +370,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.8-2.4T-A95B",
+      "release_time": "2026-08-08T05:40:30.000Z",
       "config_path": "Qwen/Qwen3.8-2.4T-A95B/config.json",
       "model_type": "qwen3_5_moe_text",
       "architectures": [
@@ -354,6 +383,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.8-2.4T-A95B-FP8",
+      "release_time": "2026-08-08T01:40:14.000Z",
       "config_path": "Qwen/Qwen3.8-2.4T-A95B-FP8/config.json",
       "model_type": "qwen3_5_moe_text",
       "architectures": [
@@ -366,6 +396,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.8-27B",
+      "release_time": "2026-08-12T09:25:21.000Z",
       "config_path": "Qwen/Qwen3.8-27B/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -378,6 +409,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.8-27B-FP8",
+      "release_time": "2026-08-13T08:04:20.000Z",
       "config_path": "Qwen/Qwen3.8-27B-FP8/config.json",
       "model_type": "qwen3_5",
       "architectures": [
@@ -390,6 +422,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.8-Flash-Next",
+      "release_time": "2026-08-24T08:27:50.000Z",
       "config_path": "Qwen/Qwen3.8-Flash-Next/config.json",
       "model_type": "qwen4_exp",
       "architectures": [
@@ -402,6 +435,7 @@
     },
     {
       "model_id": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "release_time": "2026-08-24T08:26:39.000Z",
       "config_path": "Qwen/Qwen3.8-Flash-Next-FP8/config.json",
       "model_type": "qwen4_exp",
       "architectures": [
@@ -414,6 +448,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-R1",
+      "release_time": "2025-01-20T05:48:55.000Z",
       "config_path": "deepseek-ai/DeepSeek-R1/config.json",
       "model_type": "deepseek_v3",
       "architectures": [
@@ -428,6 +463,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V3.1",
+      "release_time": "2025-08-21T02:35:33.000Z",
       "config_path": "deepseek-ai/DeepSeek-V3.1/config.json",
       "model_type": "deepseek_v3",
       "architectures": [
@@ -442,6 +478,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V3.2",
+      "release_time": "2025-12-01T02:35:17.000Z",
       "config_path": "deepseek-ai/DeepSeek-V3.2/config.json",
       "model_type": "deepseek_v32",
       "architectures": [
@@ -454,6 +491,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V4-Flash",
+      "release_time": "2026-04-22T06:06:29.000Z",
       "config_path": "deepseek-ai/DeepSeek-V4-Flash/config.json",
       "model_type": "deepseek_v4",
       "architectures": [
@@ -466,6 +504,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "release_time": "2026-07-31T09:47:26.000Z",
       "config_path": "deepseek-ai/DeepSeek-V4-Flash-0731/config.json",
       "model_type": "deepseek_v4",
       "architectures": [
@@ -478,6 +517,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "release_time": "2026-08-31T13:12:56.000Z",
       "config_path": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/config.json",
       "model_type": "deepseek_v4",
       "architectures": [
@@ -490,6 +530,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V4-Pro",
+      "release_time": "2026-04-22T06:07:26.000Z",
       "config_path": "deepseek-ai/DeepSeek-V4-Pro/config.json",
       "model_type": "deepseek_v4",
       "architectures": [
@@ -502,6 +543,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "release_time": "2026-08-13T03:11:31.000Z",
       "config_path": "deepseek-ai/DeepSeek-V4-Pro-0813/config.json",
       "model_type": "deepseek_v4",
       "architectures": [
@@ -514,6 +556,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K2-Base",
+      "release_time": "2025-07-10T17:59:02.000Z",
       "config_path": "moonshotai/Kimi-K2-Base/config.json",
       "model_type": "kimi_k2",
       "architectures": [
@@ -529,6 +572,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K2-Instruct",
+      "release_time": "2025-07-11T06:20:46.000Z",
       "config_path": "moonshotai/Kimi-K2-Instruct/config.json",
       "model_type": "kimi_k2",
       "architectures": [
@@ -544,6 +588,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K2-Instruct-0905",
+      "release_time": "2025-09-04T07:43:12.000Z",
       "config_path": "moonshotai/Kimi-K2-Instruct-0905/config.json",
       "model_type": "kimi_k2",
       "architectures": [
@@ -559,6 +604,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K2-Thinking",
+      "release_time": "2025-11-04T08:59:08.000Z",
       "config_path": "moonshotai/Kimi-K2-Thinking/config.json",
       "model_type": "kimi_k2",
       "architectures": [
@@ -574,6 +620,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K2.5",
+      "release_time": "2026-01-25T02:29:22.000Z",
       "config_path": "moonshotai/Kimi-K2.5/config.json",
       "model_type": "kimi_k25",
       "architectures": [
@@ -591,6 +638,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K2.6",
+      "release_time": "2026-04-17T03:05:44.000Z",
       "config_path": "moonshotai/Kimi-K2.6/config.json",
       "model_type": "kimi_k25",
       "architectures": [
@@ -608,6 +656,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K2.7-Code",
+      "release_time": "2026-06-12T12:54:29.000Z",
       "config_path": "moonshotai/Kimi-K2.7-Code/config.json",
       "model_type": "kimi_k25",
       "architectures": [
@@ -625,6 +674,7 @@
     },
     {
       "model_id": "moonshotai/Kimi-K3",
+      "release_time": "2026-07-27T15:19:15.000Z",
       "config_path": "moonshotai/Kimi-K3/config.json",
       "model_type": "kimi_k3",
       "architectures": [
@@ -641,6 +691,7 @@
     },
     {
       "model_id": "zai-org/GLM-4.7",
+      "release_time": "2025-12-22T07:45:52.000Z",
       "config_path": "zai-org/GLM-4.7/config.json",
       "model_type": "glm4_moe",
       "architectures": [
@@ -653,6 +704,7 @@
     },
     {
       "model_id": "zai-org/GLM-5",
+      "release_time": "2026-02-11T04:55:46.000Z",
       "config_path": "zai-org/GLM-5/config.json",
       "model_type": "glm_moe_dsa",
       "architectures": [
@@ -665,6 +717,7 @@
     },
     {
       "model_id": "zai-org/GLM-5.1",
+      "release_time": "2026-04-03T09:28:47.000Z",
       "config_path": "zai-org/GLM-5.1/config.json",
       "model_type": "glm_moe_dsa",
       "architectures": [
@@ -677,6 +730,7 @@
     },
     {
       "model_id": "zai-org/GLM-5.2",
+      "release_time": "2026-06-16T07:39:20.000Z",
       "config_path": "zai-org/GLM-5.2/config.json",
       "model_type": "glm_moe_dsa",
       "architectures": [
@@ -689,6 +743,7 @@
     },
     {
       "model_id": "zai-org/GLM-5.2-FP8",
+      "release_time": "2026-06-16T07:20:33.000Z",
       "config_path": "zai-org/GLM-5.2-FP8/config.json",
       "model_type": "glm_moe_dsa",
       "architectures": [
@@ -701,6 +756,7 @@
     },
     {
       "model_id": "zai-org/GLM-5.3",
+      "release_time": "2026-08-25T06:42:50.000Z",
       "config_path": "zai-org/GLM-5.3/config.json",
       "model_type": "glm_moe_dsa",
       "architectures": [
@@ -713,6 +769,7 @@
     },
     {
       "model_id": "zai-org/GLM-5.3-BF16",
+      "release_time": "2026-08-25T06:43:55.000Z",
       "config_path": "zai-org/GLM-5.3-BF16/config.json",
       "model_type": "glm_moe_dsa",
       "architectures": [
@@ -725,6 +782,7 @@
     },
     {
       "model_id": "zai-org/GLM-5.3-Flash",
+      "release_time": "2026-08-25T06:43:14.000Z",
       "config_path": "zai-org/GLM-5.3-Flash/config.json",
       "model_type": "glm5_next",
       "architectures": [
@@ -737,6 +795,7 @@
     },
     {
       "model_id": "zai-org/GLM-5.3-Flash-BF16",
+      "release_time": "2026-08-25T06:45:05.000Z",
       "config_path": "zai-org/GLM-5.3-Flash-BF16/config.json",
       "model_type": "glm5_next",
       "architectures": [

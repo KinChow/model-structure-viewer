@@ -1,5 +1,5 @@
 import { moduleSpec, withShapeDims } from "./base.js";
-import { attentionOperatorSpecs, linearAttentionOperatorSpecs, mlaAttentionOperatorSpecs } from "../ops/index.js";
+import { attentionOperatorSpecs, linearAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 
@@ -24,7 +24,9 @@ export function attentionModule(id, normalized, attentionKind) {
     },
     attentionKind === "linear"
       ? linearAttentionOperatorSpecs(id, normalized)
-      : attentionKind === "mla"
+      : attentionKind === "qsa"
+        ? qsaAttentionOperatorSpecs(id, normalized)
+        : attentionKind === "mla"
         ? mlaAttentionOperatorSpecs(id, normalized)
         : attentionOperatorSpecs(id, attentionKind, normalized),
   ), dims.hidden, dims.hidden);

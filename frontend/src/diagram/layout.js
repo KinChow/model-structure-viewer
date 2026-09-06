@@ -175,6 +175,29 @@ function semanticEdges(item) {
     return edges.length >= 3 ? edges : null;
   }
 
+  if (item.node?.attributes?.attention_kind === "qsa" || /qsa attention/.test(name)) {
+    const qkv = find(/qkv/);
+    const qNorm = find(/q attention norm|q_norm/);
+    const kNorm = find(/k attention norm|k_norm/);
+    const rope = find(/rotary|rope/);
+    const indexer = find(/qsa indexer|indexer/);
+    const sparse = find(/qsa sparse|sparse attention/);
+    const output = find(/output projection|out_proj/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+    };
+    add(qkv, qNorm);
+    add(qkv, kNorm);
+    add(qNorm, rope);
+    add(kNorm, rope);
+    add(indexer, sparse);
+    add(rope, sparse);
+    add(sparse, output);
+    return edges.length >= 3 ? edges : null;
+  }
+
   if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;
   const q = find(/(^|\b)q\s*(projection|proj)\b|q_proj|query/);
   const k = find(/(^|\b)k\s*(projection|proj)\b|k_proj|key/);

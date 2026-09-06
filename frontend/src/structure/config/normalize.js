@@ -67,17 +67,18 @@ function sparseAttentionSchedule(config, layers) {
   return schedule.concat(Array.from({ length: layers - schedule.length }, () => "gqa"));
 }
 
-function attentionKindForLayerType(layerType) {
+function attentionKindForLayerType(layerType, useQsa = false) {
   const kind = String(layerType || "").toLowerCase();
   if (kind.includes("linear") || kind.includes("kda") || kind.includes("delta")) return "linear";
   if (kind.includes("deepseek") || kind.includes("mla") || kind.includes("sparse")) return "mla";
-  return "gqa";
+  return kind.includes("full") && useQsa ? "qsa" : "gqa";
 }
 
 function explicitAttentionSchedule(config, layers) {
   const layerTypes = config?.layer_types;
+  const useQsa = firstNumber(config, ["indexer_n_heads"]) != null;
   if (Array.isArray(layerTypes) && layerTypes.length > 0) {
-    return layerTypes.map(attentionKindForLayerType);
+    return layerTypes.map((layerType) => attentionKindForLayerType(layerType, useQsa));
   }
   const linearConfig = config?.linear_attn_config;
   if (linearConfig && layers) {
@@ -123,6 +124,11 @@ export function normalizeConfig(config) {
     linearValueHeads: firstNumber(textConfig, LINEAR_VALUE_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_VALUE_HEADS_KEYS),
     linearKeyDim: firstNumber(textConfig, LINEAR_KEY_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_KEY_DIM_KEYS),
     linearValueDim: firstNumber(textConfig, LINEAR_VALUE_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_VALUE_DIM_KEYS),
+    indexerNHeads: firstNumber(textConfig, ["indexer_n_heads"]) ?? firstNumber(config, ["indexer_n_heads"]),
+    indexerKVHeads: firstNumber(textConfig, ["indexer_kv_heads"]) ?? firstNumber(config, ["indexer_kv_heads"]),
+    indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim"]) ?? firstNumber(config, ["indexer_head_dim"]),
+    indexerBudget: firstNumber(textConfig, ["indexer_budget"]) ?? firstNumber(config, ["indexer_budget"]),
+    indexerCompressRatio: firstNumber(textConfig, ["indexer_compress_ratio"]) ?? firstNumber(config, ["indexer_compress_ratio"]),
     qkRopeHeadDim:
       firstNumber(textConfig, QK_ROPE_HEAD_DIM_KEYS) ?? firstNumber(config, QK_ROPE_HEAD_DIM_KEYS),
     valueHeadDim: firstNumber(textConfig, VALUE_HEAD_DIM_KEYS) ?? firstNumber(config, VALUE_HEAD_DIM_KEYS) ?? headDim,

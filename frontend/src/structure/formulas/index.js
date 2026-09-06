@@ -125,6 +125,20 @@ const FORMULAS = {
     inputs: ["x", "y_routed", "y_shared", "W_g"],
     outputs: ["y"],
   },
+  qsa_indexer: {
+    title: "QSA Indexer",
+    formula: "I = topk((W_q x) (W_k K)^T / sqrt(d_i), budget)",
+    explanation: "用独立 indexer 对历史 token 打分并选择 sparse attention 的候选位置。",
+    inputs: ["x", "K_cache", "W_q", "W_k", "budget"],
+    outputs: ["selected_indices"],
+  },
+  qsa_attention: {
+    title: "QSA Sparse Attention",
+    formula: "O = softmax(Q K_I^T / sqrt(d)) V_I",
+    explanation: "只在 QSA indexer 选择的候选位置上执行 paged sparse attention。",
+    inputs: ["Q", "K_selected", "V_selected", "selected_indices"],
+    outputs: ["O"],
+  },
 };
 
 export function formulaForOperator(operatorId) {

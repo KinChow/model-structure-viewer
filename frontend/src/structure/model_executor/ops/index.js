@@ -154,6 +154,39 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
   return specs;
 }
 
+export function qsaAttentionOperatorSpecs(prefix, normalized) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const indexerHeads = normalized.indexerNHeads || 0;
+  const indexerKVHeads = normalized.indexerKVHeads || 0;
+  const indexerDim = normalized.indexerHeadDim || 0;
+  const budget = normalized.indexerBudget || 0;
+  return [
+    operatorSpec(`${prefix}.qkv_proj`, "QSA qkv and output-gate projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.q_norm`, "Q attention norm", "rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), { input: dims.attentionQuery, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.k_norm`, "K attention norm", "rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), { input: dims.attentionKey, output: dims.attentionKey }),
+    operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
+      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
+      query_shape: shapes.attentionQuery,
+      key_shape: shapes.attentionKey,
+    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.indexer`, "QSA indexer", "qsa_indexer", {
+      ...shapeFlow(shapes.hidden, `[batch, sequence, selected=${budget}]`),
+      indexer_heads: indexerHeads,
+      indexer_kv_heads: indexerKVHeads,
+      indexer_head_dim: indexerDim,
+      budget,
+      compress_ratio: normalized.indexerCompressRatio,
+    }, { input: dims.hidden, output: [-1, -1, budget] }),
+    operatorSpec(`${prefix}.sparse_attention`, "QSA sparse attention", "qsa_attention", {
+      ...shapeFlow(`${shapes.attentionQuery}, selected K/V`, shapes.attentionContext),
+      selected_tokens: budget,
+      attention_kind: "qsa",
+    }, { input: dims.attentionQuery, output: dims.attentionContext }),
+    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
+  ];
+}
+
 export function mlpOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);

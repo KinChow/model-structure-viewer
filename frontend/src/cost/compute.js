@@ -45,12 +45,23 @@ export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "
   return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
 }
 
+export function qsaAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const heads = config?.attentionHeads || 0;
+  const qk = config?.headDim || 0;
+  const value = config?.valueHeadDim || qk;
+  const selected = Math.min(sequence, config?.indexerBudget || sequence);
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  return queryTokens * heads * selected * (qk + value);
+}
+
 export function nodeMacs(node, config, options = {}) {
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
   if (type === "attention" || operatorId === "attention") {
     const attentionKind = node?.attributes?.attention_kind || "gqa";
-    return attentionKind === "linear" ? linearAttentionMacs(config, options) : attentionMacs(config, options);
+    if (attentionKind === "linear") return linearAttentionMacs(config, options);
+    if (attentionKind === "qsa") return qsaAttentionMacs(config, options);
+    return attentionMacs(config, options);
   }
   if (isLinear(node)) return linearMacs(node, options);
   const output = node?.output_shape || node?.attributes?.output_shape;

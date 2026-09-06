@@ -17,7 +17,10 @@ export function decoderStackNetwork(id, normalized, options = {}) {
   const combinedKinds = kinds.map((kind, index) => {
     const attentionKind = attentionKinds[index] || defaultAttentionKind;
     const hasPle = normalized.pleLayerIds?.includes(index + 1) ? "ple" : "no-ple";
-    return `${kind}:${attentionKind}:${hasPle}`;
+    const mhcBoundary = normalized.multiHyperConnection
+      ? (index === (layers || 0) - 1 ? "mhc-last" : "mhc-middle")
+      : "no-mhc";
+    return `${kind}:${attentionKind}:${hasPle}:${mhcBoundary}`;
   });
   const children = compactRanges(combinedKinds).map((range) => {
     const repeat = range.end - range.start + 1;

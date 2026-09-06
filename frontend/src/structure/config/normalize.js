@@ -31,10 +31,11 @@ function firstNumber(config, keys) {
 
 function attentionHeadDim(config) {
   const explicit = firstNumber(config, HEAD_DIM_KEYS);
-  if (explicit !== undefined) return explicit;
+  // GLM-5.3-Flash publishes head_dim=0 as a sentinel.
+  if (explicit !== undefined && explicit > 0) return explicit;
   const qkNope = firstNumber(config, ["qk_nope_head_dim"]);
   const qkRope = firstNumber(config, ["qk_rope_head_dim"]);
-  if (qkNope !== undefined && qkRope !== undefined) return qkNope + qkRope;
+  if (qkNope !== undefined && qkRope !== undefined && qkNope + qkRope > 0) return qkNope + qkRope;
   return undefined;
 }
 
@@ -70,13 +71,14 @@ function sparseAttentionSchedule(config, layers) {
 function attentionKindForLayerType(layerType, useQsa = false) {
   const kind = String(layerType || "").toLowerCase();
   if (kind.includes("linear") || kind.includes("kda") || kind.includes("delta")) return "linear";
-  if (kind.includes("deepseek") || kind.includes("mla") || kind.includes("sparse")) return "mla";
+  if (kind.includes("deepseek") || kind.includes("mla") || kind.includes("sparse")) return useQsa ? "qsa" : "mla";
   return kind.includes("full") && useQsa ? "qsa" : "gqa";
 }
 
 function explicitAttentionSchedule(config, layers) {
   const layerTypes = config?.layer_types;
-  const useQsa = firstNumber(config, ["indexer_n_heads"]) != null;
+  const useQsa = firstNumber(config, ["index_n_heads", "indexer_n_heads"]) != null
+    || firstNumber(config, ["index_topk", "indexer_budget"]) != null;
   if (Array.isArray(layerTypes) && layerTypes.length > 0) {
     return layerTypes.map((layerType) => attentionKindForLayerType(layerType, useQsa));
   }
@@ -124,13 +126,17 @@ export function normalizeConfig(config) {
     linearValueHeads: firstNumber(textConfig, LINEAR_VALUE_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_VALUE_HEADS_KEYS),
     linearKeyDim: firstNumber(textConfig, LINEAR_KEY_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_KEY_DIM_KEYS),
     linearValueDim: firstNumber(textConfig, LINEAR_VALUE_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_VALUE_DIM_KEYS),
-    indexerNHeads: firstNumber(textConfig, ["indexer_n_heads"]) ?? firstNumber(config, ["indexer_n_heads"]),
+    linearConvKernelSize: firstNumber(textConfig, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]) ?? firstNumber(linearAttentionConfig, ["short_conv_kernel_size"]) ?? firstNumber(config, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]),
+    linearLowerBound: firstNumber(textConfig, ["linear_lower_bound"]) ?? firstNumber(linearAttentionConfig, ["gate_lower_bound"]) ?? firstNumber(config, ["linear_lower_bound"]),
+    indexerNHeads: firstNumber(textConfig, ["index_n_heads", "indexer_n_heads"]) ?? firstNumber(config, ["index_n_heads", "indexer_n_heads"]),
     indexerKVHeads: firstNumber(textConfig, ["indexer_kv_heads"]) ?? firstNumber(config, ["indexer_kv_heads"]),
     indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim"]) ?? firstNumber(config, ["indexer_head_dim"]),
-    indexerBudget: firstNumber(textConfig, ["indexer_budget"]) ?? firstNumber(config, ["indexer_budget"]),
+    indexerBudget: firstNumber(textConfig, ["index_topk", "indexer_budget"]) ?? firstNumber(config, ["index_topk", "indexer_budget"]),
     indexerCompressRatio: firstNumber(textConfig, ["indexer_compress_ratio"]) ?? firstNumber(config, ["indexer_compress_ratio"]),
     qkRopeHeadDim:
       firstNumber(textConfig, QK_ROPE_HEAD_DIM_KEYS) ?? firstNumber(config, QK_ROPE_HEAD_DIM_KEYS),
+    qkNopeHeadDim:
+      firstNumber(textConfig, ["qk_nope_head_dim"]) ?? firstNumber(config, ["qk_nope_head_dim"]),
     valueHeadDim: firstNumber(textConfig, VALUE_HEAD_DIM_KEYS) ?? firstNumber(config, VALUE_HEAD_DIM_KEYS) ?? headDim,
     intermediateSize: firstNumber(textConfig, INTERMEDIATE_KEYS) ?? firstNumber(config, INTERMEDIATE_KEYS),
     moeIntermediateSize: firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) ?? firstNumber(config, MOE_INTERMEDIATE_KEYS),
@@ -155,7 +161,15 @@ export function normalizeConfig(config) {
       ? "kimi"
       : String(config?.model_type || textConfig?.model_type || "").includes("qwen4_exp")
         ? "qwen4_exp"
+        : String(config?.model_type || textConfig?.model_type || "").includes("glm5_next")
+          ? "glm5_next"
         : "generic",
+    multiHyperConnection: Boolean(textConfig?.mhc ?? config?.mhc),
+    mhcNumResidualStreams: firstNumber(textConfig, ["mhc_num_residual_streams", "hc_mult"]) ?? firstNumber(config, ["mhc_num_residual_streams", "hc_mult"]),
+    mhcSinkhornIterations: firstNumber(textConfig, ["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]) ?? firstNumber(config, ["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]),
+    mhcTau: firstNumber(textConfig, ["mhc_tau"]) ?? firstNumber(config, ["mhc_tau"]),
+    mhcEps: firstNumber(textConfig, ["hc_eps", "mhc_eps"]) ?? firstNumber(config, ["hc_eps", "mhc_eps"]),
+    mhcPostMultValue: firstNumber(textConfig, ["mhc_post_mult_value"]) ?? firstNumber(config, ["mhc_post_mult_value"]),
     contextLength: firstNumber(textConfig, CONTEXT_KEYS) ?? firstNumber(config, CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
     layerSchedule: explicitLayerSchedule(textConfig, layers) ?? explicitLayerSchedule(config, layers),

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { normalizeConfig } from "./config/normalize.js";
 import { resolveArchitecture } from "./registry/resolveArchitecture.js";
 import { buildNetwork } from "./model_executor/models/index.js";
@@ -7,6 +10,8 @@ import { createStructureIr } from "./ir/createStructureIr.js";
 import { materializeModelStructure } from "./materializers/toStructureNode.js";
 import { formulaForOperator } from "./formulas/index.js";
 import { TEMPLATE_FAMILIES } from "../cost/mergeSemantics.js";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 test("normalizes common config fields before architecture resolution", () => {
   const normalized = normalizeConfig({
@@ -273,4 +278,52 @@ test("multi-input MLP and MoE operators expose complete shape flows", () => {
   assert.match(combine.attributes.input_shape, /^\[.*\], \[.*\]$/);
   assert.ok(dispatch.attributes.output_shape);
   assert.ok(combine.attributes.output_shape);
+});
+
+test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-5.3-Flash/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.equal(normalized.headDim, 256);
+  assert.equal(normalized.attentionSchedule.filter((kind) => kind === "linear").length, 34);
+  assert.equal(normalized.attentionSchedule.filter((kind) => kind === "qsa").length, 11);
+  assert.equal(normalized.mhcNumResidualStreams, 4);
+  assert.equal(normalized.mhcSinkhornIterations, 20);
+  assert.equal(normalized.linearLowerBound, -5);
+
+  const resolved = resolveArchitecture(normalized, { modelId: "zai-org/GLM-5.3-Flash" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "decoder");
+  const firstLayer = decoder.children[0];
+  const firstAttention = firstLayer.children.find((node) => node.type === "attention");
+  assert.equal(firstLayer.children[0].name, "mHC attention pre");
+  assert.equal(firstLayer.children[2].name, "mHC fused post + FFN pre");
+  assert.ok(firstLayer.children.every((node) => !["input layernorm", "post attention layernorm"].includes(node.name)));
+  assert.deepEqual(firstAttention.children.map((node) => node.name), [
+    "fused qkvbfg_a projection",
+    "qkvbfg_a split",
+    "q causal short convolution",
+    "k causal short convolution",
+    "v causal short convolution",
+    "forget gate projection",
+    "output gate projection",
+    "A_log decay parameter",
+    "dt bias parameter",
+    "gated delta recurrent state",
+    "gated RMSNorm",
+    "output projection",
+  ]);
+  const stateUpdate = firstAttention.children.find((node) => node.name === "gated delta recurrent state");
+  assert.equal(stateUpdate.attributes.formula_id, "gated_delta_attention");
+  assert.equal(stateUpdate.attributes.safe_gate, true);
+  assert.equal(stateUpdate.attributes.gate_lower_bound, -5);
+
+  const qsaLayer = decoder.children.find((node) => node.attributes.range === "3..3");
+  assert.equal(qsaLayer.children.find((node) => node.type === "attention").attributes.attention_kind, "qsa");
+  const lastLayer = decoder.children.at(-1);
+  assert.equal(lastLayer.children.at(-2).name, "mHC final post");
+  assert.equal(lastLayer.children.at(-1).name, "mHC contract");
 });

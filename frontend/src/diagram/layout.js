@@ -146,12 +146,29 @@ function semanticEdges(item) {
     const output = find(/output projection|out_proj/);
     const qwenInputs = children.filter((child) => /in_proj_(qkv|z|b|a)/.test(`${child.node?.id || ""} ${child.node?.name || ""}`.toLowerCase()));
     const kimiQkv = children.filter((child) => /(?:^|\.)(q|k|v)_proj$/.test(String(child.node?.id || "").toLowerCase()) || /^(q|k|v) projection$/.test(String(child.node?.name || "").toLowerCase()));
+    const glmFused = find(/fused qkvbfg_a|qkvbfg_a projection/);
+    const glmSplit = find(/qkvbfg_a split/);
+    const glmQkvConv = children.filter((child) => /[qkv] causal short convolution/.test(String(child.node?.name || "").toLowerCase()));
+    const glmState = find(/gated delta recurrent state/);
+    const glmOutputNorm = find(/gated rmsnorm/);
     const edges = [];
     const add = (source, target) => {
       if (!source || !target || source.path === target.path) return;
       edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
     };
     const qwenNorm = find(/gated rmsnorm|^norm$/);
+    if (glmFused && glmSplit && glmQkvConv.length === 3 && glmState && glmOutputNorm) {
+      add(glmFused, glmSplit);
+      glmQkvConv.forEach((branch) => add(glmSplit, branch));
+      glmQkvConv.forEach((branch) => add(branch, glmState));
+      add(find(/forget gate projection/), glmState);
+      add(find(/A_log decay parameter/), glmState);
+      add(find(/dt bias parameter/), glmState);
+      add(glmState, glmOutputNorm);
+      add(find(/output gate projection/), glmOutputNorm);
+      add(glmOutputNorm, output);
+      return edges.length >= 7 ? edges : null;
+    }
     if (qwenInputs.length >= 2 && qwenNorm) {
       qwenInputs.slice(0, -1).forEach((source, index) => add(source, qwenInputs[index + 1]));
       add(find(/in_proj_a/), conv);

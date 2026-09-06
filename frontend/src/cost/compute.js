@@ -34,6 +34,7 @@ export function attentionMacs(config, { batch = 1, sequence = 1, phase = "prefil
 }
 
 export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  if (config?.linearAttentionMode === "glm5_next") return glm5NextLinearAttentionMacs(config, { batch, sequence, phase });
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -43,6 +44,24 @@ export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "
   // Linear attention keeps a recurrent state, so its state update is O(T),
   // unlike full attention's O(T^2) score/context products.
   return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
+}
+
+// GLM-5.3-Flash KDA cost follows the actual vLLM execution chain rather than
+// treating every linear-attention family as one generic projection.
+function glm5NextLinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const tokens = batch * (phase === "decode" ? 1 : sequence);
+  const hidden = config?.hiddenSize || 0;
+  const heads = config?.linearKeyHeads || config?.attentionHeads || 0;
+  const headDim = config?.linearKeyDim || config?.headDim || 0;
+  const projection = heads * headDim;
+  const convKernel = config?.linearConvKernelSize || 0;
+  const fusedProjection = hidden * (3 * projection + heads + 2 * headDim);
+  const gateProjections = 2 * headDim * projection;
+  const shortConvolution = 3 * projection * convKernel;
+  const recurrentState = 3 * heads * headDim * headDim;
+  const gatedNorm = 3 * projection;
+  const outputProjection = projection * hidden;
+  return tokens * (fusedProjection + gateProjections + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
 
 export function qsaAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {

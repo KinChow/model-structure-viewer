@@ -11,6 +11,8 @@ export function normalizeCatalog(rawCatalog) {
   return {
     models: models.map((entry) => ({
       modelId: requireString(entry, "model_id"),
+      displayName: typeof entry.display_name === "string" && entry.display_name.trim() ? entry.display_name.trim() : null,
+      releaseTime: typeof entry.release_time === "string" && entry.release_time.trim() ? entry.release_time.trim() : null,
       revision: entry.revision || null,
       canonicalArchitecture: entry.canonical_architecture || null,
       configPath: requireString(entry, "config_path"),

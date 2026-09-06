@@ -7,6 +7,8 @@ test("normalizes catalog entries for verified built-in models", () => {
     models: [
       {
         model_id: "deepseek-ai/DeepSeek-V3.1",
+        display_name: "DeepSeek V3.1",
+        release_time: "2026-01-02T08:00:00Z",
         revision: "abc123",
         canonical_architecture: "mla-moe-decoder",
         config_path: "deepseek-ai/DeepSeek-V3.1/config.json",
@@ -18,6 +20,8 @@ test("normalizes catalog entries for verified built-in models", () => {
   assert.equal(catalog.models.length, 1);
   assert.equal(catalog.models[0].modelId, "deepseek-ai/DeepSeek-V3.1");
   assert.equal(catalog.models[0].verified, true);
+  assert.equal(catalog.models[0].displayName, "DeepSeek V3.1");
+  assert.equal(catalog.models[0].releaseTime, "2026-01-02T08:00:00Z");
   assert.equal(modelConfigPath(catalog.models[0]), "/models/deepseek-ai/DeepSeek-V3.1/config.json");
 });
 

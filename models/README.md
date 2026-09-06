@@ -129,3 +129,11 @@ tokenizer、generation 或 processor metadata，也不会覆盖已有文件；�
 - `MiniMaxAI/MiniMax-M2.7`
 - `MiniMaxAI/MiniMax-M3`
 - `MiniMaxAI/MiniMax-M3-MXFP8`
+# 内置模型目录
+
+`catalog.json` 的模型条目支持两个入口展示字段：
+
+- `display_name`：Provider 弹窗和快捷入口显示的名称，缺省时使用模型 ID 的最后一段。
+- `release_time`：ISO 8601 发布时间，例如 `2026-09-01T08:00:00+08:00`。Provider 弹窗默认按发布时间倒序；没有发布时间的模型保持原目录顺序并排在有日期模型之后。
+
+运行 `node scripts/generate-model-catalog.mjs` 重建目录时，会保留已有条目的这两个字段。

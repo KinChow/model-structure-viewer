@@ -108,7 +108,7 @@ npm --prefix frontend run verify:models
 | `builtin` | `models/` 和静态 `/models/` | 使用仓库内置配置，不需要后端 |
 | `local` | `MODEL_ROOT/<org>/<model>/config.json` | 读取本地配置，需要 API |
 | `hf` | Hugging Face 或 ModelScope | 读取公开配置和允许的轻量元数据，不下载权重 |
-| `auto` | 前端/后端默认模式 | 按 builtin、local、远程来源回退 |
+| `auto` | CLI/API 兼容模式 | 按 builtin、local、远程来源回退；网页入口使用明确端点 |
 | `config` | 粘贴或上传 JSON | 直接使用用户配置，必要时读取本地 header |
 
 来源解析、缓存策略和 API 参数见 [`source_resolution.md`](models/source_resolution.md)。
@@ -121,14 +121,12 @@ npm --prefix frontend run verify:models
 
 ## 目录与缓存边界
 
-允许缓存的轻量文件包括：
+内置静态资源只发布：
 
 - `config.json`
-- `README.md`
-- `model.safetensors.index.json`
-- `configuration_*.py`、`modeling_*.py`、`tokenization_*.py`
+- `catalog.json`
 
-工具不缓存 `.safetensors`、`.bin`、`.gguf`、`.pt`、`.pth`、`.onnx` 等权重或推理文件。后端验证可能执行本地 remote code，但这是验证路径，不改变前端静态路径的轻量边界。
+网页运行时按远程端点读取 safetensors header，不下载权重数据区。后端缓存和本地模型目录可以保留 `README.md`、自定义 Python 代码等验证辅助文件；`auto_fetch_remote_code=false` 时不会联网获取这些代码。
 
 ## 模型适配归属
 

@@ -11,7 +11,6 @@ models/<org>/<model>/config.json
 这里只放轻量文件：
 
 - `config.json`
-- `model.safetensors.index.json`（只保存分片映射，不保存权重）
 - `configuration_*.py`
 - `modeling_*.py`
 - `tokenization_*.py`
@@ -38,7 +37,7 @@ node scripts/generate-model-catalog.mjs
 ```
 
 下载顺序为 Hugging Face mirror，再回退 ModelScope。脚本只下载
-`config.json`、`model.safetensors.index.json` 和模型所需的自定义 Python 文件，不会下载其它
+`config.json` 和模型所需的自定义 Python 文件，不会下载其它
 tokenizer、generation 或 processor metadata，也不会覆盖已有文件；如需更新已有文件，显式增加
 `--overwrite`。
 

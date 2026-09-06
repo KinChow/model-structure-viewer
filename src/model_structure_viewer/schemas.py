@@ -19,7 +19,7 @@ class StructureNode(BaseModel):
     source_fields: list[str] = Field(default_factory=list)
     confidence: str = "high"
     children: list["StructureNode"] = Field(default_factory=list)
-    # IR v2（可选，None 表示未知；向后兼容，见 evolution_design.md §4.1）：
+    # 结构节点扩展字段（None 表示未知）；图边位于 ModelStructure.graph。
     params: int | None = None  # 本节点自有参数（不含子树）
     weight_shapes: dict[str, list[int]] | None = None  # 数值形状，如 {"weight": [4096, 4096]}
     dtype: str | None = None  # 实际 dtype：BF16/F8_E4M3/I32…

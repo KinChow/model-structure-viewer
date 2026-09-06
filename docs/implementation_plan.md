@@ -11,25 +11,18 @@
 - 结构图、Layers、Inspector、JSON/Mermaid/DOT 导出、芯片 Cost Lens、并行投影和 PD 分析。
 - Python API/CLI、local cache、transformers meta-device 验证和 GitHub Pages 构建流程。
 
-## P0：验证流程收口
+## P0：验证流程收口（已完成）
 
-### 浏览器验证脚本适配 React Flow
-
-现状：`npm --prefix frontend run verify:page` 仍包含旧版 SVG 和页面选择器，当前不能作为发布闸门。
-
-实现范围：
-
-- 使用当前 React Flow DOM 结构验证节点、边、布局和图面板。
-- 将首页生成、方案对比、公式联动、Layers、Export 和 Raw Config 检查改为稳定的 `role`、`aria-*` 或专用 data 属性。
-- 保留静态页面与前后端页面两种验证模式，不依赖快捷模型排序。
-
-验收：页面验证脚本在干净构建产物上通过；所有内置模型仍由 `verify:models` 覆盖。
+Playwright 已替换旧版 SVG/CDP 验收路径。`npm --prefix frontend run test:e2e`
+使用隔离 Vite 服务和桌面/移动 Chrome，覆盖入口来源、React Flow 节点与显式边、成本交互、窄屏布局和多模态视觉节点；`verify:page` 保留为兼容别名。
 
 ## P1：协议和维护性
 
 ### 统一结构协议的生成或契约测试
 
 当前前后端 schema 与前端 materializer 仍由两边维护。优先增加跨端契约样例和字段兼容测试；只有重复维护成本继续上升时，才引入 schema-first 生成，避免为了工具本身扩大构建复杂度。
+
+当前图协议已经一等化为 `graph.version/nodes/edges`；后续可将 operator/module builder 的 value names 直接声明为边来源，逐步减少通用 materializer 中按模型语义匹配名称的兼容规则。
 
 ### 模型 catalog 维护自动化
 

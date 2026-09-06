@@ -19,7 +19,7 @@ MiniMaxAI/MiniMax-M3
 |---|---|
 | `local` | Only read local `config.json`; fail if missing. |
 | `hf` | Fetch remote `config.json` from the configured HF endpoint and cache allowed metadata. |
-| `auto` | Prefer local cache, then use HF unless offline. |
+| `auto` | CLI/API compatibility mode: prefer built-in and local cache, then use HF unless offline. |
 | `config` | Use uploaded or pasted JSON directly. |
 
 ## Cache Policy
@@ -57,13 +57,12 @@ CLI example:
 
 ## Cached Files
 
-The resolver caches only:
+The built-in static bundle contains only:
 
 - `config.json`
-- `README.md`
-- `configuration_*.py`
+- `catalog.json`
 
-The resolver never downloads or caches weight files, including:
+The backend may cache remote-code helpers when `auto_fetch_remote_code` is enabled. The resolver never downloads or caches weight files, including:
 
 - `.safetensors`
 - `.bin`

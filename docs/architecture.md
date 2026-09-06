@@ -12,14 +12,14 @@ flowchart LR
   R --> C[config / metadata]
   C --> F[前端结构路径]
   C --> B[后端验证路径]
-  F --> IR[统一 Structure IR]
+  F --> IR[统一 Structure IR：树 + 图]
   B --> IR
   IR --> V[详情 UI]
   IR --> E[JSON / Mermaid / DOT 导出]
   IR --> L[Cost Lens]
 ```
 
-模型来源包括 `builtin`、`local`、`hf`、`auto` 和 `config`。前端静态部署优先使用 `builtin`、`config` 和公开远程来源；本地目录、后端代理、settings 和 transformers 验证需要 API。
+模型来源包括 `builtin`、`local`、`hf`、`auto` 和 `config`。`auto` 是 CLI/API 的兼容 fallback 模式；前端入口展示明确的远程端点选择。前端静态部署优先使用 `builtin`、`config` 和公开远程来源；本地目录、后端代理、settings 和 transformers 验证需要 API。
 
 ## 前端结构路径
 
@@ -30,7 +30,7 @@ config.json + safetensors header
   -> model_executor/models
   -> model_executor/layers
   -> model_executor/ops + formulas
-  -> structure IR
+  -> structure IR (tree + explicit graph)
   -> materializers/toStructureNode
   -> UI / export / cost analysis
 ```
@@ -56,10 +56,11 @@ CLI / HTTP request
 
 - 模型摘要和规范化配置
 - 节点树、重复层、输入输出 shape
+- `graph.version`、稳定 path 节点和显式 dataflow edges
 - 参数量、dtype、权重来源和 tensor 名称
 - 算子、公式、诊断和结构生成策略
 
-导出、UI 和验证都应消费 materialize 后的结构，不直接重新解析原始配置或调用 registry。
+`root.children` 只承担层级分组、折叠和 breadcrumb；`graph.nodes/graph.edges` 是图渲染和数据流联动的正式协议。导出、UI 和验证都应消费 materialize 后的结构，不直接重新解析原始配置或调用 registry。
 
 ## 责任边界
 
@@ -69,7 +70,7 @@ CLI / HTTP request
 | `frontend/src/cost` | 理论内存、MACs、roofline、并行和 PD 投影 | 性能仿真、吞吐预测、实测校准 |
 | `frontend/src/diagram` | React Flow 图、布局、交互和联动 | 模型结构推断 |
 | `src/model_structure_viewer` | API、CLI、本地缓存、HF 解析和 transformers 验证 | 前端交互和公网安全治理 |
-| `models/` | 内置配置、轻量元数据和 catalog | 权重文件和推理运行 |
+| `models/` | 内置配置、catalog 和可信后端验证所需的轻量代码 | 权重文件和推理运行 |
 
 ## 相关文档
 

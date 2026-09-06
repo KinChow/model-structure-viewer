@@ -477,7 +477,7 @@ total = weights + KV + request_state
 StructureNode
   ├── SummaryChips      -> 模型摘要、来源、状态
   ├── ArchitectureTab   -> React Flow、公式索引、Cost Lens
-  ├── ModuleCards       -> 展开、折叠、选择
+  ├── StructureSearchBox + React Flow -> 展开、折叠、选择和数据流
   ├── NodeDetailPanel   -> truth、公式、shape、属性、node lens
   ├── ExportTab         -> Mermaid / DOT / JSON
   └── RawConfigTab      -> extra_config
@@ -490,7 +490,7 @@ StructureNode
 | 实现层 | 主要测试 |
 |---|---|
 | config/registry/builder/layer | `structure/modelArchitecture.test.js`、`builtinModels.test.js` |
-| IR/materializer/truth merge | `cost/__tests__/mergeSemantics.test.js`、structure tests |
+| IR/materializer/truth merge | `structure/truth/__tests__/mergeSemantics.test.js`、structure tests |
 | shape/dtype/safetensors | `dims.test.js`、`safetensorsReader.test.js`、`skeleton.test.js` |
 | 公式和成本 | `compute.test.js`、`memory.test.js`、`derivedWeights.test.js`、`roofline.test.js` |
 | TP/PP/EP/DP/PD | `parallel.test.js`、`comm.test.js`、`pdSummary.test.js` |

@@ -7,7 +7,7 @@
 工具不下载权重数据区，也不跑推理。在线模型只读取配置、模型 API 和 safetensors header。当前网页端主要在前端完成组网：
 
 ```text
-config.json + checkpoint header -> registry/trie -> semantics merge -> IR -> cost lens/UI/export
+config.json + checkpoint header -> registry/trie -> truth merge -> Structure IR (tree + graph) -> cost lens/UI/export
 ```
 
 后端主要负责本地配置读取、Hugging Face 配置读取，以及保留兼容用的结构接口。
@@ -108,7 +108,7 @@ npm run dev
 2. 顶部“理论成本估算”调整 Prefill/Decode、B、T、权重/KV dtype 假设以及 TP/PP/EP/DP；结果只用于定性分析，不是仿真或性能预测。
 3. Architecture 的 Lens 可切换芯片、阶段、TP、EP、Attention 模式和三个效率因子。
 4. “芯片”对比固定并行方案，只改变芯片；“方案”对比固定芯片，只改变 TP/EP/Attention，发生瓶颈翻转的节点会单独突出。
-5. 公式按钮、Architecture 节点和 Layers 卡片共享节点路径，点击后可联动查看详情。
+5. 公式按钮、Architecture 节点、搜索和 Inspector 共享节点路径，点击后可联动查看详情。
 
 内置公开芯片为 A100、H100 和 L40S，均附 NVIDIA 官方来源。其他芯片可通过页面“添加芯片”临时录入，或复制 `frontend/src/cost/chips/chips.local.example.json` 为 `frontend/public/chips.local.json` 进行本地覆盖；仓库不会保存非公开规格。
 
@@ -131,12 +131,12 @@ npm run dev
 - `local`：只读取 `$MODEL_ROOT/<org>/<model>/config.json`
 - `builtin`：读取仓库内置 `models/<org>/<model>/config.json`；网页静态部署时不需要后端，CLI/API 会从仓库内置目录读取
 - `hf`：网页优先直连 Hugging Face 获取 `config.json` 与 checkpoint header；Hugging Face 失败后按优先级切到 ModelScope，两个远程源都失败时降级为 config-only
-- `auto`：优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页端和后端保持相同顺序
+- `auto`：CLI/API 兼容模式，优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页入口使用明确的端点选择器，内部仍可使用同一套 fallback。
 - `config`：使用粘贴或上传的 JSON
 
 网页模型入口接受 `org/model`，也接受对应的 Hugging Face / ModelScope 模型 URL；系统会先归一化为仓库 ID，再拼接 resolve 地址。
 
-仓库内置的轻量 Hugging Face 元数据包括 `config.json`、`model.safetensors.index.json`、`README.md`、`configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py`。其中 `model.safetensors.index.json` 只保存分片映射，不包含 tensor header；dtype、shape 和参数量真值仍在运行时按 HF → ModelScope 读取。
+仓库内置的前端静态模型资产只包括 `config.json` 和 `catalog.json`。safetensors header 由网页运行时按 HF → ModelScope 读取；自定义 `configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py` 只保留给可信后端的 Transformers 验证路径，不进入 Pages 静态资源。
 
 下面这些权重或模型文件不会被这个工具缓存：
 
@@ -156,10 +156,10 @@ npm run dev
 
 ## 已验证支持模型
 
-当前 `models/catalog.json` 中有 59 个内置模型配置，已经全部通过配置组网验证；页面级验证脚本仍需适配现版 React Flow 页面选择器：
+当前 `models/catalog.json` 中有 59 个内置模型配置，已经全部通过配置组网验证；Playwright 页面验收覆盖桌面和移动 Chrome 的入口、图协议、成本交互和多模态节点：
 
 - 配置组网验证：读取仓库内置 `config.json`，调用前端 `buildStructureFromConfig`，能够生成带 `summary`、`root` 和子节点的结构。
-- 页面级验证：脚本目标是打开构建后的静态页面，逐个模型在页面里切到 `builtin`、填入 model id、点击 Generate，并确认页面读取了对应的 `models/<org>/<model>/config.json`，同时抽测 Architecture、Layers 展开、Export 和 Raw Config；当前脚本选择器尚未完全适配 React Flow 版本。
+- 页面级验证：`npm --prefix frontend run test:e2e`（`verify:page` 为同一 Playwright 入口）检查无 `auto` 可见选项、React Flow 节点/边、成本面板、窄屏无横向溢出，以及 Qwen 多模态视觉塔和投影节点。
 
 这不是权重验证，也不包含推理验证。
 
@@ -239,7 +239,7 @@ npm run dev
 
 ## 静态部署
 
-前端构建会先生成 `models/catalog.json`，再把仓库根目录的 `models/` 复制到 `frontend/dist/models`：
+前端构建会先生成 `models/catalog.json`，再将 `catalog.json` 和各模型 `config.json` 复制到 `frontend/dist/models`；后端专用 Python 文件不会进入静态产物：
 
 ```bash
 cd frontend
@@ -248,7 +248,7 @@ npm run build
 
 部署 `frontend/dist` 到 GitHub Pages 后，`builtin`、`config`、`hf` 和 Hugging Face 搜索可以在没有后端的情况下工作。`local`、后端设置保存、代理 fallback 和 transformers 验证仍需要 API 服务。
 
-仓库的 `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions；部署前会依次执行前端单测、59 个内置模型验证和生产构建。
+仓库的 `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions；部署前会依次执行后端单测、前端单测、59 个内置模型验证、Playwright 页面验收和生产构建。
 
 如果站点部署在子路径，例如 `https://kinchow.github.io/model-structure-viewer/`，需要设置 Vite base：
 
@@ -309,21 +309,13 @@ npm --prefix frontend run verify:models
 npm --prefix frontend run build
 ```
 
-页面级验证需要一个已经启动的静态页面和一个带 DevTools 端口的 Chrome，例如：
+页面级验证使用 Playwright 启动隔离的 Vite 服务和 Chrome：
 
 ```bash
-cd /Users/zhouzijian01/Desktop/workspace/code/kinchow/model-structure-viewer
-python3 -m http.server 4183 --directory frontend/dist
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-  --headless=new \
-  --remote-debugging-port=9223 \
-  --user-data-dir=/tmp/msv-chrome-profile \
-  --disable-gpu \
-  --no-first-run \
-  --no-default-browser-check \
-  about:blank
-MSV_PAGE_URL=http://127.0.0.1:4183/ MSV_CHROME_DEBUG_PORT=9223 npm --prefix frontend run verify:page
+npm --prefix frontend run test:e2e
 ```
+
+`npm --prefix frontend run verify:page` 是同一套验收的兼容别名；CI 使用 `test:e2e`。
 
 ## 文档
 

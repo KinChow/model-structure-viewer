@@ -53,7 +53,7 @@ npm --prefix frontend run build
 
 - Vite 构建成功。
 - `frontend/dist/index.html` 存在。
-- `frontend/dist/models/catalog.json` 与模型配置被复制到构建产物。
+- `frontend/dist/models/catalog.json` 与各模型 `config.json` 被复制到构建产物；后端专用 Python 文件不进入静态产物。
 - 构建没有修改需要人工维护的源码文件。
 
 chunk size warning 不等于构建失败，但应在影响首屏加载时单独处理。
@@ -111,9 +111,9 @@ API 验证必须包含正常请求和错误请求；响应应为合法 JSON，�
 
 ## 7. 浏览器验证
 
-当前 `npm --prefix frontend run verify:page` 仍包含旧版 UI 选择器，尚未适配现版 React Flow 页面，因此不能作为发布通过证据。修复任务见 [`implementation_plan.md`](implementation_plan.md)。
+`npm --prefix frontend run test:e2e`（`verify:page` 为兼容别名）会启动隔离 Vite 服务，并在桌面/移动 Chrome 中验证当前 React Flow 页面。
 
-脚本修复前，浏览器手动验证至少覆盖：
+浏览器验收至少覆盖：
 
 - 入口页加载 catalog、Provider 和模型快捷入口。
 - 内置模型生成后出现 `.react-flow-diagram` 和 React Flow 节点。
@@ -133,6 +133,7 @@ API 验证必须包含正常请求和错误请求；响应应为合法 JSON，�
 .venv/bin/pytest -q
 npm --prefix frontend test
 npm --prefix frontend run verify:models
+npm --prefix frontend run test:e2e
 npm --prefix frontend run build
 .venv/bin/python -m pip wheel --no-deps --no-build-isolation . --wheel-dir /tmp/msv-wheel-check
 git diff --check
@@ -142,7 +143,7 @@ git diff --check
 
 - Python 与前端版本源一致，lockfile 已同步。
 - `CHANGELOG.md` 的 `[Unreleased]` 已归档到带日期的版本节。
-- README 和 `docs/` 没有旧版本号、旧模型数量或失效路径。
+- README 和 `docs/` 没有旧版本号、旧模型数量或失效路径；页面验收描述与 React Flow 实现一致。
 - 当前已知验证缺口被明确记录，没有把未执行或未通过的测试写成通过。
 - 提交后创建 `vX.Y.Z` tag，并使用对应 changelog 创建 GitHub Release。
 

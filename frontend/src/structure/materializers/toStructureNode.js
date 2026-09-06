@@ -15,7 +15,7 @@ function structureNodeFromSpec(spec) {
       source_fields: Object.keys(spec.attributes || {}),
       confidence: "high",
       children: [],
-      // IR v2 可选字段（仅当 spec 携带时透传）
+      // 节点扩展字段仅在 spec 携带时透传；图边由 Structure IR 单独承载。
       params: spec.params,
       weight_shapes: spec.weight_shapes,
       dtype: spec.dtype,
@@ -34,7 +34,7 @@ function structureNodeFromSpec(spec) {
     source_fields: Object.keys(spec.attributes || {}),
     confidence: "high",
     children: (spec.children || []).map(structureNodeFromSpec),
-    // IR v2 可选字段（仅当 spec 携带时透传）
+    // 节点扩展字段仅在 spec 携带时透传；图边由 Structure IR 单独承载。
     params: spec.params,
     weight_shapes: spec.weight_shapes,
     dtype: spec.dtype,

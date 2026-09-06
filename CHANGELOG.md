@@ -17,6 +17,7 @@ Model Structure Viewer 的重要变更记录。
 - `ModelStructure` 统一校验 graph/root 互相投影：Graph IR 为规范载荷，root-only 旧调用仍可用，graph-only 载荷自动生成 root 兼容视图。
 - 成本汇总、通信、并行投影和节点 lens 的生产入口改为 graph-only；root 仅保留给旧测试和兼容调用。
 - Architecture 布局从 Graph IR 节点直接构造临时画布视图，不再调用 legacy `projectGraphToTree`。
+- Materializer 的模型摘要直接读取 Graph IR root fact，避免为非兼容字段重复投影树。
 - 本阶段验证：后端 `148 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
 
 ## [0.2.0] - 2026-09-06

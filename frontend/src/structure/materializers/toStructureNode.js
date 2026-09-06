@@ -79,11 +79,12 @@ export function materializeModelStructure(ir) {
   });
   graph = graphTruth.graph;
   mergedDiagnostics = { ...diagnostics, ...graphTruth.diagnostics };
+  const graphRoot = graph.nodes.find((node) => node.id === graph.root_id);
 
   return {
     summary: {
       strategy: graphTruth.diagnostics.strategy === "no-truth" ? ir.strategy : graphTruth.diagnostics.strategy,
-      model_family: projectGraphToTree(graph)?.name || templateNetwork.name,
+      model_family: graphRoot?.name || templateNetwork.name,
       model_type: normalized.modelType,
       architecture: resolved.architecture || normalized.architecture || normalized.modelType,
       canonical_architecture: resolved.canonicalArchitecture,

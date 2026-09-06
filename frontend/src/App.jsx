@@ -71,12 +71,8 @@ function App() {
   const { structure, build, loading, loadingPhase, error: structureError } = useStructure();
   const exporter = useExport();
 
-  const [source, setSource] = useState("auto");
-  const [endpoint, setEndpoint] = useState("huggingface");
   const [modelId, setModelId] = useState("deepseek-ai/DeepSeek-V3.1");
-  const [selectedConfigPath, setSelectedConfigPath] = useState("");
   const [revision, setRevision] = useState("main");
-  const [configText, setConfigText] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [fitNonce, setFitNonce] = useState(0);
@@ -196,17 +192,16 @@ function App() {
   async function handleGenerate(overrides = {}) {
     setParseError("");
     let configJson = null;
-    const activeSource = overrides.source ?? source;
+    const activeSource = overrides.source ?? "hf";
     const activeModelId = overrides.modelId ?? modelId;
-    const activeConfigPath = overrides.configPath ?? selectedConfigPath;
-    const activeEndpoint = overrides.endpoint ?? endpoint;
+    const activeConfigPath = overrides.configPath ?? "";
+    const activeEndpoint = overrides.endpoint ?? "huggingface";
     const checkpointTruth = overrides.checkpointTruth ?? null;
     const sourceLabelOverride = overrides.sourceLabel ?? null;
     if (activeSource === "config") {
-      try {
-        configJson = overrides.configJson ?? JSON.parse(configText);
-      } catch (err) {
-        setParseError(err.message);
+      configJson = overrides.configJson ?? null;
+      if (!configJson || typeof configJson !== "object") {
+        setParseError("config source requires a JSON object");
         return;
       }
     }
@@ -280,13 +275,11 @@ function App() {
           builtinModels={builtinModels}
           modelId={modelId}
           onModelIdChange={setModelId}
-          onOpenModel={(id, selectedSource = "auto", selectedEndpoint = endpoint) => {
+          onOpenModel={(id, selectedSource = "hf", selectedEndpoint = "huggingface") => {
             void handleGenerate({ source: selectedSource, modelId: id, endpoint: selectedEndpoint });
           }}
           onOpenLocalFiles={handleOpenLocalFiles}
           onOpenLocalPath={(path) => {
-            setSource("local");
-            setSelectedConfigPath(path);
             void handleGenerate({ source: "local", configPath: path });
           }}
           language={language}

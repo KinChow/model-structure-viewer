@@ -18,7 +18,6 @@ export function normalizeCatalog(rawCatalog) {
       configPath: requireString(entry, "config_path"),
       modelType: entry.model_type || null,
       architectures: Array.isArray(entry.architectures) ? entry.architectures : [],
-      metadataFiles: Array.isArray(entry.metadata_files) ? entry.metadata_files : [],
       verified: Boolean(entry.verified),
       verifiedAt: entry.verified_at || null,
       validationReport: entry.validation_report || null,

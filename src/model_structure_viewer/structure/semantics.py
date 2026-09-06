@@ -78,11 +78,6 @@ def classify(module: Any) -> str:
     return "module"
 
 
-def normalized_class(module: Any) -> str:
-    """A canonical name used for isomorphism comparison."""
-    return type(module).__name__
-
-
 def attention_kind(class_name: str) -> str | None:
     for keyword, label in _ATTENTION_KIND:
         if keyword in class_name:

@@ -1,5 +1,5 @@
 import { catalogPath, modelConfigPath, normalizeCatalog } from "../structure/catalog/manifest.js";
-import { fetchHfConfigDirect, searchHfDirect } from "./hf.js";
+import { searchHfDirect } from "./hf.js";
 
 export async function requestJson(path, options) {
   const response = await fetch(path, options);
@@ -86,15 +86,6 @@ export async function searchHfApi(query, limit = 10, endpoint) {
   } catch {
     const params = new URLSearchParams({ q: query, limit: String(limit), endpoint: endpoint || "huggingface" });
     return requestJson(`/api/hf/search?${params.toString()}`);
-  }
-}
-
-export async function fetchHfConfigApi({ modelId, revision = "main", endpoint }) {
-  try {
-    return await fetchHfConfigDirect({ modelId, revision, endpoint });
-  } catch {
-    const params = new URLSearchParams({ model_id: modelId, revision, endpoint: endpoint || "huggingface" });
-    return requestJson(`/api/hf/config?${params.toString()}`);
   }
 }
 

@@ -39,17 +39,6 @@ function formatBytes(bytes) {
   return `${Math.round(bytes)} B`;
 }
 
-function formatShape(shape) {
-  if (shape == null) return null;
-  if (Array.isArray(shape)) return `[${shape.join(", ")}]`;
-  if (typeof shape === "string") return shape;
-  try {
-    return JSON.stringify(shape);
-  } catch {
-    return String(shape);
-  }
-}
-
 function parentPath(path) {
   const index = path.lastIndexOf(".");
   return index > 0 ? path.slice(0, index) : null;

@@ -51,15 +51,6 @@ export async function fetchHfConfigDirect({
   return res.json();
 }
 
-// GET /api/models/{id}?expand[]=safetensors → 逐 dtype 精确参数量（仅 huggingface endpoint 支持）。
-export async function fetchHfModelInfoDirect({ modelId, endpoint = "huggingface", fetchImpl = fetch }) {
-  if (endpoint !== "huggingface") return null;
-  const url = `${HF_ENDPOINTS.huggingface.hubUrl}/api/models/${encodeURIComponent(normalizeModelId(modelId, endpoint))}?expand[]=safetensors`;
-  const res = await fetchImpl(url);
-  if (!res.ok) throw new Error(`model info HTTP ${res.status}`);
-  return res.json();
-}
-
 // 搜索结果形态与后端 /api/hf/search 保持一致；仅 huggingface endpoint 支持（modelscope 无公开搜索 API）。
 export async function searchHfDirect(query, limit = 10, endpoint = "huggingface", fetchImpl = fetch) {
   if (endpoint !== "huggingface") {

@@ -10,7 +10,7 @@
     "test": "node --test",
     "test:e2e": "playwright test",
     "verify:models": "node ../scripts/verify-builtin-models.mjs",
-    "verify:page": "node ../scripts/verify-current-page.mjs",
+    "verify:page": "playwright test",
     "build": "npm run catalog && vite build",
     "preview": "vite preview"
   },

@@ -9,5 +9,4 @@ class IntrospectionFailureKind(StrEnum):
     CONFIG_FIELD_MISSING = "config_field_missing"
     CONFIG_LOAD_FAILED = "config_load_failed"
     MODEL_INIT_FAILED = "model_init_failed"
-    UNSAFE_REMOTE_CODE = "unsafe_remote_code"
     UNKNOWN = "unknown"

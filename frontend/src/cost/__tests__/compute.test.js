@@ -7,6 +7,35 @@ test("packed qweight is unknown without logical shape metadata", () => {
   assert.equal(linearMacs({ weight_shapes: { qweight: [4, 1] } }, { batch: 1, sequence: 1 }), null);
 });
 
+test("unknown linear MACs remain unknown in model totals", () => {
+  const node = {
+    type: "operator",
+    attributes: { operator_id: "linear" },
+    weight_shapes: { qweight: [4, 1] },
+    children: [],
+  };
+  const result = aggregateCost({ root: { children: [node] }, config: {}, activationPeak: 0, runtimeConst: 0 });
+
+  assert.equal(result.totalMacs, null);
+  assert.equal(result.totalFlops, null);
+  assert.equal(result.computeComplete, false);
+  assert.deepEqual(result.unknownComputePaths, ["root.0"]);
+});
+
+test("checkpoint skeleton linear leaves contribute to model totals", () => {
+  const node = {
+    id: "model.layers.0.mlp.gate_proj",
+    type: "module",
+    weight_shapes: { weight: [4, 2] },
+    children: [],
+  };
+  const result = aggregateCost({ root: { children: [node] }, config: {}, batch: 1, sequence: 3, activationPeak: 0, runtimeConst: 0 });
+
+  assert.equal(result.totalMacs, 24);
+  assert.equal(result.computeComplete, true);
+  assert.equal(result.nodes[1].macs_source, "checkpoint-shape");
+});
+
 test("template linear operators derive MACs from numeric tensor shapes", () => {
   const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] };
   assert.equal(linearMacs(node, { batch: 1, sequence: 3, phase: "prefill" }), 96);

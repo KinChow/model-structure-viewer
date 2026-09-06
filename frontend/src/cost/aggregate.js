@@ -17,11 +17,17 @@ export function aggregateCost({ root, config, parameterCount, batch = 1, sequenc
   const memory = memoryBreakdown({ weightBytes, config, batch, tokens: sequence, kvBytes,
     activationPeak, runtimeConst, commBuffer });
   const nodes = computeNodeCosts(root, config, { batch, sequence, phase });
-  const totalMacs = nodes.reduce((sum, row) => sum + (row.compute_macs ?? 0), 0);
+  const unknownComputePaths = nodes
+    .filter((row) => row.compute_macs == null)
+    .map((row) => row.path);
+  const knownMacs = nodes.reduce((sum, row) => sum + (row.compute_macs ?? 0), 0);
+  const computeComplete = unknownComputePaths.length === 0;
+  const totalMacs = computeComplete ? knownMacs : null;
   const forwardTokens = batch * (phase === "decode" ? 1 : sequence);
-  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : "derived", nodes, totalMacs, totalFlops: totalMacs * 2,
-    macsPerToken: forwardTokens > 0 ? totalMacs / forwardTokens : null,
-    flopsPerToken: forwardTokens > 0 ? (totalMacs * 2) / forwardTokens : null,
+  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : "derived", nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
+    knownMacs, computeComplete, unknownComputePaths,
+    macsPerToken: totalMacs != null && forwardTokens > 0 ? totalMacs / forwardTokens : null,
+    flopsPerToken: totalMacs != null && forwardTokens > 0 ? (totalMacs * 2) / forwardTokens : null,
     macsSources: summarizeMacsSources(nodes),
     assumptions: { theoretical: true, activationPeak, runtimeConst, commBuffer, kvBytes } };
 }

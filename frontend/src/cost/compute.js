@@ -204,7 +204,7 @@ function computeMacsForNode(node, config, options = {}) {
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
   if (type === "attention" || operatorId === "attention") return nodeMacs(node, config, options);
-  if (type === "operator" && operatorId === "linear") return linearMacs(node, options);
+  if (isLinear(node)) return linearMacs(node, options);
   return 0;
 }
 
@@ -212,7 +212,7 @@ function macsSource(node, config, options = {}) {
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
   if (type === "attention" || operatorId === "attention") return "formula";
-  if (type !== "operator" || operatorId !== "linear") return "not-compute";
+  if (!isLinear(node)) return "not-compute";
   if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return "unknown";
   if (hasLogicalLinearShape(node)) return "checkpoint-shape";
   return derivedLinearMacs(node, options) == null ? "unknown" : "config-derived-shape";

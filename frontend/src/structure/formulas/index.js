@@ -197,9 +197,9 @@ const FORMULAS = {
   },
   attention_residual: {
     title: "Attention Residual",
-    formula: "y = sum_i softmax(w_i) * RMSNorm(x_i)",
-    explanation: "对 attention 或 MLP 的块级历史残差进行归一化加权聚合。",
-    inputs: ["residual_states", "projection", "norm"],
+    formula: "s_i = <RMSNorm(x_i), w>; p = softmax(s); y = RMSNorm(sum_i p_i x_i)",
+    explanation: "Kimi-K3 在 attention 前和 MLP 前从 snapshot bank 与当前 prefix 中按 RMSNorm 后的投影分数聚合 residual stream；block 写层额外保存新的 snapshot。",
+    inputs: ["residual_states", "score_projection", "score_norm", "output_norm"],
     outputs: ["y"],
   },
   hyper_connection: {

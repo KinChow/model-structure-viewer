@@ -360,4 +360,14 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
   assert.ok(moe.children.some((node) => node.name === "routed expert latent up projection"));
   const shared = moe.children.find((node) => node.id.endsWith(".shared_experts"));
   assert.equal(shared.attributes.intermediate_size, 6144);
+  const layerZeroResidual = kdaLayer.children.find((node) => node.type === "residual");
+  assert.equal(layerZeroResidual.attributes.block_write, true);
+  assert.equal(layerZeroResidual.attributes.previous_blocks, 0);
+  assert.equal(layerZeroResidual.children.find((node) => node.name === "attention residual norm").attributes.snapshot_write, true);
+  const layerOne = decoder.children.find((node) => node.attributes.range === "1..2");
+  const layerOneResidual = layerOne.children.find((node) => node.type === "residual");
+  assert.equal(layerOneResidual.attributes.block_write, false);
+  assert.equal(layerOneResidual.attributes.previous_blocks, 0);
+  assert.equal(layerOneResidual.children.find((node) => node.name === "attention residual norm").attributes.snapshot_write, false);
+  assert.equal(structure.root.children.find((node) => node.id === "output_attn_residual").attributes.snapshot_blocks, 8);
 });

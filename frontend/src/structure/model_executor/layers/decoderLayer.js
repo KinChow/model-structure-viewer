@@ -32,7 +32,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
       hyperConnectionModule(`${id}.attn_hyper_connection`, normalized),
       hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized),
     ] : []),
-    ...(normalized.attnResBlockSize ? [attentionResidualModule(`${id}.attn_residual`, normalized)] : []),
+    ...(normalized.attnResBlockSize ? [attentionResidualModule(`${id}.attn_residual`, normalized, { layerIndex })] : []),
   ];
   return withShapeDims(moduleSpec(
     id,

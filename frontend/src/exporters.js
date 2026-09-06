@@ -45,6 +45,27 @@ function walkTree(root, handlers) {
   visit(root, null, "");
 }
 
+function walkGraph(graph, handlers) {
+  const used = new Set();
+  const ids = new Map();
+  const assignId = (path) => {
+    const base = slug(path) || `n_${fallbackId(path)}`;
+    const id = used.has(base) ? `${base}_${fallbackId(path)}` : base;
+    used.add(id);
+    return id;
+  };
+  for (const node of graph?.nodes || []) {
+    const id = assignId(node.id);
+    ids.set(node.id, id);
+    handlers.onNode(id, node);
+  }
+  for (const edge of graph?.edges || []) {
+    const source = ids.get(edge.source);
+    const target = ids.get(edge.target);
+    if (source && target) handlers.onEdge(source, target, edge);
+  }
+}
+
 function escapeMermaid(value) {
   return String(value)
     .replaceAll("\\", "\\\\")
@@ -62,7 +83,8 @@ function escapeDot(value) {
 
 function exportMermaid(structure) {
   const lines = ["flowchart TD"];
-  walkTree(structure.root, {
+  const walker = structure?.graph?.nodes?.length ? walkGraph : walkTree;
+  walker(structure?.graph?.nodes?.length ? structure.graph : structure.root, {
     onNode: (id, node) => lines.push(`  ${id}["${escapeMermaid(label(node))}"]`),
     onEdge: (source, target) => lines.push(`  ${source} --> ${target}`),
   });
@@ -76,7 +98,8 @@ function exportDot(structure) {
     '  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#64748b", fontname="Helvetica"];',
     '  edge [color="#64748b"];',
   ];
-  walkTree(structure.root, {
+  const walker = structure?.graph?.nodes?.length ? walkGraph : walkTree;
+  walker(structure?.graph?.nodes?.length ? structure.graph : structure.root, {
     onNode: (id, node) => lines.push(`  ${id} [label="${escapeDot(label(node))}"];`),
     onEdge: (source, target) => lines.push(`  ${source} -> ${target};`),
   });

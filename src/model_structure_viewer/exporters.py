@@ -57,10 +57,54 @@ def _walk_tree(
     visit(root, None, "")
 
 
+def _walk_graph(structure: ModelStructure, *, on_node: NodeVisitor, on_edge: EdgeVisitor) -> None:
+    graph = structure.graph
+    if graph is None:
+        return
+    used: set[str] = set()
+    ids: dict[str, str] = {}
+    for node in graph.nodes:
+        node_id = _assign_graph_id(node.id, used)
+        ids[node.id] = node_id
+        on_node(node_id, StructureNode(
+            id=node.module_id or node.id,
+            name=node.name or node.module_id or node.id,
+            type=node.type,
+            repeat=node.repeat,
+            attributes=node.attributes,
+            source_fields=node.source_fields,
+            confidence=node.confidence,
+            params=node.params,
+            weight_shapes=node.weight_shapes,
+            dtype=node.dtype,
+            input_shape=node.input_shape,
+            output_shape=node.output_shape,
+            value_source=node.value_source,
+            tensor_names=node.tensor_names,
+        ))
+    for edge in graph.edges:
+        source = ids.get(edge.source)
+        target = ids.get(edge.target)
+        if source and target:
+            on_edge(source, target)
+
+
+def _assign_graph_id(path: str, used: set[str]) -> str:
+    candidate = _slug(path) or f"n_{hashlib.sha1(path.encode('utf-8')).hexdigest()[:6]}"
+    if candidate not in used:
+        used.add(candidate)
+        return candidate
+    digest = hashlib.sha1(path.encode("utf-8")).hexdigest()[:6]
+    disambiguated = f"{candidate}_{digest}"
+    used.add(disambiguated)
+    return disambiguated
+
+
 def export_mermaid(structure: ModelStructure) -> str:
     lines = ["flowchart TD"]
-    _walk_tree(
-        structure.root,
+    walker = _walk_graph if structure.graph is not None and structure.graph.nodes else _walk_tree
+    walker(
+        structure if walker is _walk_graph else structure.root,
         on_node=lambda nid, node: lines.append(f'  {nid}["{_escape_mermaid(_label(node))}"]'),
         on_edge=lambda src, dst: lines.append(f"  {src} --> {dst}"),
     )
@@ -74,8 +118,9 @@ def export_dot(structure: ModelStructure) -> str:
         '  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#64748b", fontname="Helvetica"];',
         '  edge [color="#64748b"];',
     ]
-    _walk_tree(
-        structure.root,
+    walker = _walk_graph if structure.graph is not None and structure.graph.nodes else _walk_tree
+    walker(
+        structure if walker is _walk_graph else structure.root,
         on_node=lambda nid, node: lines.append(f'  {nid} [label="{_escape_dot(_label(node))}"];'),
         on_edge=lambda src, dst: lines.append(f"  {src} -> {dst};"),
     )

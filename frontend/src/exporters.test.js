@@ -39,3 +39,19 @@ test("exports structure as DOT on the frontend", () => {
   assert.match(text, /^digraph ModelStructure/);
   assert.match(text, /rankdir=LR/);
 });
+
+test("exports Graph IR edges instead of a stale legacy tree", () => {
+  const text = exportStructure({
+    root: { name: "stale", type: "model", children: [] },
+    graph: {
+      nodes: [
+        { id: "root", name: "Graph Model", type: "model" },
+        { id: "root.0", name: "Graph Decoder", type: "decoder" },
+      ],
+      edges: [{ id: "declared", source: "root", target: "root.0", kind: "dataflow", evidence: "declared" }],
+    },
+  }, "mermaid");
+  assert.match(text, /Graph Model/);
+  assert.match(text, /Graph Decoder/);
+  assert.doesNotMatch(text, /stale/);
+});

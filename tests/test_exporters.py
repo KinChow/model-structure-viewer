@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from model_structure_viewer.exporters import export_dot, export_mermaid, export_structure
-from model_structure_viewer.schemas import ModelStructure, StructureNode
+from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphEdge, StructureGraphNode, StructureNode
 
 
 def _structure() -> ModelStructure:
@@ -90,3 +90,22 @@ def test_safe_id_handles_pure_cjk_paths():
 def test_export_unsupported_format_raises():
     with pytest.raises(ValueError):
         export_structure(_structure(), "yaml")
+
+
+def test_export_mermaid_prefers_graph_over_legacy_tree():
+    structure = ModelStructure(
+        summary={},
+        source={},
+        root=StructureNode(id="stale", name="Stale", type="model"),
+        graph=StructureGraph(
+            nodes=[
+                StructureGraphNode(id="root", module_id="model", name="Graph Model", type="model"),
+                StructureGraphNode(id="root.0", module_id="decoder", parent_id="root", order=0, name="Graph Decoder", type="decoder"),
+            ],
+            edges=[StructureGraphEdge(id="declared", source="root", target="root.0", evidence="declared")],
+        ),
+    )
+    text = export_mermaid(structure)
+    assert "Graph Model" in text
+    assert "Graph Decoder" in text
+    assert "Stale" not in text

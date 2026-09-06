@@ -36,6 +36,21 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
       implementation: ["vLLM.shared_experts fused or serial", "SGLang.shared_experts"],
     }, { input: dims.hidden, output: dims.hidden }));
   }
+  const declaredEdges = [
+    ["router", "topk"],
+    ["topk", "dispatch"],
+    ["hash_router", "dispatch"],
+    ["routed_expert_down_proj", "dispatch"],
+    ["dispatch", "expert_mlp"],
+    ["expert_mlp", "combine"],
+    ["combine", "routed_expert_norm"],
+    ["routed_expert_norm", "routed_expert_up_proj"],
+    ["combine", "shared_expert_add"],
+    ["shared_experts", "shared_expert_add"],
+    ["shared_expert_gate", "shared_expert_add"],
+  ];
+  const childSuffixes = new Set(children.map((child) => String(child.id || "").split(".").at(-1)));
+  const filteredEdges = declaredEdges.filter(([source, target]) => childSuffixes.has(source) && childSuffixes.has(target));
   return withShapeDims(moduleSpec(
     id,
     isDeepseekV4 ? (isHashMoe ? "DeepSeek V4 Hash Routed MoE" : "DeepSeek V4 Routed MoE") : isKimiK3 ? "Kimi K3 Latent Routed MoE" : "Routed MoE",
@@ -51,6 +66,7 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
       hash_moe: isHashMoe,
       hash_layer_index: isHashMoe ? layerIndex : undefined,
       implementation: isDeepseekV4 ? ["vLLM.DeepseekV4MoE", "SGLang.DeepSeekV4 MoE"] : undefined,
+      dataflow_edges: filteredEdges,
       ...shapeFlow(shapes.hidden, shapes.hidden, {
         router_logits_shape: shapes.routerLogits,
         selected_experts_shape: shapes.topExperts,

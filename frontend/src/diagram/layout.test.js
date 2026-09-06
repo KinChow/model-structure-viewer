@@ -48,6 +48,25 @@ test("layoutGraph consumes explicit IR edges without inferring replacements", ()
   ]);
 });
 
+test("layoutGraph consumes builder-declared edges without using display names", () => {
+  const graph = layoutGraph({
+    name: "model",
+    type: "model",
+    children: [{
+      name: "opaque module",
+      type: "mlp",
+      attributes: { dataflow_edges: [["left", "right"]] },
+      children: [
+        { id: "opaque.left", name: "first branch", type: "operator", children: [] },
+        { id: "opaque.right", name: "second branch", type: "operator", children: [] },
+      ],
+    }],
+  }, new Set(["root", "root.0"]));
+
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [["root.0.0", "root.0.1"]]);
+  assert.equal(graph.edges.some((edge) => edge.evidence === "module-order" && edge.source.startsWith("root.0.")), false);
+});
+
 test("ELK lays out the graph without changing stable node paths", async () => {
   const graph = layoutGraph({
     name: "model", type: "model", children: [

@@ -31,7 +31,7 @@ test("all built-in multi-operator modules use semantic graph edges", async () =>
       const children = graph.nodes.filter((node) => node.path.startsWith(`${parent.path}.`) && node.path.split(".").length === childDepth);
       const edges = graph.edges.filter((edge) => edge.source.startsWith(`${parent.path}.`) && edge.target.startsWith(`${parent.path}.`));
       assert.equal(edges.some((edge) => edge.evidence === "module-order"), false, `${entry.model_id}: ${parent.node.name} has a sequential-only layout edge`);
-      assert.ok(edges.filter((edge) => edge.evidence === "semantic-flow").length >= 2, `${entry.model_id}: ${parent.node.name} has no semantic flow`);
+      assert.ok(edges.filter((edge) => ["semantic-flow", "declared"].includes(edge.evidence)).length >= 2, `${entry.model_id}: ${parent.node.name} has no semantic flow`);
       checked.push({ modelId: entry.model_id, parent: parent.node.name, children: children.length });
     }
   }

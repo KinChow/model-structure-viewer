@@ -1,5 +1,9 @@
+import { materializeDeclaredEdges } from "./declaredEdges.js";
+
 function semanticEdges(item) {
   if (!item?.childItems?.length) return null;
+  const declared = materializeDeclaredEdges(item);
+  if (declared) return declared;
   const type = String(item.node?.type || "").toLowerCase();
   const name = String(item.node?.name || "").toLowerCase();
   const children = item.childItems;

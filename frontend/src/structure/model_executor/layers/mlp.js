@@ -14,6 +14,7 @@ export function mlpModule(id, normalized) {
       class: "MLP",
       hidden_size: normalized.hiddenSize,
       intermediate_size: normalized.intermediateSize,
+      dataflow_edges: [["gate_proj", "swiglu"], ["up_proj", "swiglu"], ["swiglu", "down_proj"]],
       ...shapeFlow(shapes.hidden, shapes.hidden, {
         intermediate_shape: shapes.intermediate,
       }),

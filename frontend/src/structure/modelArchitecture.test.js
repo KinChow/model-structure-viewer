@@ -731,3 +731,18 @@ test("MiniMax M2/M3 attention edges are builder-declared", () => {
     assert.ok(structure.graph.edges.some((edge) => edge.evidence === "declared"), modelPath);
   }
 });
+
+test("Qwen3.5/3.6 linear and full attention edges are builder-declared", () => {
+  for (const modelPath of ["models/Qwen/Qwen3.5-0.8B/config.json", "models/Qwen/Qwen3.6-27B/config.json"]) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, modelPath), "utf8"));
+    const normalized = normalizeConfig(config);
+    const resolved = resolveArchitecture(normalized, { modelId: modelPath });
+    const structure = materializeModelStructure(createStructureIr({
+      network: buildNetwork(resolved, normalized),
+      normalized,
+      resolved,
+    }));
+    const attentionIds = new Set(structure.graph.nodes.filter((node) => node.type === "attention").map((node) => node.id));
+    assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...attentionIds].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
+  }
+});

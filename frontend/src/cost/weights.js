@@ -4,7 +4,7 @@
 // 不手写（子字节量化打包容器宽度、bitsandbytes__ 前缀、exponent-only dtype 等边界都在库里）。
 // 但浏览器 + 非 HF 源（如 ModelScope CDN 不暴露 content-range/etag 响应头）时库会硬抛错，
 // 此时回退到自研 readSafetensorsHeaders（只读响应体，浏览器跨域安全；未量化模型结果等价）。
-// 建树（skeleton.js）自己写，换算优先用库 —— 两件事分开。
+// checkpoint 树由 structure/truth/skeleton.js 构建；这里只负责读取和换算。
 
 import { parseSafetensorsMetadata } from "@huggingface/hub";
 import { readSafetensorsHeaders } from "./safetensorsReader.js";

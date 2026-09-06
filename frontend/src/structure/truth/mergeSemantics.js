@@ -10,7 +10,7 @@
 // 这里只做结构合并与展示字段落位，不做任何换算。
 
 import { buildSkeleton } from "./skeleton.js";
-import { ARCHITECTURE_CATALOG, hasTemplateArchitecture } from "../structure/registry/architectureCatalog.js";
+import { ARCHITECTURE_CATALOG, hasTemplateArchitecture } from "../registry/architectureCatalog.js";
 
 /** 模板家族（由统一架构目录派生，避免 registry/materializer 漂移）。 */
 export const TEMPLATE_FAMILIES = new Set(

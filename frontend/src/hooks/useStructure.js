@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { buildStructureApi } from "../api/client.js";
 import { buildStructureFromArtifacts } from "../structure/buildStructure.js";
-import { loadModelArtifacts, resolveDeferredCheckpointTruth } from "../structure/modelArtifacts.js";
+import { loadModelArtifacts, resolveDeferredCheckpointTruth } from "../model/loadModelArtifacts.js";
 
 export async function buildStructureForPayload(
   payload,

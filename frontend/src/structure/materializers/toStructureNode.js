@@ -1,4 +1,4 @@
-import { enrichNetworkWithTruth, TEMPLATE_FAMILIES } from "../../cost/mergeSemantics.js";
+import { enrichNetworkWithTruth, TEMPLATE_FAMILIES } from "../truth/mergeSemantics.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 
 function structureNodeFromSpec(spec) {

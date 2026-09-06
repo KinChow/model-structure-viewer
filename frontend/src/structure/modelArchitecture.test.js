@@ -9,7 +9,7 @@ import { buildNetwork } from "./model_executor/models/index.js";
 import { createStructureIr } from "./ir/createStructureIr.js";
 import { materializeModelStructure } from "./materializers/toStructureNode.js";
 import { formulaForOperator } from "./formulas/index.js";
-import { TEMPLATE_FAMILIES } from "../cost/mergeSemantics.js";
+import { TEMPLATE_FAMILIES } from "./truth/mergeSemantics.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 

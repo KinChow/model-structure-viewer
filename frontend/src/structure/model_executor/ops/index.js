@@ -84,10 +84,15 @@ export function linearAttentionOperatorSpecs(prefix, normalized) {
       operatorSpec(`${prefix}.f_a_proj`, "gate feature projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
       operatorSpec(`${prefix}.f_b_proj`, "gate expansion projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
       operatorSpec(`${prefix}.b_proj`, "decay projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
-      operatorSpec(`${prefix}.state_update`, "KDA state update", "linear_attention", {
-        ...shapeFlow(`${shapes.hidden}, state`, shapes.hidden), attention_kind: "linear",
+      operatorSpec(`${prefix}.state_update`, "KDA state update", "kimi_kda", {
+        ...shapeFlow(`${shapes.hidden}, state`, shapes.hidden),
+        attention_kind: "linear",
+        mode: "chunk_or_fused_recurrent",
+        qk_l2norm: true,
+        beta_sigmoid: true,
+        gate_lower_bound: normalized.raw?.text_config?.linear_attn_config?.gate_lower_bound ?? normalized.raw?.linear_attn_config?.gate_lower_bound,
       }, { input: dims.hidden, output: dims.hidden }),
-      operatorSpec(`${prefix}.g_proj`, "KDA output gate", "linear_attention_gate", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+      operatorSpec(`${prefix}.g_proj`, "KDA gated RMSNorm", "kimi_kda_output_gate", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
       operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
     ];
   }

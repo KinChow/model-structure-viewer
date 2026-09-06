@@ -76,6 +76,20 @@ const FORMULAS = {
     inputs: ["z", "y"],
     outputs: ["y"],
   },
+  kimi_kda: {
+    title: "Kimi Delta Attention",
+    formula: "S_t = KDA(q_t, k_t, v_t, beta_t, exp(A_log + dt_bias), S_{t-1}); o_t = S_t(q_t, k_t, v_t, g_t)",
+    explanation: "Kimi-K3 的 KDA chunk/recurrent 状态更新，包含 q/k/v 短卷积、beta、forget gate、A_log/dt_bias 和 recurrent state。",
+    inputs: ["q", "k", "v", "beta", "forget_gate", "A_log", "dt_bias", "state"],
+    outputs: ["state", "o"],
+  },
+  kimi_kda_output_gate: {
+    title: "Kimi KDA Gated RMSNorm",
+    formula: "y = RMSNorm(o, sigmoid(g))",
+    explanation: "KDA 输出经过 gated RMSNorm 后再进入 output projection。",
+    inputs: ["o", "g"],
+    outputs: ["y"],
+  },
   mla_query_compress: {
     title: "MLA Query Compression",
     formula: "c^q_t = W_{qa} x_t; q_t = W_{qb} RMSNorm(c^q_t)",

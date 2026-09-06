@@ -2,6 +2,8 @@
 
 这是一个模型结构查看与理论成本分析工具。它读取 `config.json`，并可通过 safetensors header 获取逐张量 dtype、shape 和参数量，生成结构图、层列表、显存分解与瓶颈分析。
 
+版本和重要变更见 [`CHANGELOG.md`](CHANGELOG.md)。
+
 工具不下载权重数据区，也不跑推理。在线模型只读取配置、模型 API 和 safetensors header。当前网页端主要在前端完成组网：
 
 ```text
@@ -38,6 +40,16 @@ python3 -m venv .venv
 .venv/bin/pip install -e '.[test]'
 cd frontend && npm install
 ```
+
+## 版本与变更记录
+
+项目使用 Semantic Versioning（SemVer）：
+
+- `MAJOR`：不兼容的 API、命令行或缓存格式变更。
+- `MINOR`：向后兼容的新功能、模型适配、界面改进或诊断能力。
+- `PATCH`：向后兼容的修复、文档更新和测试调整。
+
+发布前更新 `src/model_structure_viewer/__init__.py` 和 `frontend/package.json` 两个版本源，运行 `npm install --package-lock-only` 同步前端 lockfile，并将 `CHANGELOG.md` 的 `[Unreleased]` 内容归档到带日期的版本节。版本发布应使用 `vX.Y.Z` Git tag。
 
 ## 命令行
 
@@ -144,10 +156,10 @@ npm run dev
 
 ## 已验证支持模型
 
-当前 `models/catalog.json` 中有 44 个内置模型配置，已经全部通过两类验证：
+当前 `models/catalog.json` 中有 59 个内置模型配置，已经全部通过配置组网验证；页面级验证脚本仍需适配现版 React Flow 页面选择器：
 
 - 配置组网验证：读取仓库内置 `config.json`，调用前端 `buildStructureFromConfig`，能够生成带 `summary`、`root` 和子节点的结构。
-- 页面级验证：打开构建后的静态页面，逐个模型在页面里切到 `builtin`、填入 model id、点击 Generate，并确认页面读取了对应的 `models/<org>/<model>/config.json`。同时抽测 Architecture、Layers 展开、Export 和 Raw Config。
+- 页面级验证：脚本目标是打开构建后的静态页面，逐个模型在页面里切到 `builtin`、填入 model id、点击 Generate，并确认页面读取了对应的 `models/<org>/<model>/config.json`，同时抽测 Architecture、Layers 展开、Export 和 Raw Config；当前脚本选择器尚未完全适配 React Flow 版本。
 
 这不是权重验证，也不包含推理验证。
 
@@ -236,7 +248,7 @@ npm run build
 
 部署 `frontend/dist` 到 GitHub Pages 后，`builtin`、`config`、`hf` 和 Hugging Face 搜索可以在没有后端的情况下工作。`local`、后端设置保存、代理 fallback 和 transformers 验证仍需要 API 服务。
 
-仓库的 `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions；部署前会依次执行前端单测、44 个内置模型验证和生产构建。
+仓库的 `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions；部署前会依次执行前端单测、59 个内置模型验证和生产构建。
 
 如果站点部署在子路径，例如 `https://kinchow.github.io/model-structure-viewer/`，需要设置 Vite base：
 
@@ -288,7 +300,7 @@ curl -s http://127.0.0.1:8000/api/verify \
 
 ## 测试
 
-完整系统测试流程见 `docs/testing_skill.md`。常用快速命令如下：
+完整系统测试流程见 [`docs/testing_release.md`](docs/testing_release.md)。常用快速命令如下：
 
 ```bash
 .venv/bin/pytest -q
@@ -315,10 +327,12 @@ MSV_PAGE_URL=http://127.0.0.1:4183/ MSV_CHROME_DEBUG_PORT=9223 npm --prefix fron
 
 ## 文档
 
+- [`docs/README.md`](docs/README.md)
+- [`docs/architecture.md`](docs/architecture.md)
+- [`docs/implementation_plan.md`](docs/implementation_plan.md)
+- [`docs/ui_interaction.md`](docs/ui_interaction.md)
+- [`docs/testing_release.md`](docs/testing_release.md)
+- [`docs/details/models.md`](docs/details/models.md)
+- [`docs/details/modules.md`](docs/details/modules.md)
 - `CHANGELOG.md`
-- `docs/testing_skill.md`
-- `docs/frontend_structure_architecture.md`
-- `docs/reverse_original_space.md`
-- `docs/minimax_m3_mapping.md`
-- `docs/model_source_resolution.md`
 - `models/README.md`

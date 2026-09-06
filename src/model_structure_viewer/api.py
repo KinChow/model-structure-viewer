@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import __version__
 from .errors import ViewerError
 from .exporters import export_structure
 from .resolve.local_cache import LocalModelCache
@@ -34,7 +35,7 @@ def set_settings(new_settings: AppSettings) -> None:
     _settings_holder["current"] = new_settings
 
 
-app = FastAPI(title="Model Structure Viewer", version="0.1.0")
+app = FastAPI(title="Model Structure Viewer", version=__version__)
 
 app.add_middleware(
     CORSMiddleware,

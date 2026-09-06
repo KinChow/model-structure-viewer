@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "model-structure-viewer"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Configuration-driven model structure viewer with local and Hugging Face sources."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,6 +28,9 @@ msv = "model_structure_viewer.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "model_structure_viewer.__version__" }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

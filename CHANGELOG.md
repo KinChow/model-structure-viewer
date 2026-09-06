@@ -1,6 +1,8 @@
-# 更新日志
+# Changelog
 
-这里记录 Model Structure Viewer 的主要变化。
+Model Structure Viewer 的重要变更记录。
+
+本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
 项目按语义化版本管理：
 
@@ -8,7 +10,11 @@
 - `MINOR`：向后兼容的新功能、模型适配、界面改进或诊断能力。
 - `PATCH`：向后兼容的修复、文档更新和测试调整。
 
-## [未发布]
+## [Unreleased]
+
+当前没有尚未归档的变更。
+
+## [0.2.0] - 2026-09-06
 
 ### 新增
 
@@ -17,9 +23,9 @@
 - 新增 TP/PP/EP/DP given-plan 投影、逐 stage fit、最大上下文、通信量和 PD 分离分析。
 - 新增互斥的芯片对比与方案对比模式，只突出 bound 翻转节点；公式、Architecture 和 Layers 使用同一路径双向联动。
 - 公开芯片目录增加 A100、H100、L40S 官方规格及字段级来源；保留 `chips.local.json` 与会话手动录入入口。
-- 内部结构 IR 升级为 `version: 2`；GitHub Pages 官方工作流增加前端单测和 44 模型验证闸门。
+- 内部结构 IR 升级为 `version: 2`；GitHub Pages 官方工作流增加前端单测和 59 模型验证闸门。
 - 新增测试 Skill 文档，固定单测、后端 transformers/API 验证和浏览器页面验证流程。
-- 开始使用这份更新日志管理版本变化。
+- 建立基于 Keep a Changelog 和 Semantic Versioning 的版本管理流程。
 - Layers 卡片和详情面板增加输入/输出维度，使用 `batch`、`sequence`、`hidden size` 这类完整名字，避免缩写看不懂。
 - 前端结构生成器增加统一的 shape 推导，覆盖 embedding、decoder、attention、MLP、MoE、norm、lm head、vision tower 和 projector。
 - 页面级验证增加 readable shape 检查，确认 Layers 展开后能看到输入/输出维度。
@@ -58,18 +64,16 @@
 ### 已知问题
 
 - 后端结构接口依赖 transformers 和本地 remote code。新模型如果还没有被 transformers 支持，会返回明确错误；静态页面的 `builtin` 和 `config` 来源仍然走前端组网。
+- 页面验证脚本 `npm --prefix frontend run verify:page` 仍需适配现版 React Flow 页面选择器，当前未将其作为发布闸门。
 - 国产芯片公开规格目录按当前计划暂缓；非公开或未完整公开的数据仍通过本地配置或手动录入，不在仓库中填估算值。
 
 ### 验证
 
-- 前端单测：`npm --prefix frontend test`，129 个用例通过；F3–F17 中要求测试的公式均有对应用例。
-- 前端内置模型结构验证：`npm --prefix frontend run verify:models`，44/44 通过。
+- 前端单测：`npm --prefix frontend test`，172 个用例通过；F3–F17 中要求测试的公式均有对应用例。
+- 前端内置模型结构验证：`npm --prefix frontend run verify:models`，59/59 通过。
 - 前端构建：`npm --prefix frontend run build` 通过。
-- 浏览器页面验证：`npm --prefix frontend run verify:page`，44/44 通过，并确认 L40S、方案对比双栏、公式节点联动和 readable shape。
 - 浏览器手动验证：SmolLM2-135M checkpoint 节点账本与模型参数均为 134,515,008；Qwen 低互联 Decode TP1→TP8 出现 2 个 `memory→comm` 翻转；后端 local/settings 路径通过。
-- 后端单测：`.venv/bin/pytest -q`，122 个用例通过。
-- 后端 transformers 严格验证：仓库内置 44 个模型 `msv verify --root ./models --offline` 全部通过。
-- 后端 HTTP 验证：真实启动 `msv serve`，`/api/models` 返回 44 个模型，`/api/structure` 44/44 通过，结构策略只出现 `meta-introspect` 和 `repaired-meta-introspect`。
+- 后端单测：`.venv/bin/pytest -q`，130 个用例通过。
 
 ## [0.1.0] - 2026-07-04
 
@@ -88,3 +92,7 @@
 ### 说明
 
 - 这个工具用于从模型配置和元数据查看结构。它不下载权重，也不运行推理。
+
+[Unreleased]: https://github.com/KinChow/model-structure-viewer/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/KinChow/model-structure-viewer/releases/tag/v0.2.0
+[0.1.0]: https://github.com/KinChow/model-structure-viewer/releases/tag/v0.1.0

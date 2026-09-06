@@ -81,8 +81,18 @@ function derivedVisionParameters(config) {
   const patchEmbedding = channels * temporalPatch * patch * patch * hidden;
   const attention = hidden * (3 * heads * headDim) + (heads * headDim) * hidden + 2 * hidden;
   const mlp = config.visionMlpGated ? 3 * hidden * intermediate : 2 * hidden * intermediate;
-  const projector = (config.visionOutputSize || hidden) * (config.hiddenSize || hidden);
-  return patchEmbedding + layers * (attention + mlp) + projector;
+  const output = config.visionOutputSize || hidden;
+  const mergeWidth = (config.visionMergeSize || 1) ** 2 * hidden;
+  const merger = config.visionInternalMerger
+    ? config.modelType === "glm5_next"
+      ? mergeWidth * output + output * output + 2 * output * (config.visionMergerIntermediateSize || intermediate)
+        + output * (config.visionMergerIntermediateSize || intermediate)
+      : mergeWidth * mergeWidth + mergeWidth * output
+    : output * (config.hiddenSize || hidden);
+  const downsample = config.visionInternalMerger && config.modelType === "glm5_next"
+    ? (config.visionMergeSize || 1) ** 2 * hidden * output
+    : 0;
+  return patchEmbedding + layers * (attention + mlp) + merger + downsample;
 }
 
 function qwen35LinearAttentionParameters(config) {

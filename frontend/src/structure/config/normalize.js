@@ -66,24 +66,32 @@ function derivedHeadDim(hiddenSize, attentionHeads) {
   return hiddenSize / attentionHeads;
 }
 
-function visionTokenCount(config) {
+function visionPatchTokenCount(config) {
   const imageSize = firstNumber(config, ["image_size"]);
   const patchSize = firstNumber(config, ["patch_size"]);
-  const mergeSize = firstNumber(config, ["spatial_merge_size"])
-    ?? firstNumber(config?.img_token_compression_config, ["spatial_merge_size"])
-    ?? (Array.isArray(config?.merge_kernel_size) ? firstNumber({ value: config.merge_kernel_size[0] }, ["value"]) : undefined);
   if (!imageSize || !patchSize) {
     const positionCount = firstNumber(config, ["num_position_embeddings"]);
-    const merge = mergeSize || 1;
-    if (positionCount) return Math.floor(positionCount / (merge * merge));
+    if (positionCount) return positionCount;
     const height = firstNumber(config, ["init_pos_emb_height"]);
     const width = firstNumber(config, ["init_pos_emb_width"]);
-    if (height && width) return Math.floor((height * width) / (merge * merge));
+    if (height && width) return height * width;
     return undefined;
   }
   const patches = Math.floor(imageSize / patchSize);
-  const merge = mergeSize || 1;
-  return Math.floor((patches * patches) / (merge * merge));
+  return patches * patches;
+}
+
+function visionMergeSize(config) {
+  return firstNumber(config, ["spatial_merge_size"])
+    ?? firstNumber(config?.img_token_compression_config, ["spatial_merge_size"])
+    ?? (Array.isArray(config?.merge_kernel_size) ? firstNumber({ value: config.merge_kernel_size[0] }, ["value"]) : undefined)
+    ?? 1;
+}
+
+function visionTokenCount(config) {
+  const patchTokens = visionPatchTokenCount(config);
+  const merge = visionMergeSize(config);
+  return patchTokens ? Math.floor(patchTokens / (merge * merge)) : undefined;
 }
 
 function explicitLayerSchedule(config, layers) {
@@ -278,6 +286,10 @@ export function normalizeConfig(config) {
         ?? (Array.isArray(visionConfig?.merge_kernel_size) ? firstNumber({ value: visionConfig.merge_kernel_size[0] }, ["value"]) : undefined)
       : undefined,
     visionTokens: visionConfig ? visionTokenCount(visionConfig) : undefined,
+    visionPatchTokens: visionConfig ? visionPatchTokenCount(visionConfig) : undefined,
+    visionMergeSize: visionConfig ? visionMergeSize(visionConfig) : 1,
+    visionInternalMerger: Boolean(visionConfig && ["qwen3_5", "qwen4_exp", "glm5_next"].some((kind) => String(config?.model_type || "").includes(kind))),
+    visionMergerIntermediateSize: visionConfig ? firstNumber(visionConfig, ["projection_intermediate_size"]) : undefined,
     visionMlpGated: visionConfig
       ? String(visionConfig.hidden_act || "").toLowerCase().includes("silu")
         || String(config?.model_type || "").toLowerCase().includes("glm5_next")

@@ -62,6 +62,13 @@ const FORMULAS = {
     inputs: ["patch tokens", "position"],
     outputs: ["position-aware tokens"],
   },
+  vision_merge: {
+    title: "Vision Patch Merge",
+    formula: "y_{i,j} = concat(x_{mi+a,mj+b})_{a,b=0}^{r-1}",
+    explanation: "将相邻空间 patch token 按 merge size 重排并拼接，为视觉投影层提供合并后的 token。",
+    inputs: ["patch tokens", "merge size"],
+    outputs: ["merged visual tokens"],
+  },
   vision_activation: {
     title: "Vision Activation",
     formula: "y = phi(x)",

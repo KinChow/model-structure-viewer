@@ -10,9 +10,11 @@ function visionDimensions(normalized) {
   const channels = normalized.visionChannels || 3;
   const patch = normalized.visionPatchSize || 0;
   const temporalPatch = normalized.visionTemporalPatchSize || 1;
-  // The visual-token count is a workload assumption, not a matrix width.
-  // Keep it out of numeric shapes so linear MACs do not multiply it twice.
+  // The visual-token counts are workload assumptions, not matrix widths.
+  // Keep both dimensions dynamic so linear MACs do not multiply them twice.
   const tokens = -1;
+  const mergedTokens = -1;
+  const mergeSize = normalized.visionMergeSize || 1;
   return {
     hidden, heads, headDim, intermediate, channels, patch, temporalPatch, tokens,
     visual: [-1, tokens, hidden],
@@ -23,6 +25,9 @@ function visionDimensions(normalized) {
     context: [-1, tokens, heads, headDim],
     intermediateShape: [-1, tokens, intermediate],
     gatedMlp: Boolean(normalized.visionMlpGated),
+    mergedVisual: [-1, mergedTokens, normalized.visionOutputSize || hidden],
+    mergedWidth: mergeSize * mergeSize * hidden,
+    mergeSize,
   };
 }
 
@@ -69,6 +74,7 @@ function visionLayerModule(id, normalized) {
       operatorSpec(`${id}.fc2`, "vision feed-forward output projection", "linear", { ...shapeFlow(intermediate, visual), modality: "vision" }, { input: d.intermediateShape, output: d.visual }),
     ];
   const children = [...attentionChildren, ...mlpChildren];
+  children.forEach((child) => { child.attributes.vision_stage = "encoder"; });
   const mlpEdges = d.gatedMlp
     ? [["post_norm", "gate_proj"], ["post_norm", "up_proj"], ["gate_proj", "activation"], ["up_proj", "activation"], ["activation", "down_proj"]]
     : [["post_norm", "fc1"], ["fc1", "activation"], ["activation", "fc2"]];
@@ -84,6 +90,47 @@ function visionLayerModule(id, normalized) {
       ["out_proj", "post_norm"], ...mlpEdges,
     ],
   }, children), d.visual, d.visual);
+}
+
+function visionMergerModule(id, normalized) {
+  const d = visionDimensions(normalized);
+  const inputShape = `[batch, patch tokens, vision hidden size=${d.hidden}]`;
+  const mergedShape = `[batch, visual tokens, merged width=${d.mergedWidth}]`;
+  const outputShape = `[batch, visual tokens, vision hidden size=${normalized.visionOutputSize || d.hidden}]`;
+  const children = [
+    operatorSpec(`${id}.patch_merge`, "vision patch merge", "vision_merge", {
+      ...shapeFlow(inputShape, mergedShape), modality: "vision", vision_stage: "merger", merge_size: d.mergeSize,
+    }, { input: d.visual, output: [-1, -1, d.mergedWidth] }),
+    operatorSpec(`${id}.norm`, "vision merger norm", "rmsnorm", {
+      ...shapeFlow(mergedShape, mergedShape), modality: "vision", vision_stage: "merger",
+    }, { input: [-1, -1, d.mergedWidth], output: [-1, -1, d.mergedWidth] }),
+  ];
+  if (normalized.modelType === "glm5_next") {
+    const intermediate = normalized.visionMergerIntermediateSize || d.intermediate;
+    children.push(
+      operatorSpec(`${id}.proj`, "vision merger projection", "linear", { ...shapeFlow(mergedShape, outputShape), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, d.mergedWidth], output: d.mergedVisual }),
+      operatorSpec(`${id}.post_norm`, "vision merger post norm", "rmsnorm", { ...shapeFlow(outputShape, outputShape), modality: "vision", vision_stage: "merger" }, { input: d.mergedVisual, output: d.mergedVisual }),
+      operatorSpec(`${id}.gate_proj`, "vision merger gate projection", "linear", { ...shapeFlow(outputShape, `[batch, visual tokens, merger intermediate=${intermediate}]`), modality: "vision", vision_stage: "merger" }, { input: d.mergedVisual, output: [-1, -1, intermediate] }),
+      operatorSpec(`${id}.up_proj`, "vision merger up projection", "linear", { ...shapeFlow(outputShape, `[batch, visual tokens, merger intermediate=${intermediate}]`), modality: "vision", vision_stage: "merger" }, { input: d.mergedVisual, output: [-1, -1, intermediate] }),
+      operatorSpec(`${id}.activation`, "vision merger SwiGLU activation", "swiglu", { ...shapeFlow("[batch, visual tokens, merger intermediate]", "[batch, visual tokens, merger intermediate]"), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, intermediate], output: [-1, -1, intermediate] }),
+      operatorSpec(`${id}.down_proj`, "vision merger down projection", "linear", { ...shapeFlow("[batch, visual tokens, merger intermediate]", outputShape), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, intermediate], output: d.mergedVisual }),
+    );
+  } else {
+    children.push(
+      operatorSpec(`${id}.fc1`, "vision merger projection", "linear", { ...shapeFlow(mergedShape, mergedShape), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, d.mergedWidth], output: [-1, -1, d.mergedWidth] }),
+      operatorSpec(`${id}.activation`, "vision merger activation", "vision_activation", { ...shapeFlow(mergedShape, mergedShape), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, d.mergedWidth], output: [-1, -1, d.mergedWidth] }),
+      operatorSpec(`${id}.fc2`, "vision merger output projection", "linear", { ...shapeFlow(mergedShape, outputShape), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, d.mergedWidth], output: d.mergedVisual }),
+    );
+  }
+  const edges = normalized.modelType === "glm5_next"
+    ? [["patch_merge", "norm"], ["norm", "proj"], ["proj", "post_norm"], ["post_norm", "gate_proj"], ["post_norm", "up_proj"], ["gate_proj", "activation"], ["up_proj", "activation"], ["activation", "down_proj"]]
+    : [["patch_merge", "norm"], ["norm", "fc1"], ["fc1", "activation"], ["activation", "fc2"]];
+  return withShapeDims(moduleSpec(id, "Vision Merger", "vision-merger", {
+    class: normalized.modelType === "glm5_next" ? "Glm5NextPatchMerger" : "Qwen3VisionPatchMerger",
+    modality: "vision",
+    merge_size: d.mergeSize,
+    dataflow_edges: edges,
+  }, children), d.visual, d.mergedVisual);
 }
 
 export function visionTowerModule(normalized) {
@@ -105,6 +152,7 @@ export function visionTowerModule(normalized) {
       modality: "vision",
     }, { input: d.visual, output: d.visual }),
     ...(layer ? [layer] : []),
+    ...(normalized.visionInternalMerger ? [visionMergerModule("vision_tower.merger", normalized)] : []),
   ];
   return withShapeDims(moduleSpec(
     "vision_tower",
@@ -118,10 +166,14 @@ export function visionTowerModule(normalized) {
       num_attention_heads: d.heads,
       intermediate_size: d.intermediate,
       vision_tokens: normalized.visionTokens,
-      dataflow_edges: layer ? [["patch_embed", "position"], ["position", "0"]] : [["patch_embed", "position"]],
+      dataflow_edges: [
+        ["patch_embed", "position"],
+        ...(layer ? [["position", "0"]] : []),
+        ...(normalized.visionInternalMerger ? [[layer ? "0" : "position", "merger"]] : []),
+      ],
       ...shapeFlow(shapes.visionInput, shapes.visionOutput),
     },
     children,
     layers || undefined,
-  ), [-1, -1, -1, -1, -1], [-1, -1, normalized.visionOutputSize ?? d.hidden]);
+  ), [-1, -1, -1, -1, -1], d.mergedVisual);
 }

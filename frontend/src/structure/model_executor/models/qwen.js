@@ -40,7 +40,7 @@ export function buildMlaMultimodalNetwork(resolved, normalized) {
 function buildMultimodalDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind }) {
   return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.canonicalArchitecture, [
     visionTowerModule(normalized),
-    ...(normalized.hasVisionProjector ? [projectorModule(normalized)] : []),
+    ...(normalized.hasVisionProjector && !normalized.visionInternalMerger ? [projectorModule(normalized)] : []),
     embeddingModule("embed_tokens", normalized),
     decoderStackNetwork("decoder", normalized, {
       attentionKind,

@@ -125,9 +125,9 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
   const structure = materializeModelStructure(createStructureIr({ network, normalized, resolved }));
 
   assert.equal(resolved.canonicalArchitecture, "multimodal-gqa-moe-decoder");
-  assert.deepEqual(network.children.map((child) => child.id), ["vision_tower", "projector", "embed_tokens", "decoder", "norm", "lm_head"]);
+  assert.deepEqual(network.children.map((child) => child.id), ["vision_tower", "embed_tokens", "decoder", "norm", "lm_head"]);
   assert.equal(structure.root.children[0].attributes.output_shape, "[batch, visual_tokens, vision hidden size=2560]");
-  assert.equal(structure.root.children[1].attributes.input_shape, "[batch, visual_tokens, vision hidden size=2560]");
+  assert.equal(structure.root.children.some((node) => node.id === "projector"), false);
   assert.equal(structure.summary.vision_layers, 27);
   assert.equal(structure.summary.vision_output_size, 2560);
   assert.equal(TEMPLATE_FAMILIES.has(resolved.canonicalArchitecture), true);
@@ -135,7 +135,7 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
 
 test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks", () => {
   const cases = [
-    ["Qwen/Qwen3.6-27B", "multimodal-gqa-decoder", true],
+    ["Qwen/Qwen3.6-27B", "multimodal-gqa-decoder", false],
     ["moonshotai/Kimi-K2.5", "multimodal-mla-moe-decoder", true],
     ["deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", "multimodal-mla-moe-decoder", false],
   ];
@@ -150,6 +150,9 @@ test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks",
     assert.equal(network.children.some((node) => node.id === "vision_tower"), true, modelId);
     assert.equal(network.children.some((node) => node.id === "projector"), hasProjector, modelId);
     assert.equal(network.children.find((node) => node.id === "vision_tower").children.length > 0, true, modelId);
+    if (modelId.startsWith("Qwen/")) {
+      assert.equal(network.children.find((node) => node.id === "vision_tower").children.some((node) => node.name === "Vision Merger"), true, modelId);
+    }
   }
 });
 

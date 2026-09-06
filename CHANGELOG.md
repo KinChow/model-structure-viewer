@@ -15,6 +15,7 @@ Model Structure Viewer 的重要变更记录。
 - 后端 introspection 改为通过 `GraphDraft` 直接生成 Graph IR v2，`StructureNode` 只作为兼容投影和旧调用入口。
 - 前端搜索、节点选择、祖先展开、面包屑和顶层模块列表优先从 Graph IR 稳定路径读取，新增 graph selector 单测。
 - `ModelStructure` 统一校验 graph/root 互相投影：Graph IR 为规范载荷，root-only 旧调用仍可用，graph-only 载荷自动生成 root 兼容视图。
+- 成本汇总、通信、并行投影和节点 lens 的生产入口改为 graph-only；root 仅保留给旧测试和兼容调用。
 - 本阶段验证：后端 `148 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
 
 ## [0.2.0] - 2026-09-06

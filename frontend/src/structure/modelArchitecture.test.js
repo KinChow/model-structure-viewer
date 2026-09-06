@@ -303,20 +303,15 @@ test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () =>
   assert.equal(firstLayer.children[2].name, "mHC fused post + FFN pre");
   assert.ok(firstLayer.children.every((node) => !["input layernorm", "post attention layernorm"].includes(node.name)));
   assert.deepEqual(firstAttention.children.map((node) => node.name), [
-    "fused qkvbfg_a projection",
-    "qkvbfg_a split",
-    "q causal short convolution",
-    "k causal short convolution",
-    "v causal short convolution",
-    "forget gate projection",
-    "output gate projection",
-    "A_log decay parameter",
-    "dt bias parameter",
-    "gated delta recurrent state",
+    "QKV projection",
+    "beta projection",
+    "forget/decay gate projection",
+    "qkv causal short convolution",
+    "KDA recurrent state",
     "gated RMSNorm",
     "output projection",
   ]);
-  const stateUpdate = firstAttention.children.find((node) => node.name === "gated delta recurrent state");
+  const stateUpdate = firstAttention.children.find((node) => node.name === "KDA recurrent state");
   assert.equal(stateUpdate.attributes.formula_id, "gated_delta_attention");
   assert.equal(stateUpdate.attributes.safe_gate, true);
   assert.equal(stateUpdate.attributes.gate_lower_bound, -5);
@@ -326,4 +321,43 @@ test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () =>
   const lastLayer = decoder.children.at(-1);
   assert.equal(lastLayer.children.at(-2).name, "mHC final post");
   assert.equal(lastLayer.children.at(-1).name, "mHC contract");
+});
+
+test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific implementations", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/moonshotai/Kimi-K3/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.equal(normalized.linearAttentionMode, "kimi_k3");
+  assert.equal(normalized.sharedExpertIntermediateSize, 6144);
+  assert.equal(normalized.routedExpertHiddenSize, 3584);
+  const resolved = resolveArchitecture(normalized, { modelId: "moonshotai/Kimi-K3" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "decoder");
+  const kdaLayer = decoder.children[0];
+  const attention = kdaLayer.children.find((node) => node.type === "attention");
+  assert.deepEqual(attention.children.map((node) => node.name), [
+    "QKV projection",
+    "beta projection",
+    "forget/decay gate projection",
+    "qkv causal short convolution",
+    "KDA recurrent state",
+    "gated RMSNorm",
+    "output projection",
+  ]);
+  assert.deepEqual(attention.children[0].attributes.implementation, {
+    input_projection: "fused_qkvg_proj",
+    beta_projection: "b_proj",
+    decay_projection: ["f_a_proj", "f_b_proj"],
+    short_convolution: "qkv_conv1d",
+    output_gate: "fused_qkvg_proj.g",
+  });
+  const moeLayer = decoder.children.find((node) => node.attributes.range === "1..2");
+  const moe = moeLayer.children.find((node) => node.type === "moe");
+  assert.ok(moe.children.some((node) => node.name === "routed expert latent down projection"));
+  assert.ok(moe.children.some((node) => node.name === "routed expert latent up projection"));
+  const shared = moe.children.find((node) => node.id.endsWith(".shared_experts"));
+  assert.equal(shared.attributes.intermediate_size, 6144);
 });

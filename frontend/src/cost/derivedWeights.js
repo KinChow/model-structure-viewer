@@ -24,6 +24,8 @@ export function derivedWeightParameters(config = {}) {
     if (attentionKind === "linear") {
       attentionParameters = config.linearAttentionMode === "glm5_next"
         ? glm5NextLinearAttentionParameters(config)
+        : config.linearAttentionMode === "kimi_k3"
+          ? kimiK3LinearAttentionParameters(config)
         : genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim });
     } else if (attentionKind === "mla" && config.qLoraRank && config.kvLoraRank) {
       const ropeDim = config.qkRopeHeadDim || 0;
@@ -40,7 +42,7 @@ export function derivedWeightParameters(config = {}) {
         ? hidden * routedExpertHidden + routedExpertHidden * hidden
         : 0;
       decoder += attentionParameters + norms + mhcParameters + hidden * experts + routedExperts + latentProjection;
-      decoder += sharedExperts * 3 * hidden * sharedIntermediate;
+      decoder += (config.sharedExpertsAreFused ? 1 : sharedExperts) * 3 * hidden * sharedIntermediate;
     } else {
       decoder += attentionParameters + norms + mhcParameters + 3 * hidden * denseIntermediate;
     }
@@ -70,6 +72,23 @@ function glm5NextLinearAttentionParameters(config) {
   const convKernel = config.linearConvKernelSize || 0;
   return hidden * (3 * projection + heads + 2 * headDim)
     + 2 * headDim * projection
+    + 3 * projection * convKernel
+    + projection
+    + heads
+    + headDim
+    + projection * hidden;
+}
+
+function kimiK3LinearAttentionParameters(config) {
+  const hidden = config.hiddenSize || 0;
+  const heads = config.linearKeyHeads || config.attentionHeads || 0;
+  const headDim = config.linearKeyDim || config.headDim || 0;
+  const projection = heads * headDim;
+  const convKernel = config.linearConvKernelSize || 0;
+  return hidden * 4 * projection
+    + hidden * heads
+    + hidden * headDim
+    + headDim * projection
     + 3 * projection * convKernel
     + projection
     + heads

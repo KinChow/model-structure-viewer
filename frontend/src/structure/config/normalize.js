@@ -128,6 +128,7 @@ export function normalizeConfig(config) {
     linearValueDim: firstNumber(textConfig, LINEAR_VALUE_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_VALUE_DIM_KEYS),
     linearConvKernelSize: firstNumber(textConfig, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]) ?? firstNumber(linearAttentionConfig, ["short_conv_kernel_size"]) ?? firstNumber(config, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]),
     linearLowerBound: firstNumber(textConfig, ["linear_lower_bound"]) ?? firstNumber(linearAttentionConfig, ["gate_lower_bound"]) ?? firstNumber(config, ["linear_lower_bound"]),
+    linearUseFullRankGate: Boolean(textConfig?.linear_attn_config?.use_full_rank_gate ?? config?.linear_attn_config?.use_full_rank_gate),
     indexerNHeads: firstNumber(textConfig, ["index_n_heads", "indexer_n_heads"]) ?? firstNumber(config, ["index_n_heads", "indexer_n_heads"]),
     indexerKVHeads: firstNumber(textConfig, ["indexer_kv_heads"]) ?? firstNumber(config, ["indexer_kv_heads"]),
     indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim"]) ?? firstNumber(config, ["indexer_head_dim"]),
@@ -149,7 +150,11 @@ export function normalizeConfig(config) {
     routedExpertHiddenSize: firstNumber(textConfig, ["routed_expert_hidden_size"]) ?? firstNumber(config, ["routed_expert_hidden_size"]),
     expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),
     sharedExperts: firstNumber(textConfig, SHARED_EXPERT_KEYS) ?? firstNumber(config, SHARED_EXPERT_KEYS),
-    sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS),
+    sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS)
+      ?? (String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3")
+        ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
+        : undefined),
+    sharedExpertsAreFused: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3"),
     sharedExpertGate: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null && textConfig?.output_gate_type != null,
     hyperConnectionCount: firstNumber(textConfig, ["hc_count"]) ?? firstNumber(config, ["hc_count"]),
     hyperConnectionLowrank: firstNumber(textConfig, ["hc_lowrank"]) ?? firstNumber(config, ["hc_lowrank"]),
@@ -157,8 +162,10 @@ export function normalizeConfig(config) {
     pleEmbedDim: firstNumber(textConfig, ["ple_embed_dim"]) ?? firstNumber(config, ["ple_embed_dim"]),
     attnResBlockSize: firstNumber(textConfig, ["attn_res_block_size"]) ?? firstNumber(config, ["attn_res_block_size"]),
     mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
-    linearAttentionMode: String(config?.model_type || textConfig?.model_type || "").includes("kimi") || String(textConfig?.model_type || "").includes("kimi")
-      ? "kimi"
+    linearAttentionMode: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3")
+      ? "kimi_k3"
+      : String(config?.model_type || textConfig?.model_type || "").includes("kimi") || String(textConfig?.model_type || "").includes("kimi")
+        ? "kimi"
       : String(config?.model_type || textConfig?.model_type || "").includes("qwen4_exp")
         ? "qwen4_exp"
         : String(config?.model_type || textConfig?.model_type || "").includes("glm5_next")

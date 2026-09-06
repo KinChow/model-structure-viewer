@@ -35,6 +35,7 @@ export function attentionMacs(config, { batch = 1, sequence = 1, phase = "prefil
 
 export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   if (config?.linearAttentionMode === "glm5_next") return glm5NextLinearAttentionMacs(config, { batch, sequence, phase });
+  if (config?.linearAttentionMode === "kimi_k3") return kimiK3LinearAttentionMacs(config, { batch, sequence, phase });
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -62,6 +63,23 @@ function glm5NextLinearAttentionMacs(config, { batch = 1, sequence = 1, phase = 
   const gatedNorm = 3 * projection;
   const outputProjection = projection * hidden;
   return tokens * (fusedProjection + gateProjections + shortConvolution + recurrentState + gatedNorm + outputProjection);
+}
+
+function kimiK3LinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const tokens = batch * (phase === "decode" ? 1 : sequence);
+  const hidden = config?.hiddenSize || 0;
+  const heads = config?.linearKeyHeads || config?.attentionHeads || 0;
+  const headDim = config?.linearKeyDim || config?.headDim || 0;
+  const projection = heads * headDim;
+  const convKernel = config?.linearConvKernelSize || 0;
+  const fusedQkvg = hidden * 4 * projection;
+  const betaProjection = hidden * heads;
+  const decayProjection = hidden * headDim + headDim * projection;
+  const shortConvolution = 3 * projection * convKernel;
+  const recurrentState = 3 * heads * headDim * headDim;
+  const gatedNorm = 3 * projection;
+  const outputProjection = projection * hidden;
+  return tokens * (fusedQkvg + betaProjection + decayProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
 
 export function qsaAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {

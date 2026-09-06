@@ -117,6 +117,11 @@ function semanticEdges(item) {
     const dispatch = find(/dispatch/);
     const expert = find(/expert.*(mlp|feed.?forward)|expert mlp/);
     const combine = find(/combine|scatter/);
+    const latentDown = find(/latent down projection/);
+    const latentNorm = find(/latent rmsnorm/);
+    const latentUp = find(/latent up projection/);
+    const sharedAdd = find(/shared expert branch add/);
+    const sharedMlp = find(/shared expert mlp/);
     const edges = [];
     const add = (source, target) => {
       if (!source || !target || source.path === target.path) return;
@@ -128,6 +133,18 @@ function semanticEdges(item) {
         evidence: "semantic-flow",
       });
     };
+    if (latentDown && latentNorm && latentUp && sharedAdd && sharedMlp) {
+      add(router, topk);
+      add(topk, dispatch);
+      add(latentDown, dispatch);
+      add(dispatch, expert);
+      add(expert, combine);
+      add(combine, latentNorm);
+      add(latentNorm, latentUp);
+      add(latentUp, sharedAdd);
+      add(sharedMlp, sharedAdd);
+      return edges.length >= 8 ? edges : null;
+    }
     add(router, topk);
     add(topk, dispatch);
     add(dispatch, expert);
@@ -157,6 +174,21 @@ function semanticEdges(item) {
       edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
     };
     const qwenNorm = find(/gated rmsnorm|^norm$/);
+    const canonicalQkv = find(/^qkv projection$/);
+    const canonicalBeta = find(/^beta projection$/);
+    const canonicalDecay = find(/forget\/decay gate projection/);
+    const canonicalConv = find(/qkv causal short convolution/);
+    const canonicalState = find(/kda recurrent state/);
+    const canonicalGateNorm = find(/gated rmsnorm/);
+    if (canonicalQkv && canonicalBeta && canonicalDecay && canonicalConv && canonicalState && canonicalGateNorm) {
+      add(canonicalQkv, canonicalConv);
+      add(canonicalConv, canonicalState);
+      add(canonicalBeta, canonicalState);
+      add(canonicalDecay, canonicalState);
+      add(canonicalState, canonicalGateNorm);
+      add(canonicalGateNorm, output);
+      return edges.length >= 6 ? edges : null;
+    }
     if (glmFused && glmSplit && glmQkvConv.length === 3 && glmState && glmOutputNorm) {
       add(glmFused, glmSplit);
       glmQkvConv.forEach((branch) => add(glmSplit, branch));

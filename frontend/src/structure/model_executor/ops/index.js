@@ -73,13 +73,14 @@ export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
 export function linearAttentionOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
+  if (normalized.linearAttentionMode === "kimi_k3") {
+    return canonicalKdaOperatorSpecs(prefix, normalized, "kimi_k3");
+  }
   if (normalized.linearAttentionMode === "kimi") {
-    const kdaFormula = "kimi_kda";
-    const gateFormula = "kimi_kda_output_gate";
-    return kdaLinearAttentionOperatorSpecs(prefix, normalized, kdaFormula, gateFormula);
+    return canonicalKdaOperatorSpecs(prefix, normalized, "kimi");
   }
   if (normalized.linearAttentionMode === "glm5_next") {
-    return glm5NextLinearAttentionOperatorSpecs(prefix, normalized);
+    return canonicalKdaOperatorSpecs(prefix, normalized, "glm5_next");
   }
   if (normalized.linearAttentionMode === "qwen4_exp") {
     return [
@@ -102,6 +103,171 @@ export function linearAttentionOperatorSpecs(prefix, normalized) {
     }, { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${prefix}.output_gate`, "linear attention output gate", "linear_attention_gate", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+  ];
+}
+
+// KDA is one semantic structure. Framework-specific fused projections remain
+// in attributes so vLLM/SGLang implementation details do not duplicate nodes.
+function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const heads = normalized.linearKeyHeads || normalized.attentionHeads || 0;
+  const headDim = normalized.linearKeyDim || normalized.headDim || 0;
+  const projection = heads * headDim;
+  const qkvShape = `[batch, sequence, linear heads=${heads}, head dimension=${headDim}]`;
+  const betaShape = `[batch, sequence, linear heads=${heads}]`;
+  const gateShape = qkvShape;
+  const stateShape = `[batch, linear heads=${heads}, state value dimension=${headDim}, state key dimension=${headDim}]`;
+  const qkvDims = [-1, -1, heads, headDim];
+  const betaDims = [-1, -1, heads];
+  const fullRank = modelKind === "kimi_k3";
+  const implementation = fullRank
+    ? {
+      input_projection: "fused_qkvg_proj",
+      beta_projection: "b_proj",
+      decay_projection: ["f_a_proj", "f_b_proj"],
+      short_convolution: "qkv_conv1d",
+      output_gate: "fused_qkvg_proj.g",
+    }
+    : {
+      input_projection: "in_proj_qkvbfg_a",
+      beta_projection: "in_proj_qkvbfg_a.beta",
+      decay_projection: ["in_proj_qkvbfg_a.f_a", "f_b_proj"],
+      short_convolution: ["q_conv1d", "k_conv1d", "v_conv1d"],
+      output_gate: ["in_proj_qkvbfg_a.g_a", "g_b_proj"],
+    };
+  const projectionLayout = fullRank ? ["q", "k", "v", "g"] : ["q", "k", "v", "beta", "f_a", "g_a"];
+  return [
+    operatorSpec(`${prefix}.qkv_projection`, "QKV projection", "linear", {
+      ...shapeFlow(shapes.hidden, qkvShape),
+      semantic_role: "q_k_v_projection",
+      implementation,
+      projection_size: projection,
+      fused_projection_layout: projectionLayout,
+    }, { input: dims.hidden, output: qkvDims }),
+    operatorSpec(`${prefix}.beta_projection`, "beta projection", "linear", {
+      ...shapeFlow(shapes.hidden, betaShape),
+      semantic_role: "delta_beta",
+      implementation: implementation.beta_projection,
+      activation: "sigmoid_in_kda_kernel",
+    }, { input: dims.hidden, output: betaDims }),
+    operatorSpec(`${prefix}.decay_projection`, "forget/decay gate projection", "linear", {
+      ...shapeFlow(shapes.hidden, gateShape),
+      semantic_role: "forget_gate_logits",
+      implementation: implementation.decay_projection,
+      gate_lower_bound: normalized.linearLowerBound,
+    }, { input: dims.hidden, output: qkvDims }),
+    operatorSpec(`${prefix}.short_conv`, "qkv causal short convolution", "causal_conv1d", {
+      ...shapeFlow(qkvShape, qkvShape),
+      semantic_role: "q_k_v_short_convolution",
+      implementation: implementation.short_convolution,
+      branches: ["q", "k", "v"],
+      kernel_size: normalized.linearConvKernelSize,
+      activation: "silu",
+    }, { input: qkvDims, output: qkvDims }),
+    operatorSpec(`${prefix}.state_update`, "KDA recurrent state", "gated_delta_attention", {
+      ...shapeFlow(`${qkvShape}, ${betaShape}, ${stateShape}`, qkvShape),
+      semantic_role: "gated_delta_recurrent_state",
+      model_kind: modelKind,
+      attention_kind: "linear",
+      mode: "chunk_prefill_or_fused_recurrent",
+      qk_l2norm: true,
+      beta_activation: "sigmoid",
+      safe_gate: true,
+      gate_lower_bound: normalized.linearLowerBound,
+      decay_parameters: ["A_log", "dt_bias"],
+      state_shape: stateShape,
+    }, { input: qkvDims, output: qkvDims }),
+    operatorSpec(`${prefix}.output_gate_norm`, "gated RMSNorm", "gated_rmsnorm", {
+      ...shapeFlow(qkvShape, qkvShape),
+      semantic_role: "gated_output_normalization",
+      implementation: implementation.output_gate,
+      gate_shape: gateShape,
+      activation: "sigmoid",
+    }, { input: qkvDims, output: qkvDims }),
+    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", {
+      ...shapeFlow(qkvShape, shapes.hidden),
+      semantic_role: "attention_output_projection",
+    }, { input: qkvDims, output: dims.hidden }),
+  ];
+}
+
+function kimiK3LinearAttentionOperatorSpecs(prefix, normalized) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const heads = normalized.linearKeyHeads || normalized.attentionHeads || 0;
+  const headDim = normalized.linearKeyDim || normalized.headDim || 0;
+  const projection = heads * headDim;
+  const fusedWidth = 4 * projection;
+  const fusedShape = `[batch, sequence, fused qkvg=${fusedWidth}]`;
+  const qkvShape = `[batch, sequence, linear heads=${heads}, head dimension=${headDim}]`;
+  const qkvFlatShape = `[batch, sequence, qkv=${3 * projection}]`;
+  const betaShape = `[batch, sequence, linear heads=${heads}]`;
+  const gateFeatureShape = `[batch, sequence, gate feature dimension=${headDim}]`;
+  const stateShape = `[batch, linear heads=${heads}, state value dimension=${headDim}, state key dimension=${headDim}]`;
+  const qkv = [-1, -1, heads, headDim];
+  const flatProjection = [-1, -1, projection];
+  const gateFeature = [-1, -1, headDim];
+  return [
+    operatorSpec(`${prefix}.fused_qkvg_proj`, "fused qkvg projection", "linear", {
+      ...shapeFlow(shapes.hidden, fusedShape),
+      projection_layout: ["q", "k", "v", "g"],
+      projection_size: projection,
+      gate_type: "full_rank",
+    }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
+    operatorSpec(`${prefix}.fused_qkvg_split`, "fused qkvg split", "kimi_fused_qkvg_split", {
+      ...shapeFlow(fusedShape, `${qkvShape}, ${qkvShape}, ${qkvShape}, ${qkvShape}`),
+      split_sizes: [projection, projection, projection, projection],
+    }, { input: [-1, -1, fusedWidth], output: [-1, -1, 3 * projection] }),
+    operatorSpec(`${prefix}.qkv_conv1d`, "merged qkv causal short convolution", "causal_conv1d", {
+      ...shapeFlow(qkvFlatShape, qkvFlatShape),
+      kernel_size: normalized.linearConvKernelSize,
+      activation: "silu",
+      branches: ["q", "k", "v"],
+      merged_channels: 3 * projection,
+    }, { input: [-1, -1, 3 * projection], output: [-1, -1, 3 * projection] }),
+    operatorSpec(`${prefix}.b_proj`, "beta projection", "linear", {
+      ...shapeFlow(shapes.hidden, betaShape),
+      output_size: heads,
+      activation: "sigmoid_in_kda_kernel",
+    }, { input: dims.hidden, output: [-1, -1, heads] }),
+    operatorSpec(`${prefix}.f_a_proj`, "forget gate feature projection", "linear", {
+      ...shapeFlow(shapes.hidden, gateFeatureShape),
+      output_size: headDim,
+      replicated: true,
+    }, { input: dims.hidden, output: gateFeature }),
+    operatorSpec(`${prefix}.f_b_proj`, "forget gate projection", "linear", {
+      ...shapeFlow(gateFeatureShape, qkvShape),
+      output_size: projection,
+      gate_role: "raw decay logits",
+    }, { input: gateFeature, output: flatProjection }),
+    operatorSpec(`${prefix}.A_log`, "A_log decay parameter", "kda_decay", {
+      ...shapeFlow("[linear heads]", "[linear heads]"),
+      parameter_role: "per-head log decay scale",
+      checkpoint_shape: [headDim],
+      runtime_shape: [heads],
+    }, { input: [heads], output: [heads] }),
+    operatorSpec(`${prefix}.dt_bias`, "dt bias parameter", "kda_decay", {
+      ...shapeFlow("[linear heads, head dimension]", "[linear heads, head dimension]"),
+      parameter_role: "per-head-per-channel decay bias",
+      parameter_shape: [heads, headDim],
+    }, { input: [heads, headDim], output: [heads, headDim] }),
+    operatorSpec(`${prefix}.state_update`, "Kimi KDA recurrent state", "kimi_kda", {
+      ...shapeFlow(`${qkvShape}, ${betaShape}, ${stateShape}`, qkvShape),
+      attention_kind: "linear",
+      mode: "chunk_prefill_or_fused_recurrent",
+      qk_l2norm: true,
+      beta_activation: "sigmoid",
+      safe_gate: true,
+      gate_lower_bound: normalized.linearLowerBound,
+      state_shape: stateShape,
+    }, { input: qkv, output: qkv }),
+    operatorSpec(`${prefix}.o_norm`, "Kimi gated RMSNorm", "kimi_kda_output_gate", {
+      ...shapeFlow(qkvShape, qkvShape),
+      gate_shape: qkvShape,
+      activation: "sigmoid",
+    }, { input: qkv, output: qkv }),
+    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(qkvShape, shapes.hidden), { input: qkv, output: dims.hidden }),
   ];
 }
 
@@ -319,5 +485,54 @@ export function moeOperatorSpecs(prefix, normalized) {
       expert_output_shape: shapes.expertInput,
       expert_weights_shape: shapes.topExperts,
     }, { input: dims.expertInput, output: dims.hidden }),
+  ];
+}
+
+export function kimiK3MoeOperatorSpecs(prefix, normalized) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const latent = normalized.routedExpertHiddenSize;
+  const latentShape = `[tokens_per_expert, routed expert hidden size=${latent}]`;
+  const latentDims = [-1, latent];
+  return [
+    operatorSpec(`${prefix}.router`, "router logits", "linear", shapeFlow(shapes.hidden, shapes.routerLogits), { input: dims.hidden, output: dims.routerLogits }),
+    operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
+      ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
+      expert_ids_shape: shapes.topExperts,
+      expert_weights_shape: shapes.topExperts,
+    }, { input: dims.routerLogits, output: dims.topExperts }),
+    operatorSpec(`${prefix}.routed_expert_down_proj`, "routed expert latent down projection", "linear", {
+      ...shapeFlow(shapes.hidden, latentShape),
+      latent_size: latent,
+      semantic_role: "latent_moe_compress",
+    }, { input: dims.hidden, output: [-1, latent] }),
+    operatorSpec(`${prefix}.dispatch`, "expert dispatch", "moe_dispatch", {
+      ...shapeFlow(`${latentShape}, ${shapes.topExperts}`, latentShape),
+      token_shape: latentShape,
+      expert_ids_shape: shapes.topExperts,
+    }, { input: latentDims, output: latentDims }),
+    operatorSpec(`${prefix}.expert_mlp`, "latent expert MLP", "swiglu", {
+      ...shapeFlow(latentShape, latentShape),
+      intermediate_shape: shapes.moeIntermediate,
+      latent_size: latent,
+    }, { input: latentDims, output: latentDims }),
+    operatorSpec(`${prefix}.combine`, "expert combine", "moe_combine", {
+      ...shapeFlow(`${latentShape}, ${shapes.topExperts}`, latentShape),
+      expert_output_shape: latentShape,
+      expert_weights_shape: shapes.topExperts,
+    }, { input: latentDims, output: latentDims }),
+    operatorSpec(`${prefix}.routed_expert_norm`, "routed expert latent RMSNorm", "rmsnorm", {
+      ...shapeFlow(latentShape, latentShape),
+      semantic_role: "latent_moe_reduce_norm",
+    }, { input: latentDims, output: latentDims }),
+    operatorSpec(`${prefix}.routed_expert_up_proj`, "routed expert latent up projection", "linear", {
+      ...shapeFlow(latentShape, shapes.hidden),
+      latent_size: latent,
+      semantic_role: "latent_moe_expand",
+    }, { input: latentDims, output: dims.hidden }),
+    operatorSpec(`${prefix}.shared_expert_add`, "shared expert branch add", "moe_add", {
+      ...shapeFlow(`${shapes.hidden}, ${shapes.hidden}`, shapes.hidden),
+      shared_experts: normalized.sharedExperts,
+    }, { input: dims.hidden, output: dims.hidden }),
   ];
 }

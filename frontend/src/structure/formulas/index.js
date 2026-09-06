@@ -90,6 +90,13 @@ const FORMULAS = {
     inputs: ["expert_outputs", "expert_weights"],
     outputs: ["y"],
   },
+  moe_add: {
+    title: "MoE Branch Add",
+    formula: "y = y_routed + y_shared",
+    explanation: "Kimi-K3 将 latent routed expert 分支与 shared expert MLP 分支相加。",
+    inputs: ["y_routed", "y_shared"],
+    outputs: ["y"],
+  },
   linear_attention: {
     title: "Gated Linear Attention",
     formula: "S_t = decay_t * S_{t-1} + k_t^T v_t; y_t = q_t S_t",
@@ -106,9 +113,9 @@ const FORMULAS = {
   },
   kimi_kda: {
     title: "Kimi Delta Attention",
-    formula: "S_t = KDA(q_t, k_t, v_t, beta_t, exp(A_log + dt_bias), S_{t-1}); o_t = S_t(q_t, k_t, v_t, g_t)",
-    explanation: "Kimi-K3 的 KDA chunk/recurrent 状态更新，包含 q/k/v 短卷积、beta、forget gate、A_log/dt_bias 和 recurrent state。",
-    inputs: ["q", "k", "v", "beta", "forget_gate", "A_log", "dt_bias", "state"],
+    formula: "beta_t=sigmoid(beta_raw_t); v'_t=beta_t(v_t-S_{t-1}k_t); S_t=exp(g_t)S_{t-1}+v'_tk_t^T; o_t=S_tq_t",
+    explanation: "Kimi-K3 的 KDA chunk/recurrent 状态更新，包含 q/k L2 normalization、beta、safe decay、A_log/dt_bias 和 recurrent state。",
+    inputs: ["q", "k", "v", "beta_raw", "forget_gate", "A_log", "dt_bias", "state"],
     outputs: ["state", "o"],
   },
   kimi_kda_output_gate: {
@@ -118,17 +125,24 @@ const FORMULAS = {
     inputs: ["o", "g"],
     outputs: ["y"],
   },
+  kimi_fused_qkvg_split: {
+    title: "Kimi Fused QKVG Split",
+    formula: "[q,k,v,g] = split(z; P,P,P,P)",
+    explanation: "Kimi-K3 full-rank gate 路径把 q、k、v 和 gated RMSNorm 输入合并为一个 fused qkvg projection。",
+    inputs: ["z", "projection size P"],
+    outputs: ["q", "k", "v", "g"],
+  },
   gated_delta_attention: {
     title: "Gated Delta Attention",
     formula: "beta_t=sigmoid(beta_raw_t); v'_t=beta_t(v_t-S_{t-1}k_t); S_t=exp(g_t)S_{t-1}+v'_tk_t^T; o_t=S_tq_t",
-    explanation: "GLM-5.3-Flash 的 q/k L2 normalization、beta sigmoid、safe decay 和 gated-delta recurrent state 更新。",
+    explanation: "KDA 的统一 q/k L2 normalization、beta sigmoid、safe decay 和 gated-delta recurrent state 更新；模型差异记录在投影属性中。",
     inputs: ["q", "k", "v", "beta_raw", "A_log", "dt_bias", "state"],
     outputs: ["state", "o"],
   },
   gated_rmsnorm: {
     title: "Gated RMSNorm",
     formula: "y = RMSNorm(o, weight) * sigmoid(g_2)",
-    explanation: "GLM-5.3-Flash 使用 g_b_proj 产生门控向量，再对 recurrent attention 输出执行 gated RMSNorm。",
+    explanation: "KDA recurrent attention 输出使用输入相关 gate 执行 gated RMSNorm；不同模型的 gate projection 实现记录在节点属性中。",
     inputs: ["o", "g_2", "weight"],
     outputs: ["y"],
   },

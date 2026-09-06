@@ -15,6 +15,11 @@ function contentType(filePath) {
   return "application/octet-stream";
 }
 
+function isFrontendModelAsset(filePath) {
+  const name = path.basename(filePath);
+  return name === "catalog.json" || name === "config.json";
+}
+
 function modelsStaticPlugin() {
   return {
     name: "models-static-assets",
@@ -25,6 +30,10 @@ function modelsStaticPlugin() {
         if (!filePath.startsWith(modelsRoot)) {
           res.statusCode = 403;
           res.end("Forbidden");
+          return;
+        }
+        if (!isFrontendModelAsset(filePath)) {
+          next();
           return;
         }
         if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
@@ -38,7 +47,10 @@ function modelsStaticPlugin() {
     closeBundle() {
       const target = path.join(__dirname, "dist", "models");
       fs.rmSync(target, { recursive: true, force: true });
-      fs.cpSync(modelsRoot, target, { recursive: true });
+      fs.cpSync(modelsRoot, target, {
+        recursive: true,
+        filter: (source) => fs.statSync(source).isDirectory() || isFrontendModelAsset(source),
+      });
     },
   };
 }

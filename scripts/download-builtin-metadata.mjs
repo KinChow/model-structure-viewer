@@ -9,7 +9,7 @@ const requestedModelIds = process.argv
   .filter((argument) => argument.startsWith("--model="))
   .map((argument) => argument.slice("--model=".length))
   .filter(Boolean);
-const allowedNames = /^(config\.json|model\.safetensors\.index\.json|configuration_.*\.py|modeling_.*\.py|tokenization_.*\.py)$/;
+const allowedNames = /^(config\.json|configuration_.*\.py|modeling_.*\.py|tokenization_.*\.py)$/;
 
 const sources = [
   {

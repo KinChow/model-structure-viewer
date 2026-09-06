@@ -8,11 +8,6 @@
       "architectures": [
         "MiniMaxM2ForCausalLM"
       ],
-      "metadata_files": [
-        "configuration_minimax_m2.py",
-        "model.safetensors.index.json",
-        "modeling_minimax_m2.py"
-      ],
       "verified": true
     },
     {
@@ -22,10 +17,6 @@
       "model_type": "minimax_m3_vl",
       "architectures": [
         "MiniMaxM3SparseForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "configuration_minimax_m3_vl.py",
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -37,10 +28,6 @@
       "architectures": [
         "MiniMaxM3SparseForConditionalGeneration"
       ],
-      "metadata_files": [
-        "configuration_minimax_m3_vl.py",
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -50,9 +37,6 @@
       "model_type": "qwen3_5",
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -64,9 +48,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -76,9 +57,6 @@
       "model_type": "qwen3_5_moe",
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -90,9 +68,6 @@
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -102,9 +77,6 @@
       "model_type": "qwen3_5_moe",
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -116,9 +88,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -128,9 +97,6 @@
       "model_type": "qwen3_5",
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -142,9 +108,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -154,9 +117,6 @@
       "model_type": "qwen3_5",
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -168,9 +128,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -180,9 +137,6 @@
       "model_type": "qwen3_5_moe",
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -194,9 +148,6 @@
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -206,9 +157,6 @@
       "model_type": "qwen3_5_moe",
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -220,9 +168,6 @@
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -232,9 +177,6 @@
       "model_type": "qwen3_5_moe",
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -246,9 +188,6 @@
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -258,9 +197,6 @@
       "model_type": "qwen3_5_moe",
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -272,9 +208,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -284,9 +217,6 @@
       "model_type": "qwen3_5",
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -298,9 +228,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -310,9 +237,6 @@
       "model_type": "qwen3_5",
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -324,9 +248,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -336,9 +257,6 @@
       "model_type": "qwen3_5",
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -350,9 +268,6 @@
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -362,9 +277,6 @@
       "model_type": "qwen3_5_moe",
       "architectures": [
         "Qwen3_5MoeForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -376,9 +288,6 @@
       "architectures": [
         "Qwen3_5MoeForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -388,9 +297,6 @@
       "model_type": "qwen3_5_moe_text",
       "architectures": [
         "Qwen3_5MoeForCausalLM"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -402,9 +308,6 @@
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -414,9 +317,6 @@
       "model_type": "qwen3_5",
       "architectures": [
         "Qwen3_5ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -428,9 +328,6 @@
       "architectures": [
         "Qwen4ExpForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -440,9 +337,6 @@
       "model_type": "qwen4_exp",
       "architectures": [
         "Qwen4ExpForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -454,11 +348,6 @@
       "architectures": [
         "DeepseekV3ForCausalLM"
       ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py"
-      ],
       "verified": true
     },
     {
@@ -468,11 +357,6 @@
       "model_type": "deepseek_v3",
       "architectures": [
         "DeepseekV3ForCausalLM"
-      ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py"
       ],
       "verified": true
     },
@@ -484,9 +368,6 @@
       "architectures": [
         "DeepseekV32ForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -496,9 +377,6 @@
       "model_type": "deepseek_v4",
       "architectures": [
         "DeepseekV4ForCausalLM"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -510,9 +388,6 @@
       "architectures": [
         "DeepseekV4ForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -522,9 +397,6 @@
       "model_type": "deepseek_v4",
       "architectures": [
         "DeepseekV4ForCausalLM"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -536,9 +408,6 @@
       "architectures": [
         "DeepseekV4ForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -548,9 +417,6 @@
       "model_type": "deepseek_v4",
       "architectures": [
         "DeepseekV4ForCausalLM"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -562,12 +428,6 @@
       "architectures": [
         "DeepseekV3ForCausalLM"
       ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py",
-        "tokenization_kimi.py"
-      ],
       "verified": true
     },
     {
@@ -577,12 +437,6 @@
       "model_type": "kimi_k2",
       "architectures": [
         "DeepseekV3ForCausalLM"
-      ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py",
-        "tokenization_kimi.py"
       ],
       "verified": true
     },
@@ -594,12 +448,6 @@
       "architectures": [
         "DeepseekV3ForCausalLM"
       ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py",
-        "tokenization_kimi.py"
-      ],
       "verified": true
     },
     {
@@ -609,12 +457,6 @@
       "model_type": "kimi_k2",
       "architectures": [
         "DeepseekV3ForCausalLM"
-      ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py",
-        "tokenization_kimi.py"
       ],
       "verified": true
     },
@@ -626,14 +468,6 @@
       "architectures": [
         "KimiK25ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "configuration_kimi_k25.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py",
-        "modeling_kimi_k25.py",
-        "tokenization_kimi.py"
-      ],
       "verified": true
     },
     {
@@ -643,14 +477,6 @@
       "model_type": "kimi_k25",
       "architectures": [
         "KimiK25ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "configuration_kimi_k25.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py",
-        "modeling_kimi_k25.py",
-        "tokenization_kimi.py"
       ],
       "verified": true
     },
@@ -662,14 +488,6 @@
       "architectures": [
         "KimiK25ForConditionalGeneration"
       ],
-      "metadata_files": [
-        "configuration_deepseek.py",
-        "configuration_kimi_k25.py",
-        "model.safetensors.index.json",
-        "modeling_deepseek.py",
-        "modeling_kimi_k25.py",
-        "tokenization_kimi.py"
-      ],
       "verified": true
     },
     {
@@ -679,13 +497,6 @@
       "model_type": "kimi_k3",
       "architectures": [
         "KimiK3ForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "configuration_kimi_k3.py",
-        "model.safetensors.index.json",
-        "modeling_kimi_k3.py",
-        "modeling_kimi_linear.py",
-        "tokenization_kimi.py"
       ],
       "verified": true
     },
@@ -697,9 +508,6 @@
       "architectures": [
         "Glm4MoeForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -709,9 +517,6 @@
       "model_type": "glm_moe_dsa",
       "architectures": [
         "GlmMoeDsaForCausalLM"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -723,9 +528,6 @@
       "architectures": [
         "GlmMoeDsaForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -735,9 +537,6 @@
       "model_type": "glm_moe_dsa",
       "architectures": [
         "GlmMoeDsaForCausalLM"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -749,9 +548,6 @@
       "architectures": [
         "GlmMoeDsaForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -761,9 +557,6 @@
       "model_type": "glm_moe_dsa",
       "architectures": [
         "GlmMoeDsaForCausalLM"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     },
@@ -775,9 +568,6 @@
       "architectures": [
         "GlmMoeDsaForCausalLM"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -788,9 +578,6 @@
       "architectures": [
         "Glm5NextForConditionalGeneration"
       ],
-      "metadata_files": [
-        "model.safetensors.index.json"
-      ],
       "verified": true
     },
     {
@@ -800,9 +587,6 @@
       "model_type": "glm5_next",
       "architectures": [
         "Glm5NextForConditionalGeneration"
-      ],
-      "metadata_files": [
-        "model.safetensors.index.json"
       ],
       "verified": true
     }

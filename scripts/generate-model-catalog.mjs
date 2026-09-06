@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const modelsRoot = path.join(repoRoot, "models");
-const allowedMetadata = /^(configuration_.*\.py|modeling_.*\.py|tokenization_.*\.py|model\.safetensors\.index\.json)$/;
 const previousCatalogPath = path.join(modelsRoot, "catalog.json");
 
 async function exists(filePath) {
@@ -25,11 +24,6 @@ async function listDirectories(dirPath) {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 }
 
-async function listFiles(dirPath) {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  return entries.filter((entry) => entry.isFile()).map((entry) => entry.name).sort();
-}
-
 const models = [];
 let previousModels = [];
 try {
@@ -46,7 +40,6 @@ for (const org of await listDirectories(modelsRoot)) {
     if (!(await exists(configPath))) continue;
 
     const config = await readJson(configPath);
-    const files = await listFiles(modelDir);
     const previous = previousById.get(`${org}/${model}`) || {};
     models.push({
       model_id: `${org}/${model}`,
@@ -55,7 +48,6 @@ for (const org of await listDirectories(modelsRoot)) {
       config_path: `${org}/${model}/config.json`,
       model_type: config.model_type || null,
       architectures: Array.isArray(config.architectures) ? config.architectures : [],
-      metadata_files: files.filter((file) => allowedMetadata.test(file)),
       verified: true,
     });
   }

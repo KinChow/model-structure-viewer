@@ -265,6 +265,20 @@ const FORMULAS = {
     inputs: ["O", "G"],
     outputs: ["O'"],
   },
+  minimax_sparse_indexer: {
+    title: "MiniMax M3 Block Indexer",
+    formula: "B = topk_blocks(score_type((Q_i K_i^T) / sqrt(d_i)), k)",
+    explanation: "MiniMax M3 的稀疏层用独立 index q/k 分支按 block 打分，选出 sparse_topk_blocks 个 KV blocks，并保留 init/local blocks。",
+    inputs: ["index_Q", "index_K", "index weights", "topk blocks"],
+    outputs: ["selected block ids"],
+  },
+  minimax_sparse_attention: {
+    title: "MiniMax M3 Block-Sparse GQA",
+    formula: "O = softmax(Q K_B^T / sqrt(d)) V_B",
+    explanation: "主 GQA 只读取 indexer 选择的 KV blocks；index value/output 分支由配置显式关闭时不参与主输出。",
+    inputs: ["Q", "K_selected blocks", "V_selected blocks", "block ids"],
+    outputs: ["O"],
+  },
   dsv4_hash_route: {
     title: "DeepSeek V4 Hash MoE Routing",
     formula: "expert_ids = hash_table[input_ids]",

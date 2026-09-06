@@ -10,7 +10,7 @@ const VOCAB_KEYS = ["vocab_size"];
 const EXPERT_KEYS = ["num_local_experts", "n_routed_experts", "num_experts", "moe_num_experts"];
 const EXPERTS_PER_TOKEN_KEYS = ["num_experts_per_tok", "num_experts_per_token", "moe_top_k"];
 const SHARED_EXPERT_KEYS = ["num_shared_experts", "n_shared_experts"];
-const SHARED_EXPERT_INTERMEDIATE_KEYS = ["shared_expert_intermediate_size", "shared_expert_hidden_size"];
+const SHARED_EXPERT_INTERMEDIATE_KEYS = ["shared_expert_intermediate_size", "shared_expert_hidden_size", "shared_intermediate_size"];
 const CONTEXT_KEYS = ["max_position_embeddings", "seq_length", "max_sequence_length"];
 const KV_LORA_RANK_KEYS = ["kv_lora_rank", "kv_lora_dim"];
 const Q_LORA_RANK_KEYS = ["q_lora_rank", "q_lora_dim"];
@@ -175,6 +175,18 @@ export function normalizeConfig(config) {
     indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim", "index_head_dim"]) ?? firstNumber(config, ["indexer_head_dim", "index_head_dim"]),
     indexerBudget: firstNumber(textConfig, ["index_topk", "indexer_budget"]) ?? firstNumber(config, ["index_topk", "indexer_budget"]),
     indexerCompressRatio: firstNumber(textConfig, ["indexer_compress_ratio"]) ?? firstNumber(config, ["indexer_compress_ratio"]),
+    sparseIndexHeads: firstNumber(textConfig?.sparse_attention_config, ["sparse_num_index_heads"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_num_index_heads"]),
+    sparseIndexDim: firstNumber(textConfig?.sparse_attention_config, ["sparse_index_dim"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_index_dim"]),
+    sparseTopkBlocks: firstNumber(textConfig?.sparse_attention_config, ["sparse_topk_blocks"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_topk_blocks"]),
+    sparseBlockSize: firstNumber(textConfig?.sparse_attention_config, ["sparse_block_size"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_block_size"]),
+    sparseInitBlock: firstNumber(textConfig?.sparse_attention_config, ["sparse_init_block"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_init_block"]),
+    sparseLocalBlock: firstNumber(textConfig?.sparse_attention_config, ["sparse_local_block"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_local_block"]),
+    sparseScoreType: textConfig?.sparse_attention_config?.sparse_score_type ?? config?.sparse_attention_config?.sparse_score_type,
+    sparseDisableIndexValue: Array.isArray(textConfig?.sparse_attention_config?.sparse_disable_index_value)
+      ? textConfig.sparse_attention_config.sparse_disable_index_value.map((value) => Boolean(value))
+      : Array.isArray(config?.sparse_attention_config?.sparse_disable_index_value)
+        ? config.sparse_attention_config.sparse_disable_index_value.map((value) => Boolean(value))
+        : [],
     indexerSchedule: (String(config?.model_type || textConfig?.model_type || "").includes("deepseek_v32")
       || String(config?.model_type || textConfig?.model_type || "").includes("glm_moe_dsa"))
       ? dsaIndexerSchedule(textConfig, layers) ?? dsaIndexerSchedule(config, layers)
@@ -182,6 +194,8 @@ export function normalizeConfig(config) {
     slidingWindow: firstNumber(textConfig, ["sliding_window", "window_size"]) ?? firstNumber(config, ["sliding_window", "window_size"]),
     routedScalingFactor: firstNumber(textConfig, ["routed_scaling_factor"]) ?? firstNumber(config, ["routed_scaling_factor"]),
     swigluLimit: firstNumber(textConfig, ["swiglu_limit"]) ?? firstNumber(config, ["swiglu_limit"]),
+    swigluAlpha: firstNumber(textConfig, ["swiglu_alpha"]) ?? firstNumber(config, ["swiglu_alpha"]),
+    swigluBeta: firstNumber(textConfig, ["swiglu_beta"]) ?? firstNumber(config, ["swiglu_beta"]),
     normTopkProb: textConfig?.norm_topk_prob ?? config?.norm_topk_prob,
     qkRopeHeadDim:
       firstNumber(textConfig, QK_ROPE_HEAD_DIM_KEYS) ?? firstNumber(config, QK_ROPE_HEAD_DIM_KEYS),
@@ -213,7 +227,8 @@ export function normalizeConfig(config) {
     partialRotaryFactor: firstNumber(textConfig, ["partial_rotary_factor"])
       ?? firstNumber(textConfig?.rope_parameters, ["partial_rotary_factor"])
       ?? firstNumber(textConfig?.rope_scaling, ["partial_rotary_factor"]),
-    normMode: String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5")
+    normMode: ["qwen3_5", "minimax_m3"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
+      || Boolean(textConfig?.use_gemma_norm ?? config?.use_gemma_norm)
       ? "gemma_rmsnorm"
       : "rmsnorm",
     hyperConnectionCount: firstNumber(textConfig, ["hc_count"]) ?? firstNumber(config, ["hc_count"]),

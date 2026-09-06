@@ -93,6 +93,11 @@ export function kvBytesPerToken(config, kvBytes = 2) {
         const ratio = config.compressRatios?.[index] ?? 0;
         perLayer += headDim;
         if (ratio > 1) perLayer += (2 * (ratio === 4 ? 2 : 1) * headDim) / ratio;
+      } else if (kind === "sparse" && config?.modelType === "minimax_m3_vl") {
+        perLayer += 2 * heads * headDim;
+        if (config.sparseIndexHeads != null && config.sparseIndexDim != null) {
+          perLayer += config.sparseIndexHeads * config.sparseIndexDim;
+        }
       } else if ((kind === "mla" || kind === "qsa") && mlaRank != null && ropeDim != null) {
         perLayer += mlaRank + ropeDim;
         if (kind === "qsa" && config?.indexerHeadDim != null) perLayer += config.indexerHeadDim;

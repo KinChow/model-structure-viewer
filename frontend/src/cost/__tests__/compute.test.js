@@ -32,6 +32,12 @@ test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent stat
   assert.equal(linearAttentionMacs(config, { batch: 1, sequence: 5, phase: "decode" }), 140);
 });
 
+test("MiniMax M3 sparse attention MACs use selected blocks plus local/init blocks", () => {
+  const node = { type: "attention", attributes: { attention_kind: "sparse" }, id: "text_decoder.3.self_attn" };
+  const config = { modelType: "minimax_m3_vl", attentionHeads: 2, headDim: 3, sparseTopkBlocks: 2, sparseBlockSize: 4, sparseInitBlock: 1, sparseLocalBlock: 0 };
+  assert.equal(computeNodeCosts(node, config, { batch: 1, sequence: 5, phase: "prefill" })[0].macs, 720);
+});
+
 test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {
   const root = { children: [
     { id: "decoder.0.mlp.gate_proj", weight_shapes: { weight: [4, 2] }, children: [] },

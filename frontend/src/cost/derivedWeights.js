@@ -35,6 +35,8 @@ export function derivedWeightParameters(config = {}) {
       attentionParameters = qwen35FullAttentionParameters(config);
     } else if (attentionKind === "qsa" && ["deepseek_v32", "glm_moe_dsa"].includes(config.modelType)) {
       attentionParameters = dsaAttentionParameters(config);
+    } else if (attentionKind === "sparse" && config.modelType === "minimax_m3_vl") {
+      attentionParameters = minimaxSparseAttentionParameters(config);
     } else if (attentionKind === "dsv4" && config.qLoraRank && config.oLoraRank) {
       attentionParameters = deepseekV4AttentionParameters(config, i);
     } else if (attentionKind === "mla" && config.qLoraRank && config.kvLoraRank) {
@@ -111,6 +113,17 @@ function dsaAttentionParameters(config) {
     + qRank * indexHeads * indexDim
     + hidden * (indexDim + indexHeads)
     + hidden * heads * valueDim;
+}
+
+function minimaxSparseAttentionParameters(config) {
+  const hidden = config.hiddenSize || 0;
+  const heads = config.attentionHeads || 0;
+  const kvHeads = config.kvHeads || heads;
+  const headDim = config.headDim || 0;
+  const indexHeads = config.sparseIndexHeads || kvHeads;
+  const indexDim = config.sparseIndexDim || headDim;
+  return hidden * (heads * headDim + 2 * kvHeads * headDim + 2 * indexHeads * indexDim)
+    + hidden * heads * headDim;
 }
 
 function deepseekV4AttentionParameters(config, layerIndex) {

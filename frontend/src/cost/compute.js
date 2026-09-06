@@ -149,6 +149,15 @@ export function qsaAttentionMacs(config, { batch = 1, sequence = 1, phase = "pre
   return queryTokens * heads * selected * (qk + value);
 }
 
+function minimaxSparseAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const heads = config?.attentionHeads || 0;
+  const headDim = config?.headDim || 0;
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  const selectedBlocks = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
+  const selectedTokens = selectedBlocks * (config?.sparseBlockSize || 1);
+  return queryTokens * heads * selectedTokens * (headDim + headDim);
+}
+
 export function nodeMacs(node, config, options = {}) {
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
@@ -156,6 +165,7 @@ export function nodeMacs(node, config, options = {}) {
     const attentionKind = node?.attributes?.attention_kind || "gqa";
     if (attentionKind === "linear") return linearAttentionMacs(config, options);
     if (attentionKind === "qsa") return qsaAttentionMacs(config, options);
+    if (attentionKind === "sparse" && config?.modelType === "minimax_m3_vl") return minimaxSparseAttentionMacs(config, options);
     if (attentionKind === "dsv4") {
       const layerMatch = String(node?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)/);
       return deepseekV4AttentionMacs(config, { ...options, layerIndex: layerMatch ? Number(layerMatch[1]) : 0 });

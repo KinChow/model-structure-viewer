@@ -553,3 +553,53 @@ test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse sched
   assert.equal(glmDecoder.children[1].attributes.range, "3..5");
   assert.equal(glmDecoder.children[1].children.find((node) => node.type === "attention").children.find((node) => node.name === "DSA indexer").attributes.indexer_mode, "reuse");
 });
+
+test("maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/MiniMaxAI/MiniMax-M3/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.deepEqual(normalized.attentionSchedule.reduce((counts, kind) => {
+    counts[kind] = (counts[kind] || 0) + 1;
+    return counts;
+  }, {}), { gqa: 3, sparse: 57 });
+  assert.deepEqual(normalized.layerSchedule.reduce((counts, kind) => {
+    counts[kind] = (counts[kind] || 0) + 1;
+    return counts;
+  }, {}), { dense: 3, moe: 57 });
+  assert.equal(normalized.normMode, "gemma_rmsnorm");
+  assert.equal(normalized.sparseIndexHeads, 4);
+  assert.equal(normalized.sparseIndexDim, 128);
+  assert.equal(normalized.sparseTopkBlocks, 16);
+  assert.equal(normalized.sparseBlockSize, 128);
+  assert.equal(normalized.sharedExperts, 1);
+  assert.equal(normalized.sharedExpertIntermediateSize, 3072);
+
+  const resolved = resolveArchitecture(normalized, { modelId: "MiniMaxAI/MiniMax-M3" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "text_decoder");
+  assert.equal(decoder.children[0].attributes.range, "0..2");
+  assert.equal(decoder.children[1].attributes.range, "3..59");
+  const sparseLayer = decoder.children[1];
+  const attention = sparseLayer.children.find((node) => node.type === "attention");
+  assert.deepEqual(attention.children.map((node) => node.name), [
+    "fused QKV + index projection",
+    "main/index QKV split",
+    "Q Gemma RMSNorm",
+    "K Gemma RMSNorm",
+    "partial rotary position embedding",
+    "index Q Gemma RMSNorm",
+    "index K Gemma RMSNorm",
+    "index partial rotary position embedding",
+    "MiniMax M3 block indexer",
+    "MiniMax M3 block-sparse GQA",
+    "output projection",
+  ]);
+  assert.equal(attention.children.find((node) => node.name === "MiniMax M3 block indexer").attributes.disable_index_value, true);
+  const moe = sparseLayer.children.find((node) => node.type === "moe");
+  assert.equal(moe.children.find((node) => node.name === "router logits").attributes.scoring_func, "sigmoid");
+  assert.equal(moe.children.find((node) => node.name === "expert MLP").attributes.activation, "swigluoai_uninterleave");
+  assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
+});

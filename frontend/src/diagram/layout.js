@@ -306,6 +306,49 @@ function semanticEdges(item) {
     return edges.length >= 3 ? edges : null;
   }
 
+  if (item.node?.attributes?.model_variant === "minimax_m3_vl") {
+    const fused = find(/fused qkv \+ index projection|qkv projection/);
+    const split = find(/main\/index qkv split|qkv split/);
+    const qNorm = find(/^q gemma rmsnorm$/);
+    const kNorm = find(/^k gemma rmsnorm$/);
+    const rope = find(/^partial rotary position embedding$/);
+    const scores = find(/attention scores/);
+    const softmax = find(/attention probabilities|softmax/);
+    const context = find(/weighted value/);
+    const indexQNorm = find(/index q gemma rmsnorm/);
+    const indexKNorm = find(/index k gemma rmsnorm/);
+    const indexRope = find(/index partial rotary/);
+    const indexer = find(/minimax m3 block indexer/);
+    const sparse = find(/minimax m3 block-sparse gqa/);
+    const output = find(/output projection|out_proj/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+    };
+    add(fused, split);
+    add(split, qNorm);
+    add(split, kNorm);
+    add(qNorm, rope);
+    add(kNorm, rope);
+    if (indexer) {
+      add(split, indexQNorm);
+      add(split, indexKNorm);
+      add(indexQNorm, indexRope);
+      add(indexKNorm, indexRope);
+      add(indexRope, indexer);
+      add(rope, sparse);
+      add(indexer, sparse);
+      add(sparse, output);
+    } else {
+      add(rope, scores);
+      add(scores, softmax);
+      add(softmax, context);
+      add(context, output);
+    }
+    return edges.length >= 6 ? edges : null;
+  }
+
   if (item.node?.attributes?.attention_kind === "dsv4") {
     const fused = find(/fused q\/kv projection/);
     const split = find(/q\/kv latent split/);

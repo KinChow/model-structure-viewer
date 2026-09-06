@@ -41,6 +41,11 @@ test("Qwen3.5 GDN state uses separate key/value heads and dimensions", () => {
   assert.equal(linearStateBytesPerSequence(config, 2), 48);
 });
 
+test("MiniMax M3 sparse layers include index KV side cache", () => {
+  const config = { layers: 2, attentionSchedule: ["gqa", "sparse"], modelType: "minimax_m3_vl", kvHeads: 2, headDim: 4, sparseIndexHeads: 1, sparseIndexDim: 2 };
+  assert.equal(kvBytesPerToken(config, 2), 68);
+});
+
 test("offline weight fallback multiplies folded layer repeats", () => {
   const root = { weight_shapes: {}, children: [{ repeat: 3, weight_shapes: {}, children: [
     { weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] },

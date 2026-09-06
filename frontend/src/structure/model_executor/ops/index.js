@@ -650,6 +650,99 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
   ];
 }
 
+function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const heads = normalized.attentionHeads || 0;
+  const kvHeads = normalized.kvHeads || heads;
+  const headDim = normalized.headDim || 0;
+  const qProjection = heads * headDim;
+  const kvProjection = kvHeads * headDim;
+  const indexHeads = normalized.sparseIndexHeads || kvHeads;
+  const indexDim = normalized.sparseIndexDim || headDim;
+  const indexProjection = indexHeads * indexDim;
+  const disableIndexValue = normalized.sparseDisableIndexValue?.[layerIndex] ?? true;
+  const indexValueProjection = disableIndexValue ? 0 : indexProjection;
+  const fusedWidth = qProjection + 2 * kvProjection + (sparse ? 2 * indexProjection + indexValueProjection : 0);
+  const fusedShape = `[batch, sequence, fused main QKV + index QKV=${fusedWidth}]`;
+  const indexShape = `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`;
+  const specs = [
+    operatorSpec(`${prefix}.qkv_index_proj`, sparse ? "fused QKV + index projection" : "QKV projection", "linear", {
+      ...shapeFlow(shapes.hidden, fusedShape),
+      projection_layout: sparse ? ["q", "k", "v", "index_q", "index_k", ...(disableIndexValue ? [] : ["index_v"])] : ["q", "k", "v"],
+      implementation: sparse
+        ? ["vLLM.MinimaxM3QKVParallelLinearWithIndexer", "SGLang._FusedQKVIndexProj"]
+        : ["vLLM.QKVParallelLinear", "SGLang.qkv_proj"],
+      disable_index_value: disableIndexValue,
+    }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
+    operatorSpec(`${prefix}.qkv_index_split`, sparse ? "main/index QKV split" : "QKV split", "split", {
+      ...shapeFlow(fusedShape, sparse ? `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}, ${indexShape}, ${indexShape}` : `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`),
+      split_sizes: sparse ? [qProjection, kvProjection, kvProjection, indexProjection, indexProjection, ...(disableIndexValue ? [] : [indexValueProjection])] : [qProjection, kvProjection, kvProjection],
+    }, { input: [-1, -1, fusedWidth], output: [-1, -1, qProjection] }),
+    operatorSpec(`${prefix}.q_norm`, "Q Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), { input: dims.attentionQuery, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.k_norm`, "K Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), { input: dims.attentionKey, output: dims.attentionKey }),
+    operatorSpec(`${prefix}.rope`, "partial rotary position embedding", "rope", {
+      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
+      partial_rotary_factor: normalized.partialRotaryFactor,
+      implementation: ["vLLM.MiniMaxM3Attention.rotary_emb", "SGLang.MiniMaxM3Attention.rotary_emb"],
+    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
+  ];
+  if (sparse) {
+    specs.push(
+      operatorSpec(`${prefix}.index_q_norm`, "index Q Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(indexShape, indexShape), { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
+      operatorSpec(`${prefix}.index_k_norm`, "index K Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(indexShape, indexShape), { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
+      operatorSpec(`${prefix}.index_rope`, "index partial rotary position embedding", "rope", {
+        ...shapeFlow(`${indexShape}, ${indexShape}`, `${indexShape}, ${indexShape}`),
+        partial_rotary_factor: normalized.partialRotaryFactor,
+      }, { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
+      operatorSpec(`${prefix}.indexer`, "MiniMax M3 block indexer", "minimax_sparse_indexer", {
+        ...shapeFlow(`${indexShape}, ${indexShape}`, `[batch, sequence, selected blocks=${normalized.sparseTopkBlocks}]`),
+        index_heads: indexHeads,
+        index_head_dim: indexDim,
+        topk_blocks: normalized.sparseTopkBlocks,
+        block_size: normalized.sparseBlockSize,
+        init_blocks: normalized.sparseInitBlock,
+        local_blocks: normalized.sparseLocalBlock,
+        score_type: normalized.sparseScoreType || "max",
+        disable_index_value: disableIndexValue,
+        implementation: ["vLLM.MiniMaxM3Indexer", "SGLang.Minimax sparse indexer"],
+      }, { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, normalized.sparseTopkBlocks] }),
+      operatorSpec(`${prefix}.sparse_attention`, "MiniMax M3 block-sparse GQA", "minimax_sparse_attention", {
+        ...shapeFlow(`${shapes.attentionQuery}, selected KV blocks`, shapes.attentionContext),
+        topk_blocks: normalized.sparseTopkBlocks,
+        block_size: normalized.sparseBlockSize,
+        local_blocks: normalized.sparseLocalBlock,
+        init_blocks: normalized.sparseInitBlock,
+        disable_index_value: disableIndexValue,
+        attention_kind: "minimax_m3_sparse_gqa",
+        implementation: ["vLLM.MiniMaxM3SparseImpl", "SGLang.minimax_sparse_backend"],
+      }, { input: dims.attentionQuery, output: dims.attentionContext }),
+    );
+  } else {
+    specs.push(
+      operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {
+        ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
+        formula: "S = Q K^T / sqrt(d)",
+      }, { input: dims.attentionQuery, output: dims.attentionScores }),
+      operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }),
+      operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
+      ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
+      formula: "O = P V",
+      }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
+    );
+  }
+  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }));
+  return specs;
+}
+
+export function minimaxDenseAttentionOperatorSpecs(prefix, normalized) {
+  return minimaxAttentionCommon(prefix, normalized, false);
+}
+
+export function minimaxSparseAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
+  return minimaxAttentionCommon(prefix, normalized, true, layerIndex);
+}
+
 // DeepSeek V3.2/GLM DSA 共用一份 MLA + indexer 语义；vLLM/SGLang 的融合方式只记录在 implementation。
 function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const shapes = tensorShapes(normalized);
@@ -748,6 +841,10 @@ export function mlpOperatorSpecs(prefix, normalized) {
       ...shapeFlow(`${shapes.intermediate}, ${shapes.intermediate}`, shapes.intermediate),
       gate_shape: shapes.intermediate,
       up_shape: shapes.intermediate,
+      activation: normalized.modelType === "minimax_m3_vl" ? "swigluoai" : undefined,
+      swiglu_alpha: normalized.swigluAlpha,
+      swiglu_beta: normalized.swigluBeta,
+      swiglu_limit: normalized.swigluLimit,
     }, { input: dims.intermediate, output: dims.intermediate }),
     operatorSpec(`${prefix}.down_proj`, "down projection", "linear", shapeFlow(shapes.intermediate, shapes.hidden), { input: dims.intermediate, output: dims.hidden }),
   ];
@@ -757,11 +854,17 @@ export function moeOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   return [
-    operatorSpec(`${prefix}.router`, "router logits", "linear", shapeFlow(shapes.hidden, shapes.routerLogits), { input: dims.hidden, output: dims.routerLogits }),
+    operatorSpec(`${prefix}.router`, "router logits", "linear", {
+      ...shapeFlow(shapes.hidden, shapes.routerLogits),
+      scoring_func: normalized.modelType === "minimax_m3_vl" ? "sigmoid" : undefined,
+      routing_bias: normalized.modelType === "minimax_m3_vl" ? true : undefined,
+      implementation: normalized.modelType === "minimax_m3_vl" ? ["vLLM.GateLinear fp32 router", "SGLang.GateLinear fp32 router"] : undefined,
+    }, { input: dims.hidden, output: dims.routerLogits }),
     operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
       ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
       expert_ids_shape: shapes.topExperts,
       expert_weights_shape: shapes.topExperts,
+      scoring_func: normalized.modelType === "minimax_m3_vl" ? "sigmoid" : undefined,
     }, { input: dims.routerLogits, output: dims.topExperts }),
     operatorSpec(`${prefix}.dispatch`, "expert dispatch", "moe_dispatch", {
       ...shapeFlow(`${shapes.hidden}, ${shapes.topExperts}`, shapes.expertInput),
@@ -771,6 +874,10 @@ export function moeOperatorSpecs(prefix, normalized) {
     operatorSpec(`${prefix}.expert_mlp`, "expert MLP", "swiglu", {
       ...shapeFlow(shapes.expertInput, shapes.expertInput),
       intermediate_shape: shapes.moeIntermediate,
+      activation: normalized.modelType === "minimax_m3_vl" ? "swigluoai_uninterleave" : undefined,
+      swiglu_alpha: normalized.swigluAlpha,
+      swiglu_beta: normalized.swigluBeta,
+      swiglu_limit: normalized.swigluLimit,
     }, { input: dims.expertInput, output: dims.expertInput }),
     operatorSpec(`${prefix}.combine`, "expert combine", "moe_combine", {
       ...shapeFlow(`${shapes.expertInput}, ${shapes.topExperts}`, shapes.hidden),

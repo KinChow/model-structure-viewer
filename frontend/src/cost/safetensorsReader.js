@@ -11,6 +11,10 @@
 
 import { normalizeModelId } from "../api/hf.js";
 
+// 与 @huggingface/hub parseSafetensorsMetadata 保持相同上限，避免畸形文件
+// 诱导浏览器申请无界内存。
+const MAX_HEADER_LENGTH = 25_000_000;
+
 /**
  * 读取模型 repo 的全部 safetensors header，归一化为 {tensors, parameterCount, parameterTotal}。
  * @param {{modelId: string, revision?: string, hubUrl?: string, resolvePrefix?: string, fetchImpl?: typeof fetch}} params
@@ -101,10 +105,12 @@ async function readLocalShardHeader(file) {
 async function rangeBytes(fetchImpl, url, start, end) {
   const res = await fetchImpl(url, { headers: { Range: `bytes=${start}-${end}` } });
   if (!res.ok) throw new Error(`safetensors range HTTP ${res.status}`);
+  if (res.status !== 206) {
+    await res.body?.cancel?.();
+    throw new Error("safetensors server does not support byte ranges");
+  }
   const buf = new Uint8Array(await res.arrayBuffer());
-  // 206 响应体从请求的偏移开始；200 响应体则是完整文件。
-  // 对忽略 Range 的服务端限制截取范围，避免破坏 header 解析。
-  if (res.status === 200) return buf.slice(start, end + 1);
+  if (buf.length < end - start + 1) throw new Error("safetensors range response is truncated");
   return buf.slice(0, end - start + 1);
 }
 
@@ -112,5 +118,15 @@ function readU64LE(buf) {
   if (buf.length < 8) throw new Error("safetensors header length too short");
   let n = 0n;
   for (let i = 7; i >= 0; i--) n = (n << 8n) | BigInt(buf[i]);
-  return Number(n);
+  if (n > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("safetensors header length is unsafe");
+  const value = Number(n);
+  validateHeaderLength(value);
+  return value;
+}
+
+function validateHeaderLength(value) {
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error("safetensors header length is invalid");
+  if (value > MAX_HEADER_LENGTH) {
+    throw new Error(`safetensors header exceeds ${MAX_HEADER_LENGTH} bytes`);
+  }
 }

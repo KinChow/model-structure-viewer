@@ -119,20 +119,42 @@ test("header 长度字段不足 8 字节时报错", async () => {
         resolvePrefix: "",
         fetchImpl,
       }),
-    /too short/,
+    /range response is truncated/,
   );
 });
 
-test("Range 不被支持时，完整响应按请求偏移截取", async () => {
-  const header = { "model.weight": { dtype: "BF16", shape: [2, 2] } };
-  const file = fakeSafetensorsBytes(header);
+test("Range 不被支持时拒绝读取完整权重响应", async () => {
+  let arrayBufferCalled = false;
+  let bodyCancelled = false;
   const fetchImpl = async (url, opts = {}) => {
     const range = opts.headers?.Range;
-    if (range) return { ok: true, status: 200, arrayBuffer: async () => file.buffer };
+    if (range) return {
+      ok: true,
+      status: 200,
+      body: { cancel: async () => { bodyCancelled = true; } },
+      arrayBuffer: async () => { arrayBufferCalled = true; return new ArrayBuffer(0); },
+    };
     return { ok: false, status: 404 };
   };
-  const result = await readSafetensorsHeaders({ modelId: "x/y", fetchImpl });
-  assert.equal(result.parameterTotal, 4);
+  await assert.rejects(
+    () => readSafetensorsHeaders({ modelId: "x/y", fetchImpl }),
+    /does not support byte ranges/,
+  );
+  assert.equal(arrayBufferCalled, false);
+  assert.equal(bodyCancelled, true);
+});
+
+test("拒绝超过成熟库上限的 safetensors header", async () => {
+  const bytes = new Uint8Array(8);
+  new DataView(bytes.buffer).setBigUint64(0, 25_000_001n, true);
+  const fetchImpl = async (url, opts = {}) => {
+    if (!opts.headers?.Range) return { ok: false, status: 404 };
+    return { ok: true, status: 206, arrayBuffer: async () => bytes.buffer };
+  };
+  await assert.rejects(
+    () => readSafetensorsHeaders({ modelId: "x/y", fetchImpl }),
+    /exceeds 25000000 bytes/,
+  );
 });
 
 test("浏览器本地目录：按 safetensors index 读取分片 header", async () => {

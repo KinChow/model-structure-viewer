@@ -2,6 +2,7 @@
 // 来源：llm-analysis 的 TP 通信公式，以及 evolution_design.md §5.3(6.3) F11-F12。
 
 import { kvBytesPerCard, stateBytesPerCard, validatePdPlan } from "./parallel.js";
+import { walkStructure } from "./traverse.js";
 
 function nonNegative(value, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
@@ -104,13 +105,9 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
 /** 汇总给定计划的节点级通信和 PP 边界通信，供摘要或对比视图使用。 */
 export function planCommunicationBytes({ root, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2 } = {}) {
   let nodeBytes = 0;
-  function visit(node, multiplier = 1) {
+  walkStructure(root, ({ node, multiplier }) => {
     nodeBytes += nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement }) * multiplier;
-    const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
-    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
-    for (const child of node?.children || []) visit(child, multiplier * (childHasExplicitRepeat ? 1 : repeat));
-  }
-  if (root) visit(root);
+  });
   const ppBytes = pipelineP2PBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, pp: plan.pp ?? plan.PP ?? 1 });
   return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes };
 }

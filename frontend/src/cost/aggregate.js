@@ -1,6 +1,7 @@
 import { bytesPerDtype, nodeWeightBytes, memoryBreakdown } from "./memory.js";
 import { computeNodeCosts } from "./compute.js";
 import { derivedWeightBytes, derivedWeightParameters } from "./derivedWeights.js";
+import { walkStructure } from "./traverse.js";
 
 export function aggregateCost({ root, config, parameterCount, batch = 1, sequence = 1, phase = "prefill",
   kvBytes = 2, activationPeak, runtimeConst, commBuffer, weightBytesPerParameter } = {}) {
@@ -42,12 +43,8 @@ function summarizeMacsSources(nodes) {
 
 function sumNodeWeights(root) {
   let total = 0;
-  function visit(node, multiplier = 1) {
+  walkStructure(root, ({ node, multiplier }) => {
     total += nodeWeightBytes(node) * multiplier;
-    const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
-    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
-    (node?.children || []).forEach((child) => visit(child, multiplier * (childHasExplicitRepeat ? 1 : repeat)));
-  }
-  if (root) visit(root);
+  });
   return total;
 }

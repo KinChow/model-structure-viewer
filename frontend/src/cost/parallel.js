@@ -2,6 +2,7 @@
 // 来源：llm-analysis 的并行内存分解方法，以及 evolution_design.md §5.3(6)。
 
 import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeightBytes } from "./memory.js";
+import { childRepeatMultiplier, walkStructure } from "./traverse.js";
 
 function positiveInteger(value) {
   return Number.isInteger(value) && value > 0;
@@ -185,13 +186,9 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, stateBytes = 0, conf
  */
 function treeWeightBytes(root) {
   let total = 0;
-  function visit(node, multiplier = 1) {
+  walkStructure(root, ({ node, multiplier }) => {
     total += nodeWeightBytes(node) * multiplier;
-    const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
-    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
-    for (const child of node?.children || []) visit(child, multiplier * (childHasExplicitRepeat ? 1 : repeat));
-  }
-  if (root) visit(root);
+  });
   return total;
 }
 
@@ -204,8 +201,6 @@ export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, stateByt
   const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, stateBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
   function visit(node, inheritedRepeat = 1, inheritedLayerSpan = null) {
     const path = String(node?.id || node?.name || "").toLowerCase();
-    const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
-    const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
     const ownLayerSpan = layerSpanForNode(node);
     const layerSpan = ownLayerSpan || inheritedLayerSpan;
     const rawWeight = nodeWeightBytes(node) * inheritedRepeat * weightScale;
@@ -228,7 +223,7 @@ export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, stateByt
       if (isExpert) stages[stage].expertWeightBytes += rawWeight;
     }
     const layerRepeatHandled = Boolean(ownLayerSpan);
-    const childMultiplier = inheritedRepeat * (layerRepeatHandled || childHasExplicitRepeat ? 1 : repeat);
+    const childMultiplier = childRepeatMultiplier(node, inheritedRepeat, { repeatHandled: layerRepeatHandled });
     for (const child of node?.children || []) visit(child, childMultiplier, layerSpan);
   }
   if (root) visit(root);

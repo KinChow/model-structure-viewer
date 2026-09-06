@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { attentionMacs, computeNodeCosts, linearAttentionMacs, linearMacs } from "../compute.js";
+import { aggregateCost } from "../aggregate.js";
 
 test("packed qweight is unknown without logical shape metadata", () => {
   assert.equal(linearMacs({ weight_shapes: { qweight: [4, 1] } }, { batch: 1, sequence: 1 }), null);
+});
+
+test("template linear operators derive MACs from numeric tensor shapes", () => {
+  const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] };
+  assert.equal(linearMacs(node, { batch: 1, sequence: 3, phase: "prefill" }), 96);
+  const result = aggregateCost({ root: { children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }, config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3, activationPeak: 0, runtimeConst: 0 });
+  assert.equal(result.totalMacs, 96);
+  assert.equal(result.macsPerToken, 32);
+  assert.equal(result.totalFlops, 192);
+  assert.equal(result.macsSources["config-derived-shape"], 1);
 });
 
 test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {

@@ -24,10 +24,11 @@ export function buildNodeLens(structure, chip, {
 
   const rows = computeNodeCosts(structure.root, config, { batch, sequence, phase });
   const tokens = phase === "decode" ? 1 : sequence;
+  const forwardTokens = batch * tokens;
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };
   const nodes = Object.fromEntries(rows.map((row) => {
     const perCardCost = nodeCostPerCard({
-      macs: row.macs,
+      macs: row.compute_macs,
       weightBytes: row.weightBytes,
       actInBytes: activationTensorBytes(row.node.input_shape, shapeOptions, bytesPerElement) * row.multiplier,
       actOutBytes: activationTensorBytes(row.node.output_shape, shapeOptions, bytesPerElement) * row.multiplier,
@@ -42,6 +43,11 @@ export function buildNodeLens(structure, chip, {
     return [row.path, {
       ...roofline,
       metrics: {
+        macs: perCardCost.macs,
+        macsPerToken: Number.isFinite(perCardCost.macs) && forwardTokens > 0 ? perCardCost.macs / forwardTokens : null,
+        flops: Number.isFinite(perCardCost.macs) ? perCardCost.macs * 2 : null,
+        flopsPerToken: Number.isFinite(perCardCost.macs) && forwardTokens > 0 ? (perCardCost.macs * 2) / forwardTokens : null,
+        macsSource: row.macs_source,
         computeSeconds: roofline.times.compute,
         memorySeconds: roofline.times.memory,
         communicationSeconds: roofline.times.comm,

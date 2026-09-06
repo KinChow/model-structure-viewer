@@ -14,6 +14,27 @@ function isLinear(node) {
   );
 }
 
+function staticWidth(shape) {
+  if (!Array.isArray(shape) || shape.length < 3) return null;
+  const dimensions = shape.slice(2);
+  if (dimensions.some((value) => !Number.isFinite(value) || value <= 0)) return null;
+  return dimensions.reduce((total, value) => total * value, 1);
+}
+
+function hasLogicalLinearShape(node) {
+  return Boolean(
+    node?.attributes?.logical_weight_shape
+    || Object.values(node?.weight_shapes || {}).some((shape) => Array.isArray(shape) && shape.length >= 2),
+  );
+}
+
+function derivedLinearMacs(node, { batch, sequence, phase, expertFraction = 1 } = {}) {
+  const inputWidth = staticWidth(node?.input_shape);
+  const outputWidth = staticWidth(node?.output_shape);
+  if (inputWidth == null || outputWidth == null) return null;
+  return tokensFor({ batch, sequence, phase }) * inputWidth * outputWidth * expertFraction;
+}
+
 // 来源：llm-analysis 的 LLMAnalysis.get_num_flops_fwd_per_layer_linear。
 export function linearMacs(node, { batch, sequence, phase, expertFraction = 1 } = {}) {
   // GPTQ/AWQ 的 packed shape 是存储形状，不是逻辑矩阵乘形状。
@@ -21,7 +42,9 @@ export function linearMacs(node, { batch, sequence, phase, expertFraction = 1 } 
   if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return null;
   const shape = Object.values(node?.weight_shapes || {}).find((value) => Array.isArray(value) && value.length >= 2);
   const logicalShape = node?.attributes?.logical_weight_shape || shape;
-  return logicalShape ? tokensFor({ batch, sequence, phase }) * product(logicalShape) * expertFraction : 0;
+  return logicalShape
+    ? tokensFor({ batch, sequence, phase }) * product(logicalShape) * expertFraction
+    : derivedLinearMacs(node, { batch, sequence, phase, expertFraction });
 }
 
 // 来源：llm-analysis 的 LLMAnalysis.get_num_flops_fwd_per_layer_attn。
@@ -177,6 +200,24 @@ export function nodeMacs(node, config, options = {}) {
   return Array.isArray(output) ? tensorElements(output, options) : 0;
 }
 
+function computeMacsForNode(node, config, options = {}) {
+  const type = String(node?.type || "").toLowerCase();
+  const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
+  if (type === "attention" || operatorId === "attention") return nodeMacs(node, config, options);
+  if (type === "operator" && operatorId === "linear") return linearMacs(node, options);
+  return 0;
+}
+
+function macsSource(node, config, options = {}) {
+  const type = String(node?.type || "").toLowerCase();
+  const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
+  if (type === "attention" || operatorId === "attention") return "formula";
+  if (type !== "operator" || operatorId !== "linear") return "not-compute";
+  if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return "unknown";
+  if (hasLogicalLinearShape(node)) return "checkpoint-shape";
+  return derivedLinearMacs(node, options) == null ? "unknown" : "config-derived-shape";
+}
+
 export function computeNodeCosts(root, config, options = {}) {
   const rows = [];
   function visit(node, path = "root", multiplier = 1) {
@@ -190,10 +231,15 @@ export function computeNodeCosts(root, config, options = {}) {
     const expertFraction = routedExpert && layerKind !== "dense" && config?.experts && config?.expertsPerToken
       ? config.expertsPerToken / config.experts
       : 1;
-    const ownMacs = nodeMacs(node, config, { ...options, expertFraction });
+    const costOptions = { ...options, expertFraction };
+    const ownMacs = nodeMacs(node, config, costOptions);
+    const computeMacs = computeMacsForNode(node, config, costOptions);
     const own = ownMacs == null ? null : ownMacs * multiplier;
-    rows.push({ path, node, multiplier, macs: own, weightBytes: nodeWeightBytes(node) * multiplier,
-      estimate_status: own == null ? "unknown" : "estimated" });
+    const compute = computeMacs == null ? null : computeMacs * multiplier;
+    rows.push({ path, node, multiplier, macs: own, compute_macs: compute,
+      macs_source: macsSource(node, config, costOptions),
+      weightBytes: nodeWeightBytes(node) * multiplier,
+      estimate_status: compute == null ? "unknown" : "estimated" });
     const childMultiplier = multiplier * (childHasExplicitRepeat ? 1 : repeat);
     (node?.children || []).forEach((child, index) => visit(child, `${path}.${index}`, childMultiplier));
   }

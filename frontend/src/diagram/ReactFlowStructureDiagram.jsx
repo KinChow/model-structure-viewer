@@ -23,10 +23,12 @@ const EMPTY_SET = new Set();
 const DATAFLOW_MARKER = { type: MarkerType.ArrowClosed, width: 10, height: 10, color: "#d08a3a" };
 const HoverContext = createContext({ activeRelationPath: null, onHover: null });
 
-function formatMetric(seconds) {
-  if (!Number.isFinite(seconds)) return null;
-  if (seconds >= 1) return `${seconds.toFixed(2)}s`;
-  return `${(seconds * 1000).toFixed(1)}ms`;
+function formatMetric(value) {
+  if (!Number.isFinite(value)) return null;
+  if (value >= 1e12) return `${(value / 1e12).toFixed(2)}T`;
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}G`;
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  return `${Math.round(value)}`;
 }
 
 function formatBytes(bytes) {
@@ -85,7 +87,7 @@ function MsvNode({ data, selected }) {
   const bound = lensEnabled ? nodeLens?.[node.path]?.bound || "unknown" : "unknown";
   const metrics = lensEnabled ? nodeLens?.[node.path]?.metrics || {} : {};
   const lensValues = [
-    activeLenses.has("compute") && ["compute", "C", metrics.computeSeconds],
+    activeLenses.has("compute") && ["compute", "C", metrics.macsPerToken],
     activeLenses.has("memory") && ["memory", "M", metrics.memoryBytes, true],
     activeLenses.has("vram") && ["vram", "V", metrics.vramBytes, true],
   ].filter(Boolean).map(([id, label, value, bytes]) => ({

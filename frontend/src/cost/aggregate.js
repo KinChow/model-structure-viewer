@@ -17,8 +17,21 @@ export function aggregateCost({ root, config, parameterCount, batch = 1, sequenc
   const memory = memoryBreakdown({ weightBytes, config, batch, tokens: sequence, kvBytes,
     activationPeak, runtimeConst, commBuffer });
   const nodes = computeNodeCosts(root, config, { batch, sequence, phase });
-  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : "derived", nodes, totalMacs: nodes.reduce((sum, row) => sum + (row.macs ?? 0), 0),
+  const totalMacs = nodes.reduce((sum, row) => sum + (row.compute_macs ?? 0), 0);
+  const forwardTokens = batch * (phase === "decode" ? 1 : sequence);
+  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : "derived", nodes, totalMacs, totalFlops: totalMacs * 2,
+    macsPerToken: forwardTokens > 0 ? totalMacs / forwardTokens : null,
+    flopsPerToken: forwardTokens > 0 ? (totalMacs * 2) / forwardTokens : null,
+    macsSources: summarizeMacsSources(nodes),
     assumptions: { theoretical: true, activationPeak, runtimeConst, commBuffer, kvBytes } };
+}
+
+function summarizeMacsSources(nodes) {
+  return nodes.reduce((counts, row) => {
+    const source = row.macs_source || "unknown";
+    counts[source] = (counts[source] || 0) + 1;
+    return counts;
+  }, {});
 }
 
 function sumNodeWeights(root) {

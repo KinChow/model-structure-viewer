@@ -7,6 +7,7 @@ import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 import ManualChipForm from "./ManualChipForm.jsx";
 import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
+import { classifyRoofline } from "../cost/roofline.js";
 
 const GIB = 1024 ** 3;
 const FLOPS_ORDER = ["fp32", "fp16", "bf16", "fp8", "int8"];
@@ -23,6 +24,11 @@ function formatMacs(value) {
   if (value >= 1e12) return `${(value / 1e12).toFixed(2)} T`;
   if (value >= 1e9) return `${(value / 1e9).toFixed(2)} G`;
   return `${(value / 1e6).toFixed(1)} M`;
+}
+
+function formatSeconds(value) {
+  if (!Number.isFinite(value)) return "-";
+  return value >= 1 ? `${value.toFixed(2)} s` : `${(value * 1000).toFixed(2)} ms`;
 }
 
 function formatRate(value) {
@@ -132,6 +138,12 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const available = machine?.memory_bytes || 0;
   const projected = useMemo(() => cost && machine ? projectPlan({ root: structure.root, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, stateBytes: cost.memory.stateBytes, config, plan }) : null, [cost, machine, structure, config, plan]);
   const communication = useMemo(() => cost ? planCommunicationBytes({ root: structure.root, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence) }) : null, [cost, structure, config, plan, load, phase]);
+  const roofline = useMemo(() => cost && machine ? classifyRoofline({
+    macs: cost.totalMacs,
+    weightBytes: cost.memory.weightBytes,
+    actInBytes: peakCost?.memory.activationBytes || 0,
+    commBytes: communication?.totalBytes || 0,
+  }, machine, { dtype: "bf16", efficiency }) : null, [cost, machine, peakCost, communication, efficiency]);
   const pd = useMemo(() => mode === "pd" && phaseCosts.prefill && machine ? pdKvTransferBytes({ totalKvBytes: phaseCosts.prefill.memory.kvBytes, totalStateBytes: phaseCosts.prefill.memory.stateBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine }) : null, [mode, phaseCosts, machine, config, plans]);
   const pdFit = useMemo(() => mode === "pd" && phaseCosts.prefill && phaseCosts.decode && machine ? projectPdFit({ root: structure.root, weightBytes: phaseCosts.prefill.memory.weightBytes, prefillKvBytes: phaseCosts.prefill.memory.kvBytes, decodeKvBytes: phaseCosts.decode.memory.kvBytes, prefillStateBytes: phaseCosts.prefill.memory.stateBytes, decodeStateBytes: phaseCosts.decode.memory.stateBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine, activationBytes: peakCost?.memory.activationBytes || 0, runtimeBytes: cost.memory.runtimeBytes, commBufferBytes: cost.memory.commBufferBytes }) : null, [mode, phaseCosts, cost, machine, structure, config, plans, peakCost]);
   const currentNodes = mode === "pd" ? nodes[phase] : nodes.centralized;
@@ -171,10 +183,10 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
       <div className="cost-config-section"><h4>Cost assumptions</h4><div className="cost-config-grid"><label>KV bytes / element<select value={kvElementBytes} onChange={(event) => setKvElementBytes(Number(event.target.value))}><option value="2">2</option><option value="1">1</option><option value="0.5">0.5</option></select></label><label>Activation peak / GiB<input type="number" min="0" step="0.1" value={activationGiB} onChange={(event) => setActivationGiB(Math.max(0, Number(event.target.value) || 0))} /></label><label>Runtime / GiB<input type="number" min="0" step="0.1" value={runtimeGiB} onChange={(event) => setRuntimeGiB(Math.max(0, Number(event.target.value) || 0))} /></label><label>Comm buffer / GiB<input type="number" min="0" step="0.1" value={commBufferGiB} onChange={(event) => setCommBufferGiB(Math.max(0, Number(event.target.value) || 0))} /></label><label>Weight what-if<select value={weightMode} onChange={(event) => setWeightMode(event.target.value)}><option value="actual">actual / derived</option><option value="2">BF16 / FP16</option><option value="1">FP8 / INT8</option><option value="0.5">INT4</option></select></label></div></div>
     </div>}
     <div className="cost-breakdown">{[["Weights", cost.memory.weightBytes], ["KV", cost.memory.kvBytes], ["KDA state", cost.memory.stateBytes], ["Activation peak", peakCost.memory.activationBytes], ["Runtime", cost.memory.runtimeBytes], ["Communication buffer", cost.memory.commBufferBytes]].map(([label, value]) => <span key={label}><b>{label}</b>{formatBytes(value)}</span>)}</div>
-    <div className="cost-metrics"><span>Total VRAM <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>{text.fitCard} <b className={cost.memory.totalBytes <= available ? "fit" : "no-fit"}>{fitText(cost.memory.totalBytes <= available, english)}</b></span><span>Max context <b>{planMaxContext == null ? "-" : planMaxContext.toLocaleString()}</b></span><span>MACs <b>{formatMacs(cost.totalMacs)}</b></span><span>Communication <b>{formatBytes(communication?.totalBytes)}</b></span></div>
+    <div className="cost-metrics"><span>Total VRAM <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>{text.fitCard} <b className={cost.memory.totalBytes <= available ? "fit" : "no-fit"}>{fitText(cost.memory.totalBytes <= available, english)}</b></span><span>Max context <b>{planMaxContext == null ? "-" : planMaxContext.toLocaleString()}</b></span><span>MACs / token <b>{formatMacs(cost.macsPerToken)}</b></span><span>MACs / forward <b>{formatMacs(cost.totalMacs)}</b></span><span>FLOPs / forward <b>{formatMacs(cost.totalFlops)}</b></span><span>Roofline <b>{roofline?.bound || "unknown"}</b></span><span>Communication <b>{formatBytes(communication?.totalBytes)}</b></span></div>
     {projected?.ok && <div className="cost-stages">{projected.stages.map((stage) => <span key={stage.stage}><b>Stage {stage.stage}</b> {formatBytes(stage.weightBytes)} weights · {formatBytes(stage.kvBytes)} KV · {formatBytes(stage.stateBytes || 0)} KDA state</span>)}</div>}
     {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>KV + KDA State Transfer</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes + (pd.perDecodeRankStateBytes || 0))} / Decode rank</span><span>{pd.linkSource}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, english)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, english)}</span></div>}
     {mode === "pd" && pd && !pd.ok && <div className="cost-plan-error">PD plan invalid: {pd.errors.join("; ")}</div>}
-    <div className="cost-assumptions">{phase === "prefill" && load.chunked ? `${text.chunkedSummary(load.sequence, Math.min(load.sequence, load.chunkSize))} ` : ""}{text.theoretical}</div>
+    <div className="cost-assumptions">{phase === "prefill" && load.chunked ? `${text.chunkedSummary(load.sequence, Math.min(load.sequence, load.chunkSize))} ` : ""}{text.theoretical} {roofline && `Roofline compute ${formatSeconds(roofline.times.compute)} · memory ${formatSeconds(roofline.times.memory)} · comm ${formatSeconds(roofline.times.comm)}.`}</div>
   </section>;
 }

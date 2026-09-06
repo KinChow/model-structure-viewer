@@ -15,14 +15,14 @@ export function buildNodeLens(structure, chip, {
   efficiency,
   dtype = "bf16",
 } = {}) {
-  if ((!structure?.graph && !structure?.root) || !structure.extra_config || !chip) {
+  if (!structure?.graph || !structure.extra_config || !chip) {
     return { ok: false, errors: ["缺少结构、模型配置或芯片规格"], nodes: {} };
   }
   const config = normalizeConfig(structure.extra_config);
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, nodes: {} };
 
-  const rows = computeNodeCosts(structure.graph ? null : structure.root, config, { batch, sequence, phase, graph: structure.graph });
+  const rows = computeNodeCosts(null, config, { batch, sequence, phase, graph: structure.graph });
   const tokens = phase === "decode" ? 1 : sequence;
   const forwardTokens = batch * tokens;
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };

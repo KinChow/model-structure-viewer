@@ -483,7 +483,7 @@ StructureNode
   └── RawConfigTab      -> extra_config
 ```
 
-节点路径是 Architecture、公式按钮、Layers、搜索、Inspector 和 node Cost Lens 的唯一联动键。`diagnostics` 必须说明结构来源、truth 状态、fallback 和 repair；UI 不能只根据是否有结构树判断验证成功。
+节点路径是 Architecture、公式按钮、Layers、搜索、Inspector 和 node Cost Lens 的唯一联动键。模块 builder 可通过 `attributes.dataflow_edges` 声明稳定的子算子数据流；`diagnostics` 必须说明结构来源、truth 状态、fallback 和 repair；UI 不能只根据是否有结构树判断验证成功。
 
 ## 11. 测试对应关系
 

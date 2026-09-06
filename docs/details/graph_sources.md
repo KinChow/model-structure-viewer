@@ -33,13 +33,16 @@ flow replay engine. Those parts depend on modelmap-specific data contracts and
 would conflict with MSV's config/safetensors truth, formulas, Cost Lens, and
 PD analysis.
 
-## Edge Routing
+## Edge Semantics and Routing
 
-The semantic adapter owns the graph meaning: MLA, MLP, and MoE branches are
-represented as dataflow edges, while parent-child containment is represented by
-React Flow `parentId` and compound frames. `react-flow-smart-edge` owns only
-the final obstacle-aware SVG path for edges between ordinary nodes. The
-dependency is MIT licensed; see its package documentation and repository:
+Model builders declare stable child-id pairs in `dataflow_edges` for common
+MLP, GQA/MLA, and MoE modules. The graph materializer resolves those pairs to
+tree paths, keeping model semantics out of the canvas renderer. A legacy
+semantic matcher remains as a compatibility fallback for specialized variants
+that have not migrated to declarations yet. Parent-child containment is
+represented by React Flow `parentId` and compound frames. `react-flow-smart-edge`
+owns only the final obstacle-aware SVG path for edges between ordinary nodes.
+The dependency is MIT licensed; see its package documentation and repository:
 
 - https://github.com/tisoap/react-flow-smart-edge
 - https://reactflow.dev/learn/layouting/layouting#routing-edges

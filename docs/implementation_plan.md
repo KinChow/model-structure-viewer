@@ -22,7 +22,7 @@ Playwright 已替换旧版 SVG/CDP 验收路径。`npm --prefix frontend run tes
 
 当前前后端 schema 与前端 materializer 仍由两边维护。优先增加跨端契约样例和字段兼容测试；只有重复维护成本继续上升时，才引入 schema-first 生成，避免为了工具本身扩大构建复杂度。
 
-当前图协议已经一等化为 `graph.version/nodes/edges`；后续可将 operator/module builder 的 value names 直接声明为边来源，逐步减少通用 materializer 中按模型语义匹配名称的兼容规则。
+当前图协议已经一等化为 `graph.version/nodes/edges`，常见模块已通过 `dataflow_edges` 声明稳定子算子边；后续继续迁移专项模型，并最终将声明升级为更细粒度的 value names，逐步删除通用 materializer 中按模型语义匹配名称的兼容规则。
 
 ### 模型 catalog 维护自动化
 

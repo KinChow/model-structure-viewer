@@ -113,6 +113,48 @@ test("有模板时绑定真值并报告未声明的含参模块（gap）", () =>
   assert.doesNotMatch(serialized, /gate_proj/);
 });
 
+test("完整 canonical path 防止 final norm 绑定到层内 norm", () => {
+  const network = {
+    kind: "network",
+    id: "model",
+    name: "Qwen3.5",
+    children: [
+      { kind: "operator", id: "norm", name: "final norm", operatorId: "rmsnorm", attributes: {}, children: [] },
+    ],
+  };
+  const truth = {
+    tensors: [
+      T("model.language_model.layers.0.linear_attn.norm.weight", "BF16", [128]),
+      T("model.language_model.norm.weight", "BF16", [1024]),
+    ],
+  };
+
+  const { diagnostics } = enrichNetworkWithTruth(network, truth, {
+    hasTemplate: true,
+    modelName: "Qwen3.5",
+    canonicalArchitecture: "multimodal-gqa-decoder",
+  });
+
+  assert.deepEqual(network.children[0].tensor_names, ["model.language_model.norm.weight"]);
+  assert.deepEqual(network.children[0].weight_shapes.weight, [1024]);
+  assert.ok(diagnostics.template_gaps.includes("model.language_model.layers.0.linear_attn.norm"));
+  assert.deepEqual(diagnostics.ambiguous_truth_matches, []);
+});
+
+test("不使用单段后缀猜测无关模块", () => {
+  const network = templateNetwork();
+  const truth = { tensors: [T("unrelated.block.gate_proj.weight", "BF16", [16, 8])] };
+
+  const { diagnostics } = enrichNetworkWithTruth(network, truth, {
+    hasTemplate: true,
+    modelName: "Qwen3",
+    canonicalArchitecture: "gqa-decoder",
+  });
+
+  assert.equal(network.children[1].children[0].value_source, undefined);
+  assert.ok(diagnostics.template_gaps.includes("unrelated.block.gate_proj"));
+});
+
 test("无真值时原样返回", () => {
   const network = templateNetwork();
   const { network: out, diagnostics } = enrichNetworkWithTruth(network, null, {

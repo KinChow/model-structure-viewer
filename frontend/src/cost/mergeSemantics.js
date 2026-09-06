@@ -17,17 +17,14 @@ export const TEMPLATE_FAMILIES = new Set(
   Object.keys(ARCHITECTURE_CATALOG).filter(hasTemplateArchitecture),
 );
 
-/** 从路径末尾逐段比较，返回连续匹配段数（用于模板路径 ↔ trie 路径的对齐）。 */
-function suffixScore(triePath, templatePath) {
-  let i = triePath.length - 1;
-  let j = templatePath.length - 1;
-  let score = 0;
-  while (i >= 0 && j >= 0 && triePath[i] === templatePath[j]) {
-    score++;
-    i--;
-    j--;
-  }
-  return score;
+const PATH_WRAPPERS = new Set(["model", "language_model"]);
+
+function canonicalModulePath(value) {
+  const parts = String(value || "").split(".").filter(Boolean);
+  while (parts.length > 0 && PATH_WRAPPERS.has(parts[0])) parts.shift();
+  if (parts[0] === "layers" || parts[0] === "text_decoder") parts[0] = "decoder";
+  if (parts[0] === "visual" || parts[0] === "vision") parts[0] = "vision_tower";
+  return parts.join(".");
 }
 
 function walkSpec(node, visit) {
@@ -43,25 +40,28 @@ function flattenSkeleton(node, out = []) {
 
 function bindTruthToTemplate(network, skeleton) {
   const trieNodes = flattenSkeleton(skeleton).filter((n) => n.params > 0);
+  const truthByPath = new Map();
+  for (const trieNode of trieNodes) {
+    const key = canonicalModulePath(trieNode.id);
+    if (!truthByPath.has(key)) truthByPath.set(key, []);
+    truthByPath.get(key).push(trieNode);
+  }
   const templateNodes = [];
   walkSpec(network, (node) => {
-    templateNodes.push({ node, path: node.id ? node.id.split(".") : [] });
+    templateNodes.push({ node, path: canonicalModulePath(node.id) });
   });
 
   const used = new Set();
   const boundIds = [];
+  const ambiguous = [];
   for (const { node, path } of templateNodes) {
-    let best = null;
-    let bestScore = 0;
-    for (const trieNode of trieNodes) {
-      if (used.has(trieNode)) continue;
-      const score = suffixScore(trieNode.id.split("."), path);
-      if (score > bestScore) {
-        bestScore = score;
-        best = trieNode;
-      }
+    const candidates = (truthByPath.get(path) || []).filter((candidate) => !used.has(candidate));
+    if (candidates.length > 1) {
+      ambiguous.push({ template: node.id, candidates: candidates.map((candidate) => candidate.id) });
+      continue;
     }
-    if (best && bestScore > 0) {
+    const [best] = candidates;
+    if (best) {
       used.add(best);
       node.params = best.params;
       node.weight_shapes = best.weight_shapes;
@@ -76,7 +76,7 @@ function bindTruthToTemplate(network, skeleton) {
   }
 
   const gaps = trieNodes.filter((n) => !used.has(n)).map((n) => n.id);
-  return { boundIds, gaps, used };
+  return { boundIds, gaps, used, ambiguous };
 }
 
 /** trie 骨架节点 → 模板 spec 形态（materializer 可直接消费）。 */
@@ -151,7 +151,7 @@ export function enrichNetworkWithTruth(network, truth, { hasTemplate, modelName,
     };
   }
 
-  const { boundIds, gaps, used } = bindTruthToTemplate(network, skeleton);
+  const { boundIds, gaps, used, ambiguous } = bindTruthToTemplate(network, skeleton);
   const gapTree = skeletonGapsToSpec(skeleton, used);
   if (gapTree) {
     network.children.push({
@@ -170,6 +170,7 @@ export function enrichNetworkWithTruth(network, truth, { hasTemplate, modelName,
       bound_tensors: boundIds.length,
       total_tensors: truth.tensors.length,
       template_gaps: gaps,
+      ambiguous_truth_matches: ambiguous,
     },
   };
 }

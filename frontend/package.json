@@ -8,6 +8,7 @@
     "sync:metadata": "node ../scripts/download-builtin-metadata.mjs",
     "dev": "vite",
     "test": "node --test",
+    "test:e2e": "playwright test",
     "verify:models": "node ../scripts/verify-builtin-models.mjs",
     "verify:page": "node ../scripts/verify-current-page.mjs",
     "build": "npm run catalog && vite build",
@@ -22,5 +23,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "vite": "^7.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

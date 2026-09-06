@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = "http://127.0.0.1:4173";
+const browserChannel = process.env.CI ? undefined : "chrome";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -11,7 +12,7 @@ export default defineConfig({
   reporter: "line",
   use: {
     baseURL,
-    channel: "chrome",
+    ...(browserChannel ? { channel: browserChannel } : {}),
     headless: true,
     locale: "zh-CN",
     screenshot: "only-on-failure",
@@ -24,7 +25,7 @@ export default defineConfig({
     },
     {
       name: "mobile-chrome",
-      use: { ...devices["Pixel 7"], channel: "chrome" },
+      use: { ...devices["Pixel 7"] },
     },
   ],
   webServer: {

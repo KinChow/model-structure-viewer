@@ -48,7 +48,6 @@ for (const org of await listDirectories(modelsRoot)) {
       config_path: `${org}/${model}/config.json`,
       model_type: config.model_type || null,
       architectures: Array.isArray(config.architectures) ? config.architectures : [],
-      verified: true,
     });
   }
 }

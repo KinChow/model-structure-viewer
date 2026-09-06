@@ -18,6 +18,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e '.[test]'
+      - run: pytest -q
+
   build:
     runs-on: ubuntu-latest
     defaults:
@@ -33,6 +44,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run verify:models
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
@@ -40,7 +53,7 @@ jobs:
           path: frontend/dist
 
   deploy:
-    needs: build
+    needs: [backend-test, build]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -14,27 +14,13 @@ import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { graphChildren, graphNodeAt, graphViewNode } from "../structure/graph/selectors.js";
 
-function breadcrumbForPath(graph, path, legacyRoot = null) {
-  if (!path) return [];
-  if (graph?.nodes) {
-    const items = [];
-    let current = graphNodeAt(graph, path);
-    while (current) {
-      items.unshift({ path: current.id, name: current.name });
-      current = current.parent_id ? graphNodeAt(graph, current.parent_id) : null;
-    }
-    return items;
-  }
-  const root = legacyRoot;
-  if (!root) return [];
-  const parts = path.split(".");
-  const items = [{ path: "root", name: root.name }];
-  let current = root;
-  for (let index = 1; index < parts.length; index += 1) {
-    const child = current.children?.[Number(parts[index])];
-    if (!child) break;
-    current = child;
-    items.push({ path: parts.slice(0, index + 1).join("."), name: child.name });
+function breadcrumbForPath(graph, path) {
+  if (!graph?.nodes || !path) return [];
+  const items = [];
+  let current = graphNodeAt(graph, path);
+  while (current) {
+    items.unshift({ path: current.id, name: current.name });
+    current = current.parent_id ? graphNodeAt(graph, current.parent_id) : null;
   }
   return items;
 }
@@ -63,7 +49,7 @@ function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath, par
   ];
   const topLevel = structure?.graph?.nodes
     ? graphChildren(structure.graph, structure.graph.root_id || "root").map((node) => graphViewNode(structure.graph, node.id))
-    : (structure?.root?.children || []);
+    : [];
   return <div className="model-inspector-summary"><span className="inspector-kicker">{english ? "MODEL SUMMARY" : "模型摘要"}</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><p className="model-summary-status" title={status.detail}>{status.detail}</p><section className="summary-module-section"><h3>{english ? "Top-level modules" : "顶层模块"}</h3><div className="summary-module-list">{topLevel.map((node, index) => <button type="button" key={node.path || node.id} onClick={() => onSelectPath?.(structure?.graph?.nodes ? node.path : `root.${index}`)}><span className="summary-module-kind">{node.type}</span><strong>{node.name}</strong>{node.repeat > 1 && <b>×{node.repeat}</b>}<span className="summary-module-arrow">→</span></button>)}</div></section><p>{english ? "Select a module or structure node to inspect details." : "选择模块或结构节点查看详情。"}</p><div className="inspector-rule" /></div>;
 }
 
@@ -141,7 +127,7 @@ export default function DetailWorkspace({
   const selectedData = selectedNode?.node || selectedNode;
   const selectedPath = selectedNodePath || selectedNode?.path || null;
   const parameterTotal = parameterTotalForStructure(structure);
-  const breadcrumbs = breadcrumbForPath(structure?.graph, selectedPath, structure?.root);
+  const breadcrumbs = breadcrumbForPath(structure?.graph, selectedPath);
   const activeMachineName = chips?.find((chip) => chip.id === activeMachineId)?.name || "GPU";
   const activeNodeCount = activeNodes?.[activeMode === "pd" ? activePhase : "centralized"] || 1;
   const fitLabel = costFitStatus == null ? null : activeMode === "pd" && costFitStatus.phaseFits

@@ -2,6 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { moeOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
+import { mlpModule } from "./mlp.js";
 
 export function moeModule(id, normalized) {
   const shapes = tensorShapes(normalized);
@@ -21,6 +22,9 @@ export function moeModule(id, normalized) {
         selected_experts_shape: shapes.topExperts,
       }),
     },
-    moeOperatorSpecs(id, normalized),
+    [
+      ...moeOperatorSpecs(id, normalized),
+      ...(normalized.sharedExperts ? [mlpModule(`${id}.shared_experts`, { ...normalized, intermediateSize: normalized.sharedExpertIntermediateSize || normalized.moeIntermediateSize })] : []),
+    ],
   ), dims.hidden, dims.hidden);
 }

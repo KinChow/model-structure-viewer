@@ -341,6 +341,78 @@
       "verified": true
     },
     {
+      "model_id": "Qwen/Qwen3.8-2.4T-A95B",
+      "config_path": "Qwen/Qwen3.8-2.4T-A95B/config.json",
+      "model_type": "qwen3_5_moe_text",
+      "architectures": [
+        "Qwen3_5MoeForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-2.4T-A95B-FP8",
+      "config_path": "Qwen/Qwen3.8-2.4T-A95B-FP8/config.json",
+      "model_type": "qwen3_5_moe_text",
+      "architectures": [
+        "Qwen3_5MoeForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-27B",
+      "config_path": "Qwen/Qwen3.8-27B/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-27B-FP8",
+      "config_path": "Qwen/Qwen3.8-27B-FP8/config.json",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-Flash-Next",
+      "config_path": "Qwen/Qwen3.8-Flash-Next/config.json",
+      "model_type": "qwen4_exp",
+      "architectures": [
+        "Qwen4ExpForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "config_path": "Qwen/Qwen3.8-Flash-Next-FP8/config.json",
+      "model_type": "qwen4_exp",
+      "architectures": [
+        "Qwen4ExpForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
       "model_id": "deepseek-ai/DeepSeek-R1",
       "config_path": "deepseek-ai/DeepSeek-R1/config.json",
       "model_type": "deepseek_v3",
@@ -393,8 +465,44 @@
       "verified": true
     },
     {
+      "model_id": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "config_path": "deepseek-ai/DeepSeek-V4-Flash-0731/config.json",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "config_path": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/config.json",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
       "model_id": "deepseek-ai/DeepSeek-V4-Pro",
       "config_path": "deepseek-ai/DeepSeek-V4-Pro/config.json",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "config_path": "deepseek-ai/DeepSeek-V4-Pro-0813/config.json",
       "model_type": "deepseek_v4",
       "architectures": [
         "DeepseekV4ForCausalLM"
@@ -516,6 +624,22 @@
       "verified": true
     },
     {
+      "model_id": "moonshotai/Kimi-K3",
+      "config_path": "moonshotai/Kimi-K3/config.json",
+      "model_type": "kimi_k3",
+      "architectures": [
+        "KimiK3ForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "configuration_kimi_k3.py",
+        "model.safetensors.index.json",
+        "modeling_kimi_k3.py",
+        "modeling_kimi_linear.py",
+        "tokenization_kimi.py"
+      ],
+      "verified": true
+    },
+    {
       "model_id": "zai-org/GLM-4.7",
       "config_path": "zai-org/GLM-4.7/config.json",
       "model_type": "glm4_moe",
@@ -557,6 +681,66 @@
       "model_type": "glm_moe_dsa",
       "architectures": [
         "GlmMoeDsaForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5.2-FP8",
+      "config_path": "zai-org/GLM-5.2-FP8/config.json",
+      "model_type": "glm_moe_dsa",
+      "architectures": [
+        "GlmMoeDsaForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5.3",
+      "config_path": "zai-org/GLM-5.3/config.json",
+      "model_type": "glm_moe_dsa",
+      "architectures": [
+        "GlmMoeDsaForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5.3-BF16",
+      "config_path": "zai-org/GLM-5.3-BF16/config.json",
+      "model_type": "glm_moe_dsa",
+      "architectures": [
+        "GlmMoeDsaForCausalLM"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5.3-Flash",
+      "config_path": "zai-org/GLM-5.3-Flash/config.json",
+      "model_type": "glm5_next",
+      "architectures": [
+        "Glm5NextForConditionalGeneration"
+      ],
+      "metadata_files": [
+        "model.safetensors.index.json"
+      ],
+      "verified": true
+    },
+    {
+      "model_id": "zai-org/GLM-5.3-Flash-BF16",
+      "config_path": "zai-org/GLM-5.3-Flash-BF16/config.json",
+      "model_type": "glm5_next",
+      "architectures": [
+        "Glm5NextForConditionalGeneration"
       ],
       "metadata_files": [
         "model.safetensors.index.json"

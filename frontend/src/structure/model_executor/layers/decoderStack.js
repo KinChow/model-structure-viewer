@@ -14,11 +14,12 @@ export function decoderStackNetwork(id, normalized, options = {}) {
   const attentionKinds = normalized.attentionSchedule?.length
     ? normalized.attentionSchedule
     : Array.from({ length: layers }, () => defaultAttentionKind);
-  const children = compactRanges(kinds).map((range) => {
+  const combinedKinds = kinds.map((kind, index) => `${kind}:${attentionKinds[index] || defaultAttentionKind}`);
+  const children = compactRanges(combinedKinds).map((range) => {
     const repeat = range.end - range.start + 1;
-    const attentionKind = attentionKinds[range.start] || defaultAttentionKind;
+    const [layerKind, attentionKind] = String(range.kind).split(":");
     const layer = decoderLayerModule(`${id}.${range.start}`, normalized, {
-      layerKind: range.kind,
+      layerKind,
       attentionKind,
     });
     layer.name = `${range.start} (DecoderLayer)`;

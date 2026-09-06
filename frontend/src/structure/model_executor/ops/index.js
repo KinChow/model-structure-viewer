@@ -70,6 +70,61 @@ export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
   ];
 }
 
+export function linearAttentionOperatorSpecs(prefix, normalized) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  return [
+    operatorSpec(`${prefix}.in_proj_qkv`, "linear attention qkv projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+    operatorSpec(`${prefix}.in_proj_z`, "linear attention gate projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+    operatorSpec(`${prefix}.in_proj_b`, "linear attention decay projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+    operatorSpec(`${prefix}.short_conv`, "short convolution", "linear_attention", {
+      ...shapeFlow(shapes.hidden, shapes.hidden),
+      attention_kind: "linear",
+    }, { input: dims.hidden, output: dims.hidden }),
+    operatorSpec(`${prefix}.state_update`, "linear attention state update", "linear_attention", {
+      ...shapeFlow(`${shapes.hidden}, state`, shapes.hidden),
+      attention_kind: "linear",
+    }, { input: dims.hidden, output: dims.hidden }),
+    operatorSpec(`${prefix}.output_gate`, "linear attention output gate", "linear_attention_gate", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+  ];
+}
+
+export function mlaAttentionOperatorSpecs(prefix, normalized) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const specs = [];
+  if (normalized.qLoraRank != null) {
+    specs.push(operatorSpec(`${prefix}.q_a_proj`, "query down projection", "mla_query_compress", shapeFlow(shapes.hidden, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: dims.hidden, output: [-1, -1, normalized.qLoraRank] }));
+    specs.push(operatorSpec(`${prefix}.q_b_proj`, "query up projection", "linear", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, shapes.attentionQuery), { input: [-1, -1, normalized.qLoraRank], output: dims.attentionQuery }));
+  } else {
+    specs.push(operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }));
+  }
+  specs.push(operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", shapeFlow(shapes.hidden, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`), { input: dims.hidden, output: [-1, -1, normalized.kvLoraRank] }));
+  specs.push(operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `${shapes.attentionKey}, ${shapes.attentionValue}`), { input: [-1, -1, normalized.kvLoraRank], output: dims.attentionKey }));
+  specs.push(operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
+    ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
+    query_shape: shapes.attentionQuery,
+    key_shape: shapes.attentionKey,
+  }, { input: dims.attentionQuery, output: dims.attentionQuery }));
+  specs.push(operatorSpec(`${prefix}.scores`, "latent attention scores", "matmul", {
+    ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
+    formula: "S = Q K^T / sqrt(d_rope)",
+    attention_kind: "mla",
+  }, { input: dims.attentionQuery, output: dims.attentionScores }));
+  specs.push(operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }));
+  specs.push(operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
+    ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
+    formula: "O = P V",
+    attention_kind: "mla",
+  }, { input: dims.attentionProbabilities, output: dims.attentionContext }));
+  if (normalized.mlaUseOutputGate) {
+    specs.push(operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext }));
+  }
+  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }));
+  return specs;
+}
+
 export function mlpOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);

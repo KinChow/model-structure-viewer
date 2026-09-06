@@ -75,6 +75,8 @@ def _verify_summary_strategy(recovery_kind: str) -> str:
         return "attention-normalized-transformers-meta"
     if recovery_kind in {"kimi", "repair_kimi"}:
         return "tie-weights-compatible-transformers-meta"
+    if recovery_kind in {"kimi_remote_code", "repair_kimi_remote_code"}:
+        return "kimi-remote-code-compatible-transformers-meta"
     return "transformers-meta"
 
 

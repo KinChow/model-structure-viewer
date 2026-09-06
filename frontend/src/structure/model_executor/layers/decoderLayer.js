@@ -5,6 +5,7 @@ import { moeModule } from "./moe.js";
 import { rmsNormModule } from "./norm.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
+import { attentionResidualModule } from "./residual.js";
 
 export function decoderLayerModule(id, normalized, { layerKind, attentionKind }) {
   const shapes = tensorShapes(normalized);
@@ -19,6 +20,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind })
       attentionModule(`${id}.self_attn`, normalized, attentionKind),
       rmsNormModule(`${id}.post_attention_layernorm`, "post attention layernorm", normalized),
       layerKind === "moe" ? moeModule(`${id}.moe`, normalized) : mlpModule(`${id}.mlp`, normalized),
+      ...(normalized.attnResBlockSize ? [attentionResidualModule(`${id}.attn_residual`, normalized)] : []),
     ],
   ), dims.hidden, dims.hidden);
 }

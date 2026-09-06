@@ -35,6 +35,6 @@ test("all built-in multi-operator modules use semantic graph edges", async () =>
       checked.push({ modelId: entry.model_id, parent: parent.node.name, children: children.length });
     }
   }
-  assert.equal(catalog.models.length, 44);
+  assert.equal(catalog.models.length, 59);
   assert.ok(checked.length > 0);
 });

@@ -10,6 +10,8 @@ export const ARCHITECTURE_ALIASES = {
   Qwen3MoeForCausalLM: "gqa-moe-decoder",
   Qwen4ExpForConditionalGeneration: "multimodal-gqa-moe-decoder",
   KimiK25ForConditionalGeneration: "mla-moe-decoder",
+  KimiK3ForConditionalGeneration: "hybrid-multimodal-moe-decoder",
+  Glm5NextForConditionalGeneration: "hybrid-multimodal-moe-decoder",
   MiniMaxM2ForCausalLM: "gqa-moe-decoder",
   MiniMaxM3SparseForConditionalGeneration: "multimodal-sparse-moe-decoder",
 };

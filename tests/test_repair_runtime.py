@@ -3,6 +3,10 @@ from model_structure_viewer.structure.repair.runtime import NoopRuntimePatch
 from model_structure_viewer.structure.repair.strategies.deepseek_import_compat import (
     DeepSeekTorchFxCompatPatch,
 )
+from model_structure_viewer.structure.repair.compat import (
+    KimiRemoteCodeCompatPatch,
+    is_kimi_output_recorder_import_error,
+)
 
 
 def test_noop_runtime_patch_can_be_used_as_context_manager():
@@ -54,3 +58,23 @@ def test_deepseek_patch_removes_symbol_when_it_created_it(monkeypatch):
         assert hasattr(import_utils, "is_torch_fx_available")
 
     assert not hasattr(import_utils, "is_torch_fx_available")
+
+
+def test_kimi_remote_code_patch_restores_output_recorder_alias(monkeypatch):
+    import transformers.modeling_utils as modeling_utils
+    import transformers.utils.generic as generic_utils
+
+    monkeypatch.delattr(generic_utils, "OutputRecorder", raising=False)
+    patch = KimiRemoteCodeCompatPatch()
+
+    with patch.activate():
+        assert generic_utils.OutputRecorder is modeling_utils.OutputRecorder
+
+    assert not hasattr(generic_utils, "OutputRecorder")
+
+
+def test_kimi_output_recorder_error_is_classified():
+    error = ImportError(
+        "cannot import name 'OutputRecorder' from 'transformers.utils.generic'"
+    )
+    assert is_kimi_output_recorder_import_error(error)

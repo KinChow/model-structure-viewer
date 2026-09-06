@@ -51,6 +51,8 @@ test("resolves known vendor aliases without string inference", () => {
     ["Qwen3_5MoeForConditionalGeneration", "qwen3_5_moe", "gqa-moe-decoder"],
     ["KimiK25ForConditionalGeneration", "kimi_k25", "mla-moe-decoder"],
     ["MiniMaxM2ForCausalLM", "minimax_m2", "gqa-moe-decoder"],
+    ["KimiK3ForConditionalGeneration", "kimi_k3", "hybrid-multimodal-moe-decoder"],
+    ["Glm5NextForConditionalGeneration", "glm5_next", "hybrid-multimodal-moe-decoder"],
   ];
 
   for (const [architecture, modelType, canonical] of cases) {
@@ -118,7 +120,7 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
   const structure = materializeModelStructure(createStructureIr({ network, normalized, resolved }));
 
   assert.equal(resolved.canonicalArchitecture, "multimodal-gqa-moe-decoder");
-  assert.deepEqual(network.children.map((child) => child.id), ["vision_tower", "projector", "embed_tokens", "decoder", "lm_head"]);
+  assert.deepEqual(network.children.map((child) => child.id), ["vision_tower", "projector", "embed_tokens", "decoder", "norm", "lm_head"]);
   assert.equal(structure.root.children[0].attributes.output_shape, "[batch, visual_tokens, vision hidden size=2560]");
   assert.equal(structure.root.children[1].attributes.input_shape, "[batch, visual_tokens, vision hidden size=2560]");
   assert.equal(structure.summary.vision_layers, 27);

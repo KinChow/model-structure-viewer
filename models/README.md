@@ -24,14 +24,23 @@ models/<org>/<model>/config.json
 node scripts/generate-model-catalog.mjs
 ```
 
-补充内置模型的轻量配置元数据，在仓库根目录执行：
+补充或更新内置模型的轻量配置元数据，在仓库根目录执行：
 
 ```bash
 node scripts/download-builtin-metadata.mjs
 ```
 
-下载顺序为 Hugging Face mirror，再回退 ModelScope。脚本不会下载
-其它 tokenizer、generation 或 processor metadata，也不会覆盖已有文件；如需覆盖已有 index，显式增加 `--overwrite`。
+下载 catalog 之外的新模型时，可显式传入 model id；完成后再生成 catalog：
+
+```bash
+node scripts/download-builtin-metadata.mjs --model=Qwen/Qwen3.8-Flash-Next
+node scripts/generate-model-catalog.mjs
+```
+
+下载顺序为 Hugging Face mirror，再回退 ModelScope。脚本只下载
+`config.json`、`model.safetensors.index.json` 和模型所需的自定义 Python 文件，不会下载其它
+tokenizer、generation 或 processor metadata，也不会覆盖已有文件；如需更新已有文件，显式增加
+`--overwrite`。
 
 ## 快速使用
 
@@ -49,6 +58,12 @@ node scripts/download-builtin-metadata.mjs
 
 ### Qwen
 
+- `Qwen/Qwen3.8-2.4T-A95B`
+- `Qwen/Qwen3.8-2.4T-A95B-FP8`
+- `Qwen/Qwen3.8-27B`
+- `Qwen/Qwen3.8-27B-FP8`
+- `Qwen/Qwen3.8-Flash-Next`
+- `Qwen/Qwen3.8-Flash-Next-FP8`
 - `Qwen/Qwen3.5-0.8B`
 - `Qwen/Qwen3.5-0.8B-Base`
 - `Qwen/Qwen3.5-2B`
@@ -77,6 +92,9 @@ node scripts/download-builtin-metadata.mjs
 
 ### DeepSeek
 
+- `deepseek-ai/DeepSeek-V4-Flash-0731`
+- `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp`
+- `deepseek-ai/DeepSeek-V4-Pro-0813`
 - `deepseek-ai/DeepSeek-R1`
 - `deepseek-ai/DeepSeek-V3.1`
 - `deepseek-ai/DeepSeek-V3.2`
@@ -85,6 +103,11 @@ node scripts/download-builtin-metadata.mjs
 
 ### GLM
 
+- `zai-org/GLM-5.2-FP8`
+- `zai-org/GLM-5.3`
+- `zai-org/GLM-5.3-BF16`
+- `zai-org/GLM-5.3-Flash`
+- `zai-org/GLM-5.3-Flash-BF16`
 - `zai-org/GLM-4.7`
 - `zai-org/GLM-5`
 - `zai-org/GLM-5.1`
@@ -92,6 +115,7 @@ node scripts/download-builtin-metadata.mjs
 
 ### Kimi
 
+- `moonshotai/Kimi-K3`
 - `moonshotai/Kimi-K2-Base`
 - `moonshotai/Kimi-K2-Instruct`
 - `moonshotai/Kimi-K2-Instruct-0905`

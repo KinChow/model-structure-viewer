@@ -33,11 +33,26 @@ export function attentionMacs(config, { batch = 1, sequence = 1, phase = "prefil
   return batch * heads * lengthTerm * (qk + value);
 }
 
+export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const tokens = batch * (phase === "decode" ? 1 : sequence);
+  const hidden = config?.hiddenSize || 0;
+  const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
+  const valueHeads = config?.linearValueHeads || config?.attentionHeads || 0;
+  const keyDim = config?.linearKeyDim || config?.headDim || 0;
+  const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
+  // Linear attention keeps a recurrent state, so its state update is O(T),
+  // unlike full attention's O(T^2) score/context products.
+  return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
+}
+
 export function nodeMacs(node, config, options = {}) {
-  if (isLinear(node)) return linearMacs(node, options);
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
-  if (type === "attention" || operatorId === "attention") return attentionMacs(config, options);
+  if (type === "attention" || operatorId === "attention") {
+    const attentionKind = node?.attributes?.attention_kind || "gqa";
+    return attentionKind === "linear" ? linearAttentionMacs(config, options) : attentionMacs(config, options);
+  }
+  if (isLinear(node)) return linearMacs(node, options);
   const output = node?.output_shape || node?.attributes?.output_shape;
   return Array.isArray(output) ? tensorElements(output, options) : 0;
 }

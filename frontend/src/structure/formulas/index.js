@@ -62,6 +62,48 @@ const FORMULAS = {
     inputs: ["expert_outputs", "expert_weights"],
     outputs: ["y"],
   },
+  linear_attention: {
+    title: "Gated Linear Attention",
+    formula: "S_t = decay_t * S_{t-1} + k_t^T v_t; y_t = q_t S_t",
+    explanation: "按 token 递推更新线性 attention 状态，避免构造完整的 query-key score 矩阵。",
+    inputs: ["q", "k", "v", "decay", "state"],
+    outputs: ["state", "y"],
+  },
+  linear_attention_gate: {
+    title: "Linear Attention Output Gate",
+    formula: "y_t = gate(z_t) * y_t",
+    explanation: "使用门控向量调制线性 attention 输出。",
+    inputs: ["z", "y"],
+    outputs: ["y"],
+  },
+  mla_query_compress: {
+    title: "MLA Query Compression",
+    formula: "c^q_t = W_{qa} x_t; q_t = W_{qb} RMSNorm(c^q_t)",
+    explanation: "将 query 压缩到低秩 latent 后恢复多头 query。",
+    inputs: ["x", "W_qa", "W_qb"],
+    outputs: ["q"],
+  },
+  mla_kv_compress: {
+    title: "MLA KV Compression",
+    formula: "[c^{KV}_t, k^R_t] = W_{kv} x_t",
+    explanation: "将 KV 压缩为共享 latent 与旋转位置分量，供 MLA attention 使用。",
+    inputs: ["x", "W_kv"],
+    outputs: ["c_KV", "k_R"],
+  },
+  mla_output_gate: {
+    title: "MLA Output Gate",
+    formula: "O' = sigmoid(W_g x) * O",
+    explanation: "使用输入相关的门控向量调制 MLA 输出。",
+    inputs: ["x", "W_g", "O"],
+    outputs: ["O'"],
+  },
+  attention_residual: {
+    title: "Attention Residual",
+    formula: "y = sum_i softmax(w_i) * RMSNorm(x_i)",
+    explanation: "对 attention 或 MLP 的块级历史残差进行归一化加权聚合。",
+    inputs: ["residual_states", "projection", "norm"],
+    outputs: ["y"],
+  },
 };
 
 export function formulaForOperator(operatorId) {

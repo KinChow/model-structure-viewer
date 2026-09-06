@@ -23,6 +23,48 @@ def is_kimi_tie_weights_signature_error(error: BaseException) -> bool:
     return "KimiK25ForConditionalGeneration.tie_weights()" in message and "unexpected keyword argument" in message
 
 
+def is_kimi_output_recorder_import_error(error: BaseException) -> bool:
+    message = str(error)
+    return "cannot import name 'OutputRecorder'" in message and "transformers.utils.generic" in message
+
+
+class KimiRemoteCodeCompatPatch:
+    """Bridge Kimi-K3 remote code across the Transformers 5.x symbol move."""
+
+    name = "kimi_remote_code_compat"
+
+    def activate(self):
+        return _KimiRemoteCodeCompatContext()
+
+
+class _KimiRemoteCodeCompatContext:
+    def __init__(self):
+        self._created = False
+
+    def __enter__(self):
+        import transformers.modeling_utils as modeling_utils
+        import transformers.utils.generic as generic_utils
+
+        if not hasattr(generic_utils, "OutputRecorder"):
+            output_recorder = getattr(modeling_utils, "OutputRecorder", None)
+            if output_recorder is None:
+                raise RuntimeError(
+                    "Transformers does not expose OutputRecorder in modeling_utils; "
+                    "Kimi remote code is incompatible with this Transformers version."
+                )
+            generic_utils.OutputRecorder = output_recorder
+            self._created = True
+        return None
+
+    def __exit__(self, exc_type, exc, tb):
+        if self._created:
+            import transformers.utils.generic as generic_utils
+
+            del generic_utils.OutputRecorder
+            self._created = False
+        return False
+
+
 class KimiTieWeightsCompatPatch:
     name = "kimi_tie_weights_compat"
 

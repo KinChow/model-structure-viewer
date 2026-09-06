@@ -136,6 +136,27 @@ function semanticEdges(item) {
     return edges.length >= 3 ? edges : null;
   }
 
+  if (item.node?.attributes?.attention_kind === "linear" || /linear attention/.test(name)) {
+    const qkv = find(/qkv|q.?k.?v/);
+    const gate = find(/output gate|in_proj_z|gate projection/);
+    const decay = find(/decay|in_proj_b/);
+    const conv = find(/short conv/);
+    const state = find(/state update|linear attention state/);
+    const outputGate = find(/output gate/);
+    const output = find(/output projection|out_proj/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+    };
+    add(qkv, conv);
+    add(decay, state);
+    add(conv, state);
+    add(state, outputGate || gate);
+    add(outputGate || gate, output);
+    return edges.length >= 3 ? edges : null;
+  }
+
   if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;
   const q = find(/(^|\b)q\s*(projection|proj)\b|q_proj|query/);
   const k = find(/(^|\b)k\s*(projection|proj)\b|k_proj|key/);

@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const modelsRoot = path.join(repoRoot, "models");
 const overwrite = process.argv.includes("--overwrite");
-const allowedNames = new Set(["model.safetensors.index.json"]);
+const requestedModelIds = process.argv
+  .filter((argument) => argument.startsWith("--model="))
+  .map((argument) => argument.slice("--model=".length))
+  .filter(Boolean);
+const allowedNames = /^(config\.json|model\.safetensors\.index\.json|configuration_.*\.py|modeling_.*\.py|tokenization_.*\.py)$/;
 
 const sources = [
   {
@@ -50,9 +54,11 @@ async function download(source, modelId, filename) {
 
 async function main() {
   const catalog = await readCatalog();
+  const entries = new Map((catalog.models || []).map((entry) => [entry.model_id, entry]));
+  for (const modelId of requestedModelIds) entries.set(modelId, { model_id: modelId });
   const report = { downloaded: [], skipped: [], unavailable: [], sourceErrors: [] };
 
-  for (const entry of catalog.models || []) {
+  for (const entry of entries.values()) {
     const modelId = entry.model_id;
     const modelDir = path.join(modelsRoot, ...modelId.split("/"));
     const sourceFiles = [];
@@ -67,7 +73,7 @@ async function main() {
     const remoteNames = new Set();
     for (const { files } of sourceFiles) {
       for (const filename of files) {
-        if (allowedNames.has(path.basename(filename)) && filename === path.basename(filename)) remoteNames.add(filename);
+        if (allowedNames.test(path.basename(filename)) && filename === path.basename(filename)) remoteNames.add(filename);
       }
     }
 
@@ -102,7 +108,7 @@ async function main() {
   }
 
   console.log(JSON.stringify({
-    models: catalog.models?.length || 0,
+    models: entries.size,
     downloaded: report.downloaded.length,
     skipped: report.skipped.length,
     unavailable: report.unavailable,

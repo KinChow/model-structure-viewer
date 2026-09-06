@@ -13,6 +13,8 @@ from .repair.compat import (
     CompositeConfigNormalizer,
     CompositeRuntimePatch,
     KimiTieWeightsCompatPatch,
+    KimiRemoteCodeCompatPatch,
+    is_kimi_output_recorder_import_error,
     is_flash_attention2_unavailable,
     is_kimi_tie_weights_signature_error,
 )
@@ -20,7 +22,10 @@ from .repair.context import RepairResult
 from .repair.runtime import ConfigNormalizer, RuntimePatch
 from .repair.runner import try_repair
 
-RecoveryKind = Literal["none", "repair", "attention", "kimi", "repair_attention", "repair_kimi"]
+RecoveryKind = Literal[
+    "none", "repair", "attention", "kimi", "kimi_remote_code", "repair_attention", "repair_kimi",
+    "repair_kimi_remote_code",
+]
 
 
 @dataclass(frozen=True)
@@ -182,7 +187,57 @@ def _runtime_compat_handlers():
     return (
         (is_flash_attention2_unavailable, _try_attention_normalized_meta),
         (is_kimi_tie_weights_signature_error, _try_kimi_tie_weights_compat_meta),
+        (is_kimi_output_recorder_import_error, _try_kimi_remote_code_compat_meta),
     )
+
+
+def _try_kimi_remote_code_compat_meta(
+    config: dict[str, Any],
+    *,
+    source: dict[str, Any],
+    local_dir: Path | None,
+    original_error: IntrospectionError,
+    diagnostics: dict[str, Any],
+    recovery_prefix: Literal["repair"] | None,
+    config_overrides: dict[str, Any] | None = None,
+    runtime_patch: RuntimePatch | None = None,
+    config_normalizer: ConfigNormalizer | None = None,
+) -> MetaRecoveryOutcome | None:
+    if not is_kimi_output_recorder_import_error(original_error):
+        return None
+    retry_count = max(1, int(diagnostics.get("retry_count") or 0) + 1)
+    retry_source = _with_diagnostics(
+        source,
+        {**diagnostics, "runtime_patch": KimiRemoteCodeCompatPatch.name, "retry_count": retry_count},
+    )
+    try:
+        structure = build_from_meta_model(
+            config,
+            source=retry_source,
+            local_dir=local_dir,
+            config_overrides=config_overrides,
+            runtime_patch=CompositeRuntimePatch(runtime_patch, KimiRemoteCodeCompatPatch()),
+            config_normalizer=config_normalizer,
+        )
+        return _mark_runtime_compat(
+            structure,
+            recovery_kind=_prefixed_kind(recovery_prefix, "kimi_remote_code"),
+            diagnostics={
+                **diagnostics,
+                "runtime_patch": KimiRemoteCodeCompatPatch.name,
+                "retry_status": "success",
+                "retry_count": retry_count,
+            },
+        )
+    except IntrospectionError as retry_exc:
+        failed_diagnostics = {
+            **diagnostics,
+            "failure_kind": classify_introspection_error(retry_exc).value,
+            "runtime_patch": KimiRemoteCodeCompatPatch.name,
+            "retry_status": "failed",
+            "retry_count": retry_count,
+        }
+        raise MetaRecoveryError(str(retry_exc), diagnostics=failed_diagnostics) from retry_exc
 
 
 def _try_attention_normalized_meta(

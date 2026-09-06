@@ -52,6 +52,20 @@ export function kvBytesPerToken(config, kvBytes = 2) {
   const headDim = config?.headDim || 0;
   const mlaRank = config?.kvLoraRank;
   const ropeDim = config?.qkRopeHeadDim;
+  if (Array.isArray(config?.attentionSchedule) && config.attentionSchedule.length && layers) {
+    let perLayer = 0;
+    for (let index = 0; index < layers; index += 1) {
+      const kind = config.attentionSchedule[index] || "gqa";
+      if (kind === "linear") {
+        perLayer += (config.linearValueHeads || heads) * (config.linearValueDim || headDim);
+      } else if (kind === "mla" && mlaRank != null && ropeDim != null) {
+        perLayer += mlaRank + ropeDim;
+      } else {
+        perLayer += 2 * heads * headDim;
+      }
+    }
+    return perLayer * kvBytes;
+  }
   if (mlaRank != null && ropeDim != null) {
     // 来源：vLLM MLAAttentionSpec.head_size_v = 0；MLA 每 token 只存一个 latent，不分离 K/V。
     return layers * (mlaRank + ropeDim) * kvBytes;

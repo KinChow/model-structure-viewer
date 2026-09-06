@@ -9,9 +9,16 @@ const MOE_INTERMEDIATE_KEYS = ["moe_intermediate_size", "expert_intermediate_siz
 const VOCAB_KEYS = ["vocab_size"];
 const EXPERT_KEYS = ["num_local_experts", "n_routed_experts", "num_experts", "moe_num_experts"];
 const EXPERTS_PER_TOKEN_KEYS = ["num_experts_per_tok", "num_experts_per_token", "moe_top_k"];
+const SHARED_EXPERT_KEYS = ["num_shared_experts", "n_shared_experts"];
+const SHARED_EXPERT_INTERMEDIATE_KEYS = ["shared_expert_intermediate_size", "shared_expert_hidden_size"];
 const CONTEXT_KEYS = ["max_position_embeddings", "seq_length", "max_sequence_length"];
 const KV_LORA_RANK_KEYS = ["kv_lora_rank", "kv_lora_dim"];
+const Q_LORA_RANK_KEYS = ["q_lora_rank", "q_lora_dim"];
 const QK_ROPE_HEAD_DIM_KEYS = ["qk_rope_head_dim", "rope_head_dim"];
+const LINEAR_KEY_HEADS_KEYS = ["linear_num_key_heads", "linear_key_heads"];
+const LINEAR_VALUE_HEADS_KEYS = ["linear_num_value_heads", "linear_value_heads"];
+const LINEAR_KEY_DIM_KEYS = ["linear_key_head_dim", "linear_head_dim"];
+const LINEAR_VALUE_DIM_KEYS = ["linear_value_head_dim", "linear_head_dim"];
 
 function firstNumber(config, keys) {
   for (const key of keys) {
@@ -60,11 +67,40 @@ function sparseAttentionSchedule(config, layers) {
   return schedule.concat(Array.from({ length: layers - schedule.length }, () => "gqa"));
 }
 
+function attentionKindForLayerType(layerType) {
+  const kind = String(layerType || "").toLowerCase();
+  if (kind.includes("linear") || kind.includes("kda") || kind.includes("delta")) return "linear";
+  if (kind.includes("deepseek") || kind.includes("mla") || kind.includes("sparse")) return "mla";
+  return "gqa";
+}
+
+function explicitAttentionSchedule(config, layers) {
+  const layerTypes = config?.layer_types;
+  if (Array.isArray(layerTypes) && layerTypes.length > 0) {
+    return layerTypes.map(attentionKindForLayerType);
+  }
+  const linearConfig = config?.linear_attn_config;
+  if (linearConfig && layers) {
+    const full = new Set(Array.isArray(linearConfig.full_attn_layers) ? linearConfig.full_attn_layers : []);
+    const linear = new Set(Array.isArray(linearConfig.kda_layers) ? linearConfig.kda_layers : []);
+    return Array.from({ length: layers }, (_, index) => {
+      const layerNumber = index + 1;
+      if (linear.has(layerNumber)) return "linear";
+      if (full.has(layerNumber)) return "mla";
+      return "gqa";
+    });
+  }
+  return undefined;
+}
+
 export function normalizeConfig(config) {
   const textConfig = typeof config?.text_config === "object" && config.text_config ? config.text_config : config;
   const visionConfig = typeof config?.vision_config === "object" && config.vision_config ? config.vision_config : null;
+  const linearAttentionConfig = typeof textConfig?.linear_attn_config === "object" && textConfig.linear_attn_config
+    ? textConfig.linear_attn_config
+    : null;
   const layers = firstNumber(textConfig, LAYER_KEYS) ?? firstNumber(config, LAYER_KEYS);
-  const visionLayers = visionConfig ? firstNumber(visionConfig, [...LAYER_KEYS, "depth"]) : undefined;
+  const visionLayers = visionConfig ? firstNumber(visionConfig, [...LAYER_KEYS, "depth", "vt_num_hidden_layers"]) : undefined;
   const hiddenSize = firstNumber(textConfig, HIDDEN_KEYS) ?? firstNumber(config, HIDDEN_KEYS);
   const attentionHeads = firstNumber(textConfig, HEAD_KEYS) ?? firstNumber(config, HEAD_KEYS);
   const headDim = attentionHeadDim(textConfig) ?? attentionHeadDim(config) ?? derivedHeadDim(hiddenSize, attentionHeads);
@@ -82,21 +118,34 @@ export function normalizeConfig(config) {
     kvHeads: firstNumber(textConfig, KV_HEAD_KEYS) ?? firstNumber(config, KV_HEAD_KEYS),
     headDim,
     kvLoraRank: firstNumber(textConfig, KV_LORA_RANK_KEYS) ?? firstNumber(config, KV_LORA_RANK_KEYS),
+    qLoraRank: firstNumber(textConfig, Q_LORA_RANK_KEYS) ?? firstNumber(config, Q_LORA_RANK_KEYS),
+    linearKeyHeads: firstNumber(textConfig, LINEAR_KEY_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_KEY_HEADS_KEYS),
+    linearValueHeads: firstNumber(textConfig, LINEAR_VALUE_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_VALUE_HEADS_KEYS),
+    linearKeyDim: firstNumber(textConfig, LINEAR_KEY_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_KEY_DIM_KEYS),
+    linearValueDim: firstNumber(textConfig, LINEAR_VALUE_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_VALUE_DIM_KEYS),
     qkRopeHeadDim:
       firstNumber(textConfig, QK_ROPE_HEAD_DIM_KEYS) ?? firstNumber(config, QK_ROPE_HEAD_DIM_KEYS),
     valueHeadDim: firstNumber(textConfig, VALUE_HEAD_DIM_KEYS) ?? firstNumber(config, VALUE_HEAD_DIM_KEYS) ?? headDim,
     intermediateSize: firstNumber(textConfig, INTERMEDIATE_KEYS) ?? firstNumber(config, INTERMEDIATE_KEYS),
     moeIntermediateSize: firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) ?? firstNumber(config, MOE_INTERMEDIATE_KEYS),
     vocabSize: firstNumber(textConfig, VOCAB_KEYS) ?? firstNumber(config, VOCAB_KEYS),
-    visionHiddenSize: visionConfig ? firstNumber(visionConfig, HIDDEN_KEYS) : undefined,
+    visionHiddenSize: visionConfig ? firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]) : undefined,
     visionOutputSize: visionConfig
-      ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"]) ?? firstNumber(visionConfig, HIDDEN_KEYS)
+      ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"]) ?? firstNumber(visionConfig, ["vt_hidden_size", "mm_hidden_size"]) ?? firstNumber(visionConfig, HIDDEN_KEYS)
       : undefined,
     experts: firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS),
+    routedExpertHiddenSize: firstNumber(textConfig, ["routed_expert_hidden_size"]) ?? firstNumber(config, ["routed_expert_hidden_size"]),
     expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),
+    sharedExperts: firstNumber(textConfig, SHARED_EXPERT_KEYS) ?? firstNumber(config, SHARED_EXPERT_KEYS),
+    sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS),
+    attnResBlockSize: firstNumber(textConfig, ["attn_res_block_size"]) ?? firstNumber(config, ["attn_res_block_size"]),
+    mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
     contextLength: firstNumber(textConfig, CONTEXT_KEYS) ?? firstNumber(config, CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
     layerSchedule: explicitLayerSchedule(textConfig, layers) ?? explicitLayerSchedule(config, layers),
-    attentionSchedule: sparseAttentionSchedule(textConfig, layers),
+    attentionSchedule:
+      explicitAttentionSchedule(textConfig, layers)
+      ?? explicitAttentionSchedule(config, layers)
+      ?? sparseAttentionSchedule(textConfig, layers),
   };
 }

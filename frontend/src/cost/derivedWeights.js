@@ -11,20 +11,46 @@ export function derivedWeightParameters(config = {}) {
   const denseIntermediate = config.intermediateSize || 0;
   const moeIntermediate = config.moeIntermediateSize || denseIntermediate;
   const experts = config.experts || 0;
+  const routedExpertHidden = config.routedExpertHiddenSize || hidden;
+  const sharedExperts = config.sharedExperts || 0;
+  const sharedIntermediate = config.sharedExpertIntermediateSize || denseIntermediate;
   const schedule = config.layerSchedule || Array.from({ length: layers }, () => experts ? "moe" : "dense");
   const attention = hidden * (heads * qDim + kvHeads * qDim + kvHeads * vDim + heads * vDim);
   const norms = 2 * hidden;
   let decoder = 0;
   for (let i = 0; i < layers; i++) {
-    if (schedule[i] === "moe" && experts > 0) {
-      decoder += attention + norms + hidden * experts + experts * 3 * hidden * moeIntermediate;
-    } else {
-      decoder += attention + norms + 3 * hidden * denseIntermediate;
+    const attentionKind = config.attentionSchedule?.[i] || "gqa";
+    let attentionParameters = attention;
+    if (attentionKind === "linear") {
+      const keyHeads = config.linearKeyHeads || heads;
+      const valueHeads = config.linearValueHeads || heads;
+      const keyDim = config.linearKeyDim || qDim;
+      const valueDim = config.linearValueDim || vDim;
+      attentionParameters = hidden * (keyHeads * keyDim + valueHeads * valueDim + hidden);
+    } else if (attentionKind === "mla" && config.qLoraRank && config.kvLoraRank) {
+      const ropeDim = config.qkRopeHeadDim || 0;
+      const nopeDim = Math.max(0, qDim - ropeDim);
+      attentionParameters = hidden * config.qLoraRank
+        + config.qLoraRank * heads * qDim
+        + hidden * (config.kvLoraRank + ropeDim)
+        + config.kvLoraRank * (heads * nopeDim + vDim * (config.kvHeads || heads));
     }
+    if (schedule[i] === "moe" && experts > 0) {
+      const routedExperts = experts * 3 * routedExpertHidden * moeIntermediate;
+      const latentProjection = routedExpertHidden !== hidden
+        ? hidden * routedExpertHidden + routedExpertHidden * hidden
+        : 0;
+      decoder += attentionParameters + norms + hidden * experts + routedExperts + latentProjection;
+      decoder += sharedExperts * 3 * hidden * sharedIntermediate;
+    } else {
+      decoder += attentionParameters + norms + 3 * hidden * denseIntermediate;
+    }
+    if (config.attnResBlockSize) decoder += 4 * hidden;
   }
   const embedding = (config.vocabSize || 0) * hidden;
   const lmHead = config.tieWordEmbeddings ? 0 : embedding;
-  return embedding + decoder + hidden + lmHead;
+  const outputResidual = config.attnResBlockSize ? 2 * hidden : 0;
+  return embedding + decoder + hidden + lmHead + outputResidual;
 }
 
 export function derivedWeightBytes(config = {}, bytesPerElement = 2) {

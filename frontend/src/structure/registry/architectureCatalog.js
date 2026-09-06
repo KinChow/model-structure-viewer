@@ -5,6 +5,7 @@ export const ARCHITECTURE_CATALOG = Object.freeze({
   "mla-moe-decoder": { hasTemplate: true },
   "multimodal-sparse-moe-decoder": { hasTemplate: true },
   "multimodal-gqa-moe-decoder": { hasTemplate: true },
+  "hybrid-multimodal-moe-decoder": { hasTemplate: true },
   "generic-decoder": { hasTemplate: false },
   "generic-config": { hasTemplate: false },
 });

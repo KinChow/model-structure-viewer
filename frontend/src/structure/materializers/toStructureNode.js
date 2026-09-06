@@ -69,6 +69,8 @@ export function materializeModelStructure(ir) {
       canonical_architecture: resolved.canonicalArchitecture,
       text_layers: normalized.layers,
       vision_layers: normalized.visionLayers,
+      vision_hidden_size: normalized.visionHiddenSize,
+      vision_output_size: normalized.visionOutputSize,
       hidden_size: normalized.hiddenSize,
       num_attention_heads: normalized.attentionHeads,
       num_key_value_heads: normalized.kvHeads,

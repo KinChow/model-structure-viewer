@@ -89,6 +89,41 @@ test("selects dedicated model builders by canonical architecture", () => {
   assert.equal(network.children[2].attributes.class, "DecoderStack");
 });
 
+test("builds Qwen multimodal models with vision tower and projector", () => {
+  const normalized = normalizeConfig({
+    architectures: ["Qwen4ExpForConditionalGeneration"],
+    model_type: "qwen4_exp",
+    text_config: {
+      model_type: "qwen4_exp_text",
+      num_hidden_layers: 2,
+      hidden_size: 2560,
+      num_attention_heads: 24,
+      num_key_value_heads: 2,
+      head_dim: 256,
+      num_experts: 512,
+      num_experts_per_tok: 10,
+      moe_intermediate_size: 640,
+      vocab_size: 248320,
+    },
+    vision_config: {
+      model_type: "qwen4_exp",
+      depth: 27,
+      hidden_size: 1152,
+      out_hidden_size: 2560,
+    },
+  });
+  const resolved = resolveArchitecture(normalized, { modelId: "Qwen/Qwen3.8-Flash-Next" });
+  const network = buildNetwork(resolved, normalized);
+  const structure = materializeModelStructure(createStructureIr({ network, normalized, resolved }));
+
+  assert.equal(resolved.canonicalArchitecture, "multimodal-gqa-moe-decoder");
+  assert.deepEqual(network.children.map((child) => child.id), ["vision_tower", "projector", "embed_tokens", "decoder", "lm_head"]);
+  assert.equal(structure.root.children[0].attributes.output_shape, "[batch, visual_tokens, vision hidden size=2560]");
+  assert.equal(structure.root.children[1].attributes.input_shape, "[batch, visual_tokens, vision hidden size=2560]");
+  assert.equal(structure.summary.vision_layers, 27);
+  assert.equal(structure.summary.vision_output_size, 2560);
+});
+
 test("keeps inferred architecture diagnostics in the IR", () => {
   const normalized = normalizeConfig({
     model_type: "qwen3",

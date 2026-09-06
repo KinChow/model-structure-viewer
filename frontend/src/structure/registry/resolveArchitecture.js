@@ -1,6 +1,9 @@
 import { ARCHITECTURE_ALIASES } from "./aliases.js";
 
 export function resolveArchitecture(normalized, options = {}) {
+  if (normalized.visionConfig && normalized.architecture === "Qwen4ExpForConditionalGeneration") {
+    return { canonicalArchitecture: "multimodal-gqa-moe-decoder", architecture: normalized.architecture, resolution: "architecture-alias" };
+  }
   if (normalized.architecture && ARCHITECTURE_ALIASES[normalized.architecture]) {
     return {
       canonicalArchitecture: ARCHITECTURE_ALIASES[normalized.architecture],

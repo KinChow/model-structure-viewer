@@ -12,6 +12,7 @@ export function visionTowerModule(normalized) {
     {
       class: "VisionTower",
       hidden_size: normalized.visionConfig?.hidden_size,
+      output_hidden_size: normalized.visionOutputSize,
       num_hidden_layers: normalized.visionLayers,
       ...shapeFlow(shapes.visionInput, shapes.visionOutput),
     },

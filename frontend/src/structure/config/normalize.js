@@ -64,7 +64,7 @@ export function normalizeConfig(config) {
   const textConfig = typeof config?.text_config === "object" && config.text_config ? config.text_config : config;
   const visionConfig = typeof config?.vision_config === "object" && config.vision_config ? config.vision_config : null;
   const layers = firstNumber(textConfig, LAYER_KEYS) ?? firstNumber(config, LAYER_KEYS);
-  const visionLayers = visionConfig ? firstNumber(visionConfig, LAYER_KEYS) : undefined;
+  const visionLayers = visionConfig ? firstNumber(visionConfig, [...LAYER_KEYS, "depth"]) : undefined;
   const hiddenSize = firstNumber(textConfig, HIDDEN_KEYS) ?? firstNumber(config, HIDDEN_KEYS);
   const attentionHeads = firstNumber(textConfig, HEAD_KEYS) ?? firstNumber(config, HEAD_KEYS);
   const headDim = attentionHeadDim(textConfig) ?? attentionHeadDim(config) ?? derivedHeadDim(hiddenSize, attentionHeads);
@@ -89,6 +89,9 @@ export function normalizeConfig(config) {
     moeIntermediateSize: firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) ?? firstNumber(config, MOE_INTERMEDIATE_KEYS),
     vocabSize: firstNumber(textConfig, VOCAB_KEYS) ?? firstNumber(config, VOCAB_KEYS),
     visionHiddenSize: visionConfig ? firstNumber(visionConfig, HIDDEN_KEYS) : undefined,
+    visionOutputSize: visionConfig
+      ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"]) ?? firstNumber(visionConfig, HIDDEN_KEYS)
+      : undefined,
     experts: firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS),
     expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),
     contextLength: firstNumber(textConfig, CONTEXT_KEYS) ?? firstNumber(config, CONTEXT_KEYS),

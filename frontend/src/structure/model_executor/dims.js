@@ -23,6 +23,6 @@ export function tensorDims(normalized) {
     expertInput: [-1, normalized.hiddenSize],
     logits: [-1, -1, normalized.vocabSize],
     visionInput: [-1, -1, -1, -1, -1],
-    visionOutput: [-1, -1, normalized.visionHiddenSize],
+    visionOutput: [-1, -1, normalized.visionOutputSize ?? normalized.visionHiddenSize],
   };
 }

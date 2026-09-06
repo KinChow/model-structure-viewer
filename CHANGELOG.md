@@ -24,6 +24,7 @@ Model Structure Viewer 的重要变更记录。
 - 节点 lens 移除 root fallback，测试和生产入口统一使用 Graph IR。
 - MiniMax M2/M3 的 GQA、稀疏 attention dataflow 改为 builder 声明边，移除对应 materializer display-name inference。
 - Qwen3.5/3.6 的 linear/full attention dataflow 改为 builder 声明边，覆盖不同规模和配置变体。
+- DeepSeek V3.2、GLM DSA/Flash 和 Qwen4Exp 的 QSA dataflow 改为 builder 声明边。
 - 本阶段验证：后端 `148 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
 
 ## [0.2.0] - 2026-09-06

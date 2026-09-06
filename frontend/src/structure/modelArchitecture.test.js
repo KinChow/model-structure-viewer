@@ -746,3 +746,23 @@ test("Qwen3.5/3.6 linear and full attention edges are builder-declared", () => {
     assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...attentionIds].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
   }
 });
+
+test("QSA variants use builder-declared graph edges", () => {
+  for (const modelPath of [
+    "models/deepseek-ai/DeepSeek-V3.2/config.json",
+    "models/zai-org/GLM-5.3/config.json",
+    "models/zai-org/GLM-5.3-Flash/config.json",
+    "models/Qwen/Qwen3.8-Flash-Next/config.json",
+  ]) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, modelPath), "utf8"));
+    const normalized = normalizeConfig(config);
+    const resolved = resolveArchitecture(normalized, { modelId: modelPath });
+    const structure = materializeModelStructure(createStructureIr({
+      network: buildNetwork(resolved, normalized),
+      normalized,
+      resolved,
+    }));
+    const qsaIds = new Set(structure.graph.nodes.filter((node) => node.type === "attention" && node.attributes.attention_kind === "qsa").map((node) => node.id));
+    assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...qsaIds].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
+  }
+});

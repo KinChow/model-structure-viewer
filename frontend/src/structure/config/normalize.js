@@ -71,7 +71,7 @@ function visionTokenCount(config) {
   const patchSize = firstNumber(config, ["patch_size"]);
   const mergeSize = firstNumber(config, ["spatial_merge_size"])
     ?? firstNumber(config?.img_token_compression_config, ["spatial_merge_size"])
-    ?? firstNumber(config, ["merge_kernel_size"]);
+    ?? (Array.isArray(config?.merge_kernel_size) ? firstNumber({ value: config.merge_kernel_size[0] }, ["value"]) : undefined);
   if (!imageSize || !patchSize) {
     const positionCount = firstNumber(config, ["num_position_embeddings"]);
     const merge = mergeSize || 1;
@@ -275,7 +275,7 @@ export function normalizeConfig(config) {
     visionSpatialMergeSize: visionConfig
       ? firstNumber(visionConfig, ["spatial_merge_size"])
         ?? firstNumber(visionConfig?.img_token_compression_config, ["spatial_merge_size"])
-        ?? firstNumber(visionConfig, ["merge_kernel_size"])
+        ?? (Array.isArray(visionConfig?.merge_kernel_size) ? firstNumber({ value: visionConfig.merge_kernel_size[0] }, ["value"]) : undefined)
       : undefined,
     visionTokens: visionConfig ? visionTokenCount(visionConfig) : undefined,
     visionMlpGated: visionConfig

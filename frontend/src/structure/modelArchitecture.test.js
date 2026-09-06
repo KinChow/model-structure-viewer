@@ -356,6 +356,7 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
   assert.equal(normalized.linearAttentionMode, "kimi_k3");
   assert.equal(normalized.sharedExpertIntermediateSize, 6144);
   assert.equal(normalized.routedExpertHiddenSize, 3584);
+  assert.equal(normalized.visionTokens, 1024);
   const resolved = resolveArchitecture(normalized, { modelId: "moonshotai/Kimi-K3" });
   const structure = materializeModelStructure(createStructureIr({
     network: buildNetwork(resolved, normalized),

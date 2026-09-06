@@ -27,11 +27,16 @@ export function buildNodeLens(structure, chip, {
   const forwardTokens = batch * tokens;
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };
   const nodes = Object.fromEntries(rows.map((row) => {
+    const nodeShapeOptions = {
+      ...shapeOptions,
+      vision: row.node.attributes?.modality === "vision",
+      visionTokens: config.visionTokens || 1,
+    };
     const perCardCost = nodeCostPerCard({
       macs: row.aggregate_macs,
       weightBytes: row.aggregate_weightBytes,
-      actInBytes: activationTensorBytes(row.node.input_shape, shapeOptions, bytesPerElement) * row.multiplier,
-      actOutBytes: activationTensorBytes(row.node.output_shape, shapeOptions, bytesPerElement) * row.multiplier,
+      actInBytes: activationTensorBytes(row.node.input_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
+      actOutBytes: activationTensorBytes(row.node.output_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
     }, row.node, checked.plan);
     perCardCost.commBytes = nodeCommunicationBytes(
       row.node,

@@ -10,7 +10,9 @@ function visionDimensions(normalized) {
   const channels = normalized.visionChannels || 3;
   const patch = normalized.visionPatchSize || 0;
   const temporalPatch = normalized.visionTemporalPatchSize || 1;
-  const tokens = normalized.visionTokens || -1;
+  // The visual-token count is a workload assumption, not a matrix width.
+  // Keep it out of numeric shapes so linear MACs do not multiply it twice.
+  const tokens = -1;
   return {
     hidden, heads, headDim, intermediate, channels, patch, temporalPatch, tokens,
     visual: [-1, tokens, hidden],

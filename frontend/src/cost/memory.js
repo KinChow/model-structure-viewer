@@ -15,7 +15,7 @@ export function product(shape) {
 }
 
 /** 把 IR 数值 shape 中的动态维解析为当前推理负载的元素数。 */
-export function tensorElements(shape, { batch = 1, sequence = 1, phase = "prefill", attentionHeads = 1 } = {}) {
+export function tensorElements(shape, { batch = 1, sequence = 1, phase = "prefill", attentionHeads = 1, vision = false, visionTokens = 1 } = {}) {
   if (!Array.isArray(shape) || shape.length === 0 || shape.some((value) => value == null)) return 0;
   // Image/video dimensions need an explicit workload shape; never reinterpret
   // unknown spatial dimensions as text sequence length.
@@ -26,7 +26,11 @@ export function tensorElements(shape, { batch = 1, sequence = 1, phase = "prefil
   let dynamicIndex = 0;
   return shape.reduce((total, value) => {
     if (value !== -1) return total * value;
-    const replacement = dynamicIndex++ === 0 ? batch : phase === "decode" ? 1 : sequence;
+    const replacement = dynamicIndex++ === 0
+      ? batch
+      : vision
+        ? visionTokens
+        : phase === "decode" ? 1 : sequence;
     return total * replacement;
   }, 1);
 }

@@ -1,6 +1,6 @@
 import { metaForNode, typeClass } from "./meta.js";
 import { materializeStructureGraph } from "../structure/graph/materializeStructureGraph.js";
-import { projectGraphToTree } from "../structure/graph/projectGraphToTree.js";
+import { graphViewNode } from "../structure/graph/selectors.js";
 
 export const NODE_WIDTH = 260;
 const NODE_HEIGHTS = [64, 84, 108];
@@ -90,7 +90,7 @@ export function layoutDiagram(root, expandedGroups) {
  */
 export function layoutGraph(structureOrRoot, expandedGroups) {
   const structure = structureOrRoot?.root ? structureOrRoot : null;
-  const graphRoot = structure?.graph ? projectGraphToTree(structure.graph) : null;
+  const graphRoot = structure?.graph ? graphViewNode(structure.graph, structure.graph.root_id || "root") : null;
   const root = graphRoot || structure?.root || structureOrRoot;
   const items = layoutDiagram(root, expandedGroups);
   const stageForPath = (path) => {

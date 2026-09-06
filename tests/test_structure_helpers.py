@@ -2,6 +2,7 @@
 from model_structure_viewer.schemas import StructureNode
 from model_structure_viewer.structure.fold import collapse
 from model_structure_viewer.structure import semantics
+from model_structure_viewer.structure.introspect import _walk
 
 
 class _FakeModule:
@@ -92,3 +93,21 @@ def test_fold_heterogeneous_module_list_splits_groups():
     assert len(folded.children) == 2
     assert folded.children[0].repeat == 3
     assert folded.children[1].repeat == 6
+
+
+def test_introspection_shapes_prevent_folding_different_linear_layers():
+    import torch
+
+    raw = _walk(
+        torch.nn.Sequential(torch.nn.Linear(8, 16), torch.nn.Linear(8, 32)),
+        attribute_name="",
+        path="root",
+    )
+    folded = collapse(raw)
+
+    assert len(folded.children) == 2
+    assert folded.children[0].weight_shapes == {"weight": [16, 8], "bias": [16]}
+    assert folded.children[1].weight_shapes == {"weight": [32, 8], "bias": [32]}
+    assert folded.children[0].params == 16 * 8 + 16
+    assert folded.children[0].dtype == "F32"
+    assert folded.children[0].value_source == "introspect"

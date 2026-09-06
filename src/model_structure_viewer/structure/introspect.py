@@ -136,6 +136,7 @@ def _walk(module: Any, *, attribute_name: str, path: str) -> StructureNode:
         children.append(_walk(child, attribute_name=name, path=child_path))
 
     display = semantics.display_name(attribute_name, module) if attribute_name else class_name
+    parameter_metadata = _direct_parameter_metadata(module, path)
     return StructureNode(
         id=path,
         name=display,
@@ -143,8 +144,56 @@ def _walk(module: Any, *, attribute_name: str, path: str) -> StructureNode:
         attributes=_drop_none(attrs),
         confidence="high",
         children=children,
+        **parameter_metadata,
     )
 
 
 def _drop_none(values: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in values.items() if v is not None}
+
+
+def _direct_parameter_metadata(module: Any, path: str) -> dict[str, Any]:
+    named_parameters = getattr(module, "named_parameters", None)
+    if not callable(named_parameters):
+        return {}
+    shapes: dict[str, list[int]] = {}
+    tensor_names: list[str] = []
+    dtype_elements: dict[str, int] = {}
+    params = 0
+    for name, parameter in named_parameters(recurse=False):
+        shape = list(parameter.shape)
+        elements = parameter.numel()
+        dtype = _dtype_name(parameter.dtype)
+        shapes[name] = shape
+        tensor_names.append(f"{path}.{name}")
+        params += elements
+        dtype_elements[dtype] = dtype_elements.get(dtype, 0) + elements
+    if not shapes:
+        return {}
+    dominant_dtype = max(dtype_elements, key=dtype_elements.get)
+    return {
+        "params": params,
+        "weight_shapes": shapes,
+        "dtype": dominant_dtype,
+        "value_source": "introspect",
+        "tensor_names": tensor_names,
+    }
+
+
+def _dtype_name(dtype: Any) -> str:
+    aliases = {
+        "bfloat16": "BF16",
+        "float16": "F16",
+        "float32": "F32",
+        "float64": "F64",
+        "float8_e4m3fn": "F8_E4M3",
+        "float8_e5m2": "F8_E5M2",
+        "int8": "I8",
+        "int16": "I16",
+        "int32": "I32",
+        "int64": "I64",
+        "uint8": "U8",
+        "bool": "BOOL",
+    }
+    name = str(dtype).removeprefix("torch.").lower()
+    return aliases.get(name, name.upper())

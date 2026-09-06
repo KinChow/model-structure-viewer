@@ -11,6 +11,7 @@ def materialize_structure_graph(root: StructureNode) -> StructureGraph:
         nodes.append(
             StructureGraphNode(
                 id=path,
+                canonical_id=node.id,
                 module_id=node.id,
                 parent_id=parent_id,
                 order=int(path.rsplit(".", 1)[-1]) if "." in path else 0,
@@ -43,6 +44,11 @@ def materialize_structure_graph(root: StructureNode) -> StructureGraph:
             visit(child, child_path, path)
 
     visit(root, "root")
+    canonical_by_path = {node.id: node.canonical_id or node.module_id for node in nodes}
+    edges = [edge.model_copy(update={
+        "source_canonical_id": canonical_by_path.get(edge.source),
+        "target_canonical_id": canonical_by_path.get(edge.target),
+    }) for edge in edges]
     return StructureGraph(nodes=nodes, edges=edges)
 
 

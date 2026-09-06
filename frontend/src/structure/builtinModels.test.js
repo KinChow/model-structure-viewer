@@ -31,6 +31,9 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       normalized,
       resolved,
     }));
+    const canonicalIds = structure.graph.nodes.map((node) => node.canonical_id);
+    assert.equal(new Set(canonicalIds).size, canonicalIds.length, `${entry.model_id}: duplicate canonical graph ids`);
+    assert.ok(structure.graph.edges.every((edge) => edge.source_canonical_id && edge.target_canonical_id), `${entry.model_id}: graph edge missing canonical endpoints`);
     assert.ok(structure.root.children.length > 0, `${entry.model_id}: empty module tree`);
     if (normalized.hasVision) {
       assert.ok(

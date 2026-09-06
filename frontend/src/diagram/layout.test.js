@@ -127,7 +127,7 @@ test("ELK lays out the graph without changing stable node paths", async () => {
   assert.ok(laidOut.nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y)));
   assert.ok(laidOut.nodes.find((node) => node.path === "root.0.0").y > laidOut.nodes.find((node) => node.path === "root.0").y);
   assert.ok(laidOut.nodes.find((node) => node.path === "root.0.0").y < laidOut.nodes.find((node) => node.path === "root.0.1").y);
-  assert.deepEqual(JSON.parse(JSON.stringify(laidOut.edges.map(({ id, source, target, kind, evidence }) => ({ id, source, target, kind, evidence })))), graph.edges);
+  assert.deepEqual(JSON.parse(JSON.stringify(laidOut.edges.map(({ id, source, target, kind, evidence, source_canonical_id, target_canonical_id }) => ({ id, source, target, kind, evidence, source_canonical_id, target_canonical_id })))), graph.edges);
   assert.ok(laidOut.edges.every((edge) => edge.sections === undefined));
   assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
   assert.equal(laidOut.containerFrames.find((frame) => frame.id === "root.0").edgeAnchorOffset, 70);

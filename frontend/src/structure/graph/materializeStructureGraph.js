@@ -495,6 +495,7 @@ export function materializeStructureGraph(root) {
     root_id: "root",
     nodes: items.map((item) => ({
       id: item.path,
+      canonical_id: item.node?.id || item.path,
       module_id: item.node?.id || null,
       parent_id: item.parentId,
       order: item.parentId == null ? 0 : Number(item.path.split(".").at(-1)),
@@ -515,6 +516,14 @@ export function materializeStructureGraph(root) {
     edges: [
       ...dataflowEdges,
       ...moduleOrderEdges.filter((edge) => !dataflowPairs.has(`${edge.source}=>${edge.target}`)),
-    ],
+    ].map((edge) => {
+      const sourceNode = items.find((item) => item.path === edge.source)?.node;
+      const targetNode = items.find((item) => item.path === edge.target)?.node;
+      return {
+        ...edge,
+        source_canonical_id: sourceNode?.id || edge.source,
+        target_canonical_id: targetNode?.id || edge.target,
+      };
+    }),
   };
 }

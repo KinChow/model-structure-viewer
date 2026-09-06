@@ -6,7 +6,7 @@ export function childRepeatMultiplier(node, inheritedMultiplier = 1, { repeatHan
 
 export function graphNodeToNode(graphNode) {
   return {
-    id: graphNode.module_id || graphNode.id,
+    id: graphNode.canonical_id || graphNode.module_id || graphNode.id,
     name: graphNode.name || graphNode.module_id || graphNode.id,
     type: graphNode.type || "module",
     repeat: graphNode.repeat ?? undefined,

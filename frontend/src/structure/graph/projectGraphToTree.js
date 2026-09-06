@@ -1,7 +1,7 @@
 /** Project the graph node index back to the legacy hierarchy view. */
 export function projectGraphToTree(graph) {
   const byId = new Map((graph?.nodes || []).map((node) => [node.id, {
-    id: node.module_id || node.id,
+    id: node.canonical_id || node.module_id || node.id,
     name: node.name || node.module_id || node.id,
     type: node.type || "module",
     repeat: node.repeat ?? undefined,

@@ -132,8 +132,11 @@ def test_structure_graph_materializes_stable_paths_and_edges():
     assert graph.schema_version == 2
     assert graph.root_id == "root"
     assert [node.id for node in graph.nodes] == ["root", "root.0", "root.1", "root.2"]
+    assert [node.canonical_id for node in graph.nodes] == ["model", "embed", "decoder", "head"]
     assert graph.nodes[1].name == "Embed"
     assert graph.nodes[1].order == 0
+    assert graph.edges[0].source_canonical_id == "embed"
+    assert graph.edges[0].target_canonical_id == "decoder"
     projected = project_graph_to_tree(graph)
     assert projected.id == "model"
     assert [child.id for child in projected.children] == ["embed", "decoder", "head"]

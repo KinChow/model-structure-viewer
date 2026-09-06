@@ -31,6 +31,7 @@ class StructureNode(BaseModel):
 
 class StructureGraphNode(BaseModel):
     id: str
+    canonical_id: str | None = None
     module_id: str | None = None
     parent_id: str | None = None
     order: int = 0
@@ -53,6 +54,8 @@ class StructureGraphEdge(BaseModel):
     id: str
     source: str
     target: str
+    source_canonical_id: str | None = None
+    target_canonical_id: str | None = None
     kind: str = "dataflow"
     evidence: str | None = None
 

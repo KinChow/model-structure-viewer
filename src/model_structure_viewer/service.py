@@ -38,18 +38,7 @@ def build_structure_response(
     command. Lives outside ``api`` so the CLI does not have to import the
     FastAPI app (which would trigger CORS / static-mount setup).
     """
-    request_settings = _settings_for_payload(payload, base_settings)
-    revision = _revision_for_payload(payload)
-    resolver = ModelSourceResolver(request_settings)
-    resolved = resolver.resolve(
-        source=payload.source,
-        model_id=payload.model_id,
-        config_path=payload.config_path,
-        config_json=payload.config_json,
-        revision=revision,
-        cache_policy=payload.cache_policy or request_settings.cache_policy,
-        detail_level=payload.detail_level,
-    )
+    request_settings, resolved = _resolve_request(payload, base_settings)
     cache_key = _structure_cache_key(payload, request_settings, resolved)
     cached = _get_cached_structure(cache_key)
     if cached is not None:
@@ -69,18 +58,7 @@ def verify_structure_response(
     base_settings: AppSettings,
 ) -> VerifyResponse:
     """Resolve a config and strictly validate Transformers meta construction."""
-    request_settings = _settings_for_payload(payload, base_settings)
-    revision = _revision_for_payload(payload)
-    resolver = ModelSourceResolver(request_settings)
-    resolved = resolver.resolve(
-        source=payload.source,
-        model_id=payload.model_id,
-        config_path=payload.config_path,
-        config_json=payload.config_json,
-        revision=revision,
-        cache_policy=payload.cache_policy or request_settings.cache_policy,
-        detail_level=payload.detail_level,
-    )
+    _, resolved = _resolve_request(payload, base_settings)
     worker_result = _run_transformers_verify_worker(
         resolved.config,
         source=resolved.source,
@@ -104,6 +82,22 @@ def _settings_for_payload(payload: StructureRequest, base_settings: AppSettings)
 
 def _revision_for_payload(payload: StructureRequest) -> str:
     return endpoint_revision(payload.endpoint, payload.revision)
+
+
+def _resolve_request(payload: StructureRequest, base_settings: AppSettings):
+    """Apply request overrides and resolve the source once for each service path."""
+    request_settings = _settings_for_payload(payload, base_settings)
+    resolver = ModelSourceResolver(request_settings)
+    resolved = resolver.resolve(
+        source=payload.source,
+        model_id=payload.model_id,
+        config_path=payload.config_path,
+        config_json=payload.config_json,
+        revision=_revision_for_payload(payload),
+        cache_policy=payload.cache_policy or request_settings.cache_policy,
+        detail_level=payload.detail_level,
+    )
+    return request_settings, resolved
 
 
 def clear_structure_cache() -> None:

@@ -99,6 +99,14 @@ function ArchitectureTab({
   onMachineChange,
   activeLoads,
   onNodeLensChange,
+  comparisonMode: controlledComparisonMode,
+  onComparisonModeChange,
+  compareChipId: controlledCompareChipId,
+  onCompareChipIdChange,
+  comparePlan: controlledComparePlan,
+  onComparePlanChange,
+  efficiency: controlledEfficiency,
+  onEfficiencyChange,
   chips = PUBLIC_CHIPS,
   onAddChip,
   language = "zh",
@@ -112,19 +120,19 @@ function ArchitectureTab({
   const [tp, setTp] = useState(1);
   const [ep, setEp] = useState(1);
   const [attnMode, setAttnMode] = useState("tp");
-  const [comparisonMode, setComparisonMode] = useState(COMPARISON_MODE.OFF);
-  const [compareChipId, setCompareChipId] = useState(chips[1]?.id || chips[0]?.id || "");
-  const [compareTp, setCompareTp] = useState(2);
-  const [compareEp, setCompareEp] = useState(1);
-  const [compareAttnMode, setCompareAttnMode] = useState("tp");
-  const [etaFlops, setEtaFlops] = useState(0.7);
-  const [etaHbm, setEtaHbm] = useState(0.9);
-  const [etaComm, setEtaComm] = useState(0.8);
+  const [internalComparisonMode, setInternalComparisonMode] = useState(COMPARISON_MODE.OFF);
+  const [internalCompareChipId, setInternalCompareChipId] = useState(chips[1]?.id || chips[0]?.id || "");
+  const [internalComparePlan, setInternalComparePlan] = useState({ tp: 2, ep: 1, attnMode: "tp" });
+  const [internalEfficiency, setInternalEfficiency] = useState({ flops: 0.7, hbm: 0.9, intra_node_comm: 0.8 });
+  const comparisonMode = controlledComparisonMode ?? internalComparisonMode;
+  const compareChipId = controlledCompareChipId ?? internalCompareChipId;
+  const comparePlan = controlledComparePlan || internalComparePlan;
+  const efficiency = controlledEfficiency || internalEfficiency;
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const [formulaOpen, setFormulaOpen] = useState(false);
   const compareScrollGroup = useRef(new Map());
-  const [advancedOpen, setAdvancedOpen] = useState(!compactControls);
+  const advancedOpen = !compactControls;
   const [canvasFocus, setCanvasFocus] = useState(false);
   useEffect(() => {
     if (!canvasFocus) return undefined;
@@ -144,6 +152,10 @@ function ArchitectureTab({
     }
   };
   const changeChip = (next) => activeMachineId ? onMachineChange?.(next) : setInternalChipId(next);
+  const changeComparisonMode = (next) => controlledComparisonMode != null ? onComparisonModeChange?.(next) : setInternalComparisonMode(next);
+  const changeCompareChip = (next) => controlledCompareChipId != null ? onCompareChipIdChange?.(next) : setInternalCompareChipId(next);
+  const changeComparePlan = (next) => controlledComparePlan ? onComparePlanChange?.(next) : setInternalComparePlan(next);
+  const changeEfficiency = (next) => controlledEfficiency ? onEfficiencyChange?.(next) : setInternalEfficiency(next);
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const candidateChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
@@ -153,8 +165,8 @@ function ArchitectureTab({
   );
   const load = activeLoads?.[phase] || { batch: 1, sequence: 2048 };
   const candidateScenario = useMemo(
-    () => ({ chip: candidateChip, plan: { tp: compareTp, ep: compareEp, attnMode: compareAttnMode } }),
-    [candidateChip, compareTp, compareEp, compareAttnMode],
+    () => ({ chip: candidateChip, plan: comparePlan }),
+    [candidateChip, comparePlan],
   );
   const compareScenario = useMemo(
     () => resolveComparisonScenario(comparisonMode, primaryScenario, candidateScenario),
@@ -164,10 +176,6 @@ function ArchitectureTab({
   const compareCoverage = useMemo(
     () => compareScenario?.chip ? getChipCoverage(compareScenario.chip, "bf16") : null,
     [compareScenario],
-  );
-  const efficiency = useMemo(
-    () => ({ flops: etaFlops, hbm: etaHbm, intra_node_comm: etaComm }),
-    [etaFlops, etaHbm, etaComm],
   );
   const nodeLensResult = useMemo(
     () => buildNodeLens(structure, chip, { phase, batch: load.batch, sequence: load.sequence, plan: primaryScenario.plan, efficiency }),
@@ -276,7 +284,6 @@ function ArchitectureTab({
           )}
         </h2>
         <div className="toolbar-actions">
-          {compactControls && <button type="button" onClick={() => setAdvancedOpen((value) => !value)}>{advancedOpen ? ui.hideAnalysis : ui.analysis}</button>}
           <button type="button" onClick={() => setCanvasFocus((value) => !value)}>{canvasFocus ? ui.exitFocus : ui.focus}</button>
           {advancedOpen && <div className="toolbar-analysis" aria-label={ui.analysis}>
           {!compactControls && <label className="lens-control">GPU<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
@@ -299,7 +306,7 @@ function ArchitectureTab({
                 className={comparisonMode === mode ? "active" : ""}
                 aria-pressed={comparisonMode === mode}
                 onClick={() => {
-                  setComparisonMode(mode);
+                  changeComparisonMode(mode);
                   setDiagramHoveredPath(null);
                 }}
               >
@@ -307,13 +314,13 @@ function ArchitectureTab({
               </button>
             ))}
           </div>
-          {comparisonMode === COMPARISON_MODE.CHIP && <label className="lens-control">{ui.compareChip}<select value={candidateChip?.id || ""} onChange={(event) => setCompareChipId(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
-          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareTp}<input type="number" min="1" value={compareTp} onChange={(event) => setCompareTp(Math.max(1, Number(event.target.value) || 1))} /></label>}
-          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareEp}<input type="number" min="1" value={compareEp} onChange={(event) => setCompareEp(Math.max(1, Number(event.target.value) || 1))} /></label>}
-          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareAttention}<select value={compareAttnMode} onChange={(event) => setCompareAttnMode(event.target.value)}><option value="tp">TP</option><option value="dp">DP</option></select></label>}
-          <label className="lens-control">{ui.flops}<input type="number" min="0.1" max="1" step="0.05" value={etaFlops} onChange={(event) => setEtaFlops(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)))} /></label>
-          <label className="lens-control">{ui.hbm}<input type="number" min="0.1" max="1" step="0.05" value={etaHbm} onChange={(event) => setEtaHbm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)))} /></label>
-          <label className="lens-control">{ui.comm}<input type="number" min="0.1" max="1" step="0.05" value={etaComm} onChange={(event) => setEtaComm(Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)))} /></label>
+          {comparisonMode === COMPARISON_MODE.CHIP && <label className="lens-control">{ui.compareChip}<select value={candidateChip?.id || ""} onChange={(event) => changeCompareChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
+          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareTp}<input type="number" min="1" value={comparePlan.tp} onChange={(event) => changeComparePlan({ ...comparePlan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label>}
+          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareEp}<input type="number" min="1" value={comparePlan.ep} onChange={(event) => changeComparePlan({ ...comparePlan, ep: Math.max(1, Number(event.target.value) || 1) })} /></label>}
+          {comparisonMode === COMPARISON_MODE.PLAN && <label className="lens-control">{ui.compareAttention}<select value={comparePlan.attnMode} onChange={(event) => changeComparePlan({ ...comparePlan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>}
+          <label className="lens-control">{ui.flops}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.flops} onChange={(event) => changeEfficiency({ ...efficiency, flops: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)) })} /></label>
+          <label className="lens-control">{ui.hbm}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.hbm} onChange={(event) => changeEfficiency({ ...efficiency, hbm: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)) })} /></label>
+          <label className="lens-control">{ui.comm}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.intra_node_comm} onChange={(event) => changeEfficiency({ ...efficiency, intra_node_comm: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)) })} /></label>
           {!compactControls && <ManualChipForm language={language} onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />}
           </div>}
           {compactControls && <>

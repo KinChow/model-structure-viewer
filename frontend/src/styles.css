@@ -1518,6 +1518,9 @@ label {
 .cost-config-section .cost-section-heading h4 { margin: 0; margin-right: auto; }
 .cost-config-grid label, .cost-plan-fields label { display: grid; gap: 4px; min-width: 100px; color: #8d9aaa; font-size: 10px; }
 .cost-config-grid input, .cost-config-grid select, .cost-plan-fields input, .cost-plan-fields select { width: 100%; border: 1px solid #344154; border-radius: 5px; background: #121923; color: #e2e9f0; padding: 6px 7px; font-size: 11px; }
+.cost-config-label, .cost-config-control { color: #8d9aaa; font-size: 10px; }
+.cost-config-control { display: grid; gap: 4px; width: min(220px, 100%); margin-top: 8px; }
+.cost-config-control select { width: 100%; border: 1px solid #344154; border-radius: 5px; background: #121923; color: #e2e9f0; padding: 6px 7px; font-size: 11px; }
 .cost-machine-spec, .cost-config-note { width: 100%; margin: 0; color: #7f8da0; font-size: 10px; }
 .cost-check { display: flex !important; align-items: center; grid-template-columns: auto 1fr; }
 .cost-check input { width: auto; }
@@ -1530,6 +1533,8 @@ label {
 .detail-page.theme-light .cost-machine-summary, .detail-page.theme-light .cost-config-section { border-color: #dce3eb; }
 .detail-page.theme-light .cost-machine-summary b, .detail-page.theme-light .cost-config-section h4 { color: #19212c; }
 .detail-page.theme-light .cost-lens-row, .detail-page.theme-light .cost-config-grid label, .detail-page.theme-light .cost-plan-fields label { color: #657386; }
+.detail-page.theme-light .cost-config-label, .detail-page.theme-light .cost-config-control { color: #657386; }
+.detail-page.theme-light .cost-config-control select { border-color: #dce3eb; background: #f6f8fa; color: #364555; }
 .detail-page.theme-light .cost-breakdown span, .detail-page.theme-light .cost-metrics span, .detail-page.theme-light .cost-stages span { border-color: #dce3eb; background: #f6f8fa; color: #526172; }
 .detail-page .manual-chip { position: relative; }
 .detail-page .manual-chip-form { left: 0; right: auto; top: 34px; z-index: 20; max-height: min(520px, calc(100vh - 180px)); overflow: auto; background: #151c26; border-color: #344154; color: #dce5ee; }

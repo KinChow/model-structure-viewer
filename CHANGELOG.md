@@ -12,7 +12,9 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
-当前没有尚未归档的变更。
+- 后端 introspection 改为通过 `GraphDraft` 直接生成 Graph IR v2，`StructureNode` 只作为兼容投影和旧调用入口。
+- 前端搜索、节点选择、祖先展开、面包屑和顶层模块列表优先从 Graph IR 稳定路径读取，新增 graph selector 单测。
+- 本阶段验证：后端 `147 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
 
 ## [0.2.0] - 2026-09-06
 

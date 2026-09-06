@@ -13,6 +13,12 @@ export function nodeMatches(node, term) {
 export function computeMatches(root, term) {
   const result = new Set();
   if (!root || !term || !term.trim()) return result;
+  if (Array.isArray(root.nodes)) {
+    root.nodes.forEach((node) => {
+      if (nodeMatches(node, term)) result.add(node.id);
+    });
+    return result;
+  }
   function visit(node, path) {
     if (nodeMatches(node, term)) result.add(path);
     node.children?.forEach((child, index) => {

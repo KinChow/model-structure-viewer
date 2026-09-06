@@ -7,10 +7,10 @@
 工具不下载权重数据区，也不跑推理。在线模型只读取配置、模型 API 和 safetensors header。当前网页端主要在前端完成组网：
 
 ```text
-config.json + checkpoint header -> registry/trie -> truth merge -> Structure IR (tree + graph) -> cost lens/UI/export
+config.json + checkpoint header -> registry/trie -> truth merge -> Graph IR v2 -> cost lens/UI/export
 ```
 
-后端主要负责本地配置读取、Hugging Face 配置读取，以及保留兼容用的结构接口。
+后端主要负责本地配置读取、Hugging Face 配置读取和 Graph IR introspection；`root` 仅作为兼容投影输出。
 仓库内置模型配置可以直接作为静态资源使用，适合部署到 GitHub Pages 这类静态站点。
 
 ## 项目边界

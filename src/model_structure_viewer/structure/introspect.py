@@ -8,8 +8,8 @@ from typing import Any
 
 from ..errors import IntrospectionError
 from ..schemas import ModelStructure, StructureNode
-from . import fold, semantics
-from .graph import materialize_structure_graph, project_graph_to_tree
+from . import semantics
+from .graph import GraphDraft, collapse_graph, project_graph_to_tree
 from .keys import make_extra_config
 from .repair.runtime import ConfigNormalizer, RuntimePatch
 from .summary import extract_summary, infer_model_family
@@ -48,8 +48,9 @@ def build_from_meta_model(
             _LOG.info("AutoModel.from_config failed for %s: %s", config.get("model_type"), exc)
             raise IntrospectionError(f"AutoModel.from_config failed: {exc}") from exc
 
-    raw_root = _walk(model, attribute_name="", path="root")
-    result_root = fold.collapse(raw_root) if collapse_repeated else raw_root
+    graph = _build_graph_draft(model).finalize()
+    if collapse_repeated:
+        graph = collapse_graph(graph)
 
     family = infer_model_family(config) or type(model).__name__
     summary = extract_summary(
@@ -66,7 +67,6 @@ def build_from_meta_model(
         diagnostics = dict(enriched_source.get("diagnostics") or {})
         diagnostics.update(normalizer_diagnostics)
         enriched_source["diagnostics"] = diagnostics
-    graph = materialize_structure_graph(result_root)
     return ModelStructure(
         summary=summary,
         source=enriched_source,
@@ -128,28 +128,48 @@ def _apply_config_normalizer(
     return config_normalizer.normalize(hf_config)
 
 
+def _build_graph_draft(module: Any) -> GraphDraft:
+    draft = GraphDraft()
+
+    def visit(current: Any, *, attribute_name: str, path: str, parent_id: str | None, order: int) -> None:
+        class_name = type(current).__name__
+        node_type = semantics.classify(current)
+        attrs = _drop_none({**semantics.extract_attributes(current), "class": class_name})
+        display = semantics.display_name(attribute_name, current) if attribute_name else class_name
+        metadata = _direct_parameter_metadata(current, path)
+        draft.add_node(
+            node_id=path,
+            canonical_id=path,
+            parent_id=parent_id,
+            order=order,
+            name=display,
+            type=node_type,
+            attributes=attrs,
+            confidence="high",
+            **metadata,
+        )
+        child_paths: list[str] = []
+        for child_order, (name, child) in enumerate(current.named_children()):
+            child_path = f"{path}.{name}" if name else path
+            child_paths.append(child_path)
+            visit(child, attribute_name=name, path=child_path, parent_id=path, order=child_order)
+        for source, target in zip(child_paths, child_paths[1:]):
+            draft.add_dataflow(source, target)
+
+    visit(module, attribute_name="", path="root", parent_id=None, order=0)
+    return draft
+
+
 def _walk(module: Any, *, attribute_name: str, path: str) -> StructureNode:
-    class_name = type(module).__name__
-    node_type = semantics.classify(module)
-    attrs = semantics.extract_attributes(module)
-    attrs["class"] = class_name
-
-    children: list[StructureNode] = []
-    for name, child in module.named_children():
-        child_path = f"{path}.{name}" if name else path
-        children.append(_walk(child, attribute_name=name, path=child_path))
-
-    display = semantics.display_name(attribute_name, module) if attribute_name else class_name
-    parameter_metadata = _direct_parameter_metadata(module, path)
-    return StructureNode(
-        id=path,
-        name=display,
-        type=node_type,
-        attributes=_drop_none(attrs),
-        confidence="high",
-        children=children,
-        **parameter_metadata,
-    )
+    """Compatibility view for callers that still need a tree node."""
+    graph = _build_graph_draft(module).finalize()
+    root = project_graph_to_tree(graph)
+    if path != "root" or attribute_name:
+        # Historical tests call this helper with an arbitrary root path; keep
+        # the old node shape while the production path remains graph-first.
+        root.id = path
+        root.name = semantics.display_name(attribute_name, module) if attribute_name else root.name
+    return root
 
 
 def _drop_none(values: dict[str, Any]) -> dict[str, Any]:

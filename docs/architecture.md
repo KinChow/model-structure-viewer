@@ -12,7 +12,7 @@ flowchart LR
   R --> C[config / metadata]
   C --> F[前端结构路径]
   C --> B[后端验证路径]
-  F --> IR[统一 Structure IR：树 + 图]
+  F --> IR[统一 Graph IR v2]
   B --> IR
   IR --> V[详情 UI]
   IR --> E[JSON / Mermaid / DOT 导出]
@@ -30,7 +30,7 @@ config.json + safetensors header
   -> model_executor/models
   -> model_executor/layers
   -> model_executor/ops + formulas
-  -> structure IR (tree + explicit graph)
+  -> Graph IR v2 (nodes + hierarchy + explicit dataflow edges)
   -> materializers/toStructureNode
   -> UI / export / cost analysis
 ```
@@ -44,7 +44,7 @@ CLI / HTTP request
   -> resolver / local cache / HF client
   -> config and remote-code recovery
   -> transformers meta-device introspection
-  -> StructureNode response
+  -> Graph IR response
   -> API / CLI / export
 ```
 
@@ -60,7 +60,7 @@ CLI / HTTP request
 - 参数量、dtype、权重来源和 tensor 名称
 - 算子、公式、诊断和结构生成策略
 
-`graph` 是新的内部事实载体；`root.children` 是由 graph projection 生成的兼容层，当前仍服务旧 API、truth 迁移和 breadcrumb。layout、compute、aggregate、通信、PP/PD projection 和导出已经优先消费 graph；新功能不应直接解析原始配置或调用 registry。
+`graph` 是唯一内部事实载体；`root` 是由 graph projection 生成的兼容层。后端 introspection 通过 `GraphDraft` 直接写入节点事实和层级边，前端搜索、选择、breadcrumb、layout、compute、aggregate、通信、PP/PD projection 和导出优先消费 graph。新功能不应把 `root.children` 当作事实源。
 
 ## 责任边界
 

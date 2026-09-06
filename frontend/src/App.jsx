@@ -11,6 +11,7 @@ import { computeMatches } from "./diagram/match";
 import { PUBLIC_CHIPS } from "./cost/chips/public.js";
 import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal.js";
 import { readLocalSafetensorsHeaders } from "./cost/safetensorsReader.js";
+import { graphChildren, graphViewNode } from "./structure/graph/selectors.js";
 
 const DetailWorkspace = lazy(() => import("./components/DetailWorkspace"));
 
@@ -18,11 +19,12 @@ function DetailWorkspaceFallback({ theme, language }) {
   return <div className={`detail-page theme-${theme}`}><div className="detail-loading-overlay" role="status" aria-live="polite"><span className="detail-loading-dot" aria-hidden="true" /><span>{language === "en" ? "Preparing model view" : "正在准备模型视图"}<i aria-hidden="true">...</i></span></div></div>;
 }
 
-function findNodeByPath(root, path) {
-  if (!root || !path) return null;
-  if (path === "root") return root;
+function findNodeByPath(source, path) {
+  if (!source || !path) return null;
+  if (Array.isArray(source.nodes)) return graphViewNode(source, path);
+  if (path === "root") return source;
   const parts = path.split(".").slice(1);
-  let current = root;
+  let current = source;
   for (const part of parts) {
     const idx = Number(part);
     if (!current.children || Number.isNaN(idx) || idx >= current.children.length) return null;
@@ -31,14 +33,19 @@ function findNodeByPath(root, path) {
   return current;
 }
 
-function hasChildren(node) {
+function hasChildren(node, graph) {
+  if (graph?.nodes) return graphChildren(graph, node.path || node.id).length > 0;
   return node.children?.length > 0;
 }
 
-function collectCollapsiblePaths(root) {
+function collectCollapsiblePaths(root, graph = null) {
   const paths = new Set();
   function visit(node, path) {
-    if (hasChildren(node)) paths.add(path);
+    if (hasChildren(node, graph)) paths.add(path);
+    if (graph?.nodes) {
+      graphChildren(graph, path).forEach((child) => visit(child, child.id));
+      return;
+    }
     node.children?.forEach((child, index) => {
       visit(child, `${path}.${index}`);
     });
@@ -52,12 +59,12 @@ function parentPath(path) {
   return idx === -1 ? null : path.slice(0, idx);
 }
 
-function ancestorCollapsiblePaths(root, path) {
+function ancestorCollapsiblePaths(root, path, graph = null) {
   const paths = [];
   let current = parentPath(path);
   while (current) {
-    const node = findNodeByPath(root, current);
-    if (node && hasChildren(node)) paths.push(current);
+    const node = findNodeByPath(graph || root, current);
+    if (node && hasChildren(node, graph)) paths.push(current);
     current = parentPath(current);
   }
   return paths;
@@ -103,18 +110,21 @@ function App() {
   const error = parseError || structureError || hf.error || settingsError || exporter.error || chipError;
   const sourceLabel = structure?.source?.kind || "not loaded";
   const allCollapsiblePaths = useMemo(
-    () => collectCollapsiblePaths(structure?.root),
+    () => collectCollapsiblePaths(
+      structure?.graph ? graphViewNode(structure.graph, structure.graph.root_id || "root") : structure?.root,
+      structure?.graph,
+    ),
     [structure]
   );
 
   const searchActive = Boolean(searchTerm.trim());
   const matchedPaths = useMemo(
-    () => computeMatches(structure?.root, searchTerm),
+    () => computeMatches(structure?.graph || structure?.root, searchTerm),
     [structure, searchTerm]
   );
   const matchResults = useMemo(
     () => [...matchedPaths].slice(0, 12).map((path) => {
-      const node = findNodeByPath(structure?.root, path);
+      const node = findNodeByPath(structure?.graph || structure?.root, path);
       return { path, name: node?.name || path, type: node?.type || "node" };
     }),
     [matchedPaths, structure]
@@ -124,7 +134,7 @@ function App() {
     if (!searchActive || matchedPaths.size === 0 || !structure) return;
     const toAdd = [];
     matchedPaths.forEach((path) => {
-      ancestorCollapsiblePaths(structure.root, path).forEach((collapsiblePath) => toAdd.push(collapsiblePath));
+      ancestorCollapsiblePaths(structure.graph || structure.root, path, structure.graph).forEach((collapsiblePath) => toAdd.push(collapsiblePath));
     });
     if (toAdd.length === 0) return;
     setLayersExpandedPaths((prev) => {
@@ -141,7 +151,7 @@ function App() {
   }, [matchedPaths, searchActive, structure]);
 
   const selectedNode = useMemo(
-    () => (selectedNodePath && structure ? { node: findNodeByPath(structure.root, selectedNodePath), path: selectedNodePath } : null),
+    () => (selectedNodePath && structure ? { node: findNodeByPath(structure.graph || structure.root, selectedNodePath), path: selectedNodePath } : null),
     [structure, selectedNodePath]
   );
 
@@ -149,7 +159,7 @@ function App() {
     setSelectedNodePath(path);
     setDrawerOpen(false);
     if (!path || !structure) return;
-    const ancestors = ancestorCollapsiblePaths(structure.root, path);
+    const ancestors = ancestorCollapsiblePaths(structure.graph || structure.root, path, structure.graph);
     if (ancestors.length > 0) {
       setLayersExpandedPaths((previous) => {
         const next = new Set(previous);

@@ -12,9 +12,19 @@ import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { COMPARISON_MODE } from "../diagram/compare.js";
 import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
+import { graphChildren, graphNodeAt, graphViewNode } from "../structure/graph/selectors.js";
 
-function breadcrumbForPath(root, path) {
+function breadcrumbForPath(root, path, graph = null) {
   if (!root || !path) return [];
+  if (graph?.nodes) {
+    const items = [];
+    let current = graphNodeAt(graph, path);
+    while (current) {
+      items.unshift({ path: current.id, name: current.name });
+      current = current.parent_id ? graphNodeAt(graph, current.parent_id) : null;
+    }
+    return items;
+  }
   const parts = path.split(".");
   const items = [{ path: "root", name: root.name }];
   let current = root;
@@ -49,7 +59,10 @@ function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath, par
     [english ? "Source" : "来源", sourceLabel],
     [english ? "Status" : "状态", status.label],
   ];
-  return <div className="model-inspector-summary"><span className="inspector-kicker">{english ? "MODEL SUMMARY" : "模型摘要"}</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><p className="model-summary-status" title={status.detail}>{status.detail}</p><section className="summary-module-section"><h3>{english ? "Top-level modules" : "顶层模块"}</h3><div className="summary-module-list">{(structure?.root?.children || []).map((node, index) => <button type="button" key={`${node.id}-${index}`} onClick={() => onSelectPath?.(`root.${index}`)}><span className="summary-module-kind">{node.type}</span><strong>{node.name}</strong>{node.repeat > 1 && <b>×{node.repeat}</b>}<span className="summary-module-arrow">→</span></button>)}</div></section><p>{english ? "Select a module or structure node to inspect details." : "选择模块或结构节点查看详情。"}</p><div className="inspector-rule" /></div>;
+  const topLevel = structure?.graph?.nodes
+    ? graphChildren(structure.graph, structure.graph.root_id || "root").map((node) => graphViewNode(structure.graph, node.id))
+    : (structure?.root?.children || []);
+  return <div className="model-inspector-summary"><span className="inspector-kicker">{english ? "MODEL SUMMARY" : "模型摘要"}</span><h2>{summary.model_family || summary.model_type || "Model"}</h2><dl className="model-summary-grid">{rows.map(([label, value]) => <span key={label}><dt>{label}</dt><dd>{value ?? "-"}</dd></span>)}</dl><p className="model-summary-status" title={status.detail}>{status.detail}</p><section className="summary-module-section"><h3>{english ? "Top-level modules" : "顶层模块"}</h3><div className="summary-module-list">{topLevel.map((node, index) => <button type="button" key={node.path || node.id} onClick={() => onSelectPath?.(structure?.graph?.nodes ? node.path : `root.${index}`)}><span className="summary-module-kind">{node.type}</span><strong>{node.name}</strong>{node.repeat > 1 && <b>×{node.repeat}</b>}<span className="summary-module-arrow">→</span></button>)}</div></section><p>{english ? "Select a module or structure node to inspect details." : "选择模块或结构节点查看详情。"}</p><div className="inspector-rule" /></div>;
 }
 
 function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onThemeChange, theme, onBack, onSettings }) {
@@ -126,7 +139,7 @@ export default function DetailWorkspace({
   const selectedData = selectedNode?.node || selectedNode;
   const selectedPath = selectedNodePath || selectedNode?.path || null;
   const parameterTotal = parameterTotalForStructure(structure);
-  const breadcrumbs = breadcrumbForPath(structure?.root, selectedPath);
+  const breadcrumbs = breadcrumbForPath(structure?.root, selectedPath, structure?.graph);
   const activeMachineName = chips?.find((chip) => chip.id === activeMachineId)?.name || "GPU";
   const activeNodeCount = activeNodes?.[activeMode === "pd" ? activePhase : "centralized"] || 1;
   const fitLabel = costFitStatus == null ? null : activeMode === "pd" && costFitStatus.phaseFits

@@ -20,14 +20,22 @@ function isFrontendModelAsset(filePath) {
   return name === "catalog.json" || name === "config.json";
 }
 
+export function isPathInside(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative !== ""
+    && relative !== ".."
+    && !relative.startsWith(`..${path.sep}`)
+    && !path.isAbsolute(relative);
+}
+
 function modelsStaticPlugin() {
   return {
     name: "models-static-assets",
     configureServer(server) {
       server.middlewares.use("/models", (req, res, next) => {
         const requestPath = decodeURIComponent((req.url || "").split("?")[0]).replace(/^\/+/, "");
-        const filePath = path.normalize(path.join(modelsRoot, requestPath));
-        if (!filePath.startsWith(modelsRoot)) {
+        const filePath = path.resolve(modelsRoot, requestPath);
+        if (!isPathInside(modelsRoot, filePath)) {
           res.statusCode = 403;
           res.end("Forbidden");
           return;

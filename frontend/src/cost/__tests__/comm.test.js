@@ -23,6 +23,29 @@ test("节点路径可识别 TP 与 EP 通信模块", () => {
   assert.equal(nodeCommunicationBytes({ id: "decoder.0.mlp.experts.0.down_proj" }, { hiddenSize: 4, expertsPerToken: 2 }, { tp: 2, ep: 2 }, { batch: 1, tokens: 1, bytesPerElement: 2 }), 0);
 });
 
+test("显式通信语义不依赖算子路径命名", () => {
+  const config = { hiddenSize: 4, expertsPerToken: 2 };
+  const options = { batch: 1, tokens: 1, bytesPerElement: 2 };
+  assert.equal(nodeCommunicationBytes(
+    { id: "renamed.output", attributes: { communication_role: "tp_attention_output" } },
+    config,
+    { tp: 2 },
+    options,
+  ), 8);
+  assert.equal(nodeCommunicationBytes(
+    { id: "renamed.output", attributes: { communication_role: "tp_attention_output" } },
+    config,
+    { tp: 2, attnMode: "dp" },
+    options,
+  ), 0);
+  assert.equal(nodeCommunicationBytes(
+    { id: "renamed.route", attributes: { communication_role: "ep_dispatch" } },
+    config,
+    { ep: 2 },
+    options,
+  ), 16);
+});
+
 test("EP=1 不产生 all-to-all，DP-attention 不产生 attention TP all-reduce", () => {
   assert.equal(nodeCommunicationBytes({ id: "decoder.0.moe.dispatch" }, { hiddenSize: 4, expertsPerToken: 2 }, { ep: 1 }), 0);
   assert.equal(nodeCommunicationBytes({ id: "decoder.0.self_attn.o_proj" }, { hiddenSize: 4 }, { tp: 4, attnMode: "dp" }), 0);

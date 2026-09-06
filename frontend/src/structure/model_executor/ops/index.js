@@ -66,7 +66,7 @@ export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
       probabilities_shape: shapes.attentionProbabilities,
       value_shape: shapes.attentionValue,
     }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
 
@@ -108,7 +108,7 @@ export function linearAttentionOperatorSpecs(prefix, normalized) {
       ...shapeFlow(`${shapes.hidden}, state`, shapes.hidden), attention_kind: "linear",
     }, { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${prefix}.output_gate`, "linear attention output gate", "linear_attention_gate", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
-    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
+    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", { ...shapeFlow(shapes.hidden, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.hidden, output: dims.hidden }),
   ];
 }
 
@@ -222,6 +222,7 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", {
       ...shapeFlow(gateShape, shapes.hidden),
       semantic_role: "attention_output_projection",
+      communication_role: "tp_attention_output",
     }, { input: outputDims, output: dims.hidden }),
   ];
   return specs;
@@ -271,7 +272,7 @@ export function qwen35FullAttentionOperatorSpecs(prefix, normalized) {
       activation: normalized.attentionOutputGate ? "sigmoid" : "none",
       implementation: ["vLLM.fused_sigmoid_mul", "SGLang.fused_sigmoid_mul"],
     }, { input: dims.attentionContext, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
 
@@ -498,7 +499,7 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
   if (normalized.mlaUseOutputGate) {
     specs.push(operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext }));
   }
-  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }));
+  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }));
   return specs;
 }
 
@@ -610,6 +611,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
     operatorSpec(`${prefix}.wo_b`, "output hidden projection", "linear", {
       ...shapeFlow(outputLatent, shapesForHidden(normalized)),
       projection_role: "wo_b",
+      communication_role: "tp_attention_output",
       implementation: ["vLLM.wo_b", "SGLang.wo_b"],
     }, { input: [-1, -1, groups, outputRank], output: dims.hidden }),
   );
@@ -652,7 +654,7 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
       selected_tokens: budget,
       attention_kind: "qsa",
     }, { input: dims.attentionQuery, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
+    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
 
@@ -737,7 +739,7 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
       }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
     );
   }
-  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }));
+  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }));
   return specs;
 }
 
@@ -799,7 +801,7 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant
       ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
       formula: "O = P V",
     }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
 
@@ -887,6 +889,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
     operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
       ...shapeFlow(`[batch, sequence, attention heads=${heads}, value head dimension=${valueDim}]`, shapes.hidden),
       implementation: ["vLLM.o_proj", "SGLang.o_proj"],
+      communication_role: "tp_attention_output",
     }, { input: [-1, -1, heads, valueDim], output: dims.hidden }),
   ];
 }
@@ -906,7 +909,7 @@ export function mlpOperatorSpecs(prefix, normalized) {
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,
     }, { input: dims.intermediate, output: dims.intermediate }),
-    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", shapeFlow(shapes.intermediate, shapes.hidden), { input: dims.intermediate, output: dims.hidden }),
+    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", { ...shapeFlow(shapes.intermediate, shapes.hidden), communication_role: "tp_mlp_output" }, { input: dims.intermediate, output: dims.hidden }),
   ];
 }
 
@@ -931,6 +934,7 @@ export function moeOperatorSpecs(prefix, normalized) {
       ...shapeFlow(`${shapes.hidden}, ${shapes.topExperts}`, shapes.expertInput),
       token_shape: shapes.hidden,
       expert_ids_shape: shapes.topExperts,
+      communication_role: "ep_dispatch",
     }, { input: dims.hidden, output: dims.expertInput }),
     operatorSpec(`${prefix}.expert_mlp`, "expert MLP", "swiglu", {
       ...shapeFlow(shapes.expertInput, shapes.expertInput),
@@ -944,6 +948,7 @@ export function moeOperatorSpecs(prefix, normalized) {
       ...shapeFlow(`${shapes.expertInput}, ${shapes.topExperts}`, shapes.hidden),
       expert_output_shape: shapes.expertInput,
       expert_weights_shape: shapes.topExperts,
+      communication_role: "ep_combine",
     }, { input: dims.expertInput, output: dims.hidden }),
   ];
 }
@@ -980,6 +985,7 @@ export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false
       token_shape: shapes.hidden,
       expert_ids_shape: shapes.topExperts,
       implementation: ["vLLM.FusedMoE", "SGLang fused_moe"],
+      communication_role: "ep_dispatch",
     }, { input: dims.hidden, output: dims.expertInput }),
     operatorSpec(`${prefix}.expert_mlp`, "expert SwiGLU", "swiglu", {
       ...shapeFlow(shapes.expertInput, shapes.expertInput),
@@ -992,6 +998,7 @@ export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false
       expert_output_shape: shapes.expertInput,
       expert_weights_shape: shapes.topExperts,
       routed_scaling_factor: normalized.routedScalingFactor,
+      communication_role: "ep_combine",
     }, { input: dims.expertInput, output: dims.hidden }),
   );
   return specs;
@@ -1019,6 +1026,7 @@ export function kimiK3MoeOperatorSpecs(prefix, normalized) {
       ...shapeFlow(`${latentShape}, ${shapes.topExperts}`, latentShape),
       token_shape: latentShape,
       expert_ids_shape: shapes.topExperts,
+      communication_role: "ep_dispatch",
     }, { input: latentDims, output: latentDims }),
     operatorSpec(`${prefix}.expert_mlp`, "latent expert MLP", "swiglu", {
       ...shapeFlow(latentShape, latentShape),
@@ -1029,6 +1037,7 @@ export function kimiK3MoeOperatorSpecs(prefix, normalized) {
       ...shapeFlow(`${latentShape}, ${shapes.topExperts}`, latentShape),
       expert_output_shape: latentShape,
       expert_weights_shape: shapes.topExperts,
+      communication_role: "ep_combine",
     }, { input: latentDims, output: latentDims }),
     operatorSpec(`${prefix}.routed_expert_norm`, "routed expert latent RMSNorm", "rmsnorm", {
       ...shapeFlow(latentShape, latentShape),

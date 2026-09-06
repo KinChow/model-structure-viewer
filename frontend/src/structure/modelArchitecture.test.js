@@ -460,6 +460,7 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   const linear = firstLayer.children.find((node) => node.type === "attention");
   assert.equal(linear.children.length, 8);
   assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.formula_id, "qwen_qkvz_split");
+  assert.equal(linear.children.find((node) => node.name === "output projection").attributes.communication_role, "tp_attention_output");
   assert.equal(linear.children.find((node) => node.name === "KDA recurrent state").attributes.decay_activation, "softplus");
   const pleLayer = decoder.children.find((node) => node.attributes.range === "1..1");
   assert.equal(pleLayer.children[0].name, "PLE");

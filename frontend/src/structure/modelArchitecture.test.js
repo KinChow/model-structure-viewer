@@ -339,6 +339,9 @@ test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () =>
   assert.equal(stateUpdate.attributes.formula_id, "gated_delta_attention");
   assert.equal(stateUpdate.attributes.safe_gate, true);
   assert.equal(stateUpdate.attributes.gate_lower_bound, -5);
+  const glmProjection = firstAttention.children.find((node) => node.name === "QKV projection");
+  assert.equal(glmProjection.output_shape[2], 24896);
+  assert.equal(glmProjection.attributes.fused_projection_width, 24896);
 
   const qsaLayer = decoder.children.find((node) => node.attributes.range === "3..3");
   assert.equal(qsaLayer.children.find((node) => node.type === "attention").attributes.attention_kind, "qsa");
@@ -371,12 +374,15 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
     "gated RMSNorm",
     "output projection",
   ]);
+  const kimiProjection = attention.children.find((node) => node.name === "QKV projection");
+  assert.equal(kimiProjection.output_shape[2], 49376);
+  assert.equal(kimiProjection.attributes.fused_projection_width, 49376);
   assert.deepEqual(attention.children[0].attributes.implementation, {
-    input_projection: "fused_qkvg_proj",
+    input_projection: "in_proj_qkvgfab",
     beta_projection: "b_proj",
     decay_projection: ["f_a_proj", "f_b_proj"],
-    short_convolution: "qkv_conv1d",
-    output_gate: "fused_qkvg_proj.g",
+    short_convolution: "conv1d",
+    output_gate: "in_proj_qkvgfab.g",
   });
   const moeLayer = decoder.children.find((node) => node.attributes.range === "1..2");
   const moe = moeLayer.children.find((node) => node.type === "moe");

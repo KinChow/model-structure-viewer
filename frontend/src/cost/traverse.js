@@ -40,8 +40,14 @@ export function walkGraph(graph, visit) {
   function walk(nodeId, multiplier = 1) {
     const graphNode = byId.get(nodeId);
     if (!graphNode) return;
-    const node = graphNodeToNode(graphNode);
     const children = childrenByParent.get(nodeId) || [];
+    // Keep the child index available to cost ownership decisions. Graph IR
+    // remains the source of truth; this shallow projection is only the
+    // traversal view used by the cost calculators.
+    const node = {
+      ...graphNodeToNode(graphNode),
+      children: children.map(graphNodeToNode),
+    };
     visit({ node, path: graphNode.id, multiplier });
     const childHasExplicitRepeat = children.some((child) => Number.isFinite(child.repeat));
     const childMultiplier = childRepeatMultiplier(node, multiplier, { repeatHandled: childHasExplicitRepeat });

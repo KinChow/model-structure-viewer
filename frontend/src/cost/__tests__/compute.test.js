@@ -40,10 +40,11 @@ test("template linear operators derive MACs from numeric tensor shapes", () => {
   const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] };
   assert.equal(linearMacs(node, { batch: 1, sequence: 3, phase: "prefill" }), 96);
   const result = aggregateCost({ root: { children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }, config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3, activationPeak: 0, runtimeConst: 0 });
-  assert.equal(result.totalMacs, 120);
-  assert.equal(result.macsPerToken, 40);
-  assert.equal(result.totalFlops, 240);
+  assert.equal(result.totalMacs, 96);
+  assert.equal(result.macsPerToken, 32);
+  assert.equal(result.totalFlops, 192);
   assert.equal(result.macsSources["config-derived-shape"], 1);
+  assert.equal(result.nodes.find((row) => row.node.type === "normalization").macs_source, "not-compute");
 });
 
 test("二维专家投影按逻辑输入输出宽度估算 MACs", () => {
@@ -58,6 +59,46 @@ test("父节点 lens 可以汇总叶子成本，但模型总量不重复计费",
   assert.equal(aggregate.find((row) => row.path === "root.0").aggregate_macs, 64);
   assert.equal(aggregate.find((row) => row.path === "root").aggregate_macs, 64);
   assert.equal(rows.find((row) => row.path === "root").compute_macs, 0);
+});
+
+test("Graph IR 父节点只做汇总，不能把父级 attention 再计一次", () => {
+  const graph = {
+    root_id: "root",
+    nodes: [
+      { id: "root", canonical_id: "root", parent_id: null, order: 0, type: "model", name: "model" },
+      { id: "root.0", canonical_id: "decoder.0.self_attn", parent_id: "root", order: 0, type: "attention", name: "GQA Attention", attributes: { attention_kind: "gqa" } },
+      { id: "root.0.0", canonical_id: "decoder.0.self_attn.scores", parent_id: "root.0", order: 0, type: "operator", name: "attention scores", attributes: { operator_id: "matmul" }, input_shape: [-1, -1, 2, 4], output_shape: [-1, 2, -1, -1] },
+      { id: "root.0.1", canonical_id: "decoder.0.self_attn.context", parent_id: "root.0", order: 1, type: "operator", name: "weighted value", attributes: { operator_id: "matmul" }, input_shape: [-1, 2, -1, -1], output_shape: [-1, -1, 2, 6] },
+    ],
+    edges: [],
+  };
+  const result = aggregateCost({
+    graph,
+    config: { attentionHeads: 2, headDim: 4, valueHeadDim: 6 },
+    batch: 1,
+    sequence: 3,
+    activationPeak: 0,
+    runtimeConst: 0,
+  });
+  assert.equal(result.totalMacs, 180);
+  assert.equal(result.nodes.find((row) => row.path === "root.0").compute_macs, 0);
+});
+
+test("参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度公式", () => {
+  const root = {
+    children: [
+      { type: "operator", name: "gated RMSNorm", attributes: { operator_id: "gated_rmsnorm" }, output_shape: [-1, -1, 8], children: [] },
+      { type: "operator", name: "qkv causal short convolution", attributes: { operator_id: "causal_conv1d" }, output_shape: [-1, -1, 8], children: [] },
+      { type: "operator", name: "KDA recurrent state", attributes: { operator_id: "gated_delta_attention" }, output_shape: [-1, -1, 8], children: [] },
+    ],
+  };
+  const config = { linearAttentionMode: "qwen3_5", hiddenSize: 16, linearKeyHeads: 1, linearValueHeads: 1, linearKeyDim: 2, linearValueDim: 2, linearConvKernelSize: 3 };
+  const result = aggregateCost({ root, config, batch: 1, sequence: 2, activationPeak: 0, runtimeConst: 0 });
+  assert.equal(result.nodes[1].compute_macs, 0);
+  assert.equal(result.nodes[2].compute_macs, 36);
+  assert.equal(result.nodes[3].compute_macs, 24);
+  assert.equal(result.totalMacs, 60);
+  assert.equal(result.nodes.filter((row) => row.macs_source === "not-compute").length >= 2, true);
 });
 
 test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {
@@ -110,7 +151,7 @@ test("F16 真实专家路径在缺少 layerSchedule 时仍使用活跃比例", (
 
 test("layernorm 名称包含 attention 时不应误判为 attention 核心", () => {
   const node = { type: "normalization", name: "post attention layernorm", output_shape: [-1, -1, 8] };
-  assert.equal(computeNodeCosts(node, { attentionHeads: 2, headDim: 4 }, { batch: 1, sequence: 2 })[0].macs, 16);
+  assert.equal(computeNodeCosts(node, { attentionHeads: 2, headDim: 4 }, { batch: 1, sequence: 2 })[0].macs, 0);
 });
 
 test("父节点和范围子节点同时有 repeat 时只计算一次范围倍数", () => {

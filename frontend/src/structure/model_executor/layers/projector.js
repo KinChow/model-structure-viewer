@@ -8,6 +8,6 @@ export function projectorModule(normalized = null) {
   const flow = shapes ? shapeFlow(shapes.visionOutput, shapes.hidden) : {};
   const dims = normalized ? tensorDims(normalized) : null;
   return withShapeDims(moduleSpec("projector", "Multi-modal Projector", "projector", { class: "Projector", ...flow }, [
-    operatorSpec("projector.linear", "vision-text projection", "linear", flow, { input: dims?.visionOutput, output: dims?.hidden }),
+    operatorSpec("projector.linear", "vision-text projection", "linear", { ...flow, modality: "vision" }, { input: dims?.visionOutput, output: dims?.hidden }),
   ]), dims?.visionOutput, dims?.hidden);
 }

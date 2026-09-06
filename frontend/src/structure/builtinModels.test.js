@@ -37,10 +37,11 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
     assert.ok(structure.graph.edges.every((edge) => edge.source_canonical_id && edge.target_canonical_id), `${entry.model_id}: graph edge missing canonical endpoints`);
     assert.ok(structure.root.children.length > 0, `${entry.model_id}: empty module tree`);
     if (normalized.hasVision) {
-      assert.ok(
-        structure.root.children.some((node) => node.type === "vision-encoder"),
-        `${entry.model_id}: vision config is missing from the structure`,
-      );
+      const vision = structure.root.children.find((node) => node.type === "vision-encoder");
+      assert.ok(vision, `${entry.model_id}: vision config is missing from the structure`);
+      assert.ok(vision.children.length >= 2, `${entry.model_id}: vision tower has no detail modules`);
+      assert.ok(vision.children.find((node) => node.id.endsWith(".0"))?.children.length >= 8, `${entry.model_id}: vision layer has no operator detail`);
+      assert.ok(structure.graph.edges.some((edge) => edge.source_canonical_id === "vision_tower.patch_embed"), `${entry.model_id}: vision patch edge missing`);
     }
     walk(structure.root, (node) => {
       if (node.type !== "operator") return;

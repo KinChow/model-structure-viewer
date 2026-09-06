@@ -1,10 +1,10 @@
 // 推理场景的逐模块 MACs 估算；显式暴露假设，不用于预测延迟。
 
-import { nodeWeightBytes, product, tensorElements } from "./memory.js";
+import { nodeWeightBytes, product } from "./memory.js";
 import { walkStructure } from "./traverse.js";
 
-function tokensFor({ batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  return batch * (phase === "decode" ? 1 : sequence);
+function tokensFor({ batch = 1, sequence = 1, phase = "prefill", vision = false, visionTokens = 1 } = {}) {
+  return batch * (vision ? visionTokens : phase === "decode" ? 1 : sequence);
 }
 
 function isLinear(node) {
@@ -37,6 +37,35 @@ function derivedLinearMacs(node, { batch, sequence, phase, expertFraction = 1 } 
   const outputWidth = staticWidth(node?.output_shape);
   if (inputWidth == null || outputWidth == null) return null;
   return tokensFor({ batch, sequence, phase }) * inputWidth * outputWidth * expertFraction;
+}
+
+function linearAttentionDimensions(config = {}) {
+  const keyHeads = config.linearKeyHeads || config.attentionHeads || 0;
+  const valueHeads = config.linearValueHeads || config.attentionHeads || keyHeads;
+  const keyDim = config.linearKeyDim || config.headDim || 0;
+  const valueDim = config.linearValueDim || config.valueHeadDim || keyDim;
+  return {
+    keyHeads,
+    valueHeads,
+    keyDim,
+    valueDim,
+    keyProjection: keyHeads * keyDim,
+    valueProjection: valueHeads * valueDim,
+  };
+}
+
+function linearShortConvolutionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const { keyProjection, valueProjection } = linearAttentionDimensions(config);
+  const kernel = config?.linearConvKernelSize || 0;
+  return tokensFor({ batch, sequence, phase }) * (2 * keyProjection + valueProjection) * kernel;
+}
+
+function linearStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const { keyHeads, valueHeads, keyDim, valueDim } = linearAttentionDimensions(config);
+  const stateUpdate = config?.linearAttentionMode === "generic"
+    ? keyHeads * valueHeads * keyDim * valueDim
+    : 3 * valueHeads * valueDim * keyDim;
+  return tokensFor({ batch, sequence, phase }) * stateUpdate;
 }
 
 // 来源：llm-analysis 的 LLMAnalysis.get_num_flops_fwd_per_layer_linear。
@@ -188,24 +217,28 @@ function minimaxSparseAttentionMacs(config, { batch = 1, sequence = 1, phase = "
 export function nodeMacs(node, config, options = {}) {
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
+  const vision = node?.attributes?.modality === "vision";
+  const executionOptions = vision
+    ? { ...options, vision: true, visionTokens: config?.visionTokens || 1 }
+    : options;
   if (type === "attention" || operatorId === "attention") {
     const attentionKind = node?.attributes?.attention_kind || "gqa";
-    if (attentionKind === "linear") return linearAttentionMacs(config, options);
-    if (attentionKind === "qsa") return qsaAttentionMacs(config, options);
-    if (attentionKind === "sparse" && config?.modelType === "minimax_m3_vl") return minimaxSparseAttentionMacs(config, options);
+    if (attentionKind === "linear") return linearAttentionMacs(config, executionOptions);
+    if (attentionKind === "qsa") return qsaAttentionMacs(config, executionOptions);
+    if (attentionKind === "sparse" && config?.modelType === "minimax_m3_vl") return minimaxSparseAttentionMacs(config, executionOptions);
     if (attentionKind === "dsv4") {
       const layerMatch = String(node?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)/);
-      return deepseekV4AttentionMacs(config, { ...options, layerIndex: layerMatch ? Number(layerMatch[1]) : 0 });
+      return deepseekV4AttentionMacs(config, { ...executionOptions, layerIndex: layerMatch ? Number(layerMatch[1]) : 0 });
     }
-    return attentionMacs(config, options);
+    return attentionMacs(config, executionOptions);
   }
-  if (isLinear(node)) return linearMacs(node, options);
+  if (isLinear(node)) return linearMacs(node, executionOptions);
   if (operatorId === "matmul" || operatorId === "qsa_attention" || operatorId === "minimax_sparse_attention") {
-    const heads = config?.attentionHeads || 0;
-    const headDim = config?.headDim || 0;
-    const valueDim = config?.valueHeadDim || headDim;
-    const queryTokens = (options.batch || 1) * (options.phase === "decode" ? 1 : options.sequence || 1);
-    const keyTokens = options.sequence || 1;
+    const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
+    const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
+    const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
+    const queryTokens = tokensFor(executionOptions);
+    const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
     const name = String(node?.name || "").toLowerCase();
     if (/score|qk/.test(name)) return queryTokens * heads * keyTokens * headDim;
     if (/weighted value|context|av/.test(name)) return queryTokens * heads * keyTokens * valueDim;
@@ -221,16 +254,29 @@ export function nodeMacs(node, config, options = {}) {
       return queryTokens * heads * selectedTokens * (headDim + valueDim);
     }
   }
-  const output = node?.output_shape || node?.attributes?.output_shape;
-  return Array.isArray(output) ? tensorElements(output, options) : 0;
+  if (operatorId === "causal_conv1d") return linearShortConvolutionMacs(config, executionOptions);
+  if (operatorId === "gated_delta_attention") return linearStateUpdateMacs(config, executionOptions);
+  if (["dsv4_swa_attention", "dsv4_compressed_attention"].includes(operatorId)) {
+    const layerMatch = String(node?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)/);
+    return deepseekV4AttentionMacs(config, {
+      ...executionOptions,
+      layerIndex: layerMatch ? Number(layerMatch[1]) : 0,
+    });
+  }
+  if (operatorId === "linear_attention") {
+    const name = String(node?.name || "").toLowerCase();
+    if (name.includes("state") || name.includes("recurrent")) return linearStateUpdateMacs(config, executionOptions);
+    if (name.includes("conv")) return linearShortConvolutionMacs(config, executionOptions);
+  }
+  // Elementwise, routing, reshape and normalization operators are reported
+  // structurally but are not MACs. Their tensor sizes belong in activation or
+  // "other" accounting, never in the matrix-multiply total.
+  return 0;
 }
 
 function computeMacsForNode(node, config, options = {}) {
   // 父节点只作为成本汇总，实际公式归属叶子；父子同时计费会重复计算层成本。
   if (node?.children?.length) return 0;
-  const type = String(node?.type || "").toLowerCase();
-  const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
-  if (type === "attention" || operatorId === "attention") return nodeMacs(node, config, options);
   return nodeMacs(node, config, options);
 }
 
@@ -239,7 +285,9 @@ function macsSource(node, config, options = {}) {
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
   if (type === "attention" || operatorId === "attention") return "formula";
   if (!isLinear(node)) {
-    return Array.isArray(node?.output_shape) ? "formula" : "not-compute";
+    return ["matmul", "qsa_attention", "minimax_sparse_attention", "causal_conv1d", "gated_delta_attention", "linear_attention"].includes(operatorId)
+      ? "formula"
+      : "not-compute";
   }
   if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return "unknown";
   if (hasLogicalLinearShape(node)) return "checkpoint-shape";

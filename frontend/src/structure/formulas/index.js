@@ -55,6 +55,20 @@ const FORMULAS = {
     inputs: ["q", "k", "position"],
     outputs: ["q'", "k'"],
   },
+  vision_position: {
+    title: "Vision Position Embedding",
+    formula: "x' = x + position(image_or_video)",
+    explanation: "将空间或时空位置编码加入视觉 patch token；具体实现由视觉塔配置决定。",
+    inputs: ["patch tokens", "position"],
+    outputs: ["position-aware tokens"],
+  },
+  vision_activation: {
+    title: "Vision Activation",
+    formula: "y = phi(x)",
+    explanation: "视觉前馈层的逐元素激活；具体函数由视觉配置中的 hidden_act 决定。",
+    inputs: ["x"],
+    outputs: ["y"],
+  },
   rmsnorm: {
     title: "RMSNorm",
     formula: "y = x / sqrt(mean(x^2) + eps) * weight",

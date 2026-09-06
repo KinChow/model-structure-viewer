@@ -47,6 +47,26 @@ function derivedHeadDim(hiddenSize, attentionHeads) {
   return hiddenSize / attentionHeads;
 }
 
+function visionTokenCount(config) {
+  const imageSize = firstNumber(config, ["image_size"]);
+  const patchSize = firstNumber(config, ["patch_size"]);
+  const mergeSize = firstNumber(config, ["spatial_merge_size"])
+    ?? firstNumber(config?.img_token_compression_config, ["spatial_merge_size"])
+    ?? firstNumber(config, ["merge_kernel_size"]);
+  if (!imageSize || !patchSize) {
+    const positionCount = firstNumber(config, ["num_position_embeddings"]);
+    const merge = mergeSize || 1;
+    if (positionCount) return Math.floor(positionCount / (merge * merge));
+    const height = firstNumber(config, ["init_pos_emb_height"]);
+    const width = firstNumber(config, ["init_pos_emb_width"]);
+    if (height && width) return Math.floor((height * width) / (merge * merge));
+    return undefined;
+  }
+  const patches = Math.floor(imageSize / patchSize);
+  const merge = mergeSize || 1;
+  return Math.floor((patches * patches) / (merge * merge));
+}
+
 function explicitLayerSchedule(config, layers) {
   const mlpLayerTypes = config?.mlp_layer_types;
   if (Array.isArray(mlpLayerTypes) && mlpLayerTypes.length > 0) {
@@ -222,6 +242,26 @@ export function normalizeConfig(config) {
     visionOutputSize: visionConfig
       ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"]) ?? firstNumber(visionConfig, ["vt_hidden_size", "mm_hidden_size"]) ?? firstNumber(visionConfig, HIDDEN_KEYS)
       : undefined,
+    visionAttentionHeads: visionConfig ? firstNumber(visionConfig, ["num_heads", "num_attention_heads", "vt_num_attention_heads"]) : undefined,
+    visionHeadDim: visionConfig
+      ? firstNumber(visionConfig, ["head_dim", "attention_head_dim"])
+        ?? derivedHeadDim(firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]), firstNumber(visionConfig, ["num_heads", "num_attention_heads", "vt_num_attention_heads"]))
+      : undefined,
+    visionIntermediateSize: visionConfig ? firstNumber(visionConfig, ["intermediate_size", "vt_intermediate_size"]) : undefined,
+    visionPatchSize: visionConfig ? firstNumber(visionConfig, ["patch_size"]) : undefined,
+    visionTemporalPatchSize: visionConfig ? firstNumber(visionConfig, ["temporal_patch_size"]) : undefined,
+    visionChannels: visionConfig ? firstNumber(visionConfig, ["in_channels", "num_channels"]) : undefined,
+    visionImageSize: visionConfig ? firstNumber(visionConfig, ["image_size"]) : undefined,
+    visionSpatialMergeSize: visionConfig
+      ? firstNumber(visionConfig, ["spatial_merge_size"])
+        ?? firstNumber(visionConfig?.img_token_compression_config, ["spatial_merge_size"])
+        ?? firstNumber(visionConfig, ["merge_kernel_size"])
+      : undefined,
+    visionTokens: visionConfig ? visionTokenCount(visionConfig) : undefined,
+    visionMlpGated: visionConfig
+      ? String(visionConfig.hidden_act || "").toLowerCase().includes("silu")
+        || String(config?.model_type || "").toLowerCase().includes("glm5_next")
+      : false,
     experts: firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS),
     routedExpertHiddenSize: firstNumber(textConfig, ["routed_expert_hidden_size"]) ?? firstNumber(config, ["routed_expert_hidden_size"]),
     expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),
@@ -229,7 +269,7 @@ export function normalizeConfig(config) {
       ?? (String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")
         && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
     sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS)
-      ?? (["kimi", "deepseek_v4", "glm4_moe"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
+      ?? (["kimi", "deepseek_v4", "glm4_moe", "glm5_next"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
         ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
         : undefined),
     sharedExpertsAreFused: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3"),

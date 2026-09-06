@@ -65,7 +65,24 @@ export function derivedWeightParameters(config = {}) {
   const lmHead = config.tieWordEmbeddings ? 0 : embedding;
   const outputResidual = config.attnResBlockSize ? 2 * hidden : 0;
   const finalHyperConnection = config.hyperConnectionCount ? hyperConnectionFinalParameters(config) : 0;
-  return embedding + decoder + hidden + lmHead + outputResidual + finalHyperConnection;
+  return embedding + decoder + hidden + lmHead + outputResidual + finalHyperConnection + derivedVisionParameters(config);
+}
+
+function derivedVisionParameters(config) {
+  const layers = config.visionLayers || 0;
+  const hidden = config.visionHiddenSize || 0;
+  const heads = config.visionAttentionHeads || 0;
+  const headDim = config.visionHeadDim || (heads ? hidden / heads : 0);
+  const intermediate = config.visionIntermediateSize || 0;
+  const patch = config.visionPatchSize || 0;
+  const temporalPatch = config.visionTemporalPatchSize || 1;
+  const channels = config.visionChannels || 0;
+  if (!layers || !hidden || !heads || !headDim || !intermediate || !patch || !channels) return 0;
+  const patchEmbedding = channels * temporalPatch * patch * patch * hidden;
+  const attention = hidden * (3 * heads * headDim) + (heads * headDim) * hidden + 2 * hidden;
+  const mlp = config.visionMlpGated ? 3 * hidden * intermediate : 2 * hidden * intermediate;
+  const projector = (config.visionOutputSize || hidden) * (config.hiddenSize || hidden);
+  return patchEmbedding + layers * (attention + mlp) + projector;
 }
 
 function qwen35LinearAttentionParameters(config) {

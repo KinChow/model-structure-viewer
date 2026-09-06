@@ -57,7 +57,7 @@ test("多模态模型图包含视觉塔和投影节点", async ({ page }) => {
 
 test("每个内置模型都能展开父节点并保持可计算图", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chrome", "全量内置模型回归只在桌面浏览器运行");
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const modelIds = await page.locator("datalist#builtin-models option").evaluateAll((options) => options.map((option) => option.value));
   expect(modelIds).toHaveLength(59);
 
@@ -76,8 +76,16 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
     if (await expand.count()) {
       const before = await page.locator(".react-flow__edge").count();
       await expand.click();
-      await expect.poll(() => page.locator(".react-flow__node").count()).toBeGreaterThan(4);
+      await expect(page.locator(".react-flow__node").filter({ hasText: "Decoder layer group" }).first()).toBeVisible();
       await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThanOrEqual(before);
+    }
+    const vision = page.locator(".react-flow__node").filter({ hasText: "Vision Tower" }).first();
+    if (await vision.count()) {
+      const visionExpand = vision.getByRole("button", { name: "展开", exact: true });
+      if (await visionExpand.count()) await visionExpand.click();
+      const visionLayer = page.locator('.react-flow__node[data-id="root.0.2"]').first();
+      await visionLayer.locator("button").first().click();
+      await expect(page.getByTestId("rf__node-root.0.2.3").getByText("vision attention scores", { exact: true })).toBeVisible();
     }
     await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
     await expect(page.getByLabel("model id")).toBeVisible();

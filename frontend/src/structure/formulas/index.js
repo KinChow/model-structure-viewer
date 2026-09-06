@@ -29,15 +29,15 @@ const FORMULAS = {
   },
   split: {
     title: "Fused Projection Split",
-    formula: "[q,k,v,b,f_a,g_a] = split(z; 3P,H, D,D)",
-    explanation: "按 GLM-5.3-Flash checkpoint 的 fused_qkvbfg_a 投影布局拆分输出。",
+    formula: "[y_1, ..., y_n] = split(z; split_sizes)",
+    explanation: "按当前模型声明的 split_sizes 将 fused projection 拆成语义分支；不同模型的分支数量和宽度由节点属性给出。",
     inputs: ["z", "split sizes"],
-    outputs: ["q", "k", "v", "beta", "f_a", "g_a"],
+    outputs: ["semantic branches"],
   },
   causal_conv1d: {
     title: "Causal Short Convolution",
     formula: "x'_t = SiLU(Conv1D(x_{t-w+1:t}; w))",
-    explanation: "GLM-5.3-Flash 对 q、k、v 使用独立 causal short convolution，并维护卷积状态。",
+    explanation: "对模型声明的 q/k/v 分支执行 causal short convolution，并维护卷积历史状态。",
     inputs: ["x history", "conv weight", "conv state"],
     outputs: ["x'", "conv state"],
   },
@@ -114,7 +114,7 @@ const FORMULAS = {
   moe_add: {
     title: "MoE Branch Add",
     formula: "y = y_routed + y_shared",
-    explanation: "Kimi-K3 将 latent routed expert 分支与 shared expert MLP 分支相加。",
+    explanation: "将 routed expert 输出与可选的 shared expert 分支合并。",
     inputs: ["y_routed", "y_shared"],
     outputs: ["y"],
   },

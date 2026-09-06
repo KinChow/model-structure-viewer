@@ -32,6 +32,25 @@ function firstNumber(config, keys) {
   return undefined;
 }
 
+function quantizationEstimate(config, textConfig) {
+  const quantization = config?.quantization_config || textConfig?.quantization_config;
+  if (!quantization || typeof quantization !== "object") return {};
+  const method = String(quantization.quant_method || quantization.format || "").toLowerCase();
+  const group = Object.values(quantization.config_groups || {})[0];
+  const weights = group?.weights || {};
+  const bits = firstNumber(quantization, ["bits", "num_bits"])
+    ?? firstNumber(weights, ["num_bits"])
+    ?? (method.includes("fp8") || method === "fp8" ? 8 : undefined);
+  if (!bits || bits <= 0) return { quantizationMethod: method || "configured", quantizationBytesPerParameter: undefined };
+  return {
+    quantizationMethod: method || "configured",
+    quantizationBits: bits,
+    // This is a model-wide estimate. Per-module exceptions and scale tensors
+    // become exact only after safetensors metadata is available.
+    quantizationBytesPerParameter: bits / 8,
+  };
+}
+
 function attentionHeadDim(config) {
   const explicit = firstNumber(config, HEAD_DIM_KEYS);
   // GLM-5.3-Flash publishes head_dim=0 as a sentinel.
@@ -171,6 +190,7 @@ export function normalizeConfig(config) {
   const hiddenSize = firstNumber(textConfig, HIDDEN_KEYS) ?? firstNumber(config, HIDDEN_KEYS);
   const attentionHeads = firstNumber(textConfig, HEAD_KEYS) ?? firstNumber(config, HEAD_KEYS);
   const headDim = attentionHeadDim(textConfig) ?? attentionHeadDim(config) ?? derivedHeadDim(hiddenSize, attentionHeads);
+  const quantization = quantizationEstimate(config, textConfig);
 
   return {
     raw: config,
@@ -262,6 +282,7 @@ export function normalizeConfig(config) {
       ? String(visionConfig.hidden_act || "").toLowerCase().includes("silu")
         || String(config?.model_type || "").toLowerCase().includes("glm5_next")
       : false,
+    ...quantization,
     experts: firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS),
     routedExpertHiddenSize: firstNumber(textConfig, ["routed_expert_hidden_size"]) ?? firstNumber(config, ["routed_expert_hidden_size"]),
     expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),

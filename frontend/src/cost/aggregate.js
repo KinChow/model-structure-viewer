@@ -9,7 +9,7 @@ export function aggregateCost({ root, graph, config, parameterCount, batch = 1, 
   const nodeWeights = sumNodeWeights(root, graph);
   const naturalWeightBytes = hasParameterCount
     ? Object.entries(parameterCount).reduce((sum, [dtype, count]) => sum + count * bytesPerDtype(dtype), 0)
-    : nodeWeights > 0 ? nodeWeights : derivedWeightBytes(config, 2);
+    : nodeWeights > 0 ? nodeWeights : derivedWeightBytes(config, config?.quantizationBytesPerParameter || 2);
   const parameterTotal = hasParameterCount
     ? Object.values(parameterCount).reduce((sum, count) => sum + count, 0)
     : derivedWeightParameters(config);
@@ -25,12 +25,14 @@ export function aggregateCost({ root, graph, config, parameterCount, batch = 1, 
   const computeComplete = unknownComputePaths.length === 0;
   const totalMacs = computeComplete ? knownMacs : null;
   const forwardTokens = batch * (phase === "decode" ? 1 : sequence);
-  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : "derived", nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
+  const derivedSource = config?.quantizationBytesPerParameter > 0 ? "derived-quantized" : "derived";
+  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : derivedSource, nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
     knownMacs, computeComplete, unknownComputePaths,
     macsPerToken: totalMacs != null && forwardTokens > 0 ? totalMacs / forwardTokens : null,
     flopsPerToken: totalMacs != null && forwardTokens > 0 ? (totalMacs * 2) / forwardTokens : null,
     macsSources: summarizeMacsSources(nodes),
-    assumptions: { theoretical: true, activationPeak, runtimeConst, commBuffer, kvBytes } };
+    assumptions: { theoretical: true, activationPeak, runtimeConst, commBuffer, kvBytes, quantization: config?.quantizationMethod || null,
+      weightBytesPerParameter: config?.quantizationBytesPerParameter || null } };
 }
 
 function summarizeMacsSources(nodes) {

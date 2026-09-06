@@ -70,7 +70,7 @@ function visionLayerModule(id, normalized) {
   const mlpEdges = d.gatedMlp
     ? [["post_norm", "gate_proj"], ["post_norm", "up_proj"], ["gate_proj", "activation"], ["up_proj", "activation"], ["activation", "down_proj"]]
     : [["post_norm", "fc1"], ["fc1", "activation"], ["activation", "fc2"]];
-  return withShapeDims(moduleSpec(id, "0 (VisionLayer)", "vision-layer", {
+  return withShapeDims(moduleSpec(id, "0 (VisionLayer)", "vision-block-group", {
     class: "VisionLayer",
     hidden_size: d.hidden,
     num_attention_heads: d.heads,

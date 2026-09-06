@@ -198,7 +198,7 @@ test("builds network modules and materializes operator formulas", () => {
   assert.equal(structure.graph.version, 2);
   assert.equal(structure.graph.schema_version, 2);
   assert.ok(structure.graph.nodes.length > 0);
-  assert.ok(structure.graph.edges.some((edge) => edge.evidence === "semantic-flow"));
+  assert.ok(structure.graph.edges.some((edge) => edge.evidence === "declared"));
   assert.equal(ir.diagnostics.operator_count > 0, true);
   assert.equal(network.children[1].id, "decoder");
   assert.equal(structure.summary.canonical_architecture, "mla-moe-decoder");
@@ -716,7 +716,7 @@ test("maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE", () => {
 });
 
 test("MiniMax M2/M3 attention edges are builder-declared", () => {
-  for (const modelPath of ["models/MiniMaxAI/MiniMax-M2.7/config.json", "models/MiniMaxAI/MiniMax-M3/config.json"]) {
+  for (const modelPath of ["models/MiniMaxAI/MiniMax-M2.7/config.json", "models/MiniMaxAI/MiniMax-M3/config.json", "models/zai-org/GLM-4.7/config.json"]) {
     const config = JSON.parse(fs.readFileSync(path.join(repoRoot, modelPath), "utf8"));
     const normalized = normalizeConfig(config);
     const resolved = resolveArchitecture(normalized, { modelId: modelPath });

@@ -26,7 +26,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     : attentionKind === "mla"
       ? mlaAttentionOperatorSpecs(id, normalized)
       : attentionOperatorSpecs(id, attentionKind, normalized);
-  const declaredEdges = attentionKind === "gqa" && normalized.modelType === "minimax_m2"
+  const declaredEdges = attentionKind === "gqa" && ["minimax_m2", "glm4_moe"].includes(normalized.modelType)
     ? [["qkv_proj", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]]
     : attentionKind === "gqa" && normalized.modelType === "minimax_m3_vl"
       ? [["qkv_index_proj", "qkv_index_split"], ["qkv_index_split", "q_norm"], ["qkv_index_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]]

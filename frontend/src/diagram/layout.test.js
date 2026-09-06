@@ -167,19 +167,19 @@ test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
 test("layoutGraph models MLA as a branched attention graph", () => {
   const graph = layoutGraph({
     name: "model", type: "model", children: [
-      { name: "MLA Attention", type: "attention", children: [
-        { name: "q projection", type: "operator", children: [] },
-        { name: "k projection", type: "operator", children: [] },
-        { name: "v projection", type: "operator", children: [] },
-        { name: "rotary position embedding", type: "operator", children: [] },
-        { name: "attention scores", type: "operator", children: [] },
-        { name: "attention probabilities", type: "operator", children: [] },
-        { name: "weighted value", type: "operator", children: [] },
-        { name: "output projection", type: "operator", children: [] },
+      { name: "MLA Attention", type: "attention", attributes: { dataflow_edges: [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["v_proj", "context"], ["context", "o_proj"]] }, children: [
+        { id: "q_proj", name: "q projection", type: "operator", children: [] },
+        { id: "k_proj", name: "k projection", type: "operator", children: [] },
+        { id: "v_proj", name: "v projection", type: "operator", children: [] },
+        { id: "rope", name: "rotary position embedding", type: "operator", children: [] },
+        { id: "scores", name: "attention scores", type: "operator", children: [] },
+        { id: "softmax", name: "attention probabilities", type: "operator", children: [] },
+        { id: "context", name: "weighted value", type: "operator", children: [] },
+        { id: "o_proj", name: "output projection", type: "operator", children: [] },
       ] },
     ],
   }, new Set(["root", "root.0"]));
-  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "semantic-flow").map(({ source, target }) => [source, target]), [
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [
     ["root.0.0", "root.0.3"],
     ["root.0.1", "root.0.3"],
     ["root.0.3", "root.0.4"],
@@ -193,15 +193,15 @@ test("layoutGraph models MLA as a branched attention graph", () => {
 test("ELK keeps all MLA input projections on the first internal layer", async () => {
   const graph = layoutGraph({
     name: "model", type: "model", children: [
-      { name: "MLA Attention", type: "attention", children: [
-        { name: "q projection", type: "operator", children: [] },
-        { name: "k projection", type: "operator", children: [] },
-        { name: "v projection", type: "operator", children: [] },
-        { name: "rotary position embedding", type: "operator", children: [] },
-        { name: "attention scores", type: "operator", children: [] },
-        { name: "attention probabilities", type: "operator", children: [] },
-        { name: "weighted value", type: "operator", children: [] },
-        { name: "output projection", type: "operator", children: [] },
+      { name: "MLA Attention", type: "attention", attributes: { dataflow_edges: [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["v_proj", "context"], ["context", "o_proj"]] }, children: [
+        { id: "q_proj", name: "q projection", type: "operator", children: [] },
+        { id: "k_proj", name: "k projection", type: "operator", children: [] },
+        { id: "v_proj", name: "v projection", type: "operator", children: [] },
+        { id: "rope", name: "rotary position embedding", type: "operator", children: [] },
+        { id: "scores", name: "attention scores", type: "operator", children: [] },
+        { id: "softmax", name: "attention probabilities", type: "operator", children: [] },
+        { id: "context", name: "weighted value", type: "operator", children: [] },
+        { id: "o_proj", name: "output projection", type: "operator", children: [] },
       ] },
     ],
   }, new Set(["root", "root.0"]));
@@ -216,15 +216,15 @@ test("ELK keeps all MLA input projections on the first internal layer", async ()
 test("layoutGraph models MLP as a gated branch instead of a sequential chain", () => {
   const graph = layoutGraph({
     name: "model", type: "model", children: [
-      { name: "MLP", type: "mlp", children: [
-        { name: "gate projection", type: "operator", children: [] },
-        { name: "up projection", type: "operator", children: [] },
-        { name: "SwiGLU activation", type: "operator", children: [] },
-        { name: "down projection", type: "operator", children: [] },
+      { name: "MLP", type: "mlp", attributes: { dataflow_edges: [["gate_proj", "swiglu"], ["up_proj", "swiglu"], ["swiglu", "down_proj"]] }, children: [
+        { id: "gate_proj", name: "gate projection", type: "operator", children: [] },
+        { id: "up_proj", name: "up projection", type: "operator", children: [] },
+        { id: "swiglu", name: "SwiGLU activation", type: "operator", children: [] },
+        { id: "down_proj", name: "down projection", type: "operator", children: [] },
       ] },
     ],
   }, new Set(["root", "root.0"]));
-  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "semantic-flow").map(({ source, target }) => [source, target]), [
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [
     ["root.0.0", "root.0.2"],
     ["root.0.1", "root.0.2"],
     ["root.0.2", "root.0.3"],
@@ -235,16 +235,16 @@ test("layoutGraph models MLP as a gated branch instead of a sequential chain", (
 test("layoutGraph models MoE routing and combine branches semantically", () => {
   const graph = layoutGraph({
     name: "model", type: "model", children: [
-      { name: "Routed MoE", type: "moe", children: [
-        { name: "router logits", type: "operator", children: [] },
-        { name: "top-k expert routing", type: "operator", children: [] },
-        { name: "expert dispatch", type: "operator", children: [] },
-        { name: "expert MLP", type: "operator", children: [] },
-        { name: "expert combine", type: "operator", children: [] },
+      { name: "Routed MoE", type: "moe", attributes: { dataflow_edges: [["router", "topk"], ["topk", "dispatch"], ["dispatch", "expert_mlp"], ["topk", "combine"], ["expert_mlp", "combine"]] }, children: [
+        { id: "router", name: "router logits", type: "operator", children: [] },
+        { id: "topk", name: "top-k expert routing", type: "operator", children: [] },
+        { id: "dispatch", name: "expert dispatch", type: "operator", children: [] },
+        { id: "expert_mlp", name: "expert MLP", type: "operator", children: [] },
+        { id: "combine", name: "expert combine", type: "operator", children: [] },
       ] },
     ],
   }, new Set(["root", "root.0"]));
-  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "semantic-flow").map(({ source, target }) => [source, target]), [
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [
     ["root.0.0", "root.0.1"],
     ["root.0.1", "root.0.2"],
     ["root.0.2", "root.0.3"],

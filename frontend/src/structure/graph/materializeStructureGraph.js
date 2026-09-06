@@ -1,6 +1,6 @@
 import { materializeDeclaredEdges } from "./declaredEdges.js";
 
-function semanticEdges(item) {
+function legacySemanticEdges(item) {
   if (!item?.childItems?.length) return null;
   const declared = materializeDeclaredEdges(item);
   if (declared) return declared;
@@ -419,6 +419,13 @@ function semanticEdges(item) {
   add(v, weighted);
   add(weighted, output);
   return edges.length >= 3 ? edges : null;
+}
+
+// Production graph materialization is declaration-only. The former
+// display-name matcher remains isolated for historical comparisons while
+// callers migrate their fixtures/builders to dataflow_edges.
+function semanticEdges(item) {
+  return materializeDeclaredEdges(item);
 }
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 from typing import Any
 
 from .runtime import RuntimePatch
@@ -116,17 +117,16 @@ class CompositeRuntimePatch:
 class _CompositeRuntimePatchContext:
     def __init__(self, contexts: list[Any]):
         self.contexts = contexts
+        self.stack = ExitStack()
 
     def __enter__(self):
+        self.stack.__enter__()
         for context in self.contexts:
-            context.__enter__()
+            self.stack.enter_context(context)
         return None
 
     def __exit__(self, exc_type, exc, tb):
-        suppress = False
-        for context in reversed(self.contexts):
-            suppress = bool(context.__exit__(exc_type, exc, tb)) or suppress
-        return suppress
+        return self.stack.__exit__(exc_type, exc, tb)
 
 
 class AttentionImplementationNormalizer:

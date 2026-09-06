@@ -222,10 +222,45 @@ def test_builder_retries_attention_and_kimi_tie_weights_compat(monkeypatch):
     assert calls[1][2] is not None
     assert calls[1][2].name == "attention_implementation_normalizer"
     assert calls[2][1] is not None
-    assert calls[2][1].name == "composite_runtime_patch"
+    assert calls[2][1].name == "kimi_tie_weights_compat"
     assert result.summary["strategy"] == "repaired-meta-introspect"
     assert result.source["diagnostics"]["attention_backend_retry"] == "sdpa"
     assert result.source["diagnostics"]["runtime_patch"] == "kimi_tie_weights_compat"
+    assert result.source["diagnostics"]["retry_status"] == "success"
+
+
+def test_builder_composes_kimi_remote_code_and_attention_compat(monkeypatch):
+    calls = []
+
+    def fake_meta(config, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise IntrospectionError(
+                "AutoModel.from_config failed: cannot import name 'OutputRecorder' "
+                "from 'transformers.utils.generic'"
+            )
+        if len(calls) == 2:
+            raise IntrospectionError(
+                "AutoModel.from_config failed: MoonViT3dPretrainedModel does not support Flash Attention 2 yet."
+            )
+        return _structure("meta-introspect")
+
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
+
+    result = builder.build_model_structure(
+        {"model_type": "kimi_k3", "architectures": ["KimiK3ForConditionalGeneration"]},
+        source={"model_id": "moonshotai/Kimi-K3"},
+        local_dir=None,
+    )
+
+    assert len(calls) == 3
+    assert calls[1]["runtime_patch"].name == "kimi_remote_code_compat"
+    assert calls[2]["runtime_patch"].name == "kimi_remote_code_compat"
+    assert calls[2]["config_normalizer"].name == "attention_implementation_normalizer"
+    assert result.source["diagnostics"]["applied_compatibility"] == [
+        "kimi_remote_code_compat",
+        "attention_backend_sdpa",
+    ]
     assert result.source["diagnostics"]["retry_status"] == "success"
 
 

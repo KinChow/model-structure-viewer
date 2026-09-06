@@ -1,12 +1,34 @@
+from contextlib import contextmanager
+
+import pytest
+
 from model_structure_viewer.structure.repair import RepairResult
 from model_structure_viewer.structure.repair.runtime import NoopRuntimePatch
 from model_structure_viewer.structure.repair.strategies.deepseek_import_compat import (
     DeepSeekTorchFxCompatPatch,
 )
 from model_structure_viewer.structure.repair.compat import (
+    CompositeRuntimePatch,
     KimiRemoteCodeCompatPatch,
     is_kimi_output_recorder_import_error,
 )
+
+
+class _ContextPatch:
+    def __init__(self, name, events, *, fail=False):
+        self.name = name
+        self.events = events
+        self.fail = fail
+
+    @contextmanager
+    def activate(self):
+        self.events.append(f"enter:{self.name}")
+        if self.fail:
+            raise RuntimeError(self.name)
+        try:
+            yield
+        finally:
+            self.events.append(f"exit:{self.name}")
 
 
 def test_noop_runtime_patch_can_be_used_as_context_manager():
@@ -17,6 +39,20 @@ def test_noop_runtime_patch_can_be_used_as_context_manager():
 
     assert patch.name == "noop"
     assert value == "active"
+
+
+def test_composite_runtime_patch_unwinds_when_later_enter_fails():
+    events = []
+    patch = CompositeRuntimePatch(
+        _ContextPatch("first", events),
+        _ContextPatch("second", events, fail=True),
+    )
+
+    with pytest.raises(RuntimeError, match="second"):
+        with patch.activate():
+            raise AssertionError("unreachable")
+
+    assert events == ["enter:first", "enter:second", "exit:first"]
 
 
 def test_repair_result_defaults_without_config_normalizer():

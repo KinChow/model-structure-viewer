@@ -714,3 +714,20 @@ test("maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE", () => {
   assert.equal(moe.children.find((node) => node.name === "router logits").attributes.scoring_func, "sigmoid");
   assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
 });
+
+test("MiniMax M2/M3 attention edges are builder-declared", () => {
+  for (const modelPath of ["models/MiniMaxAI/MiniMax-M2.7/config.json", "models/MiniMaxAI/MiniMax-M3/config.json"]) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, modelPath), "utf8"));
+    const normalized = normalizeConfig(config);
+    const resolved = resolveArchitecture(normalized, { modelId: modelPath });
+    const structure = materializeModelStructure(createStructureIr({
+      network: buildNetwork(resolved, normalized),
+      normalized,
+      resolved,
+    }));
+    const attentionIds = new Set(structure.graph.nodes.filter((node) => node.type === "attention").map((node) => node.id));
+    const semanticAttentionEdges = structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...attentionIds].some((id) => edge.source.startsWith(`${id}.`)));
+    assert.equal(semanticAttentionEdges.length, 0, modelPath);
+    assert.ok(structure.graph.edges.some((edge) => edge.evidence === "declared"), modelPath);
+  }
+});

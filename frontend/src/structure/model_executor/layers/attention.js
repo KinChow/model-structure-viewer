@@ -26,7 +26,13 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     : attentionKind === "mla"
       ? mlaAttentionOperatorSpecs(id, normalized)
       : attentionOperatorSpecs(id, attentionKind, normalized);
-  const declaredEdges = attentionKind === "gqa" && !["minimax_m3_vl", "minimax_m2", "glm4_moe"].includes(normalized.modelType)
+  const declaredEdges = attentionKind === "gqa" && normalized.modelType === "minimax_m2"
+    ? [["qkv_proj", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]]
+    : attentionKind === "gqa" && normalized.modelType === "minimax_m3_vl"
+      ? [["qkv_index_proj", "qkv_index_split"], ["qkv_index_split", "q_norm"], ["qkv_index_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]]
+      : attentionKind === "sparse" && normalized.modelType === "minimax_m3_vl"
+        ? [["qkv_index_proj", "qkv_index_split"], ["qkv_index_split", "q_norm"], ["qkv_index_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["qkv_index_split", "index_q_norm"], ["qkv_index_split", "index_k_norm"], ["index_q_norm", "index_rope"], ["index_k_norm", "index_rope"], ["index_rope", "indexer"], ["rope", "sparse_attention"], ["indexer", "sparse_attention"], ["sparse_attention", "o_proj"]]
+        : attentionKind === "gqa" && !["minimax_m3_vl", "minimax_m2", "glm4_moe"].includes(normalized.modelType)
     ? [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["v_proj", "context"], ["context", "o_proj"]]
     : attentionKind === "mla"
       ? [["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"], ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"], ["kv_b_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]]

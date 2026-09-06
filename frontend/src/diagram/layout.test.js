@@ -55,6 +55,7 @@ test("keeps an output head outside the model compound", async () => {
     ],
   }, new Set(["root", "root.0"]));
   const laidOut = await layoutGraphWithElk(graph);
+  assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "module-order").map(({ source, target }) => [source, target]), [["root", "root.1"]]);
   assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
   assert.ok(laidOut.nodes.find((node) => node.path === "root.1").x > laidOut.nodes.find((node) => node.path === "root.0").x);
 });

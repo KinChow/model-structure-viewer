@@ -166,6 +166,12 @@ function semanticEdges(item) {
   return edges.length >= 3 ? edges : null;
 }
 
+function isOutputNode(node) {
+  const type = String(node?.node?.type || "").toLowerCase();
+  const name = String(node?.node?.name || "").toLowerCase();
+  return type === "output" || type === "head" || /(^|[._ -])(lm[_ -]?head|classifier|score)$/.test(name);
+}
+
 /**
  * Convert the visible hierarchy into a graph view model. Analysis code keeps
  * the original tree paths; the canvas consumes these independent collections.
@@ -191,13 +197,20 @@ export function layoutGraph(root, expandedGroups) {
   const moduleOrderEdges = items.flatMap((item) => {
     if (semanticParents.has(item.path)) return [];
     const children = item.childItems || [];
-    return children.slice(0, -1).map((source, index) => ({
-      id: `${source.path}~${children[index + 1].path}`,
-      source: source.path,
-      target: children[index + 1].path,
-      kind: "dataflow",
-      evidence: "module-order",
-    }));
+    return children.slice(0, -1).map((source, index) => {
+      const target = children[index + 1];
+      // modelmap treats lm_head/classifier as an output sibling of the model
+      // container. Preserve that semantic boundary instead of connecting the
+      // last backbone module directly to the output head.
+      const edgeSource = isOutputNode(target) ? item.path : source.path;
+      return {
+        id: `${edgeSource}~${target.path}`,
+        source: edgeSource,
+        target: target.path,
+        kind: "dataflow",
+        evidence: "module-order",
+      };
+    });
   });
   const dataflowEdges = items.flatMap((item) => {
     const semantic = semanticEdges(item);

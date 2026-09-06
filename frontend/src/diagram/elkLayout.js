@@ -114,7 +114,7 @@ export async function layoutGraphWithElk(graph) {
   const topEdges = root
     ? graph.edges
       .filter((edge) => edge.kind === "dataflow"
-        && rootChildren.some((child) => child.path === edge.source)
+        && (edge.source === "root" || rootChildren.some((child) => child.path === edge.source))
         && rootChildren.some((child) => child.path === edge.target)
         && (externalIds.has(edge.source) || externalIds.has(edge.target)))
       .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }))

@@ -766,3 +766,18 @@ test("QSA variants use builder-declared graph edges", () => {
     assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...qsaIds].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
   }
 });
+
+test("DeepSeek V4 DSV4 attention edges are builder-declared", () => {
+  for (const modelPath of ["models/deepseek-ai/DeepSeek-V4-Flash/config.json", "models/deepseek-ai/DeepSeek-V4-Pro/config.json"]) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, modelPath), "utf8"));
+    const normalized = normalizeConfig(config);
+    const resolved = resolveArchitecture(normalized, { modelId: modelPath });
+    const structure = materializeModelStructure(createStructureIr({
+      network: buildNetwork(resolved, normalized),
+      normalized,
+      resolved,
+    }));
+    const dsv4Ids = new Set(structure.graph.nodes.filter((node) => node.type === "attention" && node.attributes.attention_kind === "dsv4").map((node) => node.id));
+    assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...dsv4Ids].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
+  }
+});

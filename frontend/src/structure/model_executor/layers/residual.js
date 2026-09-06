@@ -37,7 +37,7 @@ export function attentionResidualModule(id, normalized, { layerIndex = 0 } = {})
         aggregation_point: "pre_attention",
         snapshot_write: blockWrite,
         valid_snapshot_blocks: previousBlocks,
-      }),
+      }, { input: [-1, -1, hidden[2]], output: [-1, -1, hidden[2]] }),
       operatorSpec(`${id}.self_attention_res_proj`, "attention residual projection", "linear", {
         ...{ input_shape: "[residual states, batch, sequence, hidden size]", output_shape: "[residual states, batch, sequence, 1]" },
         aggregation_point: "pre_attention",
@@ -49,7 +49,7 @@ export function attentionResidualModule(id, normalized, { layerIndex = 0 } = {})
         aggregation_point: "pre_mlp",
         snapshot_write: false,
         valid_snapshot_blocks: mlpValidBlocks,
-      }),
+      }, { input: [-1, -1, hidden[2]], output: [-1, -1, hidden[2]] }),
       operatorSpec(`${id}.mlp_res_proj`, "MLP residual projection", "linear", {
         ...{ input_shape: "[residual states, batch, sequence, hidden size]", output_shape: "[residual states, batch, sequence, 1]" },
         aggregation_point: "pre_mlp",
@@ -76,7 +76,10 @@ export function outputAttentionResidualModule(id, normalized) {
       aggregation_point: "output",
     },
     [
-      operatorSpec(`${id}.norm`, "output residual norm", "rmsnorm"),
+      operatorSpec(`${id}.norm`, "output residual norm", "rmsnorm", {
+        input_shape: "[residual states, batch, sequence, hidden size]",
+        output_shape: "[residual states, batch, sequence, hidden size]",
+      }, { input: dims.hidden, output: dims.hidden }),
       operatorSpec(`${id}.proj`, "output residual projection", "linear", {}, { input: dims.hidden, output: [-1, -1, 1] }),
     ],
   ), dims.hidden, dims.hidden);

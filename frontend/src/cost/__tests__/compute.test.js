@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { attentionMacs, computeNodeCosts, linearAttentionMacs, linearMacs } from "../compute.js";
+import { aggregateNodeCosts, attentionMacs, computeNodeCosts, linearAttentionMacs, linearMacs } from "../compute.js";
 import { aggregateCost } from "../aggregate.js";
 
 test("packed qweight is unknown without logical shape metadata", () => {
@@ -40,10 +40,24 @@ test("template linear operators derive MACs from numeric tensor shapes", () => {
   const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] };
   assert.equal(linearMacs(node, { batch: 1, sequence: 3, phase: "prefill" }), 96);
   const result = aggregateCost({ root: { children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }, config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3, activationPeak: 0, runtimeConst: 0 });
-  assert.equal(result.totalMacs, 96);
-  assert.equal(result.macsPerToken, 32);
-  assert.equal(result.totalFlops, 192);
+  assert.equal(result.totalMacs, 120);
+  assert.equal(result.macsPerToken, 40);
+  assert.equal(result.totalFlops, 240);
   assert.equal(result.macsSources["config-derived-shape"], 1);
+});
+
+test("二维专家投影按逻辑输入输出宽度估算 MACs", () => {
+  const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 8], output_shape: [-1, 4], children: [] };
+  assert.equal(linearMacs(node, { batch: 2, sequence: 3, phase: "prefill" }), 192);
+});
+
+test("父节点 lens 可以汇总叶子成本，但模型总量不重复计费", () => {
+  const root = { id: "root", children: [{ id: "decoder", children: [{ id: "decoder.linear", type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] }] }] };
+  const rows = computeNodeCosts(root, {}, { batch: 1, sequence: 2, phase: "prefill" });
+  const aggregate = aggregateNodeCosts(rows);
+  assert.equal(aggregate.find((row) => row.path === "root.0").aggregate_macs, 64);
+  assert.equal(aggregate.find((row) => row.path === "root").aggregate_macs, 64);
+  assert.equal(rows.find((row) => row.path === "root").compute_macs, 0);
 });
 
 test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {

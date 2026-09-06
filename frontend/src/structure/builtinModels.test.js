@@ -11,6 +11,7 @@ import { materializeModelStructure } from "./materializers/toStructureNode.js";
 import { formulaForOperator } from "./formulas/index.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";
+import { aggregateCost } from "../cost/aggregate.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -45,7 +46,11 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       if (node.type !== "operator") return;
       assert.ok(node.attributes.formula, `${entry.model_id}: missing formula for ${node.attributes.operator_id}`);
       assert.ok(formulaForOperator(node.attributes.formula_id), `${entry.model_id}: unknown formula id ${node.attributes.formula_id}`);
+      assert.ok(Array.isArray(node.input_shape), `${entry.model_id}: ${node.id} missing numeric input shape`);
+      assert.ok(Array.isArray(node.output_shape), `${entry.model_id}: ${node.id} missing numeric output shape`);
     });
+    const cost = aggregateCost({ graph: structure.graph, config: normalized, phase: "prefill", batch: 1, sequence: 128 });
+    assert.equal(cost.computeComplete, true, `${entry.model_id}: ${cost.unknownComputePaths.join(", ")}`);
     assert.ok(Number.isFinite(derivedWeightParameters(normalized)), `${entry.model_id}: invalid derived weights`);
     assert.ok(Number.isFinite(kvBytesPerToken(normalized)), `${entry.model_id}: invalid KV cost`);
     assert.ok(Number.isFinite(linearStateBytesPerSequence(normalized)), `${entry.model_id}: invalid recurrent state cost`);

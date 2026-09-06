@@ -54,3 +54,48 @@ test("多模态模型图包含视觉塔和投影节点", async ({ page }) => {
   await expect(page.locator(".react-flow__node").filter({ hasText: "Vision Tower" })).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Multi-modal Projector" })).toBeVisible();
 });
+
+test("每个内置模型都能展开父节点并保持可计算图", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chrome", "全量内置模型回归只在桌面浏览器运行");
+  test.setTimeout(180_000);
+  const modelIds = await page.locator("datalist#builtin-models option").evaluateAll((options) => options.map((option) => option.value));
+  expect(modelIds).toHaveLength(59);
+
+  for (const modelId of modelIds) {
+    await page.getByLabel("model id").fill(modelId);
+    await page.getByRole("button", { name: "打开模型" }).click();
+    await expect(page.locator(".detail-page")).toBeVisible();
+    await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
+    const diagram = page.locator(".react-flow-diagram");
+    await expect.poll(() => page.locator(".react-flow__node").count()).toBeGreaterThan(3);
+    await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(1);
+    expect(await diagram.innerText()).not.toMatch(/\bUNKNOWN\b|\bunknown\b/);
+
+    const decoder = page.locator(".rf-node-content").filter({ hasText: /Decoder Layers|Text Decoder Layers/ }).first();
+    const expand = decoder.getByRole("button", { name: "展开", exact: true });
+    if (await expand.count()) {
+      const before = await page.locator(".react-flow__edge").count();
+      await expand.click();
+      await expect.poll(() => page.locator(".react-flow__node").count()).toBeGreaterThan(4);
+      await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThanOrEqual(before);
+    }
+    await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
+    await expect(page.getByLabel("model id")).toBeVisible();
+  }
+});
+
+test("父节点详情提供子模块和 Shape", async ({ page }) => {
+  await page.getByLabel("model id").fill("MiniMaxAI/MiniMax-M3");
+  await page.getByRole("button", { name: "打开模型" }).click();
+  const decoder = page.locator(".rf-node-content").filter({ hasText: "Decoder Layers" }).first();
+  await decoder.getByRole("button", { name: "展开", exact: true }).click();
+  const edgesAfterDecoder = await page.locator(".react-flow__edge").count();
+  await page.locator(".rf-node-content").filter({ hasText: "Decoder layer group" }).first().getByRole("button", { name: "展开", exact: true }).click();
+  await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(edgesAfterDecoder);
+  await page.locator(".rf-node-content").filter({ hasText: "GQA Attention" }).first().getByRole("button", { name: "展开", exact: true }).click();
+
+  const operator = page.locator(".rf-node-content").filter({ hasText: "QKV projection" }).first();
+  await operator.click();
+  await expect(page.locator(".child-modules-section")).toHaveCount(0);
+  await expect(page.locator(".inspector-disclosure").filter({ hasText: "Shape / Tensor" })).toBeVisible();
+});

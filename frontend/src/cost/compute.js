@@ -16,8 +16,11 @@ function isLinear(node) {
 }
 
 function staticWidth(shape) {
-  if (!Array.isArray(shape) || shape.length < 3) return null;
-  const dimensions = shape.slice(2);
+  if (!Array.isArray(shape) || shape.length < 2) return null;
+  // 首维通常是 batch/token 等动态维（-1）；二维专家投影仍可从
+  // [tokens_per_expert, hidden] 的正数逻辑维度估算，因此只保留正维度。
+  const dimensions = shape.filter((value) => Number.isFinite(value) && value > 0);
+  if (dimensions.length === 0) return null;
   if (dimensions.some((value) => !Number.isFinite(value) || value <= 0)) return null;
   return dimensions.reduce((total, value) => total * value, 1);
 }
@@ -197,23 +200,47 @@ export function nodeMacs(node, config, options = {}) {
     return attentionMacs(config, options);
   }
   if (isLinear(node)) return linearMacs(node, options);
+  if (operatorId === "matmul" || operatorId === "qsa_attention" || operatorId === "minimax_sparse_attention") {
+    const heads = config?.attentionHeads || 0;
+    const headDim = config?.headDim || 0;
+    const valueDim = config?.valueHeadDim || headDim;
+    const queryTokens = (options.batch || 1) * (options.phase === "decode" ? 1 : options.sequence || 1);
+    const keyTokens = options.sequence || 1;
+    const name = String(node?.name || "").toLowerCase();
+    if (/score|qk/.test(name)) return queryTokens * heads * keyTokens * headDim;
+    if (/weighted value|context|av/.test(name)) return queryTokens * heads * keyTokens * valueDim;
+    if (operatorId === "qsa_attention") {
+      const selected = Math.min(keyTokens, config?.indexerBudget || keyTokens);
+      return queryTokens * heads * selected * (headDim + valueDim);
+    }
+    if (operatorId === "minimax_sparse_attention") {
+      const selectedBlocks = (config?.sparseTopkBlocks || 0)
+        + (config?.sparseInitBlock || 0)
+        + (config?.sparseLocalBlock || 0);
+      const selectedTokens = selectedBlocks * (config?.sparseBlockSize || 1);
+      return queryTokens * heads * selectedTokens * (headDim + valueDim);
+    }
+  }
   const output = node?.output_shape || node?.attributes?.output_shape;
   return Array.isArray(output) ? tensorElements(output, options) : 0;
 }
 
 function computeMacsForNode(node, config, options = {}) {
+  // 父节点只作为成本汇总，实际公式归属叶子；父子同时计费会重复计算层成本。
+  if (node?.children?.length) return 0;
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
   if (type === "attention" || operatorId === "attention") return nodeMacs(node, config, options);
-  if (isLinear(node)) return linearMacs(node, options);
-  return 0;
+  return nodeMacs(node, config, options);
 }
 
 function macsSource(node, config, options = {}) {
   const type = String(node?.type || "").toLowerCase();
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
   if (type === "attention" || operatorId === "attention") return "formula";
-  if (!isLinear(node)) return "not-compute";
+  if (!isLinear(node)) {
+    return Array.isArray(node?.output_shape) ? "formula" : "not-compute";
+  }
   if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return "unknown";
   if (hasLogicalLinearShape(node)) return "checkpoint-shape";
   return derivedLinearMacs(node, options) == null ? "unknown" : "config-derived-shape";
@@ -241,4 +268,31 @@ export function computeNodeCosts(root, config, options = {}) {
       estimate_status: compute == null ? "unknown" : "estimated" });
   }, options.graph);
   return rows;
+}
+
+function addNullable(left, right) {
+  if (left == null || right == null) return null;
+  return left + right;
+}
+
+/**
+ * 为节点 Lens 计算包含自身的子树汇总。汇总值与 compute_macs 分离，
+ * 后者仍表示执行叶子的成本并用于模型总量，避免父卡展示子树成本时重复计费。
+ */
+export function aggregateNodeCosts(rows = []) {
+  const aggregates = new Map(rows.map((row) => [row.path, {
+    ...row,
+    aggregate_macs: row.compute_macs,
+    aggregate_weightBytes: row.weightBytes || 0,
+  }]));
+  const depth = (path) => path.split(".").length;
+  for (const row of [...rows].sort((left, right) => depth(right.path) - depth(left.path))) {
+    const parentPath = row.path.slice(0, row.path.lastIndexOf("."));
+    if (!aggregates.has(parentPath)) continue;
+    const parent = aggregates.get(parentPath);
+    const current = aggregates.get(row.path);
+    parent.aggregate_macs = addNullable(parent.aggregate_macs, current.aggregate_macs);
+    parent.aggregate_weightBytes += current.aggregate_weightBytes;
+  }
+  return rows.map((row) => aggregates.get(row.path));
 }

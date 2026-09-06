@@ -1,4 +1,4 @@
-import { computeNodeCosts } from "../cost/compute.js";
+import { aggregateNodeCosts, computeNodeCosts } from "../cost/compute.js";
 import { nodeCommunicationBytes } from "../cost/comm.js";
 import { activationTensorBytes } from "../cost/memory.js";
 import { nodeCostPerCard, validatePlan } from "../cost/parallel.js";
@@ -22,14 +22,14 @@ export function buildNodeLens(structure, chip, {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, nodes: {} };
 
-  const rows = computeNodeCosts(null, config, { batch, sequence, phase, graph: structure.graph });
+  const rows = aggregateNodeCosts(computeNodeCosts(null, config, { batch, sequence, phase, graph: structure.graph }));
   const tokens = phase === "decode" ? 1 : sequence;
   const forwardTokens = batch * tokens;
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };
   const nodes = Object.fromEntries(rows.map((row) => {
     const perCardCost = nodeCostPerCard({
-      macs: row.compute_macs,
-      weightBytes: row.weightBytes,
+      macs: row.aggregate_macs,
+      weightBytes: row.aggregate_weightBytes,
       actInBytes: activationTensorBytes(row.node.input_shape, shapeOptions, bytesPerElement) * row.multiplier,
       actOutBytes: activationTensorBytes(row.node.output_shape, shapeOptions, bytesPerElement) * row.multiplier,
     }, row.node, checked.plan);

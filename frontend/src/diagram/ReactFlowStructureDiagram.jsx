@@ -59,7 +59,7 @@ function MsvNode({ data, selected }) {
   const related = activeRelationPath && isPathRelated(node.path, activeRelationPath);
   const isMatch = matched.has(node.path);
   const lensEnabled = activeLenses.size > 0;
-  const bound = lensEnabled ? nodeLens?.[node.path]?.bound || "unknown" : "unknown";
+  const bound = lensEnabled ? nodeLens?.[node.path]?.bound || null : null;
   const metrics = lensEnabled ? nodeLens?.[node.path]?.metrics || {} : {};
   const lensValues = [
     activeLenses.has("compute") && ["compute", "C", metrics.macsPerToken],
@@ -95,7 +95,7 @@ function MsvNode({ data, selected }) {
         {node.node?.attributes?.range && <span className="diagram-range">{node.node.attributes.range}</span>}
         {node.node?.attributes?.formula_id && <span className="diagram-formula">{node.node.attributes.formula_id}</span>}
         {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {english ? (node.node.children.length === 1 ? "child" : "children") : "个子模块"}</span>}
-        {lensEnabled && nodeLens?.[node.path] && <span className="diagram-bound">{bound}</span>}
+        {lensEnabled && (activeLenses.has("compute") || activeLenses.has("memory")) && bound && bound !== "unknown" && <span className="diagram-bound">{bound}</span>}
       </div>
       {!isOpenGroup && node.metaLines.length > 0 && <ul className="rf-node-meta">{node.metaLines.map((line) => <li key={line} title={line}>{line}</li>)}</ul>}
       {!isOpenGroup && lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map(({ id, text }) => <span key={id} className={`diagram-lens-value lens-${id}`}>{text}</span>)}</div>}

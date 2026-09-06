@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const PROVIDER_MARKS = { MiniMax: "M", Qwen: "Q", DeepSeek: "D", "zai-org": "Z" };
+// Synced from the vLLM Recipes provider assets into /public/providers.
+const PROVIDER_LOGOS = {
+  MiniMaxAI: "/providers/MiniMaxAI.jpeg",
+  Qwen: "/providers/Qwen.png",
+  "deepseek-ai": "/providers/deepseek-ai.png",
+  moonshotai: "/providers/moonshotai.jpeg",
+  "zai-org": "/providers/zai-org.png",
+};
 
 function providerName(modelId) {
   return String(modelId || "").split("/")[0] || "Other";
@@ -8,6 +16,13 @@ function providerName(modelId) {
 
 function modelName(modelId) {
   return String(modelId || "").split("/").pop() || modelId;
+}
+
+function ProviderIcon({ name }) {
+  const [failed, setFailed] = useState(false);
+  const logo = PROVIDER_LOGOS[name];
+  if (!logo || failed) return <span className="provider-mark">{PROVIDER_MARKS[name] || name[0]?.toUpperCase() || "+"}</span>;
+  return <img className="provider-logo" src={logo} alt="" onError={() => setFailed(true)} />;
 }
 
 function EntryButton({ active, children, onClick, disabled = false }) {
@@ -140,9 +155,9 @@ export default function ModelEntry({
       </section>
       {mode === "model" && <section className="provider-section">
         <div className="entry-section-heading"><h2>{t.browse}</h2><span>{t.browseHint}</span></div>
-        <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><span className="provider-mark">{PROVIDER_MARKS[name] || name[0]?.toUpperCase() || "+"}</span><strong>{name}</strong><small>{entries.length} {language === "en" ? "models" : "个模型"}</small></button>)}</div>
+        <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><ProviderIcon name={name} /><strong>{name}</strong><small>{entries.length} {language === "en" ? "models" : "个模型"}</small></button>)}</div>
       </section>}
-      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider} onMouseDown={(event) => { if (event.target === event.currentTarget) setProvider(null); }}><div className="provider-picker"><header><div><h2>{provider}</h2><p>{t.choose}</p></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelName(entry.modelId)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
+      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider} onMouseDown={(event) => { if (event.target === event.currentTarget) setProvider(null); }}><div className="provider-picker"><header><div className="provider-picker-title"><ProviderIcon name={provider} /><div><h2>{provider}</h2><p>{t.choose}</p></div></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-model-list">{providerModels.length ? providerModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelName(entry.modelId)}</strong><span>{entry.modelType || entry.canonicalArchitecture || "mapped structure"}</span><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
       {helpOpen && <div className="entry-help-overlay" role="dialog" aria-modal="true" aria-label={t.helpTitle} onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpOpen(false); }}><div className="entry-help-panel"><header><h2>{t.helpTitle}</h2><button type="button" aria-label={t.close} onClick={() => setHelpOpen(false)}>×</button></header><ul>{t.helpItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div>}
     </main>
   );

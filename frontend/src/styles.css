@@ -1574,7 +1574,11 @@ label {
 .provider-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .provider-card { min-height: 94px; display: grid; align-content: space-between; justify-items: start; border: 1px solid #2a3545; border-radius: 7px; background: #151c26; color: #edf2f7; padding: 13px; text-align: left; }
 .provider-card:hover:not(:disabled) { border-color: #f4ab52; transform: translateY(-1px); }
-.provider-mark { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: #f4ab52; color: #21170c; font-weight: 900; }
+.provider-mark, .provider-logo { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; object-fit: cover; }
+.provider-mark { background: #f4ab52; color: #21170c; font-weight: 900; }
+.provider-logo { background: #fff; border: 1px solid rgba(124,135,152,.26); }
+.provider-picker-title { display: flex; align-items: center; gap: 10px; }
+.provider-picker-title .provider-mark, .provider-picker-title .provider-logo { width: 34px; height: 34px; }
 .provider-card small { color: #7e8b9d; }
 .provider-overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(4,7,10,.45); backdrop-filter: blur(10px); }
 .provider-picker { width: min(560px, 100%); max-height: min(680px, calc(100vh - 40px)); overflow: auto; border: 1px solid #344154; border-radius: 9px; background: #151c26; box-shadow: 0 24px 80px rgba(0,0,0,.5); padding: 20px; }

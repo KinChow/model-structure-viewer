@@ -60,7 +60,7 @@ CLI / HTTP request
 - 参数量、dtype、权重来源和 tensor 名称
 - 算子、公式、诊断和结构生成策略
 
-`graph` 是唯一内部事实载体；`root` 是由 graph projection 生成的兼容层。后端 introspection 通过 `GraphDraft` 直接写入节点事实和层级边，前端搜索、选择、breadcrumb、layout、compute、aggregate、通信、PP/PD projection 和导出优先消费 graph。新功能不应把 `root.children` 当作事实源。
+`graph` 是唯一内部事实载体；`root` 是由 graph projection 生成的兼容层。后端 introspection 通过 `GraphDraft` 直接写入节点事实和层级边，前端搜索、选择、breadcrumb、layout、compute、aggregate、通信、PP/PD projection 和导出优先消费 graph。新功能不应把 `root.children` 当作事实源；root 只为旧 API、旧测试和第三方兼容调用保留。
 
 ## 责任边界
 

@@ -52,6 +52,23 @@ test("layoutGraph consumes explicit IR edges without inferring replacements", ()
   ]);
 });
 
+test("layoutGraph prefers graph projection over a stale legacy tree", () => {
+  const graphRoot = {
+    id: "model",
+    name: "Graph Model",
+    type: "model",
+    children: [{ id: "graph.decoder", name: "Graph Decoder", type: "decoder", children: [] }],
+  };
+  const graph = materializeStructureGraph(graphRoot);
+  const layout = layoutGraph({
+    root: { id: "model", name: "Stale Tree", type: "model", children: [] },
+    graph,
+  }, new Set(["root"]));
+
+  assert.equal(layout.nodes.find((node) => node.path === "root").node.name, "Graph Model");
+  assert.equal(layout.nodes.find((node) => node.path === "root.0").node.name, "Graph Decoder");
+});
+
 test("layoutGraph consumes builder-declared edges without using display names", () => {
   const graph = layoutGraph({
     name: "model",

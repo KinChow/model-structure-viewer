@@ -21,7 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="msv", description="Model Structure Viewer")
     parser.add_argument("--root", default=None, help="Model root directory.")
     parser.add_argument("--endpoint", default=None, help="Hugging Face endpoint.")
-    parser.add_argument("--offline", action="store_true", help="Disable remote HF access.")
+    parser.add_argument("--offline", action="store_true", default=None, help="Disable remote HF access.")
     parser.add_argument(
         "--no-auto-fetch-remote-code",
         dest="no_auto_fetch_remote_code",

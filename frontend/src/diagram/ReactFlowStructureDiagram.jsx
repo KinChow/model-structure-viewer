@@ -137,9 +137,9 @@ function MsvGroupFrame({ data }) {
     <Handle id="target" type="target" position={verticalFlow ? Position.Top : Position.Left} className="rf-port rf-group-port" style={anchorStyle} isConnectable={false} />
     <Handle id="source" type="source" position={verticalFlow ? Position.Bottom : Position.Right} className="rf-port rf-group-port" style={anchorStyle} isConnectable={false} />
     <div className="rf-group-header">
-      {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={data.english ? "Collapse" : "收起"}>−</button>}
       <strong>{data.label}</strong>
       {data.classLabel && <span className="rf-group-class">{data.classLabel}</span>}
+      {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={data.english ? "Collapse" : "收起"}>−</button>}
     </div>
   </div>;
 }

@@ -29,6 +29,8 @@ export function derivedWeightParameters(config = {}) {
           : config.linearAttentionMode === "qwen4_exp"
             ? qwen4ExpLinearAttentionParameters(config)
         : genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim });
+    } else if (attentionKind === "dsv4" && config.qLoraRank && config.oLoraRank) {
+      attentionParameters = deepseekV4AttentionParameters(config, i);
     } else if (attentionKind === "mla" && config.qLoraRank && config.kvLoraRank) {
       const ropeDim = config.qkRopeHeadDim || 0;
       const nopeDim = Math.max(0, qDim - ropeDim);
@@ -56,6 +58,25 @@ export function derivedWeightParameters(config = {}) {
   const outputResidual = config.attnResBlockSize ? 2 * hidden : 0;
   const finalHyperConnection = config.hyperConnectionCount ? hyperConnectionFinalParameters(config) : 0;
   return embedding + decoder + hidden + lmHead + outputResidual + finalHyperConnection;
+}
+
+function deepseekV4AttentionParameters(config, layerIndex) {
+  const hidden = config.hiddenSize || 0;
+  const heads = config.attentionHeads || 0;
+  const headDim = config.headDim || 0;
+  const qRank = config.qLoraRank || 0;
+  const outputRank = config.oLoraRank || 0;
+  const groups = config.oGroups || 1;
+  const ratio = config.compressRatios?.[layerIndex] ?? 0;
+  const qkv = hidden * (qRank + headDim);
+  const query = qRank * heads * headDim;
+  const output = (heads * headDim) * (groups * outputRank) + (groups * outputRank) * hidden;
+  if (ratio <= 1) return qkv + query + output;
+  const compressor = hidden * 2 * (ratio === 4 ? 2 : 1) * headDim;
+  const indexer = ratio === 4
+    ? hidden * (config.indexerNHeads || 0) + qRank * (config.indexerNHeads || 0) * (config.indexerHeadDim || 0)
+    : 0;
+  return qkv + query + output + compressor + indexer;
 }
 
 function genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim }) {

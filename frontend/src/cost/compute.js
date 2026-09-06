@@ -33,6 +33,22 @@ export function attentionMacs(config, { batch = 1, sequence = 1, phase = "prefil
   return batch * heads * lengthTerm * (qk + value);
 }
 
+// DeepSeek V4 每层由 compress_ratio 决定可见的 attention 序列长度；这是理论 MAC 估计，
+// 不把 vLLM/SGLang 的 FlashMLA、FlashInfer 或 Triton kernel 当成新的语义节点。
+export function deepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill", layerIndex = 0 } = {}) {
+  const heads = config?.attentionHeads || 0;
+  const headDim = config?.headDim || 0;
+  const ratio = config?.compressRatios?.[layerIndex] ?? 0;
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  const available = phase === "decode" ? 1 : sequence;
+  const visible = ratio === 0
+    ? Math.min(available, config?.slidingWindow || available)
+    : ratio === 4
+      ? Math.min(Math.ceil(available / ratio) + (config?.slidingWindow || 0), config?.indexerBudget || available)
+      : Math.ceil(available / Math.max(ratio, 1));
+  return queryTokens * heads * visible * (headDim + headDim);
+}
+
 export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   if (config?.linearAttentionMode === "glm5_next") return glm5NextLinearAttentionMacs(config, { batch, sequence, phase });
   if (config?.linearAttentionMode === "kimi_k3") return kimiK3LinearAttentionMacs(config, { batch, sequence, phase });
@@ -119,6 +135,10 @@ export function nodeMacs(node, config, options = {}) {
     const attentionKind = node?.attributes?.attention_kind || "gqa";
     if (attentionKind === "linear") return linearAttentionMacs(config, options);
     if (attentionKind === "qsa") return qsaAttentionMacs(config, options);
+    if (attentionKind === "dsv4") {
+      const layerMatch = String(node?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)/);
+      return deepseekV4AttentionMacs(config, { ...options, layerIndex: layerMatch ? Number(layerMatch[1]) : 0 });
+    }
     return attentionMacs(config, options);
   }
   if (isLinear(node)) return linearMacs(node, options);

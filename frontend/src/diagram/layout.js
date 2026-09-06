@@ -115,7 +115,7 @@ function semanticEdges(item) {
     const router = find(/router|logits/);
     const topk = find(/top.?k|expert routing|routing/);
     const dispatch = find(/dispatch/);
-    const expert = find(/expert.*(mlp|feed.?forward)|expert mlp/);
+    const expert = find(/expert.*(mlp|swiglu|feed.?forward)|expert mlp/);
     const combine = find(/combine|scatter/);
     const latentDown = find(/latent down projection/);
     const latentNorm = find(/latent rmsnorm/);
@@ -133,6 +133,14 @@ function semanticEdges(item) {
         evidence: "semantic-flow",
       });
     };
+    if (find(/hash expert routing/) && !topk) {
+      add(router, dispatch);
+      add(dispatch, expert);
+      add(expert, combine);
+      add(combine, sharedAdd);
+      add(sharedMlp, sharedAdd);
+      return edges.length >= 3 ? edges : null;
+    }
     if (latentDown && latentNorm && latentUp && sharedAdd && sharedMlp) {
       add(router, topk);
       add(topk, dispatch);
@@ -245,6 +253,39 @@ function semanticEdges(item) {
     add(rope, sparse);
     add(sparse, output);
     return edges.length >= 3 ? edges : null;
+  }
+
+  if (item.node?.attributes?.attention_kind === "dsv4") {
+    const fused = find(/fused q\/kv projection/);
+    const split = find(/q\/kv latent split/);
+    const qNorm = find(/query latent rmsnorm/);
+    const kvNorm = find(/kv latent rmsnorm/);
+    const qProj = find(/query expansion projection/);
+    const rope = find(/query\/kv rotary/);
+    const compressor = find(/compressed kv\/state compressor/);
+    const indexer = find(/indexer$/);
+    const attention = find(/sparse mla attention|compressed mla attention|sliding-window mqa/);
+    const inverseRope = find(/inverse output rotary/);
+    const woA = find(/output low-rank projection/);
+    const woB = find(/output hidden projection/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+    };
+    add(fused, split);
+    add(split, qNorm);
+    add(split, kvNorm);
+    add(qNorm, qProj);
+    add(qProj, rope);
+    add(kvNorm, rope);
+    add(compressor, attention);
+    add(indexer, attention);
+    add(rope, attention);
+    add(attention, inverseRope);
+    add(inverseRope, woA);
+    add(woA, woB);
+    return edges.length >= 6 ? edges : null;
   }
 
   if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;

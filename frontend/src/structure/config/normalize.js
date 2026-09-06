@@ -14,6 +14,9 @@ const SHARED_EXPERT_INTERMEDIATE_KEYS = ["shared_expert_intermediate_size", "sha
 const CONTEXT_KEYS = ["max_position_embeddings", "seq_length", "max_sequence_length"];
 const KV_LORA_RANK_KEYS = ["kv_lora_rank", "kv_lora_dim"];
 const Q_LORA_RANK_KEYS = ["q_lora_rank", "q_lora_dim"];
+const O_LORA_RANK_KEYS = ["o_lora_rank", "o_lora_dim"];
+const O_GROUP_KEYS = ["o_groups", "output_groups"];
+const NUM_HASH_LAYER_KEYS = ["num_hash_layers", "hash_moe_layers"];
 const QK_ROPE_HEAD_DIM_KEYS = ["qk_rope_head_dim", "rope_head_dim"];
 const LINEAR_KEY_HEADS_KEYS = ["linear_num_key_heads", "linear_key_heads"];
 const LINEAR_VALUE_HEADS_KEYS = ["linear_num_value_heads", "linear_value_heads"];
@@ -76,6 +79,10 @@ function attentionKindForLayerType(layerType, useQsa = false) {
 }
 
 function explicitAttentionSchedule(config, layers) {
+  const modelType = String(config?.model_type || "").toLowerCase();
+  if (modelType === "deepseek_v4" && Array.isArray(config?.compress_ratios) && config.compress_ratios.length > 0) {
+    return Array.from({ length: layers || config.compress_ratios.length }, () => "dsv4");
+  }
   const layerTypes = config?.layer_types;
   const useQsa = firstNumber(config, ["index_n_heads", "indexer_n_heads"]) != null
     || firstNumber(config, ["index_topk", "indexer_budget"]) != null;
@@ -122,6 +129,14 @@ export function normalizeConfig(config) {
     headDim,
     kvLoraRank: firstNumber(textConfig, KV_LORA_RANK_KEYS) ?? firstNumber(config, KV_LORA_RANK_KEYS),
     qLoraRank: firstNumber(textConfig, Q_LORA_RANK_KEYS) ?? firstNumber(config, Q_LORA_RANK_KEYS),
+    oLoraRank: firstNumber(textConfig, O_LORA_RANK_KEYS) ?? firstNumber(config, O_LORA_RANK_KEYS),
+    oGroups: firstNumber(textConfig, O_GROUP_KEYS) ?? firstNumber(config, O_GROUP_KEYS),
+    numHashLayers: firstNumber(textConfig, NUM_HASH_LAYER_KEYS) ?? firstNumber(config, NUM_HASH_LAYER_KEYS),
+    compressRatios: Array.isArray(textConfig?.compress_ratios)
+      ? textConfig.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+      : Array.isArray(config?.compress_ratios)
+        ? config.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+        : [],
     linearKeyHeads: firstNumber(textConfig, LINEAR_KEY_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_KEY_HEADS_KEYS),
     linearValueHeads: firstNumber(textConfig, LINEAR_VALUE_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_VALUE_HEADS_KEYS),
     linearKeyDim: firstNumber(textConfig, LINEAR_KEY_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_KEY_DIM_KEYS),
@@ -129,11 +144,15 @@ export function normalizeConfig(config) {
     linearConvKernelSize: firstNumber(textConfig, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]) ?? firstNumber(linearAttentionConfig, ["short_conv_kernel_size"]) ?? firstNumber(config, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]),
     linearLowerBound: firstNumber(textConfig, ["linear_lower_bound"]) ?? firstNumber(linearAttentionConfig, ["gate_lower_bound"]) ?? firstNumber(config, ["linear_lower_bound"]),
     linearUseFullRankGate: Boolean(textConfig?.linear_attn_config?.use_full_rank_gate ?? config?.linear_attn_config?.use_full_rank_gate),
-    indexerNHeads: firstNumber(textConfig, ["index_n_heads", "indexer_n_heads"]) ?? firstNumber(config, ["index_n_heads", "indexer_n_heads"]),
+    indexerNHeads: firstNumber(textConfig, ["index_n_heads", "indexer_n_heads", "index_heads"]) ?? firstNumber(config, ["index_n_heads", "indexer_n_heads", "index_heads"]),
     indexerKVHeads: firstNumber(textConfig, ["indexer_kv_heads"]) ?? firstNumber(config, ["indexer_kv_heads"]),
-    indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim"]) ?? firstNumber(config, ["indexer_head_dim"]),
+    indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim", "index_head_dim"]) ?? firstNumber(config, ["indexer_head_dim", "index_head_dim"]),
     indexerBudget: firstNumber(textConfig, ["index_topk", "indexer_budget"]) ?? firstNumber(config, ["index_topk", "indexer_budget"]),
     indexerCompressRatio: firstNumber(textConfig, ["indexer_compress_ratio"]) ?? firstNumber(config, ["indexer_compress_ratio"]),
+    slidingWindow: firstNumber(textConfig, ["sliding_window", "window_size"]) ?? firstNumber(config, ["sliding_window", "window_size"]),
+    routedScalingFactor: firstNumber(textConfig, ["routed_scaling_factor"]) ?? firstNumber(config, ["routed_scaling_factor"]),
+    swigluLimit: firstNumber(textConfig, ["swiglu_limit"]) ?? firstNumber(config, ["swiglu_limit"]),
+    normTopkProb: textConfig?.norm_topk_prob ?? config?.norm_topk_prob,
     qkRopeHeadDim:
       firstNumber(textConfig, QK_ROPE_HEAD_DIM_KEYS) ?? firstNumber(config, QK_ROPE_HEAD_DIM_KEYS),
     qkNopeHeadDim:
@@ -151,7 +170,7 @@ export function normalizeConfig(config) {
     expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),
     sharedExperts: firstNumber(textConfig, SHARED_EXPERT_KEYS) ?? firstNumber(config, SHARED_EXPERT_KEYS),
     sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS)
-      ?? (String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3")
+      ?? (["kimi_k3", "deepseek_v4"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
         ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
         : undefined),
     sharedExpertsAreFused: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3"),
@@ -174,12 +193,18 @@ export function normalizeConfig(config) {
         : String(config?.model_type || textConfig?.model_type || "").includes("glm5_next")
           ? "glm5_next"
         : "generic",
-    multiHyperConnection: Boolean(textConfig?.mhc ?? config?.mhc),
+    multiHyperConnection: Boolean(
+      textConfig?.mhc
+      ?? config?.mhc
+      ?? (String(config?.model_type || textConfig?.model_type || "").includes("deepseek_v4")
+        && firstNumber(textConfig, ["hc_mult"]) != null),
+    ),
     mhcNumResidualStreams: firstNumber(textConfig, ["mhc_num_residual_streams", "hc_mult"]) ?? firstNumber(config, ["mhc_num_residual_streams", "hc_mult"]),
     mhcSinkhornIterations: firstNumber(textConfig, ["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]) ?? firstNumber(config, ["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]),
     mhcTau: firstNumber(textConfig, ["mhc_tau"]) ?? firstNumber(config, ["mhc_tau"]),
     mhcEps: firstNumber(textConfig, ["hc_eps", "mhc_eps"]) ?? firstNumber(config, ["hc_eps", "mhc_eps"]),
-    mhcPostMultValue: firstNumber(textConfig, ["mhc_post_mult_value"]) ?? firstNumber(config, ["mhc_post_mult_value"]),
+    mhcPostMultValue: firstNumber(textConfig, ["mhc_post_mult_value"]) ?? firstNumber(config, ["mhc_post_mult_value"])
+      ?? (String(config?.model_type || textConfig?.model_type || "").includes("deepseek_v4") ? 2 : undefined),
     contextLength: firstNumber(textConfig, CONTEXT_KEYS) ?? firstNumber(config, CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
     layerSchedule: explicitLayerSchedule(textConfig, layers) ?? explicitLayerSchedule(config, layers),

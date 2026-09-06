@@ -16,11 +16,14 @@ export function decoderStackNetwork(id, normalized, options = {}) {
     : Array.from({ length: layers }, () => defaultAttentionKind);
   const combinedKinds = kinds.map((kind, index) => {
     const attentionKind = attentionKinds[index] || defaultAttentionKind;
+    const compressionVariant = attentionKind === "dsv4"
+      ? `:c${normalized.compressRatios?.[index] ?? 0}`
+      : "";
     const hasPle = normalized.pleLayerIds?.includes(index + 1) ? "ple" : "no-ple";
     const mhcBoundary = normalized.multiHyperConnection
       ? (index === (layers || 0) - 1 ? "mhc-last" : "mhc-middle")
       : "no-mhc";
-    return `${kind}:${attentionKind}:${hasPle}:${mhcBoundary}`;
+    return `${kind}:${attentionKind}${compressionVariant}:${hasPle}:${mhcBoundary}`;
   });
   const children = compactRanges(combinedKinds).map((range) => {
     const repeat = range.end - range.start + 1;

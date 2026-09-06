@@ -372,6 +372,46 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
   assert.equal(structure.root.children.find((node) => node.id === "output_attn_residual").attributes.snapshot_blocks, 8);
 });
 
+test("maps DeepSeek V4 compression variants and hash MoE without duplicating framework kernels", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V4-Flash/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.deepEqual(normalized.attentionSchedule.every((kind) => kind === "dsv4"), true);
+  assert.deepEqual(normalized.compressRatios.slice(0, 4), [0, 0, 4, 128]);
+  assert.equal(normalized.numHashLayers, 3);
+  assert.equal(normalized.indexerHeadDim, 128);
+  assert.equal(normalized.multiHyperConnection, true);
+  assert.equal(normalized.mhcNumResidualStreams, 4);
+
+  const resolved = resolveArchitecture(normalized, { modelId: "deepseek-ai/DeepSeek-V4-Flash" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "decoder");
+  const hashLayer = decoder.children[0];
+  const hashAttention = hashLayer.children.find((node) => node.type === "attention");
+  const hashMoe = hashLayer.children.find((node) => node.type === "moe");
+  assert.equal(hashAttention.attributes.attention_kind, "dsv4");
+  assert.equal(hashAttention.attributes.compress_ratio, 0);
+  assert.equal(hashAttention.children.find((node) => node.name === "sliding-window MQA").attributes.formula_id, "dsv4_swa_attention");
+  assert.ok(hashMoe.children.some((node) => node.attributes.formula_id === "dsv4_hash_route"));
+  assert.equal(hashMoe.children.some((node) => node.name === "top-k expert routing"), false);
+  assert.ok(hashMoe.children.some((node) => node.name === "shared expert branch add"));
+
+  const sparseLayer = decoder.children.find((node) => node.attributes.range === "2..2");
+  const sparseAttention = sparseLayer.children.find((node) => node.type === "attention");
+  assert.equal(sparseAttention.attributes.compress_ratio, 4);
+  assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse indexer").attributes.implementation[0], "vLLM.SparseAttnIndexer");
+  assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse MLA attention").attributes.formula_id, "qsa_attention");
+
+  const compressedLayer = decoder.children.find((node) => node.attributes.range === "3..3");
+  const compressedAttention = compressedLayer.children.find((node) => node.type === "attention");
+  assert.equal(compressedAttention.attributes.compress_ratio, 128);
+  assert.equal(compressedAttention.children.find((node) => node.name === "compressed MLA attention").attributes.formula_id, "dsv4_compressed_attention");
+  assert.equal(compressedLayer.children.find((node) => node.type === "moe").children.some((node) => node.name === "top-k expert routing"), true);
+});
+
 test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.8-Flash-Next/config.json"), "utf8"));
   const normalized = normalizeConfig(config);

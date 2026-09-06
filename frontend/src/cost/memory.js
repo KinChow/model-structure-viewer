@@ -87,6 +87,12 @@ export function kvBytesPerToken(config, kvBytes = 2) {
       if (kind === "linear") {
         // KDA state is request-scoped and is returned separately below.
         perLayer += 0;
+      } else if (kind === "dsv4") {
+        // 来源：vLLM DeepseekV4Attention / CompressorStateCache。
+        // 每层始终有一份 sliding-window MQA KV；压缩层另有 state_dim / compress_ratio。
+        const ratio = config.compressRatios?.[index] ?? 0;
+        perLayer += headDim;
+        if (ratio > 1) perLayer += (2 * (ratio === 4 ? 2 : 1) * headDim) / ratio;
       } else if (kind === "mla" && mlaRank != null && ropeDim != null) {
         perLayer += mlaRank + ropeDim;
       } else {

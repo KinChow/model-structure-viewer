@@ -237,6 +237,34 @@ const FORMULAS = {
     inputs: ["Q", "K_selected", "V_selected", "selected_indices"],
     outputs: ["O"],
   },
+  dsv4_hash_route: {
+    title: "DeepSeek V4 Hash MoE Routing",
+    formula: "expert_ids = hash_table[input_ids]",
+    explanation: "DeepSeek V4 前 num_hash_layers 层按 input_ids 查表得到固定的专家集合，不执行普通 router logits + top-k。",
+    inputs: ["input_ids", "hash_table"],
+    outputs: ["expert_ids", "expert_weights"],
+  },
+  dsv4_swa_attention: {
+    title: "DeepSeek V4 Sliding-Window MQA",
+    formula: "O = softmax(Q K_{t-w:t}^T / sqrt(d)) V_{t-w:t}",
+    explanation: "compress_ratio=0 层不建立压缩 KV 状态，只在 sliding_window 范围内使用单 KV 头执行 MQA。",
+    inputs: ["Q", "K_window", "V_window"],
+    outputs: ["O"],
+  },
+  dsv4_compressed_attention: {
+    title: "DeepSeek V4 Compressed MLA",
+    formula: "O = softmax(Q C_{KV}^T / sqrt(d)) C_{KV}",
+    explanation: "compress_ratio=128 层把历史 KV 压缩到更短的 cache 序列后执行 MLA；compressor 与 attention 是同一语义链上的两个步骤。",
+    inputs: ["Q", "compressed_KV"],
+    outputs: ["O"],
+  },
+  dsv4_output_projection: {
+    title: "DeepSeek V4 MLA Output Projection",
+    formula: "O_{hidden} = W_{o_b}(W_{o_a}(RoPE^{-1}(O)))",
+    explanation: "先恢复输出侧的旋转分量，再按 output groups 执行 wo_a、wo_b 两级低秩输出投影。",
+    inputs: ["O", "W_{o_a}", "W_{o_b}"],
+    outputs: ["hidden state"],
+  },
 };
 
 export function formulaForOperator(operatorId) {

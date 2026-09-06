@@ -437,6 +437,124 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
   return specs;
 }
 
+// DeepSeek V4 的 vLLM/SGLang 实现使用不同 fused kernel，但语义都是同一条 MLA 链。
+// 这里保留一份 canonical 节点，通过 implementation 与 compress_ratio 描述实现差异。
+export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
+  const dims = tensorDims(normalized);
+  const ratio = normalized.compressRatios?.[layerIndex] ?? 0;
+  const qRank = normalized.qLoraRank;
+  const headDim = normalized.headDim;
+  const groups = normalized.oGroups;
+  const outputRank = normalized.oLoraRank;
+  const indexHeads = normalized.indexerNHeads;
+  const indexDim = normalized.indexerHeadDim;
+  const budget = normalized.indexerBudget;
+  const qLatent = `[batch, sequence, q latent=${qRank ?? "unknown"}]`;
+  const kvLatent = `[batch, sequence, kv latent=${headDim ?? "unknown"}]`;
+  const query = `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim ?? "unknown"}]`;
+  const outputLatent = `[batch, sequence, output groups=${groups ?? "unknown"}, output rank=${outputRank ?? "unknown"}]`;
+  const specs = [
+    operatorSpec(`${prefix}.fused_wqa_wkv`, "fused q/kv projection", "linear", {
+      ...shapeFlow(shapesForHidden(normalized), `${qLatent}, ${kvLatent}`),
+      projection_layout: ["q_lora", "kv"],
+      q_lora_rank: qRank,
+      kv_head_dim: headDim,
+      implementation: ["vLLM.fused_wqa_wkv", "SGLang.wqkv_a or wq_a+wkv"],
+    }, { input: dims.hidden, output: [-1, -1, (qRank || 0) + (headDim || 0)] }),
+    operatorSpec(`${prefix}.qkv_split`, "q/kv latent split", "split", {
+      ...shapeFlow(`${qLatent}, ${kvLatent}`, `${qLatent}, ${kvLatent}`),
+      split_sizes: [qRank, headDim],
+      implementation: ["vLLM.split_qkv_and_norm", "SGLang._compute_q_a/_compute_kv"],
+    }, { input: [-1, -1, (qRank || 0) + (headDim || 0)], output: [-1, -1, qRank || 0] }),
+    operatorSpec(`${prefix}.q_norm`, "query latent RMSNorm", "rmsnorm", shapeFlow(qLatent, qLatent), { input: [-1, -1, qRank], output: [-1, -1, qRank] }),
+    operatorSpec(`${prefix}.kv_norm`, "KV latent RMSNorm", "rmsnorm", shapeFlow(kvLatent, kvLatent), { input: [-1, -1, headDim], output: [-1, -1, headDim] }),
+    operatorSpec(`${prefix}.q_proj`, "query expansion projection", "linear", {
+      ...shapeFlow(qLatent, query),
+      projection_role: "wq_b",
+      implementation: ["vLLM.wq_b", "SGLang.wq_b"],
+    }, { input: [-1, -1, qRank], output: [-1, -1, normalized.attentionHeads, headDim] }),
+    operatorSpec(`${prefix}.rope`, "query/KV rotary position embedding", "rope", {
+      ...shapeFlow(`${query}, ${kvLatent}`, `${query}, ${kvLatent}`),
+      qk_rope_head_dim: normalized.qkRopeHeadDim,
+      compress_ratio: ratio,
+    }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }),
+  ];
+
+  if (ratio > 1) {
+    specs.push(operatorSpec(`${prefix}.compressor`, "compressed KV/state compressor", "mla_kv_compress", {
+      ...shapeFlow(shapesForHidden(normalized), `[compressed sequence=ceil(sequence/${ratio}), state dimension]`),
+      compress_ratio: ratio,
+      implementation: ["vLLM.DeepseekCompressor", "SGLang.Compressor"],
+      cache_role: "compressed_kv_and_score_state",
+    }, { input: dims.hidden, output: [-1, -1, 2 * (ratio === 4 ? 2 : 1) * headDim] }));
+  }
+
+  if (ratio === 4) {
+    specs.push(operatorSpec(`${prefix}.indexer.weights_proj`, "indexer weight projection", "linear", {
+      ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, index heads=${indexHeads}]`),
+      implementation: ["vLLM.DeepseekV4Indexer.weights_proj", "SGLang.C4Indexer"],
+    }, { input: dims.hidden, output: [-1, -1, indexHeads] }));
+    specs.push(operatorSpec(`${prefix}.indexer.q_proj`, "indexer query projection", "linear", {
+      ...shapeFlow(qLatent, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
+      implementation: ["vLLM.DeepseekV4Indexer.wq_b", "SGLang.C4Indexer"],
+    }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }));
+    specs.push(operatorSpec(`${prefix}.indexer`, "C4 sparse indexer", "qsa_indexer", {
+      ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, selected=${budget}]`),
+      indexer_heads: indexHeads,
+      indexer_head_dim: indexDim,
+      budget,
+      compress_ratio: ratio,
+      implementation: ["vLLM.SparseAttnIndexer", "SGLang.C4Indexer"],
+    }, { input: dims.hidden, output: [-1, -1, budget] }));
+    specs.push(operatorSpec(`${prefix}.attention`, "C4 sparse MLA attention", "qsa_attention", {
+      ...shapeFlow(`${query}, selected compressed KV`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
+      selected_tokens: budget,
+      compress_ratio: ratio,
+      attention_kind: "dsv4_sparse_mla",
+      implementation: ["vLLM.DeepseekV4FlashMLAAttention", "SGLang.RadixAttention + DSV4 backend"],
+    }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
+  } else if (ratio === 128) {
+    specs.push(operatorSpec(`${prefix}.attention`, "compressed MLA attention", "dsv4_compressed_attention", {
+      ...shapeFlow(`${query}, compressed KV`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
+      compress_ratio: ratio,
+      attention_kind: "dsv4_compressed_mla",
+      implementation: ["vLLM.DeepseekV4FlashMLAAttention", "SGLang.MQALayer"],
+    }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
+  } else {
+    specs.push(operatorSpec(`${prefix}.attention`, "sliding-window MQA", "dsv4_swa_attention", {
+      ...shapeFlow(`${query}, KV window`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
+      sliding_window: normalized.slidingWindow,
+      compress_ratio: ratio,
+      attention_kind: "dsv4_swa_mqa",
+      implementation: ["vLLM.DeepseekV4SWACache", "SGLang.RadixAttention"],
+    }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
+  }
+
+  specs.push(
+    operatorSpec(`${prefix}.inverse_rope`, "inverse output rotary transform", "rope", {
+      ...shapeFlow(`[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
+      phase: "output_inverse_rope",
+    }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }),
+    operatorSpec(`${prefix}.wo_a`, "output low-rank projection", "linear", {
+      ...shapeFlow(`[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`, outputLatent),
+      projection_role: "wo_a",
+      output_groups: groups,
+      output_rank: outputRank,
+      implementation: ["vLLM.wo_a", "SGLang.wo_a"],
+    }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, groups, outputRank] }),
+    operatorSpec(`${prefix}.wo_b`, "output hidden projection", "linear", {
+      ...shapeFlow(outputLatent, shapesForHidden(normalized)),
+      projection_role: "wo_b",
+      implementation: ["vLLM.wo_b", "SGLang.wo_b"],
+    }, { input: [-1, -1, groups, outputRank], output: dims.hidden }),
+  );
+  return specs;
+}
+
+function shapesForHidden(normalized) {
+  return `[batch, sequence, hidden size=${normalized.hiddenSize ?? "unknown"}]`;
+}
+
 export function qsaAttentionOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
@@ -510,6 +628,55 @@ export function moeOperatorSpecs(prefix, normalized) {
       expert_weights_shape: shapes.topExperts,
     }, { input: dims.expertInput, output: dims.hidden }),
   ];
+}
+
+// DeepSeek V4 的 hash 层和普通 MoE 共用同一 routed/shared expert 语义；差异只在路由节点。
+export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const specs = isHashMoe
+    ? [operatorSpec(`${prefix}.hash_router`, "input-id hash expert routing", "dsv4_hash_route", {
+      ...shapeFlow("[batch, sequence] input_ids", shapes.topExperts),
+      num_hash_layers: normalized.numHashLayers,
+      hash_table_shape: `[vocab size=${normalized.vocabSize}, experts per token=${normalized.expertsPerToken}]`,
+      implementation: ["vLLM.gate.tid2eid + fused_topk_bias", "SGLang DeepSeek V4 hash routing"],
+    }, { input: [-1, -1], output: dims.topExperts })]
+    : [
+      operatorSpec(`${prefix}.router`, "router logits", "linear", {
+        ...shapeFlow(shapes.hidden, shapes.routerLogits),
+        scoring_func: "sqrtsoftplus",
+        routed_scaling_factor: normalized.routedScalingFactor,
+        implementation: ["vLLM.GateLinear + fused_topk_bias", "SGLang fused_moe"],
+      }, { input: dims.hidden, output: dims.routerLogits }),
+      operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
+        ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
+        expert_ids_shape: shapes.topExperts,
+        expert_weights_shape: shapes.topExperts,
+        scoring_func: "sqrtsoftplus",
+        renormalize: normalized.normTopkProb,
+      }, { input: dims.routerLogits, output: dims.topExperts }),
+    ];
+  specs.push(
+    operatorSpec(`${prefix}.dispatch`, "expert dispatch", "moe_dispatch", {
+      ...shapeFlow(`${shapes.hidden}, ${shapes.topExperts}`, shapes.expertInput),
+      token_shape: shapes.hidden,
+      expert_ids_shape: shapes.topExperts,
+      implementation: ["vLLM.FusedMoE", "SGLang fused_moe"],
+    }, { input: dims.hidden, output: dims.expertInput }),
+    operatorSpec(`${prefix}.expert_mlp`, "expert SwiGLU", "swiglu", {
+      ...shapeFlow(shapes.expertInput, shapes.expertInput),
+      intermediate_shape: shapes.moeIntermediate,
+      swiglu_limit: normalized.swigluLimit,
+      implementation: ["vLLM.DeepseekV4MegaMoEExperts", "SGLang fused_moe"],
+    }, { input: dims.expertInput, output: dims.expertInput }),
+    operatorSpec(`${prefix}.combine`, "expert combine", "moe_combine", {
+      ...shapeFlow(`${shapes.expertInput}, ${shapes.topExperts}`, shapes.hidden),
+      expert_output_shape: shapes.expertInput,
+      expert_weights_shape: shapes.topExperts,
+      routed_scaling_factor: normalized.routedScalingFactor,
+    }, { input: dims.expertInput, output: dims.hidden }),
+  );
+  return specs;
 }
 
 export function kimiK3MoeOperatorSpecs(prefix, normalized) {

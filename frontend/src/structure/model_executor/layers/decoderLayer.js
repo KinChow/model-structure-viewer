@@ -16,9 +16,9 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
   const isLastLayer = isMhc && layerIndex === (normalized.layers || 0) - 1;
   const children = isMhc ? [
     multiHyperConnectionModule(`${id}.mhc_attn_pre`, normalized, "pre"),
-    attentionModule(`${id}.self_attn`, normalized, attentionKind),
+    attentionModule(`${id}.self_attn`, normalized, attentionKind, layerIndex),
     multiHyperConnectionModule(`${id}.mhc_ffn_pre`, normalized, "fused_post_pre"),
-    layerKind === "moe" ? moeModule(`${id}.moe`, normalized) : mlpModule(`${id}.mlp`, normalized),
+    layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
     ...(isLastLayer ? [
       multiHyperConnectionModule(`${id}.mhc_final_post`, normalized, "post"),
       multiHyperConnectionModule(`${id}.mhc_contract`, normalized, "contract"),
@@ -26,14 +26,14 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
   ] : isQwen4Exp ? [
     ...(normalized.pleLayerIds?.includes(layerIndex + 1) ? [pleModule(`${id}.ple`, normalized)] : []),
     hyperConnectionModule(`${id}.attn_hyper_connection`, normalized, "attn_mix"),
-    attentionModule(`${id}.self_attn`, normalized, attentionKind),
+    attentionModule(`${id}.self_attn`, normalized, attentionKind, layerIndex),
     hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized, "mlp_combine_mix"),
-    layerKind === "moe" ? moeModule(`${id}.moe`, normalized) : mlpModule(`${id}.mlp`, normalized),
+    layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
   ] : [
     rmsNormModule(`${id}.input_layernorm`, "input layernorm", normalized),
-    attentionModule(`${id}.self_attn`, normalized, attentionKind),
+    attentionModule(`${id}.self_attn`, normalized, attentionKind, layerIndex),
     rmsNormModule(`${id}.post_attention_layernorm`, "post attention layernorm", normalized),
-    layerKind === "moe" ? moeModule(`${id}.moe`, normalized) : mlpModule(`${id}.mlp`, normalized),
+    layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
     ...(normalized.pleLayerIds?.includes(layerIndex + 1) ? [pleModule(`${id}.ple`, normalized)] : []),
     ...(normalized.hyperConnectionCount ? [
       hyperConnectionModule(`${id}.attn_hyper_connection`, normalized),

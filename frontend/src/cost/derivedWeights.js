@@ -16,7 +16,7 @@ export function derivedWeightParameters(config = {}) {
   const sharedIntermediate = config.sharedExpertIntermediateSize || denseIntermediate;
   const schedule = config.layerSchedule || Array.from({ length: layers }, () => experts ? "moe" : "dense");
   const attention = hidden * (heads * qDim + kvHeads * qDim + kvHeads * vDim + heads * vDim);
-  const norms = 2 * hidden;
+  const norms = config.hyperConnectionCount ? 0 : 2 * hidden;
   let decoder = 0;
   for (let i = 0; i < layers; i++) {
     const attentionKind = config.attentionSchedule?.[i] || "gqa";
@@ -26,6 +26,8 @@ export function derivedWeightParameters(config = {}) {
         ? glm5NextLinearAttentionParameters(config)
         : config.linearAttentionMode === "kimi_k3"
           ? kimiK3LinearAttentionParameters(config)
+          : config.linearAttentionMode === "qwen4_exp"
+            ? qwen4ExpLinearAttentionParameters(config)
         : genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim });
     } else if (attentionKind === "mla" && config.qLoraRank && config.kvLoraRank) {
       const ropeDim = config.qkRopeHeadDim || 0;
@@ -36,22 +38,24 @@ export function derivedWeightParameters(config = {}) {
         + config.kvLoraRank * (heads * nopeDim + vDim * (config.kvHeads || heads));
     }
     const mhcParameters = config.multiHyperConnection ? mhcLayerParameters(config) : 0;
+    const hcParameters = config.hyperConnectionCount ? hyperConnectionLayerParameters(config) : 0;
     if (schedule[i] === "moe" && experts > 0) {
       const routedExperts = experts * 3 * routedExpertHidden * moeIntermediate;
       const latentProjection = routedExpertHidden !== hidden
         ? hidden * routedExpertHidden + routedExpertHidden * hidden
         : 0;
-      decoder += attentionParameters + norms + mhcParameters + hidden * experts + routedExperts + latentProjection;
+      decoder += attentionParameters + norms + mhcParameters + hcParameters + hidden * experts + routedExperts + latentProjection;
       decoder += (config.sharedExpertsAreFused ? 1 : sharedExperts) * 3 * hidden * sharedIntermediate;
     } else {
-      decoder += attentionParameters + norms + mhcParameters + 3 * hidden * denseIntermediate;
+      decoder += attentionParameters + norms + mhcParameters + hcParameters + 3 * hidden * denseIntermediate;
     }
     if (config.attnResBlockSize) decoder += 4 * hidden;
   }
   const embedding = (config.vocabSize || 0) * hidden;
   const lmHead = config.tieWordEmbeddings ? 0 : embedding;
   const outputResidual = config.attnResBlockSize ? 2 * hidden : 0;
-  return embedding + decoder + hidden + lmHead + outputResidual;
+  const finalHyperConnection = config.hyperConnectionCount ? hyperConnectionFinalParameters(config) : 0;
+  return embedding + decoder + hidden + lmHead + outputResidual + finalHyperConnection;
 }
 
 function genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim }) {
@@ -94,6 +98,43 @@ function kimiK3LinearAttentionParameters(config) {
     + heads
     + headDim
     + projection * hidden;
+}
+
+function qwen4ExpLinearAttentionParameters(config) {
+  const hidden = config.hiddenSize || 0;
+  const keyHeads = config.linearKeyHeads || config.attentionHeads || 0;
+  const valueHeads = config.linearValueHeads || config.attentionHeads || keyHeads;
+  const keyDim = config.linearKeyDim || config.headDim || 0;
+  const valueDim = config.linearValueDim || config.valueHeadDim || keyDim;
+  const keyProjection = keyHeads * keyDim;
+  const valueProjection = valueHeads * valueDim;
+  const convDim = 2 * keyProjection + valueProjection;
+  const kernel = config.linearConvKernelSize || 0;
+  return hidden * (2 * keyProjection + 2 * valueProjection)
+    + 2 * hidden * valueHeads
+    + convDim * kernel
+    + 2 * valueHeads
+    + valueDim
+    + valueProjection * hidden;
+}
+
+function hyperConnectionLayerParameters(config) {
+  const streams = config.hyperConnectionCount || 0;
+  const hidden = config.hiddenSize || 0;
+  const lowrank = config.hyperConnectionLowrank || 0;
+  if (!streams || !hidden || !lowrank) return 0;
+  const hyperHidden = streams * hidden;
+  const oneBranch = hyperHidden + hyperHidden * (lowrank + streams) + lowrank * hyperHidden;
+  return 2 * oneBranch;
+}
+
+function hyperConnectionFinalParameters(config) {
+  const streams = config.hyperConnectionCount || 0;
+  const hidden = config.hiddenSize || 0;
+  const lowrank = config.hyperConnectionLowrank || 0;
+  if (!streams || !hidden || !lowrank) return 0;
+  const hyperHidden = streams * hidden;
+  return hyperHidden + hyperHidden * lowrank + lowrank * hyperHidden;
 }
 
 function mhcLayerParameters(config) {

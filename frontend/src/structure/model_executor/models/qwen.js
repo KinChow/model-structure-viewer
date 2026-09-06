@@ -32,7 +32,7 @@ export function buildQwenMultimodalNetwork(resolved, normalized) {
       attentionKind: "gqa",
       defaultLayerKind: normalized.experts ? "moe" : "dense",
     }),
-    ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized)] : []),
+    ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),

@@ -371,3 +371,44 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
   assert.equal(layerOneResidual.children.find((node) => node.name === "attention residual norm").attributes.snapshot_write, false);
   assert.equal(structure.root.children.find((node) => node.id === "output_attn_residual").attributes.snapshot_blocks, 8);
 });
+
+test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.8-Flash-Next/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.equal(normalized.linearAttentionMode, "qwen4_exp");
+  assert.deepEqual(normalized.attentionSchedule.reduce((counts, kind) => {
+    counts[kind] = (counts[kind] || 0) + 1;
+    return counts;
+  }, {}), { linear: 36, qsa: 12 });
+  assert.equal(normalized.hyperConnectionCount, 4);
+  assert.equal(normalized.hyperConnectionLowrank, 320);
+  assert.deepEqual(normalized.pleLayerIds, [2]);
+
+  const resolved = resolveArchitecture(normalized, { modelId: "Qwen/Qwen3.8-Flash-Next" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "decoder");
+  const firstLayer = decoder.children[0];
+  assert.deepEqual(firstLayer.children.map((node) => node.name), [
+    "HyperConnection attention mix",
+    "LINEAR Attention",
+    "HyperConnection MLP combine + mix",
+    "Routed MoE",
+  ]);
+  const linear = firstLayer.children.find((node) => node.type === "attention");
+  assert.equal(linear.children.length, 7);
+  assert.equal(linear.children.find((node) => node.name === "KDA recurrent state").attributes.decay_activation, "softplus");
+  const pleLayer = decoder.children.find((node) => node.attributes.range === "1..1");
+  assert.equal(pleLayer.children[0].name, "PLE");
+  const qsaLayer = decoder.children.find((node) => node.attributes.range === "3..3");
+  assert.equal(qsaLayer.children.find((node) => node.type === "attention").attributes.attention_kind, "qsa");
+  assert.equal(structure.root.children.find((node) => node.id === "hyper_connection_mixer").name, "HyperConnection final mixer");
+  const ple = pleLayer.children.find((node) => node.type === "ple");
+  assert.equal(ple.attributes.ngram_size, 3);
+  assert.equal(ple.attributes.heads_per_ngram, 8);
+  assert.equal(ple.attributes.conv_dilation, 3);
+  assert.equal(ple.children[0].attributes.formula_id, "ple");
+});

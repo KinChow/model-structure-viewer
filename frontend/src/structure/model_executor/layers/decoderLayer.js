@@ -12,6 +12,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const isMhc = normalized.multiHyperConnection;
+  const isQwen4Exp = normalized.modelType === "qwen4_exp";
   const isLastLayer = isMhc && layerIndex === (normalized.layers || 0) - 1;
   const children = isMhc ? [
     multiHyperConnectionModule(`${id}.mhc_attn_pre`, normalized, "pre"),
@@ -22,6 +23,12 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
       multiHyperConnectionModule(`${id}.mhc_final_post`, normalized, "post"),
       multiHyperConnectionModule(`${id}.mhc_contract`, normalized, "contract"),
     ] : []),
+  ] : isQwen4Exp ? [
+    ...(normalized.pleLayerIds?.includes(layerIndex + 1) ? [pleModule(`${id}.ple`, normalized)] : []),
+    hyperConnectionModule(`${id}.attn_hyper_connection`, normalized, "attn_mix"),
+    attentionModule(`${id}.self_attn`, normalized, attentionKind),
+    hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized, "mlp_combine_mix"),
+    layerKind === "moe" ? moeModule(`${id}.moe`, normalized) : mlpModule(`${id}.mlp`, normalized),
   ] : [
     rmsNormModule(`${id}.input_layernorm`, "input layernorm", normalized),
     attentionModule(`${id}.self_attn`, normalized, attentionKind),

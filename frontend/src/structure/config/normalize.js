@@ -160,6 +160,9 @@ export function normalizeConfig(config) {
     hyperConnectionLowrank: firstNumber(textConfig, ["hc_lowrank"]) ?? firstNumber(config, ["hc_lowrank"]),
     pleLayerIds: Array.isArray(textConfig?.ple_layer_ids) ? textConfig.ple_layer_ids : Array.isArray(config?.ple_layer_ids) ? config.ple_layer_ids : [],
     pleEmbedDim: firstNumber(textConfig, ["ple_embed_dim"]) ?? firstNumber(config, ["ple_embed_dim"]),
+    pleNgramSize: firstNumber(textConfig, ["ngram_size"]) ?? firstNumber(config, ["ngram_size"]),
+    pleHeadsPerNgram: firstNumber(textConfig, ["heads_per_ngram"]) ?? firstNumber(config, ["heads_per_ngram"]),
+    pleConvKernelSize: firstNumber(textConfig, ["ple_conv_kernel_size"]) ?? firstNumber(config, ["ple_conv_kernel_size"]),
     attnResBlockSize: firstNumber(textConfig, ["attn_res_block_size"]) ?? firstNumber(config, ["attn_res_block_size"]),
     mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
     linearAttentionMode: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3")

@@ -204,16 +204,16 @@ const FORMULAS = {
   },
   hyper_connection: {
     title: "Hyper Connection",
-    formula: "h' = mix(h, block_output, injection; hc_count, lowrank)",
-    explanation: "在多流 hidden state 与 attention/MLP 分支之间执行 gated residual mixing。",
-    inputs: ["hidden_state", "block_output", "injection"],
-    outputs: ["hidden_state", "injection"],
+    formula: "x_n=GroupedRMSNorm(H); l=SiLU(W_down x_n); gate=W_up l; block_input=GateMix(x_n,gate); H'=Combine(H,block_output,injection)",
+    explanation: "Qwen4Exp 的 delayed HyperConnection：attention 前执行 mix，下一边界先 combine 上一层输出再 mix；最终 mixer 只 materialize 多流状态并输出单流 hidden。",
+    inputs: ["hidden_streams", "block_output", "injection", "W_down", "W_up"],
+    outputs: ["hidden_streams", "block_input", "injection"],
   },
   ple: {
     title: "Position Learning Enhancement",
-    formula: "h' = h + PLE(h, input_ids, ngram_context)",
-    explanation: "在指定层将 position-learning enhancement 注入多流 hidden state。",
-    inputs: ["hidden_state", "input_ids", "ngram_context"],
+    formula: "e=HashNGram(input_ids,context); [k,v]=W_{kv}e; y=ShortConv(GatedNorm(k,v,RMSNorm(H)))",
+    explanation: "Qwen4Exp 指定层的 PLE：根据 input_ids/context 生成 ngram embedding，经 KV projection、grouped norm、gated output 和 dilated short-conv 后加到多流 hidden state。",
+    inputs: ["hidden_state", "input_ids", "ngram_context", "ngram_embedding", "W_kv"],
     outputs: ["hidden_state"],
   },
   shared_expert_gate: {

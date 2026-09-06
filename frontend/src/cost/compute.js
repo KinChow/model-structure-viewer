@@ -36,6 +36,7 @@ export function attentionMacs(config, { batch = 1, sequence = 1, phase = "prefil
 export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   if (config?.linearAttentionMode === "glm5_next") return glm5NextLinearAttentionMacs(config, { batch, sequence, phase });
   if (config?.linearAttentionMode === "kimi_k3") return kimiK3LinearAttentionMacs(config, { batch, sequence, phase });
+  if (config?.linearAttentionMode === "qwen4_exp") return qwen4ExpLinearAttentionMacs(config, { batch, sequence, phase });
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -80,6 +81,26 @@ function kimiK3LinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "p
   const gatedNorm = 3 * projection;
   const outputProjection = projection * hidden;
   return tokens * (fusedQkvg + betaProjection + decayProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
+}
+
+function qwen4ExpLinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const tokens = batch * (phase === "decode" ? 1 : sequence);
+  const hidden = config?.hiddenSize || 0;
+  const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
+  const valueHeads = config?.linearValueHeads || config?.attentionHeads || keyHeads;
+  const keyDim = config?.linearKeyDim || config?.headDim || 0;
+  const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
+  const keyProjection = keyHeads * keyDim;
+  const valueProjection = valueHeads * valueDim;
+  const convDim = 2 * keyProjection + valueProjection;
+  const kernel = config?.linearConvKernelSize || 0;
+  const qkvzProjection = hidden * (2 * keyProjection + 2 * valueProjection);
+  const baProjection = 2 * hidden * valueHeads;
+  const shortConvolution = convDim * kernel;
+  const recurrentState = 3 * valueHeads * valueDim * keyDim;
+  const gatedNorm = 3 * valueProjection;
+  const outputProjection = valueProjection * hidden;
+  return tokens * (qkvzProjection + baProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
 
 export function qsaAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {

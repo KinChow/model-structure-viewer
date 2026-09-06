@@ -83,6 +83,9 @@ export function linearAttentionOperatorSpecs(prefix, normalized) {
     return canonicalKdaOperatorSpecs(prefix, normalized, "glm5_next");
   }
   if (normalized.linearAttentionMode === "qwen4_exp") {
+    return canonicalKdaOperatorSpecs(prefix, normalized, "qwen4_exp");
+  }
+  if (normalized.linearAttentionMode === "qwen4_exp") {
     return [
       operatorSpec(`${prefix}.in_proj_qkv`, "linear attention qkv projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
       operatorSpec(`${prefix}.in_proj_z`, "linear attention gate projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
@@ -111,16 +114,26 @@ export function linearAttentionOperatorSpecs(prefix, normalized) {
 function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
-  const heads = normalized.linearKeyHeads || normalized.attentionHeads || 0;
-  const headDim = normalized.linearKeyDim || normalized.headDim || 0;
-  const projection = heads * headDim;
-  const qkvShape = `[batch, sequence, linear heads=${heads}, head dimension=${headDim}]`;
-  const betaShape = `[batch, sequence, linear heads=${heads}]`;
-  const gateShape = qkvShape;
-  const stateShape = `[batch, linear heads=${heads}, state value dimension=${headDim}, state key dimension=${headDim}]`;
-  const qkvDims = [-1, -1, heads, headDim];
-  const betaDims = [-1, -1, heads];
+  const keyHeads = normalized.linearKeyHeads || normalized.attentionHeads || 0;
+  const valueHeads = normalized.linearValueHeads || normalized.attentionHeads || keyHeads;
+  const keyDim = normalized.linearKeyDim || normalized.headDim || 0;
+  const valueDim = normalized.linearValueDim || normalized.valueHeadDim || keyDim;
+  const keyProjection = keyHeads * keyDim;
+  const valueProjection = valueHeads * valueDim;
+  const qkvFlat = 2 * keyProjection + valueProjection;
+  const qkvShape = modelKind === "qwen4_exp"
+    ? `[batch, sequence, Q/K=${keyHeads}x${keyDim}, V=${valueHeads}x${valueDim}]`
+    : `[batch, sequence, linear heads=${keyHeads}, head dimension=${keyDim}]`;
+  const betaShape = `[batch, sequence, value heads=${valueHeads}]`;
+  const gateShape = modelKind === "qwen4_exp"
+    ? `[batch, sequence, value heads=${valueHeads}, value dimension=${valueDim}]`
+    : qkvShape;
+  const stateShape = `[batch, value heads=${valueHeads}, state value dimension=${valueDim}, state key dimension=${keyDim}]`;
+  const qkvDims = modelKind === "qwen4_exp" ? [-1, -1, qkvFlat] : [-1, -1, keyHeads, keyDim];
+  const outputDims = modelKind === "qwen4_exp" ? [-1, -1, valueHeads, valueDim] : qkvDims;
+  const betaDims = [-1, -1, valueHeads];
   const fullRank = modelKind === "kimi_k3";
+  const qwen = modelKind === "qwen4_exp";
   const implementation = fullRank
     ? {
       input_projection: "fused_qkvg_proj",
@@ -129,20 +142,28 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       short_convolution: "qkv_conv1d",
       output_gate: "fused_qkvg_proj.g",
     }
-    : {
+    : qwen
+      ? {
+        input_projection: "in_proj_qkvz",
+        beta_projection: "in_proj_ba.b",
+        decay_projection: "in_proj_ba.a",
+        short_convolution: "conv1d",
+        output_gate: "in_proj_qkvz.z",
+      }
+      : {
       input_projection: "in_proj_qkvbfg_a",
       beta_projection: "in_proj_qkvbfg_a.beta",
       decay_projection: ["in_proj_qkvbfg_a.f_a", "f_b_proj"],
       short_convolution: ["q_conv1d", "k_conv1d", "v_conv1d"],
       output_gate: ["in_proj_qkvbfg_a.g_a", "g_b_proj"],
     };
-  const projectionLayout = fullRank ? ["q", "k", "v", "g"] : ["q", "k", "v", "beta", "f_a", "g_a"];
+  const projectionLayout = fullRank ? ["q", "k", "v", "g"] : qwen ? ["q", "k", "v", "z"] : ["q", "k", "v", "beta", "f_a", "g_a"];
   return [
     operatorSpec(`${prefix}.qkv_projection`, "QKV projection", "linear", {
       ...shapeFlow(shapes.hidden, qkvShape),
       semantic_role: "q_k_v_projection",
       implementation,
-      projection_size: projection,
+      projection_size: qwen ? { qk: keyProjection, v: valueProjection } : keyProjection,
       fused_projection_layout: projectionLayout,
     }, { input: dims.hidden, output: qkvDims }),
     operatorSpec(`${prefix}.beta_projection`, "beta projection", "linear", {
@@ -156,7 +177,8 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       semantic_role: "forget_gate_logits",
       implementation: implementation.decay_projection,
       gate_lower_bound: normalized.linearLowerBound,
-    }, { input: dims.hidden, output: qkvDims }),
+      projection_size: valueHeads,
+    }, { input: dims.hidden, output: betaDims }),
     operatorSpec(`${prefix}.short_conv`, "qkv causal short convolution", "causal_conv1d", {
       ...shapeFlow(qkvShape, qkvShape),
       semantic_role: "q_k_v_short_convolution",
@@ -164,31 +186,33 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       branches: ["q", "k", "v"],
       kernel_size: normalized.linearConvKernelSize,
       activation: "silu",
+      channel_layout: qwen ? { q: keyProjection, k: keyProjection, v: valueProjection } : undefined,
     }, { input: qkvDims, output: qkvDims }),
     operatorSpec(`${prefix}.state_update`, "KDA recurrent state", "gated_delta_attention", {
-      ...shapeFlow(`${qkvShape}, ${betaShape}, ${stateShape}`, qkvShape),
+      ...shapeFlow(`${qkvShape}, ${betaShape}, ${stateShape}`, qwen ? gateShape : qkvShape),
       semantic_role: "gated_delta_recurrent_state",
       model_kind: modelKind,
       attention_kind: "linear",
       mode: "chunk_prefill_or_fused_recurrent",
       qk_l2norm: true,
       beta_activation: "sigmoid",
-      safe_gate: true,
+      safe_gate: !qwen,
+      decay_activation: qwen ? "softplus" : "bounded_sigmoid",
       gate_lower_bound: normalized.linearLowerBound,
       decay_parameters: ["A_log", "dt_bias"],
       state_shape: stateShape,
-    }, { input: qkvDims, output: qkvDims }),
+    }, { input: qkvDims, output: outputDims }),
     operatorSpec(`${prefix}.output_gate_norm`, "gated RMSNorm", "gated_rmsnorm", {
-      ...shapeFlow(qkvShape, qkvShape),
+      ...shapeFlow(qkvShape, gateShape),
       semantic_role: "gated_output_normalization",
       implementation: implementation.output_gate,
       gate_shape: gateShape,
       activation: "sigmoid",
-    }, { input: qkvDims, output: qkvDims }),
+    }, { input: outputDims, output: outputDims }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", {
-      ...shapeFlow(qkvShape, shapes.hidden),
+      ...shapeFlow(gateShape, shapes.hidden),
       semantic_role: "attention_output_projection",
-    }, { input: qkvDims, output: dims.hidden }),
+    }, { input: outputDims, output: dims.hidden }),
   ];
 }
 

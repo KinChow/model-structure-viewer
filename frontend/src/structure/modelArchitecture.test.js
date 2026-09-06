@@ -664,3 +664,29 @@ test("maps Kimi K2 family MLA latent norms and shared expert branch", () => {
   const moe = moeLayer.children.find((node) => node.type === "moe");
   assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
 });
+
+test("maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-4.7/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.equal(normalized.modelType, "glm4_moe");
+  assert.equal(normalized.attentionBias, true);
+  assert.equal(normalized.useQkNorm, true);
+  assert.equal(normalized.partialRotaryFactor, 0.5);
+  assert.equal(normalized.sharedExperts, 1);
+  assert.equal(normalized.sharedExpertIntermediateSize, 1536);
+  const resolved = resolveArchitecture(normalized, { modelId: "zai-org/GLM-4.7" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "decoder");
+  const attention = decoder.children[0].children.find((node) => node.type === "attention");
+  assert.equal(attention.children[0].name, "fused QKV projection");
+  assert.equal(attention.children.find((node) => node.name === "Q RMSNorm").attributes.formula_id, "rmsnorm");
+  assert.equal(attention.children.find((node) => node.name === "partial rotary position embedding").attributes.partial_rotary_factor, 0.5);
+  const moeLayer = decoder.children.find((node) => node.children?.some((child) => child.type === "moe"));
+  const moe = moeLayer.children.find((node) => node.type === "moe");
+  assert.equal(moe.children.find((node) => node.name === "router logits").attributes.scoring_func, "sigmoid");
+  assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
+});

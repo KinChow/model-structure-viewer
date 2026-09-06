@@ -749,7 +749,7 @@ export function minimaxSparseAttentionOperatorSpecs(prefix, normalized, layerInd
   return minimaxAttentionCommon(prefix, normalized, true, layerIndex);
 }
 
-export function minimaxM2AttentionOperatorSpecs(prefix, normalized) {
+export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant = "minimax_m2") {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const qProjection = (normalized.attentionHeads || 0) * (normalized.headDim || 0);
@@ -760,7 +760,10 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized) {
     operatorSpec(`${prefix}.qkv_proj`, "fused QKV projection", "linear", {
       ...shapeFlow(shapes.hidden, fusedShape),
       projection_layout: ["q", "k", "v"],
-      implementation: ["vLLM.MiniMaxM2Attention.qkv_proj", "SGLang.MiniMaxM2Attention.qkv_proj"],
+      bias: normalized.attentionBias,
+      implementation: modelVariant === "glm4_moe"
+        ? ["vLLM.Glm4MoeAttention.qkv_proj", "SGLang.Glm4MoeAttention.qkv_proj"]
+        : ["vLLM.MiniMaxM2Attention.qkv_proj", "SGLang.MiniMaxM2Attention.qkv_proj"],
     }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
     operatorSpec(`${prefix}.qkv_split`, "QKV split", "attention_qkv_split", {
       ...shapeFlow(fusedShape, `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`),
@@ -770,13 +773,17 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized) {
       input: dims.attentionQuery,
       output: dims.attentionQuery,
       norm_type: normalized.qkNormType || "per_layer",
-      implementation: ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
+      implementation: modelVariant === "glm4_moe"
+        ? ["vLLM.Glm4MoeAttention.q_norm", "SGLang.Glm4MoeAttention.q_norm"]
+        : ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
     }),
     operatorSpec(`${prefix}.k_norm`, "K RMSNorm", "rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), {
       input: dims.attentionKey,
       output: dims.attentionKey,
       norm_type: normalized.qkNormType || "per_layer",
-      implementation: ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
+      implementation: modelVariant === "glm4_moe"
+        ? ["vLLM.Glm4MoeAttention.k_norm", "SGLang.Glm4MoeAttention.k_norm"]
+        : ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
     }),
     operatorSpec(`${prefix}.rope`, "partial rotary position embedding", "rope", {
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
@@ -906,7 +913,7 @@ export function mlpOperatorSpecs(prefix, normalized) {
 export function moeOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
-  const isMiniMaxRouter = ["minimax_m2", "minimax_m3_vl"].includes(normalized.modelType);
+  const isMiniMaxRouter = ["minimax_m2", "minimax_m3_vl", "glm4_moe"].includes(normalized.modelType);
   return [
     operatorSpec(`${prefix}.router`, "router logits", "linear", {
       ...shapeFlow(shapes.hidden, shapes.routerLogits),

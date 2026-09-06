@@ -216,13 +216,14 @@ export function normalizeConfig(config) {
       ?? (String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")
         && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
     sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS)
-      ?? (["kimi", "deepseek_v4"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
+      ?? (["kimi", "deepseek_v4", "glm4_moe"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
         ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
         : undefined),
     sharedExpertsAreFused: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3"),
     sharedExpertGate: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null
       && (textConfig?.output_gate_type != null || String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")),
     attentionOutputGate: Boolean(textConfig?.attn_output_gate ?? config?.attn_output_gate),
+    attentionBias: Boolean(textConfig?.attention_bias ?? config?.attention_bias),
     outputGateType: String(textConfig?.output_gate_type ?? config?.output_gate_type ?? "silu"),
     partialRotaryFactor: firstNumber(textConfig, ["partial_rotary_factor"])
       ?? firstNumber(textConfig?.rope_parameters, ["partial_rotary_factor"])

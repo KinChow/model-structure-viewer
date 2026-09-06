@@ -34,6 +34,8 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
         ? minimaxDenseAttentionOperatorSpecs(id, normalized)
       : attentionKind === "gqa" && normalized.modelType === "minimax_m2"
         ? minimaxM2AttentionOperatorSpecs(id, normalized)
+      : attentionKind === "gqa" && normalized.modelType === "glm4_moe"
+        ? minimaxM2AttentionOperatorSpecs(id, normalized, "glm4_moe")
       : attentionKind === "qwen35_full"
         ? qwen35FullAttentionOperatorSpecs(id, normalized)
       : attentionKind === "qsa"

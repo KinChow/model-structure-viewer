@@ -349,7 +349,7 @@ function semanticEdges(item) {
     return edges.length >= 6 ? edges : null;
   }
 
-  if (item.node?.attributes?.model_variant === "minimax_m2") {
+  if (["minimax_m2", "glm4_moe"].includes(item.node?.attributes?.model_variant)) {
     const fused = find(/fused qkv projection/);
     const split = find(/qkv split/);
     const qNorm = find(/^q rmsnorm$/);

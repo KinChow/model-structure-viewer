@@ -10,12 +10,11 @@
 // 这里只做结构合并与展示字段落位，不做任何换算。
 
 import { buildSkeleton } from "./skeleton.js";
-import { ARCHITECTURE_CATALOG, hasTemplateArchitecture } from "../registry/architectureCatalog.js";
+import { TEMPLATE_FAMILIES } from "../registry/architectureCatalog.js";
 
 /** 模板家族（由统一架构目录派生，避免 registry/materializer 漂移）。 */
-export const TEMPLATE_FAMILIES = new Set(
-  Object.keys(ARCHITECTURE_CATALOG).filter(hasTemplateArchitecture),
-);
+// Compatibility export for callers that still import the retired tree merger.
+export { TEMPLATE_FAMILIES };
 
 const PATH_WRAPPERS = new Set(["model", "language_model"]);
 

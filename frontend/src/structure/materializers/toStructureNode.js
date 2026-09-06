@@ -1,4 +1,4 @@
-import { TEMPLATE_FAMILIES } from "../truth/mergeSemantics.js";
+import { TEMPLATE_FAMILIES } from "../registry/architectureCatalog.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 import { projectGraphToTree } from "../graph/projectGraphToTree.js";
 import { enrichGraphWithTruth } from "../truth/graphTruth.js";

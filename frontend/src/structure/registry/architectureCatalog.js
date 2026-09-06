@@ -12,6 +12,10 @@ export const ARCHITECTURE_CATALOG = Object.freeze({
   "generic-config": { hasTemplate: false },
 });
 
+export const TEMPLATE_FAMILIES = new Set(
+  Object.keys(ARCHITECTURE_CATALOG).filter((name) => ARCHITECTURE_CATALOG[name].hasTemplate),
+);
+
 export function hasTemplateArchitecture(canonicalArchitecture) {
   return Boolean(ARCHITECTURE_CATALOG[canonicalArchitecture]?.hasTemplate);
 }

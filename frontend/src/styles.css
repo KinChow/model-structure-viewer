@@ -1549,16 +1549,15 @@ label {
   color: #e7edf5;
   background: radial-gradient(circle at 50% -10%, rgba(63, 79, 102, .22), transparent 38%), #0d1117;
 }
-.entry-hero { max-width: 720px; margin: 0 auto 32px; text-align: center; }
+.entry-hero { max-width: 790px; margin: 0 auto 32px; text-align: center; }
 .entry-topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; text-align: left; }
+.entry-version { color: #8f9bad; font-size: 11px; letter-spacing: 0; }
 .entry-top-actions { display: flex; gap: 6px; }
 .entry-top-actions button { border: 1px solid #2a3545; border-radius: 5px; background: transparent; color: #8f9bad; padding: 6px 8px; font-size: 11px; }
 .entry-top-actions button:hover:not(:disabled) { border-color: #f4ab52; color: #edf2f7; }
-.entry-brand { color: #edf2f7; font-size: 15px; font-weight: 800; letter-spacing: -.03em; }
-.entry-brand span { color: #f4ab52; }
-.entry-hero h1 { margin: 36px 0 12px; color: #f3f6fa; font-size: clamp(34px, 5vw, 58px); letter-spacing: -.055em; line-height: 1; }
-.entry-hero h1::after { color: #f4ab52; }
-.entry-hero p { margin: 0 auto; max-width: 550px; color: #8f9bad; font-size: 15px; line-height: 1.55; }
+.entry-brand { color: #dce5ee; font-size: 14px; font-weight: 700; letter-spacing: 0; }
+.entry-hero h1 { margin: 30px 0 10px; color: #e4ebf2; font-size: 28px; font-weight: 650; letter-spacing: 0; line-height: 1.2; }
+.entry-hero p { margin: 0 auto; max-width: 550px; color: #8996a5; font-size: 14px; line-height: 1.55; }
 .entry-box { max-width: 790px; margin: 0 auto; }
 .entry-modes { display: flex; gap: 5px; margin-bottom: 9px; }
 .entry-mode { border: 0; border-radius: 5px; background: transparent; color: #8f9bad; padding: 8px 11px; font-size: 12px; }
@@ -1574,7 +1573,7 @@ label {
 .entry-quick { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
 .entry-quick button { border: 1px solid #2a3545; border-radius: 5px; background: #1b2430; color: #9ba8b8; padding: 6px 8px; font-size: 11px; }
 .entry-quick button:hover:not(:disabled) { border-color: #f4ab52; color: #edf2f7; }
-.provider-section { max-width: 980px; margin: 48px auto 0; }
+.provider-section { max-width: 790px; margin: 48px auto 0; }
 .entry-section-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
 .entry-section-heading h2 { margin: 0; color: #e9eef5; font-size: 14px; }
 .entry-section-heading span { color: #778497; font-size: 11px; }
@@ -1610,7 +1609,6 @@ label {
 .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; clip: rect(0 0 0 0) !important; clip-path: inset(50%) !important; overflow: hidden !important; white-space: nowrap !important; }
 @media (max-width: 640px) {
   .model-entry-page { padding: 18px 14px 44px; }
-  .entry-hero h1 { margin-top: 28px; }
   .entry-input-row { flex-wrap: wrap; }
   .entry-input-row input { flex-basis: 100%; }
   .entry-input-row button { min-height: 36px; }
@@ -1639,7 +1637,6 @@ label {
 /* Keep the tool dense while preserving readable type and usable targets. */
 .entry-top-actions button { min-height: 34px; padding: 7px 10px; font-size: 12px; }
 .entry-hero { margin-bottom: 26px; }
-.entry-hero h1 { margin-top: 28px; font-size: clamp(30px, 4vw, 48px); }
 .entry-hero p { font-size: 14px; }
 .entry-mode { min-height: 36px; padding: 8px 12px; font-size: 13px; }
 .entry-input-row input { font-size: 15px; }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import frontendPackage from "../../package.json";
 import { staticAssetPath } from "../structure/catalog/manifest.js";
 import { formatReleaseTime, modelDisplayName, sortModelsByName, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
 
@@ -75,7 +76,7 @@ export default function ModelEntry({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [provider, helpOpen]);
   const t = language === "en" ? {
-    title: "Understand the model.",
+    title: "Understand the model",
     subtitle: "Explore architecture, inspect modules, and estimate the cost on your hardware.",
     model: "Enter / choose model",
     local: "Open local model directory",
@@ -98,7 +99,7 @@ export default function ModelEntry({
     chooseFolder: "Choose folder",
     openPath: "Open path",
   } : {
-    title: "理解模型。",
+    title: "理解模型",
     subtitle: "浏览模型架构、检查模块，并估算模型在目标硬件上的成本。",
     model: "输入 / 选择模型",
     local: "打开本地模型目录",
@@ -134,7 +135,7 @@ export default function ModelEntry({
   return (
     <main className={`model-entry-page theme-${theme}`}>
       <section className="entry-hero">
-        <div className="entry-topline"><div className="entry-brand">Model Structure Viewer<span>.</span></div><div className="entry-top-actions"><button type="button" onClick={() => { const next = language === "en" ? "zh" : "en"; onLanguageChange?.(next); }}>{language === "en" ? "EN / 中" : "中 / EN"}</button><button type="button" title={themeAction} aria-label={themeAction} onClick={onThemeChange}>{theme === "dark" ? (language === "en" ? "Dark" : "深色") : (language === "en" ? "Light" : "浅色")}</button><button type="button" title={t.help} onClick={() => setHelpOpen(true)}>{language === "en" ? "Help" : "帮助"}</button></div></div>
+        <div className="entry-topline"><div className="entry-brand">Model Structure Viewer <span className="entry-version">v{frontendPackage.version}</span></div><div className="entry-top-actions"><button type="button" onClick={() => { const next = language === "en" ? "zh" : "en"; onLanguageChange?.(next); }}>{language === "en" ? "EN / 中" : "中 / EN"}</button><button type="button" title={themeAction} aria-label={themeAction} onClick={onThemeChange}>{theme === "dark" ? (language === "en" ? "Dark" : "深色") : (language === "en" ? "Light" : "浅色")}</button><button type="button" title={t.help} onClick={() => setHelpOpen(true)}>{language === "en" ? "Help" : "帮助"}</button></div></div>
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
       </section>

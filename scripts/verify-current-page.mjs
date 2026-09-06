@@ -75,8 +75,8 @@ async function smoke(cdp) {
   const entry = await page(cdp, `return {title:document.title, input:Boolean(document.querySelector('input[aria-label="model id"]')), providers:document.querySelectorAll('.provider-card').length};`);
   await openBuiltin(cdp);
   const graph = await page(cdp, `const toggle=document.querySelector('.formula-strip-toggle'); toggle?.click(); await new Promise((r)=>setTimeout(r,0)); return {svg:Boolean(document.querySelector('svg[aria-label="Model architecture diagram"]')), nodes:document.querySelectorAll('g[data-node-path]').length, formulas:document.querySelectorAll('.formula-strip-links button[data-node-path]').length, layersButton:Array.from(document.querySelectorAll('button')).some((b)=>b.textContent.trim()==='Layers')};`);
-  const analysis = await clickText(cdp, ".toolbar-actions > button", "分析配置") || await clickText(cdp, ".toolbar-actions > button", "Analysis");
-  const compare = await page(cdp, `const button=Array.from(document.querySelectorAll('.lens-mode-switch button')).find((b)=>['方案','Plan'].includes(b.textContent.trim())); button?.click(); await new Promise((r)=>setTimeout(r,0)); return {analysis:${analysis},panes:document.querySelectorAll('.diagram-compare .diagram-frame').length,compareTp:document.body.innerText.includes('对比 TP')||document.body.innerText.includes('Compare TP')};`);
+  const analysis = await page(cdp, `return {topAnalysisRemoved: !Array.from(document.querySelectorAll('.toolbar-actions > button')).some((button)=>/分析配置|Analysis/.test(button.textContent))};`);
+  const compare = await page(cdp, `const button=Array.from(document.querySelectorAll('.lens-mode-switch button')).find((b)=>['方案','Plan'].includes(b.textContent.trim())); button?.click(); await new Promise((r)=>setTimeout(r,0)); return {panes:document.querySelectorAll('.diagram-compare .diagram-frame').length,compareTp:document.body.innerText.includes('对比 TP')||document.body.innerText.includes('Compare TP')};`);
   const formula = await page(cdp, `const button=document.querySelector('.formula-strip-links button[data-node-path]'); button?.click(); await new Promise((r)=>setTimeout(r,0)); return {path:button?.dataset.nodePath||'',inspector:Boolean(document.querySelector('.detail-panel')),expanded:Boolean(document.querySelector('.formula-strip-toggle[aria-expanded="true"]'))};`);
   await navigate(cdp);
   await openBuiltin(cdp);
@@ -101,7 +101,7 @@ try {
     await fs.writeFile(screenshotPath, Buffer.from(shot.data, "base64"));
   }
   console.log(JSON.stringify({ pageUrl, result }, null, 2));
-  const ok = result.entry.title === "Model Structure Viewer" && result.entry.input && result.entry.providers > 0 && result.graph.svg && result.graph.nodes > 0 && result.graph.formulas > 0 && !result.graph.layersButton && result.compare.panes === 2 && result.formula.path && result.formula.inspector && result.cost.lens && result.cost.pd && result.cost.kv && result.auxiliary.mermaid && result.auxiliary.raw;
+  const ok = result.entry.title === "Model Structure Viewer" && result.entry.input && result.entry.providers > 0 && result.graph.svg && result.graph.nodes > 0 && result.graph.formulas > 0 && !result.graph.layersButton && result.analysis.topAnalysisRemoved && result.compare.panes === 2 && result.formula.path && result.formula.inspector && result.cost.lens && result.cost.pd && result.cost.kv && result.auxiliary.mermaid && result.auxiliary.raw;
   if (!ok) process.exit(1);
 } finally {
   cdp.close();

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import DetailWorkspace from "./components/DetailWorkspace";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import Drawer from "./components/Drawer";
 import ModelEntry from "./components/ModelEntry";
 import { useSettings } from "./hooks/useSettings";
@@ -12,6 +11,12 @@ import { computeMatches } from "./diagram/match";
 import { PUBLIC_CHIPS } from "./cost/chips/public.js";
 import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal.js";
 import { readLocalSafetensorsHeaders } from "./cost/safetensorsReader.js";
+
+const DetailWorkspace = lazy(() => import("./components/DetailWorkspace"));
+
+function DetailWorkspaceFallback({ theme, language }) {
+  return <div className={`detail-page theme-${theme}`}><div className="detail-loading-overlay" role="status" aria-live="polite"><span className="detail-loading-dot" aria-hidden="true" /><span>{language === "en" ? "Preparing model view" : "正在准备模型视图"}<i aria-hidden="true">...</i></span></div></div>;
+}
 
 function findNodeByPath(root, path) {
   if (!root || !path) return null;
@@ -299,39 +304,41 @@ function App() {
   if (structure) {
     return (
       <>
-        <DetailWorkspace
-          structure={structure}
-          sourceLabel={sourceLabel}
-          language={language}
-          theme={theme}
-          onLanguageChange={handleLanguageChange}
-          onThemeChange={handleThemeChange}
-          onBack={() => window.location.reload()}
-          onSettings={handleOpenDrawer}
-          selectedNode={selectedNode}
-          selectedNodePath={selectedNodePath}
-          onSelectNode={handleSelectNode}
-          onCloseNode={() => setSelectedNodePath(null)}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          matchResults={matchResults}
-          matchedPaths={matchedPaths}
-          expandedGroups={layersExpandedPaths}
-          zoom={zoom}
-          onZoomChange={setZoom}
-          fitNonce={fitNonce}
-          onFit={() => { setZoom(1); setFitNonce((value) => value + 1); }}
-          chips={chips}
-          onAddChip={handleAddChip}
-          allCollapsiblePaths={allCollapsiblePaths}
-          layersExpandedPaths={layersExpandedPaths}
-          onToggleLayerPath={handleToggleLayerPath}
-          onExpandAllLayers={handleExpandAllLayers}
-          onCollapseAllLayers={handleCollapseAllLayers}
-          exporter={exporter}
-          loading={loading}
-          loadingPhase={loadingPhase}
-        />
+        <Suspense fallback={<DetailWorkspaceFallback theme={theme} language={language} />}>
+          <DetailWorkspace
+            structure={structure}
+            sourceLabel={sourceLabel}
+            language={language}
+            theme={theme}
+            onLanguageChange={handleLanguageChange}
+            onThemeChange={handleThemeChange}
+            onBack={() => window.location.reload()}
+            onSettings={handleOpenDrawer}
+            selectedNode={selectedNode}
+            selectedNodePath={selectedNodePath}
+            onSelectNode={handleSelectNode}
+            onCloseNode={() => setSelectedNodePath(null)}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            matchResults={matchResults}
+            matchedPaths={matchedPaths}
+            expandedGroups={layersExpandedPaths}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            fitNonce={fitNonce}
+            onFit={() => { setZoom(1); setFitNonce((value) => value + 1); }}
+            chips={chips}
+            onAddChip={handleAddChip}
+            allCollapsiblePaths={allCollapsiblePaths}
+            layersExpandedPaths={layersExpandedPaths}
+            onToggleLayerPath={handleToggleLayerPath}
+            onExpandAllLayers={handleExpandAllLayers}
+            onCollapseAllLayers={handleCollapseAllLayers}
+            exporter={exporter}
+            loading={loading}
+            loadingPhase={loadingPhase}
+          />
+        </Suspense>
         {error && <div className="error detail-error">{error}</div>}
         <Drawer
           open={drawerOpen}

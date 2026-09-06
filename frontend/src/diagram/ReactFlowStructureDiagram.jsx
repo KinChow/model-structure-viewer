@@ -185,6 +185,7 @@ function ReactFlowCanvas({ graph, props }) {
   const lastZoom = useRef(props.zoom);
   const lastFitNonce = useRef(props.fitNonce);
   const lastModelKey = useRef(null);
+  const lastLayoutSignature = useRef(null);
   useEffect(() => {
     if (!props.scrollSync?.group || !props.scrollSyncId) return undefined;
     const entry = { setViewport: (viewport) => setViewport(viewport, { duration: 0 }) };
@@ -272,6 +273,10 @@ function ReactFlowCanvas({ graph, props }) {
     }));
   }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
   const modelKey = graph.nodes.find((node) => node.path === "root")?.fullName || graph.nodes[0]?.fullName || "";
+  const layoutSignature = useMemo(
+    () => [...graph.containerFrames, ...graph.nodes].map((node) => `${node.path || node.id}:${node.x || 0}:${node.y || 0}:${node.width || 0}:${node.height || 0}`).join("|"),
+    [graph.containerFrames, graph.nodes],
+  );
   // Fit once after the real ELK layout arrives, on model changes, or when the
   // user explicitly requests it. Expanding a nested module must preserve the
   // current viewport so the selected-module focus below can take over.
@@ -279,11 +284,13 @@ function ReactFlowCanvas({ graph, props }) {
     if (!graph.layoutReady) return;
     const modelChanged = modelKey !== lastModelKey.current;
     const fitRequested = props.fitNonce !== lastFitNonce.current;
-    if (!modelChanged && !fitRequested) return;
+    const layoutChanged = lastLayoutSignature.current != null && layoutSignature !== lastLayoutSignature.current;
+    if (!modelChanged && !fitRequested && !layoutChanged) return;
     lastModelKey.current = modelKey;
     lastFitNonce.current = props.fitNonce;
+    lastLayoutSignature.current = layoutSignature;
     fitView({ padding: 0.12, duration: 260 });
-  }, [graph.layoutReady, modelKey, props.fitNonce, fitView]);
+  }, [graph.layoutReady, layoutSignature, modelKey, props.fitNonce, fitView]);
   useEffect(() => {
     if (props.zoom === lastZoom.current) return;
     const ratio = props.zoom / Math.max(lastZoom.current, 0.1);

@@ -111,6 +111,9 @@ export default function ModelEntry({
     chooseFolder: "打开文件夹",
     openPath: "打开路径",
   };
+  const themeAction = theme === "dark"
+    ? (language === "en" ? "Switch to light theme" : "切换到浅色主题")
+    : (language === "en" ? "Switch to dark theme" : "切换到深色主题");
 
   function handleFiles(event) {
     const files = [...(event.target.files || [])];
@@ -121,7 +124,7 @@ export default function ModelEntry({
   return (
     <main className={`model-entry-page theme-${theme}`}>
       <section className="entry-hero">
-        <div className="entry-topline"><div className="entry-brand">Model Structure Viewer<span>.</span></div><div className="entry-top-actions"><button type="button" onClick={() => { const next = language === "en" ? "zh" : "en"; onLanguageChange?.(next); }}>{language === "en" ? "EN / 中" : "中 / EN"}</button><button type="button" onClick={onThemeChange}>{theme}</button><button type="button" title={t.help} onClick={() => setHelpOpen(true)}>{language === "en" ? "Help" : "帮助"}</button></div></div>
+        <div className="entry-topline"><div className="entry-brand">Model Structure Viewer<span>.</span></div><div className="entry-top-actions"><button type="button" onClick={() => { const next = language === "en" ? "zh" : "en"; onLanguageChange?.(next); }}>{language === "en" ? "EN / 中" : "中 / EN"}</button><button type="button" title={themeAction} aria-label={themeAction} onClick={onThemeChange}>{theme === "dark" ? (language === "en" ? "Dark" : "深色") : (language === "en" ? "Light" : "浅色")}</button><button type="button" title={t.help} onClick={() => setHelpOpen(true)}>{language === "en" ? "Help" : "帮助"}</button></div></div>
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
       </section>
@@ -134,8 +137,8 @@ export default function ModelEntry({
       </div>}
       <section className="entry-box" aria-label="Model entry">
         <div className="entry-modes">
-          <EntryButton active={mode === "model"} disabled={loading} onClick={() => setMode("model")}>{t.model}</EntryButton>
-          <EntryButton active={mode === "local"} disabled={loading} onClick={() => setMode("local")}>{t.local}</EntryButton>
+          <EntryButton active={mode === "model"} disabled={loading} onClick={() => { setMode("model"); setProvider(null); }}>{t.model}</EntryButton>
+          <EntryButton active={mode === "local"} disabled={loading} onClick={() => { setMode("local"); setProvider(null); }}>{t.local}</EntryButton>
         </div>
         {mode === "model" ? (
           <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); const id = modelId.trim(); const builtin = builtinModels.some((entry) => entry.modelId === id); onOpenModel?.(id, builtin ? "builtin" : "hf", endpoint); }}>

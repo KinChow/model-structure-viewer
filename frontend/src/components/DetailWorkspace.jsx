@@ -53,13 +53,16 @@ function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath, par
 function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onThemeChange, theme, onBack, onSettings }) {
   const id = structure?.source?.model_id || structure?.summary?.model_family || structure?.summary?.model_type || "model";
   const english = language === "en";
+  const themeAction = theme === "dark"
+    ? (english ? "Switch to light theme" : "切换到浅色主题")
+    : (english ? "Switch to dark theme" : "切换到深色主题");
   return (
     <header className="detail-header">
       <button className="detail-brand" type="button" onClick={onBack}>Model Structure Viewer<span>.</span></button>
       <div className="detail-model-id" title={id}>{id}</div>
       <div className="detail-header-actions">
         <button type="button" onClick={() => onLanguageChange(english ? "zh" : "en")}>{english ? "EN / 中" : "中 / EN"}</button>
-        <button type="button" onClick={onThemeChange}>{theme}</button>
+        <button type="button" title={themeAction} aria-label={themeAction} onClick={onThemeChange}>{theme === "dark" ? (english ? "Dark" : "深色") : (english ? "Light" : "浅色")}</button>
         <button type="button" onClick={onSettings}>{english ? "Settings" : "设置"}</button>
       </div>
     </header>

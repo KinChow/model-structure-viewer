@@ -28,7 +28,7 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
 
   await expect(page.locator(".detail-page")).toBeVisible();
   await expect(page.locator(".react-flow__node").first()).toBeVisible();
-  await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "1");
+  await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
   await expect.poll(() => page.locator(".react-flow__node").count()).toBeGreaterThan(3);
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(1);
   await expect(page.locator(".react-flow__minimap")).toBeVisible();

@@ -56,11 +56,11 @@ CLI / HTTP request
 
 - 模型摘要和规范化配置
 - 节点树、重复层、输入输出 shape
-- `graph.version`、稳定 path 节点和显式 dataflow edges
+- `graph.schema_version=2`、节点事实、稳定 path 节点和显式 dataflow edges
 - 参数量、dtype、权重来源和 tensor 名称
 - 算子、公式、诊断和结构生成策略
 
-`root.children` 只承担层级分组、折叠和 breadcrumb；`graph.nodes/graph.edges` 是图渲染和数据流联动的正式协议。导出、UI 和验证都应消费 materialize 后的结构，不直接重新解析原始配置或调用 registry。
+`graph` 是新的内部事实载体；`root.children` 是由 graph projection 生成的兼容层，当前仍服务旧 API、truth/cost 迁移和 breadcrumb。新功能应优先消费 `graph.nodes/graph.edges`，不直接重新解析原始配置或调用 registry。
 
 ## 责任边界
 

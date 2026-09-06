@@ -10,6 +10,7 @@
 - 模型 registry、通用和专用 builder、layers、ops、公式、IR、materializer 和诊断链路。
 - 结构图、Layers、Inspector、JSON/Mermaid/DOT 导出、芯片 Cost Lens、并行投影和 PD 分析。
 - Python API/CLI、local cache、transformers meta-device 验证和 GitHub Pages 构建流程。
+- Graph IR v2 节点事实、graph-to-legacy-tree projection 和前后端 parity 测试。
 
 ## P0：验证流程收口（已完成）
 

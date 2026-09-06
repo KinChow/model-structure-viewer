@@ -1,5 +1,6 @@
 import { enrichNetworkWithTruth, TEMPLATE_FAMILIES } from "../truth/mergeSemantics.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
+import { projectGraphToTree } from "../graph/projectGraphToTree.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -73,6 +74,7 @@ export function materializeModelStructure(ir) {
     confidence: "high",
     children: network.children.map(structureNodeFromSpec),
   };
+  const graph = materializeStructureGraph(root);
 
   return {
     summary: {
@@ -108,8 +110,8 @@ export function materializeModelStructure(ir) {
       checkpoint_truth_endpoint: options.checkpointTruthEndpoint || null,
       diagnostics: mergedDiagnostics,
     },
-    root,
-    graph: materializeStructureGraph(root),
+    root: projectGraphToTree(graph),
+    graph,
     extra_config: normalized.raw,
   };
 }

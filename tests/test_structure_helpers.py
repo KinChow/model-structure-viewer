@@ -3,7 +3,7 @@ from model_structure_viewer.schemas import StructureNode
 from model_structure_viewer.structure.fold import collapse
 from model_structure_viewer.structure import semantics
 from model_structure_viewer.structure.introspect import _walk
-from model_structure_viewer.structure.graph import materialize_structure_graph
+from model_structure_viewer.structure.graph import materialize_structure_graph, project_graph_to_tree
 
 
 class _FakeModule:
@@ -128,7 +128,15 @@ def test_structure_graph_materializes_stable_paths_and_edges():
 
     graph = materialize_structure_graph(root)
 
+    assert graph.version == 2
+    assert graph.schema_version == 2
+    assert graph.root_id == "root"
     assert [node.id for node in graph.nodes] == ["root", "root.0", "root.1", "root.2"]
+    assert graph.nodes[1].name == "Embed"
+    assert graph.nodes[1].order == 0
+    projected = project_graph_to_tree(graph)
+    assert projected.id == "model"
+    assert [child.id for child in projected.children] == ["embed", "decoder", "head"]
     assert [(edge.source, edge.target) for edge in graph.edges] == [
         ("root.0", "root.1"),
         ("root.1", "root.2"),

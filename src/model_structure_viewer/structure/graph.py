@@ -13,7 +13,20 @@ def materialize_structure_graph(root: StructureNode) -> StructureGraph:
                 id=path,
                 module_id=node.id,
                 parent_id=parent_id,
+                order=int(path.rsplit(".", 1)[-1]) if "." in path else 0,
+                name=node.name,
                 type=node.type,
+                repeat=node.repeat,
+                attributes=node.attributes,
+                source_fields=node.source_fields,
+                confidence=node.confidence,
+                params=node.params,
+                weight_shapes=node.weight_shapes,
+                dtype=node.dtype,
+                input_shape=node.input_shape,
+                output_shape=node.output_shape,
+                value_source=node.value_source,
+                tensor_names=node.tensor_names,
             )
         )
         child_paths = [f"{path}.{index}" for index in range(len(node.children))]
@@ -31,3 +44,29 @@ def materialize_structure_graph(root: StructureNode) -> StructureGraph:
 
     visit(root, "root")
     return StructureGraph(nodes=nodes, edges=edges)
+
+
+def project_graph_to_tree(graph: StructureGraph) -> StructureNode:
+    """Create the legacy hierarchy view from the graph node index."""
+    by_id = {node.id: StructureNode(
+        id=node.module_id or node.id,
+        name=node.name,
+        type=node.type,
+        repeat=node.repeat,
+        attributes=node.attributes,
+        source_fields=node.source_fields,
+        confidence=node.confidence,
+        params=node.params,
+        weight_shapes=node.weight_shapes,
+        dtype=node.dtype,
+        input_shape=node.input_shape,
+        output_shape=node.output_shape,
+        value_source=node.value_source,
+        tensor_names=node.tensor_names,
+    ) for node in graph.nodes}
+    for node in sorted(graph.nodes, key=lambda item: (item.parent_id or "", item.order, item.id)):
+        if node.parent_id is None:
+            continue
+        parent = by_id[node.parent_id]
+        parent.children.append(by_id[node.id])
+    return by_id[graph.root_id]

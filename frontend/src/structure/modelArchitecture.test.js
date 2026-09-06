@@ -195,7 +195,8 @@ test("builds network modules and materializes operator formulas", () => {
 
   assert.equal(network.kind, "network");
   assert.equal(ir.version, 3);
-  assert.equal(structure.graph.version, 1);
+  assert.equal(structure.graph.version, 2);
+  assert.equal(structure.graph.schema_version, 2);
   assert.ok(structure.graph.nodes.length > 0);
   assert.ok(structure.graph.edges.some((edge) => edge.evidence === "semantic-flow"));
   assert.equal(ir.diagnostics.operator_count > 0, true);

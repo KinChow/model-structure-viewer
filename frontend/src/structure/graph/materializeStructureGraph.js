@@ -490,12 +490,27 @@ export function materializeStructureGraph(root) {
 
   const dataflowPairs = new Set(dataflowEdges.map((edge) => `${edge.source}=>${edge.target}`));
   return {
-    version: 1,
+    version: 2,
+    schema_version: 2,
+    root_id: "root",
     nodes: items.map((item) => ({
       id: item.path,
       module_id: item.node?.id || null,
       parent_id: item.parentId,
+      order: item.parentId == null ? 0 : Number(item.path.split(".").at(-1)),
+      name: item.node?.name || "",
       type: item.node?.type || "module",
+      repeat: item.node?.repeat ?? null,
+      attributes: item.node?.attributes || {},
+      source_fields: item.node?.source_fields || [],
+      confidence: item.node?.confidence || "high",
+      params: item.node?.params ?? null,
+      weight_shapes: item.node?.weight_shapes || null,
+      dtype: item.node?.dtype || null,
+      input_shape: item.node?.input_shape || null,
+      output_shape: item.node?.output_shape || null,
+      value_source: item.node?.value_source || null,
+      tensor_names: item.node?.tensor_names || null,
     })),
     edges: [
       ...dataflowEdges,

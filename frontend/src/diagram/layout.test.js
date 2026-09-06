@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
+import { materializeStructureGraph } from "../structure/graph/materializeStructureGraph.js";
+import { projectGraphToTree } from "../structure/graph/projectGraphToTree.js";
 
 test("layoutGraph exposes independent visible nodes and edges", () => {
   const graph = layoutGraph({
@@ -36,13 +38,15 @@ test("layoutGraph consumes explicit IR edges without inferring replacements", ()
   const graph = layoutGraph({
     root,
     graph: {
-      version: 1,
+      version: 2,
+      schema_version: 2,
+      root_id: "root",
       nodes: [],
       edges: [{ id: "explicit", source: "root.1", target: "root.0", kind: "dataflow", evidence: "declared" }],
     },
   }, new Set(["root"]));
 
-  assert.equal(graph.graphVersion, 1);
+  assert.equal(graph.graphVersion, 2);
   assert.deepEqual(graph.edges, [
     { id: "explicit", source: "root.1", target: "root.0", kind: "dataflow", evidence: "declared" },
   ]);
@@ -65,6 +69,30 @@ test("layoutGraph consumes builder-declared edges without using display names", 
 
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [["root.0.0", "root.0.1"]]);
   assert.equal(graph.edges.some((edge) => edge.evidence === "module-order" && edge.source.startsWith("root.0.")), false);
+});
+
+test("graph projection preserves hierarchy and node facts", () => {
+  const root = {
+    id: "model",
+    name: "Model",
+    type: "model",
+    attributes: { class: "Model" },
+    children: [{
+      id: "decoder",
+      name: "Decoder",
+      type: "decoder",
+      repeat: 4,
+      attributes: { range: "0..3" },
+      children: [{ id: "decoder.attention", name: "Attention", type: "attention", children: [] }],
+    }],
+  };
+  const graph = materializeStructureGraph(root);
+  const projected = projectGraphToTree(graph);
+  assert.equal(projected.id, "model");
+  assert.equal(projected.children[0].id, "decoder");
+  assert.equal(projected.children[0].repeat, 4);
+  assert.equal(projected.children[0].attributes.range, "0..3");
+  assert.equal(projected.children[0].children[0].id, "decoder.attention");
 });
 
 test("ELK lays out the graph without changing stable node paths", async () => {

@@ -9,7 +9,7 @@ from typing import Any
 from ..errors import IntrospectionError
 from ..schemas import ModelStructure, StructureNode
 from . import fold, semantics
-from .graph import materialize_structure_graph
+from .graph import materialize_structure_graph, project_graph_to_tree
 from .keys import make_extra_config
 from .repair.runtime import ConfigNormalizer, RuntimePatch
 from .summary import extract_summary, infer_model_family
@@ -66,11 +66,12 @@ def build_from_meta_model(
         diagnostics = dict(enriched_source.get("diagnostics") or {})
         diagnostics.update(normalizer_diagnostics)
         enriched_source["diagnostics"] = diagnostics
+    graph = materialize_structure_graph(result_root)
     return ModelStructure(
         summary=summary,
         source=enriched_source,
-        root=result_root,
-        graph=materialize_structure_graph(result_root),
+        root=project_graph_to_tree(graph),
+        graph=graph,
         extra_config=make_extra_config(config),
     )
 

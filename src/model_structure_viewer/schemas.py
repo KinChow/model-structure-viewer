@@ -33,7 +33,20 @@ class StructureGraphNode(BaseModel):
     id: str
     module_id: str | None = None
     parent_id: str | None = None
+    order: int = 0
+    name: str = ""
     type: str = "module"
+    repeat: int | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    source_fields: list[str] = Field(default_factory=list)
+    confidence: str = "high"
+    params: int | None = None
+    weight_shapes: dict[str, list[int]] | None = None
+    dtype: str | None = None
+    input_shape: list[int] | None = None
+    output_shape: list[int] | None = None
+    value_source: str | None = None
+    tensor_names: list[str] | None = None
 
 
 class StructureGraphEdge(BaseModel):
@@ -45,7 +58,9 @@ class StructureGraphEdge(BaseModel):
 
 
 class StructureGraph(BaseModel):
-    version: int = 1
+    version: int = 2
+    schema_version: int = 2
+    root_id: str = "root"
     nodes: list[StructureGraphNode] = Field(default_factory=list)
     edges: list[StructureGraphEdge] = Field(default_factory=list)
 

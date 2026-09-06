@@ -195,6 +195,13 @@ const FORMULAS = {
     inputs: ["x", "W_kv"],
     outputs: ["c_KV", "k_R"],
   },
+  mla_kv_split: {
+    title: "MLA KV Latent Split",
+    formula: "[c^{KV}, k^R] = split(z; kv\_lora\_rank, rope\_dim)",
+    explanation: "DeepSeek MLA 将 KV 投影结果拆成可缓存的 latent 和独立 rotary 分量；两者后续路径不同。",
+    inputs: ["z", "split sizes"],
+    outputs: ["c_KV", "k_R"],
+  },
   mla_output_gate: {
     title: "MLA Output Gate",
     formula: "O' = sigmoid(W_g x) * O",

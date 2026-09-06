@@ -246,6 +246,44 @@ function semanticEdges(item) {
   }
 
   if (item.node?.attributes?.attention_kind === "qsa" || /qsa attention/.test(name)) {
+    const dsaQueryDown = find(/query down projection/);
+    if (dsaQueryDown) {
+      const qNorm = find(/query latent rmsnorm/);
+      const qUp = find(/query up projection/);
+      const kvDown = find(/kv compression projection/);
+      const kvSplit = find(/kv latent and rope split/);
+      const kvNorm = find(/kv latent rmsnorm/);
+      const kvUp = find(/kv expansion projection/);
+      const rope = find(/rotary|rope/);
+      const indexQ = find(/indexer query projection/);
+      const indexWK = find(/indexer key and weight projection/);
+      const indexNorm = find(/indexer key rmsnorm/);
+      const indexer = find(/dsa indexer/);
+      const sparse = find(/dsa sparse mla attention/);
+      const output = find(/output projection|out_proj/);
+      const edges = [];
+      const add = (source, target) => {
+        if (!source || !target || source.path === target.path) return;
+        edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+      };
+      add(dsaQueryDown, qNorm);
+      add(qNorm, qUp);
+      add(qUp, rope);
+      add(kvDown, kvNorm);
+      add(kvDown, kvSplit);
+      add(kvSplit, kvNorm);
+      add(kvSplit, rope);
+      add(kvNorm, kvUp);
+      add(kvUp, rope);
+      add(qNorm, indexQ);
+      add(indexQ, indexer);
+      add(indexWK, indexNorm);
+      add(indexNorm, indexer);
+      add(indexer, sparse);
+      add(rope, sparse);
+      add(sparse, output);
+      return edges.length >= 8 ? edges : null;
+    }
     const qkv = find(/qkv/);
     const qNorm = find(/q attention norm|q_norm/);
     const kNorm = find(/k attention norm|k_norm/);

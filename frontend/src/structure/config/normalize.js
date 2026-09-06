@@ -71,6 +71,23 @@ function sparseAttentionSchedule(config, layers) {
   return schedule.concat(Array.from({ length: layers - schedule.length }, () => "gqa"));
 }
 
+function dsaIndexerSchedule(config, layers) {
+  const explicitTypes = config?.indexer_types;
+  if (Array.isArray(explicitTypes) && explicitTypes.length > 0) {
+    return Array.from({ length: layers || explicitTypes.length }, (_, index) =>
+      String(explicitTypes[index] || "full").toLowerCase() === "shared" ? "reuse" : "compute");
+  }
+  const pattern = config?.index_topk_pattern;
+  if (Array.isArray(pattern) && pattern.length > 0) {
+    return Array.from({ length: layers || pattern.length }, (_, index) =>
+      String(pattern[index] || "").toUpperCase() === "S" ? "reuse" : "compute");
+  }
+  const frequency = firstNumber(config, ["index_topk_freq"]) ?? 1;
+  const offset = firstNumber(config, ["index_skip_topk_offset"]) ?? 2;
+  return Array.from({ length: layers || 0 }, (_, index) =>
+    Math.max(index - offset + 1, 0) % frequency === 0 ? "compute" : "reuse");
+}
+
 function attentionKindForLayerType(layerType, useQsa = false) {
   const kind = String(layerType || "").toLowerCase();
   if (kind.includes("linear") || kind.includes("kda") || kind.includes("delta")) return "linear";
@@ -82,6 +99,9 @@ function explicitAttentionSchedule(config, layers) {
   const modelType = String(config?.model_type || "").toLowerCase();
   if (modelType === "deepseek_v4" && Array.isArray(config?.compress_ratios) && config.compress_ratios.length > 0) {
     return Array.from({ length: layers || config.compress_ratios.length }, () => "dsv4");
+  }
+  if ((modelType === "deepseek_v32" || modelType === "glm_moe_dsa") && firstNumber(config, ["index_topk"]) != null) {
+    return Array.from({ length: layers || 0 }, () => "qsa");
   }
   const isQwen35 = modelType.includes("qwen3_5");
   const layerTypes = config?.layer_types;
@@ -155,6 +175,10 @@ export function normalizeConfig(config) {
     indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim", "index_head_dim"]) ?? firstNumber(config, ["indexer_head_dim", "index_head_dim"]),
     indexerBudget: firstNumber(textConfig, ["index_topk", "indexer_budget"]) ?? firstNumber(config, ["index_topk", "indexer_budget"]),
     indexerCompressRatio: firstNumber(textConfig, ["indexer_compress_ratio"]) ?? firstNumber(config, ["indexer_compress_ratio"]),
+    indexerSchedule: (String(config?.model_type || textConfig?.model_type || "").includes("deepseek_v32")
+      || String(config?.model_type || textConfig?.model_type || "").includes("glm_moe_dsa"))
+      ? dsaIndexerSchedule(textConfig, layers) ?? dsaIndexerSchedule(config, layers)
+      : undefined,
     slidingWindow: firstNumber(textConfig, ["sliding_window", "window_size"]) ?? firstNumber(config, ["sliding_window", "window_size"]),
     routedScalingFactor: firstNumber(textConfig, ["routed_scaling_factor"]) ?? firstNumber(config, ["routed_scaling_factor"]),
     swigluLimit: firstNumber(textConfig, ["swiglu_limit"]) ?? firstNumber(config, ["swiglu_limit"]),

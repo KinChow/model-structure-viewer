@@ -614,7 +614,10 @@ function shapesForHidden(normalized) {
   return `[batch, sequence, hidden size=${normalized.hiddenSize ?? "unknown"}]`;
 }
 
-export function qsaAttentionOperatorSpecs(prefix, normalized) {
+export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
+  if (["deepseek_v32", "glm_moe_dsa"].includes(normalized.modelType)) {
+    return dsaAttentionOperatorSpecs(prefix, normalized, layerIndex);
+  }
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const indexerHeads = normalized.indexerNHeads || 0;
@@ -644,6 +647,94 @@ export function qsaAttentionOperatorSpecs(prefix, normalized) {
       attention_kind: "qsa",
     }, { input: dims.attentionQuery, output: dims.attentionContext }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
+  ];
+}
+
+// DeepSeek V3.2/GLM DSA 共用一份 MLA + indexer 语义；vLLM/SGLang 的融合方式只记录在 implementation。
+function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const heads = normalized.attentionHeads || 0;
+  const qRank = normalized.qLoraRank || 0;
+  const kvRank = normalized.kvLoraRank || 0;
+  const qkNope = normalized.qkNopeHeadDim || 0;
+  const ropeDim = normalized.qkRopeHeadDim || 0;
+  const qkDim = qkNope + ropeDim;
+  const valueDim = normalized.valueHeadDim || normalized.headDim || 0;
+  const indexHeads = normalized.indexerNHeads || 0;
+  const indexDim = normalized.indexerHeadDim || 0;
+  const budget = normalized.indexerBudget || 0;
+  const indexerMode = normalized.indexerSchedule?.[layerIndex] || "compute";
+  const qLatentShape = `[batch, sequence, q latent=${qRank}]`;
+  const kvLatentShape = `[batch, sequence, kv latent=${kvRank}, rope=${ropeDim}]`;
+  const qShape = `[batch, sequence, attention heads=${heads}, head dimension=${qkDim}]`;
+  const kShape = `[batch, sequence, attention heads=${heads}, head dimension=${qkDim}]`;
+  const vShape = `[batch, sequence, attention heads=${heads}, value head dimension=${valueDim}]`;
+  return [
+    operatorSpec(`${prefix}.q_a_proj`, "query down projection", "mla_query_compress", {
+      ...shapeFlow(shapes.hidden, qLatentShape),
+      implementation: ["vLLM.q_a_proj", "SGLang.q_a_proj"],
+    }, { input: dims.hidden, output: [-1, -1, qRank] }),
+    operatorSpec(`${prefix}.q_a_norm`, "query latent RMSNorm", "rmsnorm", shapeFlow(qLatentShape, qLatentShape), { input: [-1, -1, qRank], output: [-1, -1, qRank] }),
+    operatorSpec(`${prefix}.q_b_proj`, "query up projection", "linear", {
+      ...shapeFlow(qLatentShape, qShape),
+      implementation: ["vLLM.q_b_proj", "SGLang.q_b_proj"],
+    }, { input: [-1, -1, qRank], output: [-1, -1, heads, qkDim] }),
+    operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", {
+      ...shapeFlow(shapes.hidden, kvLatentShape),
+      implementation: ["vLLM.kv_a_proj_with_mqa", "SGLang.kv_a_proj_with_mqa"],
+      kv_lora_rank: kvRank,
+      qk_rope_head_dim: ropeDim,
+    }, { input: dims.hidden, output: [-1, -1, kvRank + ropeDim] }),
+    operatorSpec(`${prefix}.kv_split`, "KV latent and rope split", "mla_kv_split", {
+      ...shapeFlow(kvLatentShape, `[batch, sequence, kv latent=${kvRank}], [batch, sequence, rope=${ropeDim}]`),
+      split_sizes: [kvRank, ropeDim],
+    }, { input: [-1, -1, kvRank + ropeDim], output: [-1, -1, kvRank] }),
+    operatorSpec(`${prefix}.kv_a_norm`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${kvRank}]`, `[batch, sequence, kv latent=${kvRank}]`), { input: [-1, -1, kvRank], output: [-1, -1, kvRank] }),
+    operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", {
+      ...shapeFlow(`[batch, sequence, kv latent=${kvRank}]`, `${kShape}, ${vShape}`),
+      implementation: ["vLLM.kv_b_proj", "SGLang.kv_b_proj"],
+      qk_nope_head_dim: qkNope,
+      value_head_dim: valueDim,
+    }, { input: [-1, -1, kvRank], output: [-1, -1, heads, qkNope + valueDim] }),
+    operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
+      ...shapeFlow(`${qShape}, ${kShape}`, `${qShape}, ${kShape}`),
+      qk_rope_head_dim: ropeDim,
+      implementation: ["vLLM.DeepseekV32 rotary_emb", "SGLang.Deepseek rotary_emb"],
+    }, { input: [-1, -1, heads, qkDim], output: [-1, -1, heads, qkDim] }),
+    operatorSpec(`${prefix}.indexer.q_proj`, "indexer query projection", "linear", {
+      ...shapeFlow(qLatentShape, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
+      implementation: ["vLLM.Indexer.wq_b", "SGLang.Indexer.wq_b"],
+    }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }),
+    operatorSpec(`${prefix}.indexer.wk_weights_proj`, "indexer key and weight projection", "linear", {
+      ...shapeFlow(shapes.hidden, `[batch, sequence, index head dimension=${indexDim}] + [batch, sequence, index heads=${indexHeads}]`),
+      projection_layout: ["wk", "weights"],
+      implementation: ["vLLM.Indexer.wk_weights_proj", "SGLang.Indexer.wk_weights_proj"],
+    }, { input: dims.hidden, output: [-1, -1, indexDim + indexHeads] }),
+    operatorSpec(`${prefix}.indexer.k_norm`, "indexer key RMSNorm", "rmsnorm", {
+      ...shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
+      implementation: ["vLLM.Indexer.k_norm", "SGLang.Indexer.k_norm"],
+    }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
+    operatorSpec(`${prefix}.indexer`, "DSA indexer", "qsa_indexer", {
+      ...shapeFlow(shapes.hidden, `[batch, sequence, selected=${budget}]`),
+      indexer_heads: indexHeads,
+      indexer_head_dim: indexDim,
+      budget,
+      indexer_mode: indexerMode,
+      reuse_previous_indices: indexerMode === "reuse",
+      implementation: ["vLLM.SparseAttnIndexer", "SGLang.dsa_indexer"],
+    }, { input: dims.hidden, output: [-1, -1, budget] }),
+    operatorSpec(`${prefix}.sparse_attention`, "DSA sparse MLA attention", "qsa_attention", {
+      ...shapeFlow(`${qShape}, selected ${kShape}, selected ${vShape}`, `[batch, sequence, attention heads=${heads}, value head dimension=${valueDim}]`),
+      selected_tokens: budget,
+      attention_kind: "dsa_sparse_mla",
+      indexer_mode: indexerMode,
+      implementation: ["vLLM.DeepseekV32MLAAttention", "SGLang.RadixAttention + DSA backend"],
+    }, { input: [-1, -1, heads, qkDim], output: [-1, -1, heads, valueDim] }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
+      ...shapeFlow(`[batch, sequence, attention heads=${heads}, value head dimension=${valueDim}]`, shapes.hidden),
+      implementation: ["vLLM.o_proj", "SGLang.o_proj"],
+    }, { input: [-1, -1, heads, valueDim], output: dims.hidden }),
   ];
 }
 

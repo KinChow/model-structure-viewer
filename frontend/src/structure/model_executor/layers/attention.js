@@ -30,7 +30,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
       : attentionKind === "qwen35_full"
         ? qwen35FullAttentionOperatorSpecs(id, normalized)
       : attentionKind === "qsa"
-        ? qsaAttentionOperatorSpecs(id, normalized)
+        ? qsaAttentionOperatorSpecs(id, normalized, layerIndex)
       : attentionKind === "dsv4"
         ? deepseekV4AttentionOperatorSpecs(id, normalized, layerIndex)
         : attentionKind === "mla"

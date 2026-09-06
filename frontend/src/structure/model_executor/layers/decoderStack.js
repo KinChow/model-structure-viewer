@@ -19,11 +19,14 @@ export function decoderStackNetwork(id, normalized, options = {}) {
     const compressionVariant = attentionKind === "dsv4"
       ? `:c${normalized.compressRatios?.[index] ?? 0}`
       : "";
+    const indexerVariant = attentionKind === "qsa" && normalized.indexerSchedule?.length
+      ? `:i${normalized.indexerSchedule[index] || "compute"}`
+      : "";
     const hasPle = normalized.pleLayerIds?.includes(index + 1) ? "ple" : "no-ple";
     const mhcBoundary = normalized.multiHyperConnection
       ? (index === (layers || 0) - 1 ? "mhc-last" : "mhc-middle")
       : "no-mhc";
-    return `${kind}:${attentionKind}${compressionVariant}:${hasPle}:${mhcBoundary}`;
+    return `${kind}:${attentionKind}${compressionVariant}${indexerVariant}:${hasPle}:${mhcBoundary}`;
   });
   const children = compactRanges(combinedKinds).map((range) => {
     const repeat = range.end - range.start + 1;

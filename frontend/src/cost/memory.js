@@ -93,8 +93,9 @@ export function kvBytesPerToken(config, kvBytes = 2) {
         const ratio = config.compressRatios?.[index] ?? 0;
         perLayer += headDim;
         if (ratio > 1) perLayer += (2 * (ratio === 4 ? 2 : 1) * headDim) / ratio;
-      } else if (kind === "mla" && mlaRank != null && ropeDim != null) {
+      } else if ((kind === "mla" || kind === "qsa") && mlaRank != null && ropeDim != null) {
         perLayer += mlaRank + ropeDim;
+        if (kind === "qsa" && config?.indexerHeadDim != null) perLayer += config.indexerHeadDim;
       } else {
         perLayer += 2 * heads * headDim;
       }

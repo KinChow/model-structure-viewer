@@ -506,3 +506,50 @@ test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
   assert.ok(moe.children.some((node) => node.name === "Shared Expert Gate"));
   assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
 });
+
+test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse schedule", () => {
+  const deepseekConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V3.2/config.json"), "utf8"));
+  const deepseekNormalized = normalizeConfig(deepseekConfig);
+  assert.equal(deepseekNormalized.attentionSchedule.length, 61);
+  assert.equal(deepseekNormalized.attentionSchedule.every((kind) => kind === "qsa"), true);
+  assert.equal(deepseekNormalized.indexerSchedule.every((kind) => kind === "compute"), true);
+  const deepseekResolved = resolveArchitecture(deepseekNormalized, { modelId: "deepseek-ai/DeepSeek-V3.2" });
+  const deepseekStructure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(deepseekResolved, deepseekNormalized),
+    normalized: deepseekNormalized,
+    resolved: deepseekResolved,
+  }));
+  const deepseekAttention = deepseekStructure.root.children.find((node) => node.id === "decoder").children[0].children.find((node) => node.type === "attention");
+  assert.deepEqual(deepseekAttention.children.map((node) => node.name), [
+    "query down projection",
+    "query latent RMSNorm",
+    "query up projection",
+    "KV compression projection",
+    "KV latent and rope split",
+    "KV latent RMSNorm",
+    "KV expansion projection",
+    "rotary position embedding",
+    "indexer query projection",
+    "indexer key and weight projection",
+    "indexer key RMSNorm",
+    "DSA indexer",
+    "DSA sparse MLA attention",
+    "output projection",
+  ]);
+  assert.equal(deepseekAttention.children.find((node) => node.name === "DSA indexer").attributes.indexer_mode, "compute");
+  assert.equal(deepseekAttention.children.find((node) => node.name === "KV latent and rope split").attributes.formula_id, "mla_kv_split");
+
+  const glmConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-5.2/config.json"), "utf8"));
+  const glmNormalized = normalizeConfig(glmConfig);
+  assert.deepEqual(glmNormalized.indexerSchedule.slice(0, 8), ["compute", "compute", "compute", "reuse", "reuse", "reuse", "compute", "reuse"]);
+  const glmResolved = resolveArchitecture(glmNormalized, { modelId: "zai-org/GLM-5.2" });
+  const glmStructure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(glmResolved, glmNormalized),
+    normalized: glmNormalized,
+    resolved: glmResolved,
+  }));
+  const glmDecoder = glmStructure.root.children.find((node) => node.id === "decoder");
+  assert.equal(glmDecoder.children[0].attributes.range, "0..2");
+  assert.equal(glmDecoder.children[1].attributes.range, "3..5");
+  assert.equal(glmDecoder.children[1].children.find((node) => node.type === "attention").children.find((node) => node.name === "DSA indexer").attributes.indexer_mode, "reuse");
+});

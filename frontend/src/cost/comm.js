@@ -1,7 +1,7 @@
 // 给定并行计划的通信量估算；不建模 overlap、调度和实际链路拥塞。
 // 来源：llm-analysis 的 TP 通信公式，以及 evolution_design.md §5.3(6.3) F11-F12。
 
-import { kvBytesPerCard, validatePdPlan } from "./parallel.js";
+import { kvBytesPerCard, stateBytesPerCard, validatePdPlan } from "./parallel.js";
 
 function nonNegative(value, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
@@ -57,10 +57,11 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
  * PD 分离的 KV 传输量，按 decode 侧 KV 布局计算。
  * 来源：evolution_design.md §5.3(7) 与 F15；只给出理论传输量，不建模 overlap。
  */
-export function pdKvTransferBytes({ totalKvBytes = 0, config = {}, pdPlan = {}, prefillChip, decodeChip } = {}) {
+export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, config = {}, pdPlan = {}, prefillChip, decodeChip } = {}) {
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, perDecodeRankBytes: null, aggregateBytes: null };
   const perRank = kvBytesPerCard(totalKvBytes, config, checked.decodePlan);
+  const perStateRank = stateBytesPerCard(totalStateBytes, config, checked.decodePlan);
   const decodeRanks = checked.decodePlan.tp * checked.decodePlan.dp;
   const layoutRepackRequired = checked.prefillPlan.tp !== checked.decodePlan.tp
     || checked.prefillPlan.attnMode !== checked.decodePlan.attnMode;
@@ -75,11 +76,14 @@ export function pdKvTransferBytes({ totalKvBytes = 0, config = {}, pdPlan = {}, 
     errors: [],
     perDecodeRankBytes: perRank.bytes,
     decodeRanks,
-    aggregateBytes: perRank.bytes * decodeRanks,
+    perDecodeRankStateBytes: perStateRank.bytes,
+    aggregateStateBytes: perStateRank.bytes * decodeRanks,
+    aggregateBytes: perRank.bytes * decodeRanks + perStateRank.bytes * decodeRanks,
     linkBandwidth,
     linkSource: linkBandwidth ? linkSource : "缺少链路带宽",
     layoutRepackRequired,
     shardFactor: perRank.shardFactor,
+    stateShardFactor: perStateRank.shardFactor,
     prefillPlan: checked.prefillPlan,
     decodePlan: checked.decodePlan,
   };

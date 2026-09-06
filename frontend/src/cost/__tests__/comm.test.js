@@ -48,6 +48,15 @@ test("PD KV 传输量按 decode 侧 MLA 布局复制", () => {
   assert.equal(result.aggregateBytes, 1280);
 });
 
+test("PD transfer includes request-scoped KDA state", () => {
+  const result = pdKvTransferBytes({ totalKvBytes: 160, totalStateBytes: 80, config: { kvHeads: 4 }, pdPlan: {
+    prefill_plan: { tp: 1 }, decode_plan: { tp: 4, dp: 1 },
+  } });
+  assert.equal(result.perDecodeRankBytes, 40);
+  assert.equal(result.perDecodeRankStateBytes, 20);
+  assert.equal(result.aggregateBytes, 240);
+});
+
 test("PD 链路带宽取两侧可用链路的较小值", () => {
   const result = pdKvTransferBytes({ totalKvBytes: 10, config: { kvHeads: 1 }, pdPlan: { prefill_plan: {}, decode_plan: {} },
     prefillChip: { interconnect: { inter_node: { bandwidth: 20e9 } } },

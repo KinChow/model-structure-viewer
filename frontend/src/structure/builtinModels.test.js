@@ -10,7 +10,7 @@ import { createStructureIr } from "./ir/createStructureIr.js";
 import { materializeModelStructure } from "./materializers/toStructureNode.js";
 import { formulaForOperator } from "./formulas/index.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
-import { kvBytesPerToken } from "../cost/memory.js";
+import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -39,6 +39,7 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
     });
     assert.ok(Number.isFinite(derivedWeightParameters(normalized)), `${entry.model_id}: invalid derived weights`);
     assert.ok(Number.isFinite(kvBytesPerToken(normalized)), `${entry.model_id}: invalid KV cost`);
+    assert.ok(Number.isFinite(linearStateBytesPerSequence(normalized)), `${entry.model_id}: invalid recurrent state cost`);
     if (entry.model_id === "moonshotai/Kimi-K3") {
       assert.equal(resolved.canonicalArchitecture, "hybrid-multimodal-moe-decoder");
       assert.deepEqual(normalized.attentionSchedule.filter((kind) => kind === "linear").length, 69);

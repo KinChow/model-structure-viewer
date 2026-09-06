@@ -45,6 +45,34 @@ export function nodeWeightBytes(node) {
   );
 }
 
+/**
+ * KDA runtime state elements per linear-attention layer and sequence.
+ * The recurrent matrix and causal-conv history are request state, not token KV.
+ * Shape source: vLLM MambaStateShapeCalculator.kda_state_shape.
+ */
+export function linearStateElementsPerLayer(config = {}, layerIndex = 0) {
+  if (config?.attentionSchedule?.[layerIndex] !== "linear") return 0;
+  const keyHeads = config.linearKeyHeads || config.attentionHeads || 0;
+  const valueHeads = config.linearValueHeads || config.attentionHeads || 0;
+  const keyDim = config.linearKeyDim || config.headDim || 0;
+  const valueDim = config.linearValueDim || config.valueHeadDim || keyDim;
+  const kernel = Math.max(0, (config.linearConvKernelSize || 1) - 1);
+  const convElements = keyHeads * keyDim * 2 + valueHeads * valueDim;
+  const recurrentElements = valueHeads * valueDim * keyDim;
+  return convElements * kernel + recurrentElements;
+}
+
+export function linearStateElementsPerSequence(config = {}) {
+  const layers = config?.layers || config?.attentionSchedule?.length || 0;
+  let total = 0;
+  for (let index = 0; index < layers; index += 1) total += linearStateElementsPerLayer(config, index);
+  return total;
+}
+
+export function linearStateBytesPerSequence(config = {}, bytesPerElement = 2) {
+  return linearStateElementsPerSequence(config) * bytesPerElement;
+}
+
 // 来源：llm-analysis 的 LLMAnalysis.get_memory_kv_cache_per_layer。
 export function kvBytesPerToken(config, kvBytes = 2) {
   const layers = config?.layers || 0;
@@ -57,7 +85,8 @@ export function kvBytesPerToken(config, kvBytes = 2) {
     for (let index = 0; index < layers; index += 1) {
       const kind = config.attentionSchedule[index] || "gqa";
       if (kind === "linear") {
-        perLayer += (config.linearValueHeads || heads) * (config.linearValueDim || headDim);
+        // KDA state is request-scoped and is returned separately below.
+        perLayer += 0;
       } else if (kind === "mla" && mlaRank != null && ropeDim != null) {
         perLayer += mlaRank + ropeDim;
       } else {
@@ -80,9 +109,11 @@ export function activationPeakBytes({ activationPeak = 1.5 * 1024 ** 3 } = {}) {
 export function memoryBreakdown({ weightBytes = 0, config, batch = 1, tokens = 1, kvBytes = 2,
   activationPeak, runtimeConst = 1.5 * 1024 ** 3, commBuffer = 0 } = {}) {
   const kv = kvBytesPerToken(config, kvBytes) * batch * tokens;
+  const state = linearStateBytesPerSequence(config, kvBytes) * batch;
   const activation = activationPeakBytes({ activationPeak });
-  const total = weightBytes + kv + activation + runtimeConst + commBuffer;
-  return { weightBytes, kvBytes: kv, kvBytesPerToken: kvBytesPerToken(config, kvBytes), activationBytes: activation, runtimeBytes: runtimeConst,
+  const total = weightBytes + kv + state + activation + runtimeConst + commBuffer;
+  return { weightBytes, kvBytes: kv, kvBytesPerToken: kvBytesPerToken(config, kvBytes), stateBytes: state,
+    stateBytesPerSequence: linearStateBytesPerSequence(config, kvBytes), activationBytes: activation, runtimeBytes: runtimeConst,
     commBufferBytes: commBuffer, totalBytes: total };
 }
 

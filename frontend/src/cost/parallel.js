@@ -1,7 +1,7 @@
 // 给定 TP/PP/EP/DP 计划的资源投影；不搜索计划，也不预测吞吐或延迟。
 // 来源：llm-analysis 的并行内存分解方法，以及 evolution_design.md §5.3(6)。
 
-import { nodeWeightBytes } from "./memory.js";
+import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeightBytes } from "./memory.js";
 
 function positiveInteger(value) {
   return Number.isInteger(value) && value > 0;
@@ -46,6 +46,25 @@ export function kvBytesPerCard(totalKvBytes, config = {}, plan = {}) {
     ? 1
     : Math.min(tp, config.kvHeads || config.attentionHeads || 1);
   return { bytes: totalKvBytes / shardFactor, shardFactor, errors: [] };
+}
+
+/** KDA request state is sharded with attention TP, but replicated under DP-attention. */
+export function stateBytesPerCard(totalStateBytes, config = {}, plan = {}) {
+  const checked = validatePlan(plan, config);
+  if (!checked.ok) return { bytes: null, shardFactor: null, errors: checked.errors };
+  const shardFactor = checked.plan.attnMode === "dp" ? 1 : checked.plan.tp;
+  return { bytes: totalStateBytes / shardFactor, shardFactor, errors: [] };
+}
+
+function stateBytesForLayerRange(totalStateBytes, config = {}, start = 0, end = -1) {
+  const layers = config.layers || config.attentionSchedule?.length || 0;
+  const totalElements = linearStateElementsPerSequence(config);
+  if (!layers || !totalElements || end < start) return 0;
+  let selected = 0;
+  for (let index = Math.max(0, start); index <= Math.min(end, layers - 1); index += 1) {
+    selected += linearStateElementsPerLayer(config, index);
+  }
+  return totalStateBytes * selected / totalElements;
 }
 
 function modulePath(node) {
@@ -134,15 +153,16 @@ function layerSpanForNode(node) {
 }
 
 /** 逐 stage 返回已投影的权重与 KV，供后续 fit UI 使用。 */
-export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = {} } = {}) {
+export function projectPlan({ weightBytes = 0, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
   if (arguments[0]?.root) {
-    const projected = projectNodePlan({ root: arguments[0].root, targetWeightBytes: weightBytes, kvBytes, config, plan: checked.plan });
+    const projected = projectNodePlan({ root: arguments[0].root, targetWeightBytes: weightBytes, kvBytes, stateBytes, config, plan: checked.plan });
     if (projected.stages.some((stage) => stage.weightBytes > 0) || weightBytes <= 0) return projected;
   }
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
+  const state = stateBytesPerCard(stateBytes, config, checked.plan);
   const perStageWeight = weightBytes / pp;
   return {
     ok: true,
@@ -153,6 +173,7 @@ export function projectPlan({ weightBytes = 0, kvBytes = 0, config = {}, plan = 
       ranks: checked.plan.tp * dp,
       weightBytes: perStageWeight,
       kvBytes: kv.bytes,
+      stateBytes: state.bytes / pp,
       dpRanks: dp,
     })),
   };
@@ -174,13 +195,13 @@ function treeWeightBytes(root) {
   return total;
 }
 
-export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, config = {}, plan = {} } = {}) {
+export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
   const naturalWeightBytes = treeWeightBytes(root);
   const weightScale = positiveNumber(targetWeightBytes) && naturalWeightBytes > 0 ? targetWeightBytes / naturalWeightBytes : 1;
-  const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
+  const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, stateBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
   function visit(node, inheritedRepeat = 1, inheritedLayerSpan = null) {
     const path = String(node?.id || node?.name || "").toLowerCase();
     const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
@@ -212,10 +233,14 @@ export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, config =
   }
   if (root) visit(root);
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
+  const state = stateBytesPerCard(stateBytes, config, checked.plan);
   for (const stage of stages) {
     const bounds = config.layers ? stageLayerBounds(stage.stage, config.layers, pp) : null;
     const stageLayers = bounds ? Math.max(0, bounds.end - bounds.start + 1) : 0;
     stage.kvBytes = config.layers ? kv.bytes * stageLayers / config.layers : kv.bytes / pp;
+    stage.stateBytes = config.layers
+      ? state.bytes == null ? null : state.bytes * (stateBytesForLayerRange(stateBytes, config, bounds.start, bounds.end) / Math.max(stateBytes, 1))
+      : (state.bytes || 0) / pp;
     const expertRange = expertWeightRange(stage.expertWeightBytes, config.experts, checked.plan.ep);
     stage.expertWeightAverageBytes = expertRange.averageBytes;
     stage.expertWeightWorstBytes = expertRange.worstBytes;
@@ -229,15 +254,15 @@ export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, config =
 }
 
 /** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。 */
-export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
+export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, stateBytes = 0, prefillStateBytes, decodeStateBytes, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
-  function side(plan, chip, sideKvBytes) {
-    const projection = projectPlan({ root, weightBytes, kvBytes: sideKvBytes, config, plan });
+  function side(plan, chip, sideKvBytes, sideStateBytes) {
+    const projection = projectPlan({ root, weightBytes, kvBytes: sideKvBytes, stateBytes: sideStateBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
-      const totalBytes = stage.weightBytes + stage.kvBytes + activationBytes + runtimeBytes + commBufferBytes;
-      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + activationBytes + runtimeBytes + commBufferBytes;
+      const totalBytes = stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0) + activationBytes + runtimeBytes + commBufferBytes;
+      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + (stage.stateBytes || 0) + activationBytes + runtimeBytes + commBufferBytes;
       return { ...stage, totalBytes, worstTotalBytes,
         fit: positiveNumber(capacity) ? totalBytes <= capacity : null,
         worstFit: positiveNumber(capacity) ? worstTotalBytes <= capacity : null };
@@ -248,8 +273,8 @@ export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, prefillKvByte
   return {
     ok: true,
     errors: [],
-    prefill: side(checked.prefillPlan, prefillChip, prefillKvBytes ?? kvBytes),
-    decode: side(checked.decodePlan, decodeChip, decodeKvBytes ?? kvBytes),
+    prefill: side(checked.prefillPlan, prefillChip, prefillKvBytes ?? kvBytes, prefillStateBytes ?? stateBytes),
+    decode: side(checked.decodePlan, decodeChip, decodeKvBytes ?? kvBytes, decodeStateBytes ?? stateBytes),
   };
 }
 
@@ -259,7 +284,7 @@ export function maxContextForStages(stages = [], { capacityBytes, activationByte
   const limits = stages.map((stage) => {
     const kvPerContextToken = stage.kvBytes / sequence;
     if (!positiveNumber(kvPerContextToken)) return null;
-    return Math.max(0, Math.floor((capacityBytes - stage.weightBytes - activationBytes - runtimeBytes) / kvPerContextToken));
+    return Math.max(0, Math.floor((capacityBytes - stage.weightBytes - (stage.stateBytes || 0) - activationBytes - runtimeBytes) / kvPerContextToken));
   }).filter((value) => value != null);
   return limits.length ? Math.min(...limits) : null;
 }

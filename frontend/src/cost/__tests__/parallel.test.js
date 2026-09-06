@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, projectNodePlan, projectPdFit, projectPlan, stageForLayer, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, projectNodePlan, projectPdFit, projectPlan, stageForLayer, stateBytesPerCard, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
@@ -23,6 +23,11 @@ test("F7 DP-attention 下每个 rank 持有完整 KV", () => {
   const result = kvBytesPerCard(160, { kvHeads: 8 }, { tp: 4, dp: 2, attnMode: "dp" });
   assert.equal(result.shardFactor, 1);
   assert.equal(result.bytes, 160);
+});
+
+test("KDA request state follows attention TP and is replicated under DP-attention", () => {
+  assert.equal(stateBytesPerCard(160, {}, { tp: 4 }).bytes, 40);
+  assert.equal(stateBytesPerCard(160, {}, { tp: 4, attnMode: "dp" }).bytes, 160);
 });
 
 test("权重按模块类别选择 TP/EP/复制投影", () => {
@@ -74,6 +79,12 @@ test("F14 按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
 test("PP 按 stage 层数分配 KV 而不是每个 stage 复制全量", () => {
   const result = projectNodePlan({ root: { id: "model", children: [] }, config: { layers: 5, kvHeads: 1 }, plan: { pp: 2 }, kvBytes: 100 });
   assert.deepEqual(result.stages.map((stage) => stage.kvBytes), [40, 60]);
+});
+
+test("PP 按实际 linear-attention 层分配 KDA state", () => {
+  const config = { layers: 2, attentionSchedule: ["linear", "gqa"], attentionHeads: 2, headDim: 4, linearKeyHeads: 2, linearValueHeads: 2, linearKeyDim: 4, linearValueDim: 4, linearConvKernelSize: 3 };
+  const result = projectNodePlan({ root: { id: "model", children: [] }, config, plan: { tp: 1, pp: 2 }, stateBytes: 128 });
+  assert.deepEqual(result.stages.map((stage) => stage.stateBytes), [128, 0]);
 });
 
 test("PP 汇总不重复计算父列表和范围子节点 repeat", () => {

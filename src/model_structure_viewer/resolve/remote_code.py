@@ -34,25 +34,6 @@ class RemoteCodeFetcher:
     def __init__(self, hf: HuggingFaceClient):
         self.hf = hf
 
-    def cache_metadata_files(self, model_id: str, revision: str, cache_dir: Path) -> None:
-        """Mirror small, allow-listed root files (README, tokenizer json, etc.)."""
-        for item in self.hf.list_tree(model_id, revision):
-            file_path = item.get("path", "")
-            if not file_path or "/" in file_path:
-                continue
-            if not METADATA_ALLOW_RE.match(file_path):
-                continue
-            if file_path.endswith(WEIGHT_SUFFIXES):
-                continue
-            if file_path == "config.json":
-                continue
-            target = cache_dir / file_path
-            try:
-                text = self.hf.download_text(model_id, file_path, revision)
-            except RemoteError:
-                continue
-            target.write_text(text, encoding="utf-8")
-
     def ensure_remote_code(
         self,
         *,

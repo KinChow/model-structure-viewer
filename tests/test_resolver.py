@@ -291,6 +291,34 @@ def test_ensure_remote_code_disabled_when_flag_false(tmp_path, monkeypatch):
     assert "remote_code_fetch" not in resolved.source
 
 
+def test_hf_source_does_not_download_remote_code_when_disabled(tmp_path, monkeypatch):
+    resolver = _stub_resolver(tmp_path, auto_fetch=False)
+    monkeypatch.setattr(
+        HuggingFaceClient,
+        "download_json",
+        lambda self, model_id, filename, revision: {
+            "model_type": "custom",
+            "auto_map": {"AutoModel": "modeling_untrusted.UntrustedModel"},
+        },
+    )
+
+    def reject_code_fetch(*args, **kwargs):
+        raise AssertionError("remote code must not be listed or downloaded")
+
+    monkeypatch.setattr(HuggingFaceClient, "list_tree", reject_code_fetch)
+    monkeypatch.setattr(HuggingFaceClient, "download_text", reject_code_fetch)
+
+    resolved = resolver.resolve(
+        source="hf",
+        model_id="Org/Model",
+        cache_policy="refresh",
+    )
+
+    assert (resolved.local_dir / "config.json").exists()
+    assert list(resolved.local_dir.glob("*.py")) == []
+    assert "remote_code_fetch" not in resolved.source
+
+
 def test_ensure_remote_code_disabled_in_offline(tmp_path, monkeypatch):
     model_id = "deepseek-ai/DeepSeek-V3"
     _seed_local(tmp_path, model_id, DEEPSEEK_FIXTURE.read_text(encoding="utf-8"))

@@ -177,7 +177,6 @@ class ModelSourceResolver:
         cache_dir.mkdir(parents=True, exist_ok=True)
         config = self._hf.download_json(model_id, "config.json", revision)
         self._cache.write_json(config_path, config)
-        self._remote_code.cache_metadata_files(model_id, revision, cache_dir)
         return ResolvedConfig(
             config=config,
             source={

@@ -1,4 +1,5 @@
 import { enrichNetworkWithTruth, TEMPLATE_FAMILIES } from "../../cost/mergeSemantics.js";
+import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -59,6 +60,19 @@ export function materializeModelStructure(ir) {
   const effectiveStrategy = truthDiagnostics.strategy === "no-truth" || !truth
     ? ir.strategy
     : truthDiagnostics.strategy;
+  const root = {
+    id: network.id,
+    name: network.name,
+    type: "model",
+    attributes: {
+      class: network.name,
+      model_type: normalized.modelType,
+      canonical_architecture: resolved.canonicalArchitecture,
+    },
+    source_fields: ["model_type", "canonical_architecture"],
+    confidence: "high",
+    children: network.children.map(structureNodeFromSpec),
+  };
 
   return {
     summary: {
@@ -94,19 +108,8 @@ export function materializeModelStructure(ir) {
       checkpoint_truth_endpoint: options.checkpointTruthEndpoint || null,
       diagnostics: mergedDiagnostics,
     },
-    root: {
-      id: network.id,
-      name: network.name,
-      type: "model",
-      attributes: {
-        class: network.name,
-        model_type: normalized.modelType,
-        canonical_architecture: resolved.canonicalArchitecture,
-      },
-      source_fields: ["model_type", "canonical_architecture"],
-      confidence: "high",
-      children: network.children.map(structureNodeFromSpec),
-    },
+    root,
+    graph: materializeStructureGraph(root),
     extra_config: normalized.raw,
   };
 }

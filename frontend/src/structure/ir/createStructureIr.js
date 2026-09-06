@@ -2,7 +2,7 @@ import { collectDiagnostics } from "../diagnostics/collectDiagnostics.js";
 
 export function createStructureIr({ network, normalized, resolved, options = {} }) {
   return {
-    version: 2,
+    version: 3,
     strategy: "frontend-architecture-template",
     network,
     normalized,

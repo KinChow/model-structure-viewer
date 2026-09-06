@@ -194,7 +194,10 @@ test("builds network modules and materializes operator formulas", () => {
   const structure = materializeModelStructure(ir);
 
   assert.equal(network.kind, "network");
-  assert.equal(ir.version, 2);
+  assert.equal(ir.version, 3);
+  assert.equal(structure.graph.version, 1);
+  assert.ok(structure.graph.nodes.length > 0);
+  assert.ok(structure.graph.edges.some((edge) => edge.evidence === "semantic-flow"));
   assert.equal(ir.diagnostics.operator_count > 0, true);
   assert.equal(network.children[1].id, "decoder");
   assert.equal(structure.summary.canonical_architecture, "mla-moe-decoder");

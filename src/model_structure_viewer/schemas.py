@@ -29,10 +29,32 @@ class StructureNode(BaseModel):
     tensor_names: list[str] | None = None  # 绑定到本节点的 header 张量名
 
 
+class StructureGraphNode(BaseModel):
+    id: str
+    module_id: str | None = None
+    parent_id: str | None = None
+    type: str = "module"
+
+
+class StructureGraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    kind: str = "dataflow"
+    evidence: str | None = None
+
+
+class StructureGraph(BaseModel):
+    version: int = 1
+    nodes: list[StructureGraphNode] = Field(default_factory=list)
+    edges: list[StructureGraphEdge] = Field(default_factory=list)
+
+
 class ModelStructure(BaseModel):
     summary: dict[str, Any] = Field(default_factory=dict)
     source: dict[str, Any] = Field(default_factory=dict)
     root: StructureNode
+    graph: StructureGraph | None = None
     extra_config: dict[str, Any] = Field(default_factory=dict)
 
 

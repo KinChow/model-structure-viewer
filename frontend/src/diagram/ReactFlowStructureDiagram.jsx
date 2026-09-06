@@ -356,7 +356,7 @@ function ReactFlowCanvas({ graph, props }) {
 }
 
 export default function ReactFlowStructureDiagram(props) {
-  const baseGraph = useMemo(() => layoutGraph(props.structure.root, props.expandedGroups), [props.structure, props.expandedGroups]);
+  const baseGraph = useMemo(() => layoutGraph(props.structure, props.expandedGroups), [props.structure, props.expandedGroups]);
   const [graph, setGraph] = useState(baseGraph);
   const [hoveredPath, setHoveredPath] = useState(null);
   useEffect(() => {
@@ -390,5 +390,5 @@ export default function ReactFlowStructureDiagram(props) {
     layoutGraphWithElk(baseGraph).then((next) => { if (active) setGraph(next); }).catch(() => {});
     return () => { active = false; };
   }, [baseGraph]);
-  return <div className="diagram-frame react-flow-diagram" data-active-lenses={[...props.activeLenses].join(",")}><ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider></div>;
+  return <div className="diagram-frame react-flow-diagram" data-graph-version={graph.graphVersion || "legacy"} data-active-lenses={[...props.activeLenses].join(",")}><ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider></div>;
 }

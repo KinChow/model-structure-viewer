@@ -24,6 +24,30 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
   assert.deepEqual(graph.containerFrames, []);
 });
 
+test("layoutGraph consumes explicit IR edges without inferring replacements", () => {
+  const root = {
+    name: "model",
+    type: "model",
+    children: [
+      { name: "first", type: "module", children: [] },
+      { name: "second", type: "module", children: [] },
+    ],
+  };
+  const graph = layoutGraph({
+    root,
+    graph: {
+      version: 1,
+      nodes: [],
+      edges: [{ id: "explicit", source: "root.1", target: "root.0", kind: "dataflow", evidence: "declared" }],
+    },
+  }, new Set(["root"]));
+
+  assert.equal(graph.graphVersion, 1);
+  assert.deepEqual(graph.edges, [
+    { id: "explicit", source: "root.1", target: "root.0", kind: "dataflow", evidence: "declared" },
+  ]);
+});
+
 test("ELK lays out the graph without changing stable node paths", async () => {
   const graph = layoutGraph({
     name: "model", type: "model", children: [

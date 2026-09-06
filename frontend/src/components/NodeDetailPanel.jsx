@@ -1,14 +1,7 @@
 import { useState } from "react";
 import AttributeGrid from "./AttributeGrid";
 import ShapeFlow from "./ShapeFlow";
-
-function formatCount(n) {
-  if (n == null || !Number.isFinite(n)) return null;
-  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-  return String(n);
-}
+import { formatBytes, formatCount, formatQuantity, formatSeconds } from "../formatters.js";
 
 function TruthSection({ node, language = "zh" }) {
   const english = language === "en";
@@ -34,7 +27,7 @@ function TruthSection({ node, language = "zh" }) {
       <h4>
         {english ? "Parameter truth" : "参数真值"} <span className={`badge ${node.value_source === "checkpoint" ? "truth" : ""}`}>{sourceLabel}</span>
       </h4>
-      {node.params != null && <div className="truth-row"><b>{english ? "Parameters" : "参数量"}</b>{formatCount(node.params)}</div>}
+      {node.params != null && <div className="truth-row"><b>{english ? "Parameters" : "参数量"}</b>{formatCount(node.params, { largeDigits: 2 })}</div>}
       {node.dtype && <div className="truth-row"><b>dtype</b>{node.dtype}</div>}
       {node.weight_shapes && Object.keys(node.weight_shapes).length > 0 && (
         <div className="truth-row">
@@ -59,17 +52,8 @@ function FormulaSection({ node, language = "zh" }) {
 
 function LensSection({ lens, activeLenses = new Set(), language = "zh" }) {
   if (!lens || activeLenses.size === 0) return null;
-  const formatTime = (value) => Number.isFinite(value) ? (value >= 1 ? `${value.toFixed(2)} s` : `${(value * 1000).toFixed(2)} ms`) : "-";
   const aggregateOnly = activeLenses.has("vram") || activeLenses.has("kv");
-  const formatBytes = (value) => Number.isFinite(value) ? (value >= 1024 ** 3 ? `${(value / 1024 ** 3).toFixed(2)} GiB` : value >= 1024 ** 2 ? `${(value / 1024 ** 2).toFixed(1)} MiB` : `${Math.round(value)} B`) : "-";
-  const formatQuantity = (value) => {
-    if (!Number.isFinite(value)) return "-";
-    if (value >= 1e12) return `${(value / 1e12).toFixed(2)} T`;
-    if (value >= 1e9) return `${(value / 1e9).toFixed(2)} G`;
-    if (value >= 1e6) return `${(value / 1e6).toFixed(1)} M`;
-    return `${Math.round(value)}`;
-  };
-  return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4>{activeLenses.has("vram") && <div className="truth-row"><b>VRAM</b>{formatBytes(lens.metrics?.vramBytes)}</div>}{activeLenses.has("compute") && <><div className="truth-row"><b>{language === "en" ? "MACs / forward" : "MACs / forward"}</b>{formatQuantity(lens.metrics?.macs)}</div><div className="truth-row"><b>FLOPs / forward</b>{formatQuantity(lens.metrics?.flops)}</div><div className="truth-row muted"><b>{language === "en" ? "Roofline compute" : "Roofline 计算"}</b>{formatTime(lens.metrics?.computeSeconds)}</div></>}{activeLenses.has("memory") && <div className="truth-row"><b>Memory</b>{formatBytes(lens.metrics?.memoryBytes)}</div>}{activeLenses.has("compute") && <div className="truth-row"><b>{language === "en" ? "Communication" : "通信"}</b>{formatTime(lens.metrics?.communicationSeconds)}</div>}{activeLenses.has("kv") && <div className="truth-row muted"><b>KV Cache</b>{language === "en" ? "See cost panel aggregate" : "见成本面板汇总"}</div>}{aggregateOnly && !activeLenses.has("vram") && !activeLenses.has("kv") && <div className="truth-row muted">{language === "en" ? "No node-level aggregate" : "无节点级汇总"}</div>}</section>;
+  return <section className="node-lens-section"><h4>Cost Lens <span className={`badge ${lens.bound === "unknown" ? "" : "truth"}`}>{lens.bound}</span></h4>{activeLenses.has("vram") && <div className="truth-row"><b>VRAM</b>{formatBytes(lens.metrics?.vramBytes)}</div>}{activeLenses.has("compute") && <><div className="truth-row"><b>{language === "en" ? "MACs / forward" : "MACs / forward"}</b>{formatQuantity(lens.metrics?.macs)}</div><div className="truth-row"><b>FLOPs / forward</b>{formatQuantity(lens.metrics?.flops)}</div><div className="truth-row muted"><b>{language === "en" ? "Roofline compute" : "Roofline 计算"}</b>{formatSeconds(lens.metrics?.computeSeconds)}</div></>}{activeLenses.has("memory") && <div className="truth-row"><b>Memory</b>{formatBytes(lens.metrics?.memoryBytes)}</div>}{activeLenses.has("compute") && <div className="truth-row"><b>{language === "en" ? "Communication" : "通信"}</b>{formatSeconds(lens.metrics?.communicationSeconds)}</div>}{activeLenses.has("kv") && <div className="truth-row muted"><b>KV Cache</b>{language === "en" ? "See cost panel aggregate" : "见成本面板汇总"}</div>}{aggregateOnly && !activeLenses.has("vram") && !activeLenses.has("kv") && <div className="truth-row muted">{language === "en" ? "No node-level aggregate" : "无节点级汇总"}</div>}</section>;
 }
 
 function ChildModulesSection({ node, path, language = "zh", onSelectPath }) {

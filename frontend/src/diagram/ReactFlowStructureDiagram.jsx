@@ -18,26 +18,12 @@ import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
 import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgeStrokeWidth } from "./edgeStyle.js";
+import { formatBytes, formatMetric } from "../formatters.js";
 
 const EMPTY_SET = new Set();
 const DATAFLOW_MARKER = { type: MarkerType.ArrowClosed, width: 10, height: 10, color: "#d08a3a" };
 const HoverContext = createContext({ activeRelationPath: null, onHover: null });
 
-function formatMetric(value) {
-  if (!Number.isFinite(value)) return null;
-  if (value >= 1e12) return `${(value / 1e12).toFixed(2)}T`;
-  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}G`;
-  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
-  return `${Math.round(value)}`;
-}
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes)) return "-";
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GiB`;
-  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MiB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
-  return `${Math.round(bytes)} B`;
-}
 
 function parentPath(path) {
   const index = path.lastIndexOf(".");
@@ -81,7 +67,7 @@ function MsvNode({ data, selected }) {
     activeLenses.has("vram") && ["vram", "V", metrics.vramBytes, true],
   ].filter(Boolean).map(([id, label, value, bytes]) => ({
     id,
-    text: value == null ? `${label} -` : `${label} ${bytes ? formatBytes(value) : formatMetric(value)}`,
+    text: value == null ? `${label} -` : `${label} ${bytes ? formatBytes(value, { includeKib: true }) : formatMetric(value)}`,
   }));
   const classes = [
     "rf-model-node",

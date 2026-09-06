@@ -8,35 +8,10 @@ import ManualChipForm from "./ManualChipForm.jsx";
 import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { classifyRoofline } from "../cost/roofline.js";
+import { formatBytes, formatMacs, formatRate, formatSeconds } from "../formatters.js";
 
 const GIB = 1024 ** 3;
 const FLOPS_ORDER = ["fp32", "fp16", "bf16", "fp8", "int8"];
-
-function formatBytes(value) {
-  if (!Number.isFinite(value)) return "-";
-  if (value >= GIB) return `${(value / GIB).toFixed(2)} GiB`;
-  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MiB`;
-  return `${Math.round(value)} B`;
-}
-
-function formatMacs(value) {
-  if (!Number.isFinite(value)) return "-";
-  if (value >= 1e12) return `${(value / 1e12).toFixed(2)} T`;
-  if (value >= 1e9) return `${(value / 1e9).toFixed(2)} G`;
-  return `${(value / 1e6).toFixed(1)} M`;
-}
-
-function formatSeconds(value) {
-  if (!Number.isFinite(value)) return "-";
-  return value >= 1 ? `${value.toFixed(2)} s` : `${(value * 1000).toFixed(2)} ms`;
-}
-
-function formatRate(value) {
-  if (!Number.isFinite(value)) return "-";
-  if (value >= 1e12) return `${(value / 1e12).toFixed(2)} TB/s`;
-  if (value >= 1e9) return `${(value / 1e9).toFixed(1)} GB/s`;
-  return `${(value / 1e6).toFixed(1)} MB/s`;
-}
 
 function formatPeakFlops(peakFlops, unknownLabel) {
   const values = FLOPS_ORDER

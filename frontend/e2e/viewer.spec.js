@@ -45,14 +45,16 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
   expect(overflow.width).toBeLessThanOrEqual(overflow.viewport + 1);
 });
 
-test("多模态模型图包含视觉塔和投影节点", async ({ page }) => {
+test("多模态模型图包含视觉塔和视觉投影路径", async ({ page }) => {
   await expect(page.locator('datalist#builtin-models option[value="Qwen/Qwen3.6-27B"]')).toHaveCount(1);
   await page.getByLabel("model id").fill("Qwen/Qwen3.6-27B");
   await page.getByRole("button", { name: "打开模型" }).click();
 
   await expect(page.locator(".detail-page")).toBeVisible();
-  await expect(page.locator(".react-flow__node").filter({ hasText: "Vision Tower" })).toBeVisible();
-  await expect(page.locator(".react-flow__node").filter({ hasText: "Multi-modal Projector" })).toBeVisible();
+  const vision = page.locator(".react-flow__node").filter({ hasText: "Vision Tower" }).first();
+  await expect(vision).toBeVisible();
+  await vision.locator("button").first().click();
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Vision Merger" })).toBeVisible();
 });
 
 test("每个内置模型都能展开父节点并保持可计算图", async ({ page }, testInfo) => {

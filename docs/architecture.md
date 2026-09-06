@@ -48,7 +48,7 @@ CLI / HTTP request
   -> API / CLI / export
 ```
 
-后端用于本地配置读取、远程配置读取、CLI/API 和 transformers 结构验证。后端默认面向可信的本地开发环境；`trust_remote_code=True`、本地路径和进程级 settings 都不是公网多租户安全边界。
+后端用于本地配置读取、远程配置读取、CLI/API 和 transformers 结构验证。结构 API 默认只返回 Graph IR v2；`root` 仅保留在内部 `ModelStructure` 兼容对象和显式 legacy 导出路径。后端默认面向可信的本地开发环境；`trust_remote_code=True`、本地路径和进程级 settings 都不是公网多租户安全边界。
 
 ## 共享协议
 

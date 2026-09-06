@@ -149,7 +149,9 @@ def structure(
     payload: StructureRequest,
     s: AppSettings = Depends(get_settings),
 ) -> dict[str, object]:
-    return build_structure_response(payload, s).model_dump()
+    # Graph IR is the public structure contract. root remains available on the
+    # internal ModelStructure object for explicit legacy callers only.
+    return build_structure_response(payload, s).model_dump(exclude={"root"})
 
 
 @app.post("/api/verify")

@@ -34,9 +34,10 @@ def test_structure_api_returns_contract_for_inline_config():
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) >= {"summary", "source", "root", "extra_config"}
+    assert set(payload) >= {"summary", "source", "graph", "extra_config"}
+    assert "root" not in payload
     assert payload["summary"]["strategy"] in {"meta-introspect", "repaired-meta-introspect"}
-    assert payload["root"]["children"]
+    assert payload["graph"]["nodes"]
 
 
 def test_structure_api_returns_error_when_transformers_introspection_fails():

@@ -2,6 +2,13 @@
 
 export function collectFormulaLinks(root) {
   const links = [];
+  if (Array.isArray(root?.nodes)) {
+    root.nodes.forEach((node) => {
+      const formulaId = node?.attributes?.formula_id;
+      if (formulaId) links.push({ path: node.id, formulaId, explanation: node.attributes.explanation || "" });
+    });
+    return links;
+  }
   function visit(node, path) {
     const formulaId = node?.attributes?.formula_id;
     if (formulaId) links.push({ path, formulaId, explanation: node.attributes.explanation || "" });

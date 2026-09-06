@@ -141,7 +141,7 @@ function ArchitectureTab({
   const changeCompareChip = (next) => onCompareChipIdChange?.(next);
   const changeComparePlan = (next) => onComparePlanChange?.(next);
   const changeEfficiency = (next) => onEfficiencyChange?.(next);
-  const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
+  const formulaLinks = useMemo(() => collectFormulaLinks(structure?.graph || structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const candidateChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
   const primaryScenario = useMemo(

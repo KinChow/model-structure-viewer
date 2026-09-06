@@ -19,6 +19,7 @@ Model Structure Viewer 的重要变更记录。
 - Architecture 布局从 Graph IR 节点直接构造临时画布视图，不再调用 legacy `projectGraphToTree`。
 - Materializer 的模型摘要直接读取 Graph IR root fact，避免为非兼容字段重复投影树。
 - 详情面包屑优先从 Graph IR parent links 构造，root 仅作为旧数据 fallback。
+- `/api/structure` 现在默认返回 Graph IR v2，不再序列化 root；显式 legacy `ModelStructure` 调用仍可获得投影 root。
 - 本阶段验证：后端 `148 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
 
 ## [0.2.0] - 2026-09-06

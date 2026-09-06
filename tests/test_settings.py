@@ -10,6 +10,7 @@ from model_structure_viewer.settings import (
     DEFAULT_CACHE_POLICY,
     DEFAULT_HF_ENDPOINT,
     DEFAULT_MODEL_ROOT,
+    parse_bool,
 )
 
 
@@ -58,6 +59,11 @@ def test_from_env_offline_truthy_variants(clean_env):
         assert AppSettings.from_env().offline is True
     clean_env.setenv("MSV_OFFLINE", "no")
     assert AppSettings.from_env().offline is False
+
+
+def test_parse_bool_is_shared_by_worker_and_settings():
+    assert all(parse_bool(value) for value in ("1", "true", "Yes", "ON"))
+    assert not any(parse_bool(value) for value in ("0", "false", "no", "off", ""))
 
 
 def test_with_overrides_only_changes_provided_fields():

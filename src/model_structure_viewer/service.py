@@ -15,9 +15,10 @@ from typing import Any
 from .resolver import ModelSourceResolver
 from .resolve.endpoints import endpoint_revision, endpoint_url
 from .schemas import ModelStructure, StructureRequest, VerifyRequest, VerifyResponse
-from .settings import AppSettings
+from .settings import AppSettings, parse_bool
 from .structure import build_model_structure
 from .verification.transformers_verify import verify_transformers_structure
+from .verification.summary import minimal_summary
 
 _DEFAULT_STRUCTURE_CACHE_SIZE = 8
 _DEFAULT_WORKER_TIMEOUT_SECONDS = 90.0
@@ -223,7 +224,7 @@ def _run_introspection_worker(
     local_dir: Path | None,
     timeout_seconds: float,
 ) -> dict[str, Any]:
-    if _parse_bool(os.environ.get("MSV_DISABLE_STRUCTURE_WORKER", "0")):
+    if parse_bool(os.environ.get("MSV_DISABLE_STRUCTURE_WORKER", "0")):
         try:
             with _suppress_third_party_output():
                 structure = build_model_structure(
@@ -262,7 +263,7 @@ def _run_transformers_verify_worker(
     local_dir: Path | None,
     timeout_seconds: float,
 ) -> dict[str, Any]:
-    if _parse_bool(os.environ.get("MSV_DISABLE_STRUCTURE_WORKER", "0")):
+    if parse_bool(os.environ.get("MSV_DISABLE_STRUCTURE_WORKER", "0")):
         try:
             with _suppress_third_party_output():
                 return verify_transformers_structure(config, source=source, local_dir=local_dir).model_dump(mode="json")
@@ -273,7 +274,7 @@ def _run_transformers_verify_worker(
                 "strategy": "transformers-meta",
                 "model_id": source.get("model_id"),
                 "source": source,
-                "summary": _verify_minimal_summary(config),
+                "summary": minimal_summary(config),
                 "diagnostics": {"failure_kind": "worker_failed", "error_type": type(exc).__name__},
                 "error": f"{type(exc).__name__}: {exc}",
             }
@@ -292,7 +293,7 @@ def _run_transformers_verify_worker(
         "strategy": "transformers-meta",
         "model_id": source.get("model_id"),
         "source": source,
-        "summary": _verify_minimal_summary(config),
+        "summary": minimal_summary(config),
         "diagnostics": {
             "failure_kind": execution["failure_kind"],
             **execution.get("details", {}),
@@ -415,15 +416,6 @@ def _flush_standard_streams() -> None:
             continue
 
 
-def _verify_minimal_summary(config: dict[str, Any]) -> dict[str, Any]:
-    architectures = config.get("architectures")
-    architecture = architectures[0] if isinstance(architectures, list) and architectures else None
-    return {
-        "model_type": config.get("model_type"),
-        "architecture": architecture,
-    }
-
-
 def _worker_timeout_seconds() -> float:
     raw = os.environ.get("MSV_STRUCTURE_WORKER_TIMEOUT_SECONDS")
     if raw is None:
@@ -432,6 +424,3 @@ def _worker_timeout_seconds() -> float:
         return max(1.0, float(raw))
     except ValueError:
         return _DEFAULT_WORKER_TIMEOUT_SECONDS
-
-def _parse_bool(value: str) -> bool:
-    return value.lower() in {"1", "true", "yes", "on"}

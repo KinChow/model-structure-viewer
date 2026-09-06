@@ -5,6 +5,7 @@ from typing import Any
 
 from ..schemas import VerifyResponse
 from ..structure.recovery import MetaRecoveryError, MetaRecoveryOutcome, build_meta_model_with_recovery
+from .summary import minimal_summary
 
 
 def verify_transformers_structure(
@@ -30,7 +31,7 @@ def verify_transformers_structure(
             strategy="transformers-meta",
             source=source_info,
             model_id=source_info.get("model_id"),
-            summary=_minimal_summary(config),
+            summary=minimal_summary(config),
             diagnostics=exc.diagnostics,
             error=str(exc),
         )
@@ -41,7 +42,7 @@ def verify_transformers_structure(
             strategy="transformers-meta",
             source=source_info,
             model_id=source_info.get("model_id"),
-            summary=_minimal_summary(config),
+            summary=minimal_summary(config),
             diagnostics={
                 "failure_kind": "unknown",
                 "error_type": type(exc).__name__,
@@ -78,17 +79,3 @@ def _verify_summary_strategy(recovery_kind: str) -> str:
     if recovery_kind in {"kimi_remote_code", "repair_kimi_remote_code"}:
         return "kimi-remote-code-compatible-transformers-meta"
     return "transformers-meta"
-
-
-def _minimal_summary(config: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "model_type": config.get("model_type"),
-        "architecture": _architecture(config),
-    }
-
-
-def _architecture(config: dict[str, Any]) -> Any:
-    architectures = config.get("architectures")
-    if isinstance(architectures, list) and architectures:
-        return architectures[0]
-    return None

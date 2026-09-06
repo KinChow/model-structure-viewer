@@ -11,7 +11,7 @@ DEFAULT_CACHE_POLICY = "prefer-local"
 DEFAULT_AUTO_FETCH_REMOTE_CODE = True
 
 
-def _parse_bool(value: str) -> bool:
+def parse_bool(value: str) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
@@ -47,8 +47,8 @@ class AppSettings:
             model_root=Path(os.environ.get("MODEL_ROOT", str(DEFAULT_MODEL_ROOT))).expanduser(),
             hf_endpoint=os.environ.get("HF_ENDPOINT", DEFAULT_HF_ENDPOINT).rstrip("/"),
             cache_policy=os.environ.get("CACHE_POLICY", DEFAULT_CACHE_POLICY),
-            offline=_parse_bool(os.environ.get("MSV_OFFLINE", "0")),
-            auto_fetch_remote_code=_parse_bool(
+            offline=parse_bool(os.environ.get("MSV_OFFLINE", "0")),
+            auto_fetch_remote_code=parse_bool(
                 os.environ.get("MSV_AUTO_FETCH_REMOTE_CODE", "1")
             ),
         )

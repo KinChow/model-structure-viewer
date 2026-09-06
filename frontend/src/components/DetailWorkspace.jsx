@@ -14,8 +14,8 @@ import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { graphChildren, graphNodeAt, graphViewNode } from "../structure/graph/selectors.js";
 
-function breadcrumbForPath(root, path, graph = null) {
-  if (!root || !path) return [];
+function breadcrumbForPath(graph, path, legacyRoot = null) {
+  if (!path) return [];
   if (graph?.nodes) {
     const items = [];
     let current = graphNodeAt(graph, path);
@@ -25,6 +25,8 @@ function breadcrumbForPath(root, path, graph = null) {
     }
     return items;
   }
+  const root = legacyRoot;
+  if (!root) return [];
   const parts = path.split(".");
   const items = [{ path: "root", name: root.name }];
   let current = root;
@@ -139,7 +141,7 @@ export default function DetailWorkspace({
   const selectedData = selectedNode?.node || selectedNode;
   const selectedPath = selectedNodePath || selectedNode?.path || null;
   const parameterTotal = parameterTotalForStructure(structure);
-  const breadcrumbs = breadcrumbForPath(structure?.root, selectedPath, structure?.graph);
+  const breadcrumbs = breadcrumbForPath(structure?.graph, selectedPath, structure?.root);
   const activeMachineName = chips?.find((chip) => chip.id === activeMachineId)?.name || "GPU";
   const activeNodeCount = activeNodes?.[activeMode === "pd" ? activePhase : "centralized"] || 1;
   const fitLabel = costFitStatus == null ? null : activeMode === "pd" && costFitStatus.phaseFits

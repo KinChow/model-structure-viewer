@@ -1,6 +1,8 @@
 import { enrichNetworkWithTruth, TEMPLATE_FAMILIES } from "../truth/mergeSemantics.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 import { projectGraphToTree } from "../graph/projectGraphToTree.js";
+import { bindTruthToGraph, skeletonTruthGraph } from "../truth/graphTruth.js";
+import { buildSkeleton } from "../truth/skeleton.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -57,7 +59,7 @@ export function materializeModelStructure(ir) {
     truth,
     { hasTemplate, modelName: templateNetwork?.name, canonicalArchitecture: resolved?.canonicalArchitecture },
   );
-  const mergedDiagnostics = { ...diagnostics, ...truthDiagnostics };
+  let mergedDiagnostics = { ...diagnostics, ...truthDiagnostics };
   const effectiveStrategy = truthDiagnostics.strategy === "no-truth" || !truth
     ? ir.strategy
     : truthDiagnostics.strategy;
@@ -74,7 +76,12 @@ export function materializeModelStructure(ir) {
     confidence: "high",
     children: network.children.map(structureNodeFromSpec),
   };
-  const graph = materializeStructureGraph(root);
+  let graph = materializeStructureGraph(root);
+  if (truth?.tensors?.length) {
+    const graphTruth = bindTruthToGraph(graph, skeletonTruthGraph(buildSkeleton(truth.tensors)));
+    graph = graphTruth.graph;
+    mergedDiagnostics = { ...mergedDiagnostics, ...graphTruth.diagnostics };
+  }
 
   return {
     summary: {

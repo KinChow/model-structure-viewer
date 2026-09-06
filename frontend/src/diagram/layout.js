@@ -144,11 +144,29 @@ function semanticEdges(item) {
     const state = find(/state update|linear attention state/);
     const outputGate = find(/output gate/);
     const output = find(/output projection|out_proj/);
+    const qwenInputs = children.filter((child) => /in_proj_(qkv|z|b|a)/.test(`${child.node?.id || ""} ${child.node?.name || ""}`.toLowerCase()));
+    const kimiQkv = children.filter((child) => /(?:^|\.)(q|k|v)_proj$/.test(String(child.node?.id || "").toLowerCase()) || /^(q|k|v) projection$/.test(String(child.node?.name || "").toLowerCase()));
     const edges = [];
     const add = (source, target) => {
       if (!source || !target || source.path === target.path) return;
       edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
     };
+    const qwenNorm = find(/gated rmsnorm|^norm$/);
+    if (qwenInputs.length >= 2 && qwenNorm) {
+      qwenInputs.slice(0, -1).forEach((source, index) => add(source, qwenInputs[index + 1]));
+      add(find(/in_proj_a/), conv);
+      add(conv, qwenNorm);
+      add(qwenNorm, output);
+      return edges.length >= 3 ? edges : null;
+    }
+    if (kimiQkv.length >= 3) {
+      kimiQkv.forEach((source) => add(source, conv));
+      add(conv, state);
+      add(find(/decay projection|b_proj/), state);
+      add(state, outputGate || gate);
+      add(outputGate || gate, output);
+      return edges.length >= 3 ? edges : null;
+    }
     add(qkv, conv);
     add(decay, state);
     add(conv, state);

@@ -145,6 +145,11 @@ export function normalizeConfig(config) {
     pleEmbedDim: firstNumber(textConfig, ["ple_embed_dim"]) ?? firstNumber(config, ["ple_embed_dim"]),
     attnResBlockSize: firstNumber(textConfig, ["attn_res_block_size"]) ?? firstNumber(config, ["attn_res_block_size"]),
     mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
+    linearAttentionMode: String(config?.model_type || textConfig?.model_type || "").includes("kimi") || String(textConfig?.model_type || "").includes("kimi")
+      ? "kimi"
+      : String(config?.model_type || textConfig?.model_type || "").includes("qwen4_exp")
+        ? "qwen4_exp"
+        : "generic",
     contextLength: firstNumber(textConfig, CONTEXT_KEYS) ?? firstNumber(config, CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
     layerSchedule: explicitLayerSchedule(textConfig, layers) ?? explicitLayerSchedule(config, layers),

@@ -1049,6 +1049,7 @@ label {
 .detail-header { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 10px 24px; border-bottom: 1px solid #202a38; background: rgba(13,17,23,.94); backdrop-filter: blur(12px); }
 .detail-brand { border: 0; background: transparent; color: #edf2f7; padding: 0; font-size: 15px; font-weight: 800; letter-spacing: -.03em; }
 .detail-brand span { color: #f4ab52; }
+.detail-brand .detail-version { color: #8996a8; font-size: 11px; font-weight: 600; }
 .detail-model-id { max-width: 380px; overflow: hidden; text-overflow: ellipsis; color: #8996a8; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
 .detail-header-actions { display: flex; gap: 6px; margin-left: auto; }
 .detail-header-actions button { border: 1px solid #2a3545; border-radius: 5px; background: transparent; color: #9aa7b7; padding: 6px 8px; font-size: 11px; }

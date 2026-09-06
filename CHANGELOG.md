@@ -28,6 +28,7 @@ Model Structure Viewer 的重要变更记录。
 - DeepSeek V4 Flash/Pro DSV4 attention dataflow 改为按 compressor 变体声明边。
 - Kimi K3、GLM5 Flash、Qwen4Exp linear attention dataflow 改为按 qkvz/非 qkvz 变体声明边。
 - Graph materializer 改为 declaration-only，不再在生产路径按 display name 推断 semantic edges；ELK 将 declared edges 作为显式语义流布局。
+- 修复详情页标题版本号与入口不一致、DSV4 Flash Vision Tower 不可展开，以及 graph-only 结构进入 layout 时的层级/边连接问题；补齐 DSV4 Flash Vision attention 连通性回归。
 - 本阶段验证：后端 `148 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
 
 ## [0.2.0] - 2026-09-06

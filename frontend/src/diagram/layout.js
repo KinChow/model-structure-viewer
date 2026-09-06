@@ -89,7 +89,7 @@ export function layoutDiagram(root, expandedGroups) {
  * the original tree paths; the canvas consumes these independent collections.
  */
 export function layoutGraph(structureOrRoot, expandedGroups) {
-  const structure = structureOrRoot?.root ? structureOrRoot : null;
+  const structure = structureOrRoot?.graph || structureOrRoot?.root ? structureOrRoot : null;
   const graphRoot = structure?.graph ? graphViewNode(structure.graph, structure.graph.root_id || "root") : null;
   const root = graphRoot || structure?.root || structureOrRoot;
   const items = layoutDiagram(root, expandedGroups);

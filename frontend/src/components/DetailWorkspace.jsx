@@ -1,4 +1,5 @@
 import { useState } from "react";
+import frontendPackage from "../../package.json";
 import SummaryChips from "./SummaryChips";
 import StructureSearchBox from "./StructureSearchBox";
 import ArchitectureTab from "./ArchitectureTab";
@@ -61,7 +62,7 @@ function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onTh
     : (english ? "Switch to dark theme" : "切换到深色主题");
   return (
     <header className="detail-header">
-      <button className="detail-brand" type="button" onClick={onBack}>Model Structure Viewer<span>.</span></button>
+      <button className="detail-brand" type="button" onClick={onBack}>Model Structure Viewer <span className="detail-version">v{frontendPackage.version}</span></button>
       <div className="detail-model-id" title={id}>{id}</div>
       <div className="detail-header-actions">
         <button type="button" onClick={() => onLanguageChange(english ? "zh" : "en")}>{english ? "EN / 中" : "中 / EN"}</button>

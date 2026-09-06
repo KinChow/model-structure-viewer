@@ -149,6 +149,7 @@ test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks",
     assert.equal(resolved.canonicalArchitecture, canonicalArchitecture, modelId);
     assert.equal(network.children.some((node) => node.id === "vision_tower"), true, modelId);
     assert.equal(network.children.some((node) => node.id === "projector"), hasProjector, modelId);
+    assert.equal(network.children.find((node) => node.id === "vision_tower").children.length > 0, true, modelId);
   }
 });
 
@@ -780,6 +781,19 @@ test("DeepSeek V4 DSV4 attention edges are builder-declared", () => {
     const dsv4Ids = new Set(structure.graph.nodes.filter((node) => node.type === "attention" && node.attributes.attention_kind === "dsv4").map((node) => node.id));
     assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...dsv4Ids].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
   }
+});
+
+test("DeepSeek V4 Flash Vision DSV4 graph connects every attention node", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  const resolved = resolveArchitecture(normalized, { modelId: "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp" });
+  const structure = materializeModelStructure(createStructureIr({ network: buildNetwork(resolved, normalized), normalized, resolved }));
+  const attention = structure.graph.nodes.find((node) => node.type === "attention" && node.attributes.attention_kind === "dsv4");
+  const children = structure.graph.nodes.filter((node) => node.parent_id === attention.id);
+  const edges = structure.graph.edges.filter((edge) => edge.source.startsWith(`${attention.id}.`) && edge.target.startsWith(`${attention.id}.`));
+  assert.equal(children.length, 10);
+  assert.equal(edges.length, 10);
+  assert.ok(children.every((node) => edges.some((edge) => edge.source === node.id || edge.target === node.id)));
 });
 
 test("Kimi K3, GLM5 Flash, and Qwen4Exp linear edges are builder-declared", () => {

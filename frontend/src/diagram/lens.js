@@ -22,7 +22,7 @@ export function buildNodeLens(structure, chip, {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, nodes: {} };
 
-  const rows = computeNodeCosts(structure.root, config, { batch, sequence, phase });
+  const rows = computeNodeCosts(structure.root, config, { batch, sequence, phase, graph: structure.graph });
   const tokens = phase === "decode" ? 1 : sequence;
   const forwardTokens = batch * tokens;
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };

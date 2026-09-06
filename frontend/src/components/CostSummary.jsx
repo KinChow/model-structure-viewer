@@ -102,13 +102,13 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const costFor = (targetPhase) => {
     const targetLoad = loads[targetPhase] || DEFAULT_LOADS[targetPhase];
     if (!structure?.root || !config) return null;
-    return aggregateCost({ root: structure.root, config, parameterCount: structure.summary?.parameters_by_dtype, phase: targetPhase, batch: targetLoad.batch, sequence: targetLoad.sequence, kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB, commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
+    return aggregateCost({ root: structure.root, graph: structure.graph, config, parameterCount: structure.summary?.parameters_by_dtype, phase: targetPhase, batch: targetLoad.batch, sequence: targetLoad.sequence, kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB, commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
   };
   const phaseCosts = useMemo(() => ({ prefill: costFor("prefill"), decode: costFor("decode") }), [structure, config, loads, plans, kvElementBytes, activationGiB, runtimeGiB, commBufferGiB, weightMode]);
   const cost = phaseCosts[phase];
   const peakCost = useMemo(() => {
     if (!cost || !load.chunked || phase !== "prefill") return cost;
-    return aggregateCost({ root: structure.root, config, parameterCount: structure.summary?.parameters_by_dtype, phase, batch: load.batch, sequence: Math.min(load.sequence, load.chunkSize), kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB, commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
+    return aggregateCost({ root: structure.root, graph: structure.graph, config, parameterCount: structure.summary?.parameters_by_dtype, phase, batch: load.batch, sequence: Math.min(load.sequence, load.chunkSize), kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB, commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
   }, [cost, load, phase, structure, config, kvElementBytes, activationGiB, runtimeGiB, commBufferGiB, weightMode]);
   const available = machine?.memory_bytes || 0;
   const projected = useMemo(() => cost && machine ? projectPlan({ root: structure.root, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, stateBytes: cost.memory.stateBytes, config, plan }) : null, [cost, machine, structure, config, plan]);

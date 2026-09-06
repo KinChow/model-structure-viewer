@@ -239,6 +239,6 @@ export function computeNodeCosts(root, config, options = {}) {
       macs_source: macsSource(node, config, costOptions),
       weightBytes: nodeWeightBytes(node) * multiplier,
       estimate_status: compute == null ? "unknown" : "estimated" });
-  });
+  }, options.graph);
   return rows;
 }

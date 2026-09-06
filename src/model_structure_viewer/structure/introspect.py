@@ -27,6 +27,7 @@ def build_from_meta_model(
     config_overrides: dict[str, Any] | None = None,
     runtime_patch: RuntimePatch | None = None,
     config_normalizer: ConfigNormalizer | None = None,
+    collapse_repeated: bool = True,
 ) -> ModelStructure:
     """Construct a ModelStructure by walking the live nn.Module tree on meta device."""
     try:
@@ -47,7 +48,7 @@ def build_from_meta_model(
             raise IntrospectionError(f"AutoModel.from_config failed: {exc}") from exc
 
     raw_root = _walk(model, attribute_name="", path="root")
-    folded_root = fold.collapse(raw_root)
+    result_root = fold.collapse(raw_root) if collapse_repeated else raw_root
 
     family = infer_model_family(config) or type(model).__name__
     summary = extract_summary(
@@ -67,7 +68,7 @@ def build_from_meta_model(
     return ModelStructure(
         summary=summary,
         source=enriched_source,
-        root=folded_root,
+        root=result_root,
         extra_config=make_extra_config(config),
     )
 

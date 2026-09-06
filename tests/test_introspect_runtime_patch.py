@@ -117,3 +117,38 @@ def test_build_from_meta_model_applies_config_normalizer_before_model_init(monke
     assert structure.source["diagnostics"]["config_normalizer"] == "recording_normalizer"
     assert structure.source["diagnostics"]["normalized_fields"] == ["temporal_patch_size"]
     assert structure.source["diagnostics"]["normalized_targets"] == ["vision_config"]
+
+
+def test_build_from_meta_model_supports_expanded_module_tree(monkeypatch):
+    import torch
+
+    class AutoConfig:
+        @staticmethod
+        def for_model(model_type, **kwargs):
+            return SimpleNamespace(model_type=model_type)
+
+    class AutoModel:
+        @staticmethod
+        def from_config(config, trust_remote_code):
+            return torch.nn.Sequential(torch.nn.Linear(8, 8), torch.nn.Linear(8, 8))
+
+    @contextmanager
+    def init_empty_weights():
+        yield
+
+    monkeypatch.setattr(introspect, "_import_introspection_deps", lambda: (AutoConfig, AutoModel, init_empty_weights))
+
+    compressed = introspect.build_from_meta_model(
+        {"model_type": "demo"},
+        source={},
+    )
+    expanded = introspect.build_from_meta_model(
+        {"model_type": "demo"},
+        source={},
+        collapse_repeated=False,
+    )
+
+    assert len(compressed.root.children) == 1
+    assert compressed.root.children[0].repeat == 2
+    assert len(expanded.root.children) == 2
+    assert all(child.repeat is None for child in expanded.root.children)

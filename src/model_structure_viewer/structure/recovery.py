@@ -46,11 +46,17 @@ def build_meta_model_with_recovery(
     *,
     source: dict[str, Any],
     local_dir: Path | str | None = None,
+    detail_level: str = "compressed",
 ) -> MetaRecoveryOutcome:
     base_source = dict(source)
     local_path = coerce_existing_path(local_dir)
     try:
-        structure = build_from_meta_model(config, source=base_source, local_dir=local_path)
+        structure = _invoke_meta_builder(
+            config,
+            source=base_source,
+            local_dir=local_path,
+            detail_level=detail_level,
+        )
         return MetaRecoveryOutcome(structure=structure)
     except IntrospectionError as exc:
         repaired = _recover_with_repair(
@@ -58,6 +64,7 @@ def build_meta_model_with_recovery(
             source=base_source,
             local_dir=local_path,
             error=exc,
+            detail_level=detail_level,
         )
         if repaired is not None:
             return repaired
@@ -71,6 +78,7 @@ def build_meta_model_with_recovery(
                 "repair_status": "not_attempted",
             },
             recovery_prefix=None,
+            detail_level=detail_level,
         )
         if compatible is not None:
             return compatible
@@ -97,6 +105,7 @@ def _recover_with_repair(
     source: dict[str, Any],
     local_dir: Path | None,
     error: IntrospectionError,
+    detail_level: str,
 ) -> MetaRecoveryOutcome | None:
     failure_kind = classify_introspection_error(error)
     context = RepairContext(
@@ -119,13 +128,14 @@ def _recover_with_repair(
         },
     )
     try:
-        structure = build_from_meta_model(
+        structure = _invoke_meta_builder(
             repair_result.config,
             source=retry_source,
             local_dir=repair_result.local_dir,
             config_overrides=repair_result.config_overrides,
             runtime_patch=repair_result.runtime_patch,
             config_normalizer=repair_result.config_normalizer,
+            detail_level=detail_level,
         )
         return _mark_repaired(structure, repair_result, failure_kind.value)
     except IntrospectionError as retry_exc:
@@ -145,6 +155,7 @@ def _recover_with_repair(
             runtime_patch=repair_result.runtime_patch,
             config_normalizer=repair_result.config_normalizer,
             recovery_prefix="repair",
+            detail_level=detail_level,
         )
         if compatible is not None:
             return compatible
@@ -165,6 +176,7 @@ def _recover_with_runtime_compat(
     config_overrides: dict[str, Any] | None = None,
     runtime_patch: RuntimePatch | None = None,
     config_normalizer: ConfigNormalizer | None = None,
+    detail_level: str = "compressed",
 ) -> MetaRecoveryOutcome | None:
     current_error = error
     current_patch = runtime_patch
@@ -216,13 +228,14 @@ def _recover_with_runtime_compat(
         )
         retry_source = _with_diagnostics(source, current_diagnostics)
         try:
-            structure = build_from_meta_model(
+            structure = _invoke_meta_builder(
                 config,
                 source=retry_source,
                 local_dir=local_dir,
                 config_overrides=config_overrides,
                 runtime_patch=current_patch,
                 config_normalizer=current_normalizer,
+                detail_level=detail_level,
             )
             return _mark_runtime_compat(
                 structure,
@@ -260,6 +273,28 @@ def _compose_normalizers(*normalizers: ConfigNormalizer | None) -> ConfigNormali
     if len(active) <= 1:
         return active[0] if active else None
     return CompositeConfigNormalizer(*active)
+
+
+def _invoke_meta_builder(
+    config: dict[str, Any],
+    *,
+    source: dict[str, Any],
+    local_dir: Path | None,
+    detail_level: str,
+    config_overrides: dict[str, Any] | None = None,
+    runtime_patch: RuntimePatch | None = None,
+    config_normalizer: ConfigNormalizer | None = None,
+) -> ModelStructure:
+    kwargs = {
+        "source": source,
+        "local_dir": local_dir,
+        "config_overrides": config_overrides,
+        "runtime_patch": runtime_patch,
+        "config_normalizer": config_normalizer,
+    }
+    if detail_level == "expanded":
+        kwargs["collapse_repeated"] = False
+    return build_from_meta_model(config, **kwargs)
 
 
 def _mark_repaired(

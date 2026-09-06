@@ -28,6 +28,7 @@ def build_model_structure(
             config,
             source=base_source,
             local_dir=local_dir,
+            detail_level=detail_level,
         ).structure
     except MetaRecoveryError:
         raise

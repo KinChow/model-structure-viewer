@@ -296,3 +296,21 @@ def test_builder_does_not_short_circuit_glm_moe_dsa(monkeypatch):
 
     assert len(calls) == 1
     assert result.summary["strategy"] == "meta-introspect"
+
+
+def test_builder_disables_repeat_collapse_for_expanded_detail(monkeypatch):
+    calls = []
+
+    def fake_meta(config, **kwargs):
+        calls.append(kwargs)
+        return _structure("meta-introspect")
+
+    monkeypatch.setattr("model_structure_viewer.structure.recovery.build_from_meta_model", fake_meta)
+
+    builder.build_model_structure(
+        {"model_type": "demo"},
+        source={},
+        detail_level="expanded",
+    )
+
+    assert calls[0]["collapse_repeated"] is False

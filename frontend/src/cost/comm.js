@@ -103,11 +103,11 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
 }
 
 /** 汇总给定计划的节点级通信和 PP 边界通信，供摘要或对比视图使用。 */
-export function planCommunicationBytes({ root, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2 } = {}) {
+export function planCommunicationBytes({ root, graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2 } = {}) {
   let nodeBytes = 0;
   walkStructure(root, ({ node, multiplier }) => {
     nodeBytes += nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement }) * multiplier;
-  });
+  }, graph);
   const ppBytes = pipelineP2PBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, pp: plan.pp ?? plan.PP ?? 1 });
   return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes };
 }

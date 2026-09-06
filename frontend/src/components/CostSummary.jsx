@@ -112,7 +112,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   }, [cost, load, phase, structure, config, kvElementBytes, activationGiB, runtimeGiB, commBufferGiB, weightMode]);
   const available = machine?.memory_bytes || 0;
   const projected = useMemo(() => cost && machine ? projectPlan({ root: structure.root, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, stateBytes: cost.memory.stateBytes, config, plan }) : null, [cost, machine, structure, config, plan]);
-  const communication = useMemo(() => cost ? planCommunicationBytes({ root: structure.root, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence) }) : null, [cost, structure, config, plan, load, phase]);
+  const communication = useMemo(() => cost ? planCommunicationBytes({ root: structure.root, graph: structure.graph, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence) }) : null, [cost, structure, config, plan, load, phase]);
   const roofline = useMemo(() => cost && machine ? classifyRoofline({
     macs: cost.totalMacs,
     weightBytes: cost.memory.weightBytes,

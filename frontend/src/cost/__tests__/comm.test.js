@@ -107,3 +107,25 @@ test("通信汇总不重复计算父列表和范围子节点 repeat", () => {
   const result = planCommunicationBytes({ root, config: { hiddenSize: 4 }, plan: { tp: 2 }, tokens: 1, bytesPerElement: 2 });
   assert.equal(result.nodeBytes, 32);
 });
+
+test("通信汇总优先使用 Graph IR 节点而不是 legacy tree", () => {
+  const graph = {
+    version: 2,
+    schema_version: 2,
+    root_id: "root",
+    nodes: [
+      { id: "root", module_id: "model", parent_id: null, order: 0, type: "model" },
+      { id: "root.0", module_id: "decoder.layers.0.attention.o_proj", parent_id: "root", order: 0, type: "operator", attributes: { communication_role: "tp_attention_output" } },
+    ],
+    edges: [],
+  };
+  const result = planCommunicationBytes({
+    root: { id: "stale", children: [] },
+    graph,
+    config: { hiddenSize: 4 },
+    plan: { tp: 2 },
+    tokens: 1,
+    bytesPerElement: 2,
+  });
+  assert.equal(result.nodeBytes, 8);
+});

@@ -3,6 +3,7 @@ import { moeOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 import { mlpModule } from "./mlp.js";
+import { sharedExpertGateModule } from "./hybrid.js";
 
 export function moeModule(id, normalized) {
   const shapes = tensorShapes(normalized);
@@ -25,6 +26,7 @@ export function moeModule(id, normalized) {
     [
       ...moeOperatorSpecs(id, normalized),
       ...(normalized.sharedExperts ? [mlpModule(`${id}.shared_experts`, { ...normalized, intermediateSize: normalized.sharedExpertIntermediateSize || normalized.moeIntermediateSize })] : []),
+      ...(normalized.sharedExpertGate ? [sharedExpertGateModule(`${id}.shared_expert_gate`, normalized)] : []),
     ],
   ), dims.hidden, dims.hidden);
 }

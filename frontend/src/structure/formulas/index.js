@@ -104,6 +104,27 @@ const FORMULAS = {
     inputs: ["residual_states", "projection", "norm"],
     outputs: ["y"],
   },
+  hyper_connection: {
+    title: "Hyper Connection",
+    formula: "h' = mix(h, block_output, injection; hc_count, lowrank)",
+    explanation: "在多流 hidden state 与 attention/MLP 分支之间执行 gated residual mixing。",
+    inputs: ["hidden_state", "block_output", "injection"],
+    outputs: ["hidden_state", "injection"],
+  },
+  ple: {
+    title: "Position Learning Enhancement",
+    formula: "h' = h + PLE(h, input_ids, ngram_context)",
+    explanation: "在指定层将 position-learning enhancement 注入多流 hidden state。",
+    inputs: ["hidden_state", "input_ids", "ngram_context"],
+    outputs: ["hidden_state"],
+  },
+  shared_expert_gate: {
+    title: "Shared Expert Gate",
+    formula: "y = y_routed + sigmoid(W_g x) * y_shared",
+    explanation: "用输入相关 gate 调制 shared expert 输出后与 routed MoE 合并。",
+    inputs: ["x", "y_routed", "y_shared", "W_g"],
+    outputs: ["y"],
+  },
 };
 
 export function formulaForOperator(operatorId) {

@@ -14,13 +14,18 @@ export function decoderStackNetwork(id, normalized, options = {}) {
   const attentionKinds = normalized.attentionSchedule?.length
     ? normalized.attentionSchedule
     : Array.from({ length: layers }, () => defaultAttentionKind);
-  const combinedKinds = kinds.map((kind, index) => `${kind}:${attentionKinds[index] || defaultAttentionKind}`);
+  const combinedKinds = kinds.map((kind, index) => {
+    const attentionKind = attentionKinds[index] || defaultAttentionKind;
+    const hasPle = normalized.pleLayerIds?.includes(index + 1) ? "ple" : "no-ple";
+    return `${kind}:${attentionKind}:${hasPle}`;
+  });
   const children = compactRanges(combinedKinds).map((range) => {
     const repeat = range.end - range.start + 1;
     const [layerKind, attentionKind] = String(range.kind).split(":");
     const layer = decoderLayerModule(`${id}.${range.start}`, normalized, {
       layerKind,
       attentionKind,
+      layerIndex: range.start,
     });
     layer.name = `${range.start} (DecoderLayer)`;
     layer.type = "layer-group";

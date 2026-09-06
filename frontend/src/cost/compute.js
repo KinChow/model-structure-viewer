@@ -256,6 +256,11 @@ export function nodeMacs(node, config, options = {}) {
   }
   if (operatorId === "causal_conv1d") return linearShortConvolutionMacs(config, executionOptions);
   if (operatorId === "gated_delta_attention") return linearStateUpdateMacs(config, executionOptions);
+  if (operatorId === "swiglu" && /expert/i.test(String(node?.name || ""))) {
+    const expertHidden = node?.attributes?.latent_size || config?.routedExpertHiddenSize || config?.hiddenSize || 0;
+    const expertIntermediate = config?.moeIntermediateSize || config?.intermediateSize || 0;
+    return tokensFor(executionOptions) * 3 * expertHidden * expertIntermediate * (options.expertFraction ?? 1);
+  }
   if (["dsv4_swa_attention", "dsv4_compressed_attention"].includes(operatorId)) {
     const layerMatch = String(node?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)/);
     return deepseekV4AttentionMacs(config, {
@@ -285,7 +290,7 @@ function macsSource(node, config, options = {}) {
   const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
   if (type === "attention" || operatorId === "attention") return "formula";
   if (!isLinear(node)) {
-    return ["matmul", "qsa_attention", "minimax_sparse_attention", "causal_conv1d", "gated_delta_attention", "linear_attention"].includes(operatorId)
+    return ["matmul", "qsa_attention", "minimax_sparse_attention", "causal_conv1d", "gated_delta_attention", "linear_attention", "swiglu"].includes(operatorId)
       ? "formula"
       : "not-compute";
   }

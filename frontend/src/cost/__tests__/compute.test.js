@@ -101,6 +101,26 @@ test("参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度�
   assert.equal(result.nodes.filter((row) => row.macs_source === "not-compute").length >= 2, true);
 });
 
+test("模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs", () => {
+  const standard = {
+    id: "decoder.0.moe.expert_mlp",
+    type: "operator",
+    name: "expert MLP",
+    attributes: { operator_id: "swiglu" },
+    children: [],
+  };
+  const latent = {
+    id: "decoder.0.moe.expert_mlp",
+    type: "operator",
+    name: "latent expert MLP",
+    attributes: { operator_id: "swiglu", latent_size: 2 },
+    children: [],
+  };
+  const config = { hiddenSize: 4, intermediateSize: 6, experts: 8, expertsPerToken: 2 };
+  assert.equal(computeNodeCosts(standard, config, { batch: 1, sequence: 3 })[0].compute_macs, 54);
+  assert.equal(computeNodeCosts(latent, config, { batch: 1, sequence: 3 })[0].compute_macs, 27);
+});
+
 test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {
   const node = { weight_shapes: { weight: [4, 2] } };
   assert.equal(linearMacs(node, { batch: 2, sequence: 3, phase: "prefill" }), 48);

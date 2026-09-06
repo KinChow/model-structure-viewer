@@ -93,6 +93,13 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       expect(hasMerger).toBe(hasInternalMerger);
       expect(hasProjector).toBe(hasExternalProjector);
     }
+    const costToggle = page.locator(".detail-cost-toggle > button");
+    if (await costToggle.count()) {
+      await costToggle.click();
+      const costPanel = page.locator(".cost-summary");
+      await expect(costPanel.getByText("MACs / forward", { exact: false })).toBeVisible();
+      expect(await costPanel.innerText()).not.toMatch(/\bunknown\b/i);
+    }
     await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
     await expect(page.getByLabel("model id")).toBeVisible();
   }

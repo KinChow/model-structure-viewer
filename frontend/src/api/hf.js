@@ -12,6 +12,30 @@ export function resolveEndpoint(endpoint = "huggingface") {
   return HF_ENDPOINTS[endpoint] || HF_ENDPOINTS.huggingface;
 }
 
+/** Normalize either a hub repo id or a supported hub URL to `org/name`. */
+export function normalizeModelId(value, endpoint = "huggingface") {
+  const raw = String(value || "").trim();
+  if (!raw) throw new Error("model id is required");
+  let candidate = raw;
+  try {
+    const parsed = new URL(raw);
+    const { hubUrl } = resolveEndpoint(endpoint);
+    const allowedOrigins = endpoint === "modelscope"
+      ? new Set([hubUrl, "https://modelscope.cn"])
+      : new Set([hubUrl]);
+    if (!allowedOrigins.has(parsed.origin)) throw new Error(`model URL does not belong to ${endpoint}`);
+    candidate = parsed.pathname;
+    if (endpoint === "modelscope") candidate = candidate.replace(/^\/models\//, "/");
+  } catch (error) {
+    if (/^https?:\/\//i.test(raw)) throw error;
+  }
+  const parts = candidate.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean);
+  if (parts.length < 2 || parts[0] === "." || parts[0] === ".." || parts[1] === "." || parts[1] === "..") {
+    throw new Error("model id must be in org/name format");
+  }
+  return parts.slice(0, 2).join("/");
+}
+
 export async function fetchHfConfigDirect({
   modelId,
   revision,
@@ -20,7 +44,8 @@ export async function fetchHfConfigDirect({
 }) {
   const { hubUrl, defaultRevision, resolvePrefix } = resolveEndpoint(endpoint);
   const rev = revision || defaultRevision;
-  const url = `${hubUrl}${resolvePrefix}/${modelId}/resolve/${rev}/config.json`;
+  const normalizedModelId = normalizeModelId(modelId, endpoint);
+  const url = `${hubUrl}${resolvePrefix}/${normalizedModelId}/resolve/${encodeURIComponent(rev)}/config.json`;
   const res = await fetchImpl(url);
   if (!res.ok) throw new Error(`model config HTTP ${res.status}`);
   return res.json();
@@ -29,7 +54,7 @@ export async function fetchHfConfigDirect({
 // GET /api/models/{id}?expand[]=safetensors → 逐 dtype 精确参数量（仅 huggingface endpoint 支持）。
 export async function fetchHfModelInfoDirect({ modelId, endpoint = "huggingface", fetchImpl = fetch }) {
   if (endpoint !== "huggingface") return null;
-  const url = `${HF_ENDPOINTS.huggingface.hubUrl}/api/models/${encodeURIComponent(modelId)}?expand[]=safetensors`;
+  const url = `${HF_ENDPOINTS.huggingface.hubUrl}/api/models/${encodeURIComponent(normalizeModelId(modelId, endpoint))}?expand[]=safetensors`;
   const res = await fetchImpl(url);
   if (!res.ok) throw new Error(`model info HTTP ${res.status}`);
   return res.json();

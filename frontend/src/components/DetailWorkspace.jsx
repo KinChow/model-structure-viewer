@@ -10,6 +10,8 @@ import { structureStatus } from "../diagnostics";
 import { normalizeConfig } from "../structure/config/normalize.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { COMPARISON_MODE } from "../diagram/compare.js";
+import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
+import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 
 function breadcrumbForPath(root, path) {
   if (!root || !path) return [];
@@ -108,15 +110,15 @@ export default function DetailWorkspace({
   const [activeLenses, setActiveLenses] = useState(() => new Set(["vram"]));
   const [activePhase, setActivePhase] = useState("prefill");
   const [activeMode, setActiveMode] = useState("centralized");
-  const [activePlans, setActivePlans] = useState({ prefill: { tp: 1, pp: 1, ep: 1, dp: 1, attnMode: "tp" }, decode: { tp: 1, pp: 1, ep: 1, dp: 1, attnMode: "tp" } });
-  const [activeNodes, setActiveNodes] = useState({ centralized: 1, prefill: 1, decode: 2 });
+  const [activePlans, setActivePlans] = useState(() => ({ prefill: DEFAULT_PLAN, decode: DEFAULT_PLAN }));
+  const [activeNodes, setActiveNodes] = useState(DEFAULT_NODES);
   const [activeGpusPerNode, setActiveGpusPerNode] = useState(8);
   const [activeMachineId, setActiveMachineId] = useState(chips?.[0]?.id || "");
-  const [activeLoads, setActiveLoads] = useState({ prefill: { batch: 1, sequence: 2048, chunked: false, chunkSize: 8192 }, decode: { batch: 1, sequence: 2048 } });
+  const [activeLoads, setActiveLoads] = useState(DEFAULT_LOADS);
   const [comparisonMode, setComparisonMode] = useState(COMPARISON_MODE.OFF);
   const [compareChipId, setCompareChipId] = useState(chips?.[1]?.id || chips?.[0]?.id || "");
-  const [comparePlan, setComparePlan] = useState({ tp: 2, ep: 1, attnMode: "tp" });
-  const [efficiency, setEfficiency] = useState({ flops: 0.7, hbm: 0.9, intra_node_comm: 0.8 });
+  const [comparePlan, setComparePlan] = useState(DEFAULT_COMPARE_PLAN);
+  const [efficiency, setEfficiency] = useState(DEFAULT_EFFICIENCY);
   const [nodeLens, setNodeLens] = useState({});
   const [costFitStatus, setCostFitStatus] = useState(null);
   const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement", fit: "fit", notFit: "not fit", unknown: "unknown" } : { export: "导出", raw: "原始配置", cost: "成本与部署", fit: "已适配", notFit: "不适配", unknown: "未知" };

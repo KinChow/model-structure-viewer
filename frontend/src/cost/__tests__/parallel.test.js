@@ -103,6 +103,14 @@ test("PD fit 分别按两侧芯片容量判定", () => {
   assert.equal(result.decode.fit, false);
 });
 
+test("PD fit accepts independent prefill and decode KV footprints", () => {
+  const result = projectPdFit({ weightBytes: 100, prefillKvBytes: 20, decodeKvBytes: 80, config: {}, pdPlan: { prefill_plan: { tp: 1 }, decode_plan: { tp: 1 } }, prefillChip: { memory_bytes: 130 }, decodeChip: { memory_bytes: 130 } });
+  assert.equal(result.prefill.stages[0].kvBytes, 20);
+  assert.equal(result.decode.stages[0].kvBytes, 80);
+  assert.equal(result.prefill.fit, true);
+  assert.equal(result.decode.fit, false);
+});
+
 test("计划最大上下文由最紧张 stage 决定", () => {
   const value = maxContextForStages([{ weightBytes: 40, kvBytes: 20 }, { weightBytes: 60, kvBytes: 10 }], { capacityBytes: 100, activationBytes: 10, runtimeBytes: 10, sequence: 10 });
   assert.equal(value, 20);

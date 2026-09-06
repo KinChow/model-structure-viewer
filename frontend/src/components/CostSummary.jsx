@@ -5,9 +5,10 @@ import { maxContextForStages, projectPdFit, projectPlan } from "../cost/parallel
 import { pdKvTransferBytes, planCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 import ManualChipForm from "./ManualChipForm.jsx";
+import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
+import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 
 const GIB = 1024 ** 3;
-const PLAN_DEFAULT = { tp: 1, pp: 1, ep: 1, dp: 1, attnMode: "tp" };
 const FLOPS_ORDER = ["fp32", "fp16", "bf16", "fp8", "int8"];
 
 function formatBytes(value) {
@@ -53,7 +54,7 @@ function PlanFields({ plan, onChange, english }) {
   </div>;
 }
 
-export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", onFitStatusChange, lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange, comparisonMode = "off", onComparisonModeChange, compareChipId = "", onCompareChipIdChange, comparePlan = { tp: 2, ep: 1, attnMode: "tp" }, onComparePlanChange, efficiency = { flops: 0.7, hbm: 0.9, intra_node_comm: 0.8 }, onEfficiencyChange }) {
+export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", onFitStatusChange, lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange, comparisonMode = "off", onComparisonModeChange, compareChipId = "", onCompareChipIdChange, comparePlan = DEFAULT_COMPARE_PLAN, onComparePlanChange, efficiency = DEFAULT_EFFICIENCY, onEfficiencyChange }) {
   const english = language === "en";
   const text = {
     estimate: english ? "Theoretical cost estimate" : "理论成本估算",
@@ -92,29 +93,21 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     etaHbm: "ηHBM",
     etaComm: "ηComm",
   };
-  const [internalPhase, setInternalPhase] = useState("prefill");
-  const [internalMode, setInternalMode] = useState("centralized");
-  const phase = controlledPhase || internalPhase;
-  const mode = controlledMode || internalMode;
-  const changePhase = (next) => controlledPhase ? onPhaseChange?.(next) : setInternalPhase(next);
-  const changeMode = (next) => controlledMode ? onModeChange?.(next) : setInternalMode(next);
-  const [internalLenses, setInternalLenses] = useState(() => new Set(["vram"]));
-  const lenses = controlledLenses || internalLenses;
-  const [internalMachineId, setInternalMachineId] = useState(chips[0]?.id || "");
-  const machineId = controlledMachineId || internalMachineId;
-  const changeMachine = (next) => controlledMachineId ? onMachineIdChange?.(next) : setInternalMachineId(next);
-  const [internalNodes, setInternalNodes] = useState({ centralized: 1, prefill: 1, decode: 2 });
-  const nodes = controlledNodes || internalNodes;
-  const updateNodes = (next) => controlledNodes ? onNodesChange?.(next) : setInternalNodes(next);
-  const [internalGpusPerNode, setInternalGpusPerNode] = useState(8);
-  const gpusPerNode = controlledGpusPerNode || internalGpusPerNode;
-  const updateGpusPerNode = (next) => controlledGpusPerNode ? onGpusPerNodeChange?.(next) : setInternalGpusPerNode(next);
-  const [internalLoads, setInternalLoads] = useState({ prefill: { batch: 1, sequence: 2048, chunked: false, chunkSize: 8192 }, decode: { batch: 1, sequence: 2048 } });
-  const loads = controlledLoads || internalLoads;
-  const updateLoads = (next) => controlledLoads ? onLoadsChange?.(next) : setInternalLoads(next);
-  const [internalPlans, setInternalPlans] = useState({ prefill: PLAN_DEFAULT, decode: PLAN_DEFAULT });
-  const plans = controlledPlans || internalPlans;
-  const updatePlan = (next) => controlledPlans ? onPlansChange?.(next) : setInternalPlans(next);
+  const phase = controlledPhase ?? "prefill";
+  const mode = controlledMode ?? "centralized";
+  const changePhase = (next) => onPhaseChange?.(next);
+  const changeMode = (next) => onModeChange?.(next);
+  const lenses = controlledLenses || new Set(["vram"]);
+  const machineId = controlledMachineId ?? chips[0]?.id ?? "";
+  const changeMachine = (next) => onMachineIdChange?.(next);
+  const nodes = controlledNodes || DEFAULT_NODES;
+  const updateNodes = (next) => onNodesChange?.(next);
+  const gpusPerNode = controlledGpusPerNode ?? 8;
+  const updateGpusPerNode = (next) => onGpusPerNodeChange?.(next);
+  const loads = controlledLoads || DEFAULT_LOADS;
+  const updateLoads = (next) => onLoadsChange?.(next);
+  const plans = controlledPlans || { prefill: DEFAULT_PLAN, decode: DEFAULT_PLAN };
+  const updatePlan = (next) => onPlansChange?.(next);
   const [kvElementBytes, setKvElementBytes] = useState(2);
   const [activationGiB, setActivationGiB] = useState(1.5);
   const [runtimeGiB, setRuntimeGiB] = useState(1.5);
@@ -125,10 +118,13 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const machine = chips.find((chip) => chip.id === machineId) || chips[0];
   const load = loads[phase];
   const plan = plans[phase];
-  const cost = useMemo(() => {
+  const costFor = (targetPhase) => {
+    const targetLoad = loads[targetPhase] || DEFAULT_LOADS[targetPhase];
     if (!structure?.root || !config) return null;
-    return aggregateCost({ root: structure.root, config, parameterCount: structure.summary?.parameters_by_dtype, phase, batch: load.batch, sequence: load.sequence, kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB, commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
-  }, [structure, config, phase, load, kvElementBytes, activationGiB, runtimeGiB, commBufferGiB, weightMode]);
+    return aggregateCost({ root: structure.root, config, parameterCount: structure.summary?.parameters_by_dtype, phase: targetPhase, batch: targetLoad.batch, sequence: targetLoad.sequence, kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB, commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
+  };
+  const phaseCosts = useMemo(() => ({ prefill: costFor("prefill"), decode: costFor("decode") }), [structure, config, loads, plans, kvElementBytes, activationGiB, runtimeGiB, commBufferGiB, weightMode]);
+  const cost = phaseCosts[phase];
   const peakCost = useMemo(() => {
     if (!cost || !load.chunked || phase !== "prefill") return cost;
     return aggregateCost({ root: structure.root, config, parameterCount: structure.summary?.parameters_by_dtype, phase, batch: load.batch, sequence: Math.min(load.sequence, load.chunkSize), kvBytes: kvElementBytes, activationPeak: activationGiB * GIB, runtimeConst: runtimeGiB * GIB, commBuffer: commBufferGiB * GIB, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode) });
@@ -136,8 +132,8 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const available = machine?.memory_bytes || 0;
   const projected = useMemo(() => cost && machine ? projectPlan({ root: structure.root, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, config, plan }) : null, [cost, machine, structure, config, plan]);
   const communication = useMemo(() => cost ? planCommunicationBytes({ root: structure.root, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence) }) : null, [cost, structure, config, plan, load, phase]);
-  const pd = useMemo(() => mode === "pd" && cost && machine ? pdKvTransferBytes({ totalKvBytes: cost.memory.kvBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine }) : null, [mode, cost, machine, config, plans]);
-  const pdFit = useMemo(() => mode === "pd" && cost && machine ? projectPdFit({ root: structure.root, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine, activationBytes: peakCost?.memory.activationBytes || 0, runtimeBytes: cost.memory.runtimeBytes, commBufferBytes: cost.memory.commBufferBytes }) : null, [mode, cost, machine, structure, config, plans, peakCost]);
+  const pd = useMemo(() => mode === "pd" && phaseCosts.prefill && machine ? pdKvTransferBytes({ totalKvBytes: phaseCosts.prefill.memory.kvBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine }) : null, [mode, phaseCosts, machine, config, plans]);
+  const pdFit = useMemo(() => mode === "pd" && phaseCosts.prefill && phaseCosts.decode && machine ? projectPdFit({ root: structure.root, weightBytes: phaseCosts.prefill.memory.weightBytes, prefillKvBytes: phaseCosts.prefill.memory.kvBytes, decodeKvBytes: phaseCosts.decode.memory.kvBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine, activationBytes: peakCost?.memory.activationBytes || 0, runtimeBytes: cost.memory.runtimeBytes, commBufferBytes: cost.memory.commBufferBytes }) : null, [mode, phaseCosts, cost, machine, structure, config, plans, peakCost]);
   const currentNodes = mode === "pd" ? nodes[phase] : nodes.centralized;
   const totalGpus = currentNodes * gpusPerNode;
   const requiredGpus = plan.tp * plan.pp * plan.dp;
@@ -160,8 +156,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     const next = new Set(lenses);
     if (name === "none") next.clear();
     else next.has(name) ? next.delete(name) : next.add(name);
-    if (controlledLenses) onLensesChange?.(next);
-    else setInternalLenses(next);
+    onLensesChange?.(next);
   };
   return <section className="cost-summary cost-summary-modern" aria-label={text.estimate}>
     <div className="cost-summary-header"><div><b>{text.estimate}</b><span className="cost-disclaimer">{text.disclaimer}</span></div><button className="cost-expand-button" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? text.collapse : text.expand}</button></div>

@@ -161,34 +161,27 @@ def _recover_with_runtime_compat(
     runtime_patch: RuntimePatch | None = None,
     config_normalizer: ConfigNormalizer | None = None,
 ) -> MetaRecoveryOutcome | None:
-    attention_normalized = _try_attention_normalized_meta(
-        config,
-        source=source,
-        local_dir=local_dir,
-        original_error=error,
-        diagnostics=diagnostics,
-        recovery_prefix=recovery_prefix,
-        config_overrides=config_overrides,
-        runtime_patch=runtime_patch,
-        config_normalizer=(
-            CompositeConfigNormalizer(config_normalizer, AttentionImplementationNormalizer("sdpa"))
-            if config_normalizer is not None
-            else None
-        ),
-    )
-    if attention_normalized is not None:
-        return attention_normalized
+    for predicate, handler in _runtime_compat_handlers():
+        if predicate(error):
+            return handler(
+                config,
+                source=source,
+                local_dir=local_dir,
+                original_error=error,
+                diagnostics=diagnostics,
+                recovery_prefix=recovery_prefix,
+                config_overrides=config_overrides,
+                runtime_patch=runtime_patch,
+                config_normalizer=config_normalizer,
+            )
+    return None
 
-    return _try_kimi_tie_weights_compat_meta(
-        config,
-        source=source,
-        local_dir=local_dir,
-        original_error=error,
-        diagnostics=diagnostics,
-        recovery_prefix=recovery_prefix,
-        config_overrides=config_overrides,
-        runtime_patch=runtime_patch,
-        config_normalizer=config_normalizer,
+
+def _runtime_compat_handlers():
+    """Ordered compatibility registry; new runtime adapters only add one entry."""
+    return (
+        (is_flash_attention2_unavailable, _try_attention_normalized_meta),
+        (is_kimi_tie_weights_signature_error, _try_kimi_tie_weights_compat_meta),
     )
 
 

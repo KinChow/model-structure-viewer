@@ -118,6 +118,17 @@ def test_local_model_cache_accepts_string_model_root(tmp_path):
     assert [entry.model_id for entry in resolver.list_local_models()] == ["Org/Model"]
 
 
+def test_model_id_cannot_escape_model_root(tmp_path):
+    resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
+    with pytest.raises(SourceResolutionError, match="path traversal"):
+        resolver.local_config_path("../outside")
+
+
+def test_modelscope_client_uses_models_prefix():
+    client = HuggingFaceClient("https://www.modelscope.cn")
+    assert client._resolve_url("Org/Model", "config.json", "master") == "https://www.modelscope.cn/models/Org/Model/resolve/master/config.json"
+
+
 def test_auto_offline_fails_when_local_missing(tmp_path):
     resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
     with pytest.raises(SourceResolutionError):

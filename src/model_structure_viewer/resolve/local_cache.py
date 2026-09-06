@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from ..errors import ConfigError, NotFoundError
 from ..schemas import ModelEntry
@@ -74,7 +75,7 @@ class LocalModelCache:
 
     # ---- path computation ----------------------------------------------------------
     def local_config_path(self, model_id: str) -> Path:
-        parts = [part for part in model_id.split("/") if part]
+        parts = model_id_parts(model_id)
         return self.model_root.joinpath(*parts, "config.json")
 
     # ---- resolution helpers --------------------------------------------------------
@@ -186,3 +187,22 @@ def _model_id_for_path(root: Path, config_path: Path) -> str:
     if config_path.name == "config.json":
         return "/".join(rel_path.parent.parts)
     return "/".join((*rel_path.parent.parts, config_path.stem))
+
+
+def model_id_parts(model_id: str) -> list[str]:
+    """Return safe repo path segments without allowing traversal."""
+    if not isinstance(model_id, str) or not model_id.strip():
+        raise ConfigError("model_id must not be empty")
+    raw = model_id.strip()
+    from_url = "://" in raw
+    if from_url:
+        parsed = urlparse(raw)
+        if parsed.hostname not in {"huggingface.co", "www.huggingface.co", "modelscope.cn", "www.modelscope.cn"}:
+            raise ConfigError("model URL must point to Hugging Face or ModelScope")
+        raw = parsed.path
+        if parsed.hostname in {"modelscope.cn", "www.modelscope.cn"}:
+            raw = raw.removeprefix("/models/")
+    parts = [part for part in raw.split("/") if part]
+    if not parts or any(part in {".", ".."} or "\\" in part for part in parts):
+        raise ConfigError("model_id must be a repository id, not a path traversal")
+    return parts[:2] if from_url else parts

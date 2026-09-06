@@ -103,3 +103,11 @@ def test_with_overrides_accepts_explicit_false_for_auto_fetch():
 
 def test_default_auto_fetch_remote_code_is_true():
     assert AppSettings().auto_fetch_remote_code is True
+
+
+def test_request_defaults_can_inherit_process_settings():
+    from model_structure_viewer.schemas import StructureRequest
+
+    request = StructureRequest(source="auto", model_id="Org/Model")
+    assert request.offline is None
+    assert request.cache_policy is None

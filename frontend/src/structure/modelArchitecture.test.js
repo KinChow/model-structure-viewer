@@ -6,6 +6,7 @@ import { buildNetwork } from "./model_executor/models/index.js";
 import { createStructureIr } from "./ir/createStructureIr.js";
 import { materializeModelStructure } from "./materializers/toStructureNode.js";
 import { formulaForOperator } from "./formulas/index.js";
+import { TEMPLATE_FAMILIES } from "../cost/mergeSemantics.js";
 
 test("normalizes common config fields before architecture resolution", () => {
   const normalized = normalizeConfig({
@@ -122,6 +123,7 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
   assert.equal(structure.root.children[1].attributes.input_shape, "[batch, visual_tokens, vision hidden size=2560]");
   assert.equal(structure.summary.vision_layers, 27);
   assert.equal(structure.summary.vision_output_size, 2560);
+  assert.equal(TEMPLATE_FAMILIES.has(resolved.canonicalArchitecture), true);
 });
 
 test("keeps inferred architecture diagnostics in the IR", () => {

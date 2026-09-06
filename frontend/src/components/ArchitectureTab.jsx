@@ -7,6 +7,8 @@ import { boundFlips, COMPARISON_MODE, resolveComparisonScenario } from "../diagr
 import { buildNodeLens } from "../diagram/lens.js";
 import ManualChipForm from "./ManualChipForm.jsx";
 import { getChipCoverage } from "../cost/chips/coverage.js";
+import { DEFAULT_COMPARE_PLAN, DEFAULT_PLAN } from "../cost/defaults.js";
+import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 
 function downloadSvg(structure) {
   const legacySvg = document.querySelector(".diagram-svg");
@@ -113,21 +115,12 @@ function ArchitectureTab({
   compactControls = false,
 }) {
   const english = language === "en";
-  const [internalPhase, setInternalPhase] = useState("prefill");
-  const phase = activePhase || internalPhase;
-  const [internalChipId, setInternalChipId] = useState(chips[0]?.id || "");
-  const chipId = activeMachineId || internalChipId;
-  const [tp, setTp] = useState(1);
-  const [ep, setEp] = useState(1);
-  const [attnMode, setAttnMode] = useState("tp");
-  const [internalComparisonMode, setInternalComparisonMode] = useState(COMPARISON_MODE.OFF);
-  const [internalCompareChipId, setInternalCompareChipId] = useState(chips[1]?.id || chips[0]?.id || "");
-  const [internalComparePlan, setInternalComparePlan] = useState({ tp: 2, ep: 1, attnMode: "tp" });
-  const [internalEfficiency, setInternalEfficiency] = useState({ flops: 0.7, hbm: 0.9, intra_node_comm: 0.8 });
-  const comparisonMode = controlledComparisonMode ?? internalComparisonMode;
-  const compareChipId = controlledCompareChipId ?? internalCompareChipId;
-  const comparePlan = controlledComparePlan || internalComparePlan;
-  const efficiency = controlledEfficiency || internalEfficiency;
+  const phase = activePhase ?? "prefill";
+  const chipId = activeMachineId ?? "";
+  const comparisonMode = controlledComparisonMode ?? COMPARISON_MODE.OFF;
+  const compareChipId = controlledCompareChipId ?? chips[1]?.id ?? chips[0]?.id ?? "";
+  const comparePlan = controlledComparePlan || DEFAULT_COMPARE_PLAN;
+  const efficiency = controlledEfficiency || DEFAULT_EFFICIENCY;
   const [formulaHoveredPath, setFormulaHoveredPath] = useState(null);
   const [diagramHoveredPath, setDiagramHoveredPath] = useState(null);
   const [formulaOpen, setFormulaOpen] = useState(false);
@@ -140,22 +133,14 @@ function ArchitectureTab({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previousOverflow; };
   }, [canvasFocus]);
-  const changePhase = (next) => activePhase ? onPhaseChange?.(next) : setInternalPhase(next);
-  const internalPlan = useMemo(() => ({ tp, ep, attnMode }), [tp, ep, attnMode]);
-  const plan = activePlans?.[phase] || internalPlan;
-  const updatePlan = (next) => {
-    if (activePlans) onPlanChange?.({ ...activePlans, [phase]: next });
-    else {
-      setTp(next.tp);
-      setEp(next.ep);
-      setAttnMode(next.attnMode);
-    }
-  };
-  const changeChip = (next) => activeMachineId ? onMachineChange?.(next) : setInternalChipId(next);
-  const changeComparisonMode = (next) => controlledComparisonMode != null ? onComparisonModeChange?.(next) : setInternalComparisonMode(next);
-  const changeCompareChip = (next) => controlledCompareChipId != null ? onCompareChipIdChange?.(next) : setInternalCompareChipId(next);
-  const changeComparePlan = (next) => controlledComparePlan ? onComparePlanChange?.(next) : setInternalComparePlan(next);
-  const changeEfficiency = (next) => controlledEfficiency ? onEfficiencyChange?.(next) : setInternalEfficiency(next);
+  const changePhase = (next) => onPhaseChange?.(next);
+  const plan = activePlans?.[phase] || DEFAULT_PLAN;
+  const updatePlan = (next) => onPlanChange?.({ ...(activePlans || {}), [phase]: next });
+  const changeChip = (next) => onMachineChange?.(next);
+  const changeComparisonMode = (next) => onComparisonModeChange?.(next);
+  const changeCompareChip = (next) => onCompareChipIdChange?.(next);
+  const changeComparePlan = (next) => onComparePlanChange?.(next);
+  const changeEfficiency = (next) => onEfficiencyChange?.(next);
   const formulaLinks = useMemo(() => collectFormulaLinks(structure?.root), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const candidateChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
@@ -183,9 +168,15 @@ function ArchitectureTab({
   );
   const compareLensResult = useMemo(
     () => compareScenario
-      ? buildNodeLens(structure, compareScenario.chip, { phase, plan: compareScenario.plan, efficiency })
+      ? buildNodeLens(structure, compareScenario.chip, {
+        phase,
+        batch: load.batch,
+        sequence: load.sequence,
+        plan: compareScenario.plan,
+        efficiency,
+      })
       : null,
-    [structure, compareScenario, phase, efficiency],
+    [structure, compareScenario, phase, load.batch, load.sequence, efficiency],
   );
   const nodeLens = nodeLensResult.nodes;
   const compareNodeLens = compareLensResult?.nodes || {};

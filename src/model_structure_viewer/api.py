@@ -11,8 +11,9 @@ from fastapi.staticfiles import StaticFiles
 from .errors import ViewerError
 from .exporters import export_structure
 from .resolve.local_cache import LocalModelCache
+from .resolve.endpoints import endpoint_revision, endpoint_url
 from .resolver import ModelSourceResolver
-from .schemas import ExportRequest, SettingsPayload, StructureRequest, VerifyRequest
+from .schemas import EndpointKind, ExportRequest, SettingsPayload, StructureRequest, VerifyRequest
 from .service import build_structure_response, verify_structure_response
 from .settings import AppSettings
 
@@ -122,8 +123,11 @@ def local_config(
 def hf_search(
     q: str = Query(..., min_length=1),
     limit: int = 10,
+    endpoint: EndpointKind = "huggingface",
     s: AppSettings = Depends(get_settings),
 ) -> list[dict[str, object]]:
+    if endpoint == "modelscope":
+        raise HTTPException(status_code=400, detail="ModelScope search is not supported")
     return [entry.model_dump() for entry in ModelSourceResolver(s).search_hf_models(q, limit=limit)]
 
 
@@ -131,9 +135,12 @@ def hf_search(
 def hf_config(
     model_id: str,
     revision: str = "main",
+    endpoint: EndpointKind = "huggingface",
     s: AppSettings = Depends(get_settings),
 ) -> dict[str, object]:
-    return ModelSourceResolver(s).get_remote_config(model_id, revision=revision)
+    effective_settings = s.with_overrides(hf_endpoint=endpoint_url(endpoint))
+    effective_revision = endpoint_revision(endpoint, revision)
+    return ModelSourceResolver(effective_settings).get_remote_config(model_id, revision=effective_revision)
 
 
 @app.post("/api/structure")

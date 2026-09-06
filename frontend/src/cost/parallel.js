@@ -229,11 +229,11 @@ export function projectNodePlan({ root, targetWeightBytes, kvBytes = 0, config =
 }
 
 /** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。 */
-export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
+export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
-  function side(plan, chip) {
-    const projection = projectPlan({ root, weightBytes, kvBytes, config, plan });
+  function side(plan, chip, sideKvBytes) {
+    const projection = projectPlan({ root, weightBytes, kvBytes: sideKvBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
       const totalBytes = stage.weightBytes + stage.kvBytes + activationBytes + runtimeBytes + commBufferBytes;
@@ -245,7 +245,12 @@ export function projectPdFit({ root, weightBytes = 0, kvBytes = 0, config = {}, 
     const fit = positiveNumber(capacity) ? stages.every((stage) => stage.fit === true) : null;
     return { chipId: chip?.id || null, capacityBytes: capacity ?? null, stages, fit };
   }
-  return { ok: true, errors: [], prefill: side(checked.prefillPlan, prefillChip), decode: side(checked.decodePlan, decodeChip) };
+  return {
+    ok: true,
+    errors: [],
+    prefill: side(checked.prefillPlan, prefillChip, prefillKvBytes ?? kvBytes),
+    decode: side(checked.decodePlan, decodeChip, decodeKvBytes ?? kvBytes),
+  };
 }
 
 /** 给定 stage 投影下，由最紧张 stage 决定最大上下文。 */

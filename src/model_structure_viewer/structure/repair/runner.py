@@ -20,5 +20,5 @@ def try_repair(
     try:
         return strategy.apply(context)
     except Exception as exc:  # noqa: BLE001 - repair must not hide the original error
-        _LOG.info("Repair strategy %s failed: %s", strategy.name, exc)
+        _LOG.warning("Repair strategy %s failed; retaining original introspection error", strategy.name, exc_info=True)
         return None

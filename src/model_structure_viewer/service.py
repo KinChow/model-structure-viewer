@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .resolver import ModelSourceResolver
+from .resolve.endpoints import endpoint_revision, endpoint_url
 from .schemas import ModelStructure, StructureRequest, VerifyRequest, VerifyResponse
 from .settings import AppSettings
 from .structure import build_model_structure
@@ -36,21 +37,16 @@ def build_structure_response(
     command. Lives outside ``api`` so the CLI does not have to import the
     FastAPI app (which would trigger CORS / static-mount setup).
     """
-    request_settings = base_settings.with_overrides(
-        model_root=payload.model_root,
-        hf_endpoint=payload.hf_endpoint,
-        cache_policy=payload.cache_policy,
-        offline=payload.offline,
-        auto_fetch_remote_code=payload.auto_fetch_remote_code,
-    )
+    request_settings = _settings_for_payload(payload, base_settings)
+    revision = _revision_for_payload(payload)
     resolver = ModelSourceResolver(request_settings)
     resolved = resolver.resolve(
         source=payload.source,
         model_id=payload.model_id,
         config_path=payload.config_path,
         config_json=payload.config_json,
-        revision=payload.revision,
-        cache_policy=payload.cache_policy,
+        revision=revision,
+        cache_policy=payload.cache_policy or request_settings.cache_policy,
         detail_level=payload.detail_level,
     )
     cache_key = _structure_cache_key(payload, request_settings, resolved)
@@ -72,21 +68,16 @@ def verify_structure_response(
     base_settings: AppSettings,
 ) -> VerifyResponse:
     """Resolve a config and strictly validate Transformers meta construction."""
-    request_settings = base_settings.with_overrides(
-        model_root=payload.model_root,
-        hf_endpoint=payload.hf_endpoint,
-        cache_policy=payload.cache_policy,
-        offline=payload.offline,
-        auto_fetch_remote_code=payload.auto_fetch_remote_code,
-    )
+    request_settings = _settings_for_payload(payload, base_settings)
+    revision = _revision_for_payload(payload)
     resolver = ModelSourceResolver(request_settings)
     resolved = resolver.resolve(
         source=payload.source,
         model_id=payload.model_id,
         config_path=payload.config_path,
         config_json=payload.config_json,
-        revision=payload.revision,
-        cache_policy=payload.cache_policy,
+        revision=revision,
+        cache_policy=payload.cache_policy or request_settings.cache_policy,
         detail_level=payload.detail_level,
     )
     worker_result = _run_transformers_verify_worker(
@@ -96,6 +87,22 @@ def verify_structure_response(
         timeout_seconds=_worker_timeout_seconds(),
     )
     return VerifyResponse.model_validate(worker_result)
+
+
+def _settings_for_payload(payload: StructureRequest, base_settings: AppSettings) -> AppSettings:
+    """Apply only explicitly supplied request values to the process settings."""
+    selected_endpoint_url = endpoint_url(payload.endpoint)
+    return base_settings.with_overrides(
+        model_root=payload.model_root,
+        hf_endpoint=selected_endpoint_url or payload.hf_endpoint,
+        cache_policy=payload.cache_policy,
+        offline=payload.offline,
+        auto_fetch_remote_code=payload.auto_fetch_remote_code,
+    )
+
+
+def _revision_for_payload(payload: StructureRequest) -> str:
+    return endpoint_revision(payload.endpoint, payload.revision)
 
 
 def clear_structure_cache() -> None:
@@ -234,61 +241,18 @@ def _run_introspection_worker(
                 "error_type": type(exc).__name__,
             }
 
-    with tempfile.TemporaryDirectory(prefix="msv-structure-worker-") as temp_dir:
-        temp_path = Path(temp_dir)
-        input_path = temp_path / "input.json"
-        output_path = temp_path / "output.json"
-        input_path.write_text(
-            json.dumps(
-                {
-                    "config": config,
-                    "source": source,
-                    "detail_level": detail_level,
-                    "local_dir": str(local_dir) if local_dir is not None else None,
-                },
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
-
-        context = get_context("spawn")
-        process = context.Process(target=_structure_worker_entrypoint, args=(input_path, output_path))
-        process.start()
-        process.join(timeout_seconds)
-
-        if process.is_alive():
-            process.terminate()
-            process.join(2)
-            if process.is_alive():
-                process.kill()
-                process.join()
-            return {
-                "ok": False,
-                "failure_kind": "worker_timeout",
-                "message": f"introspection worker timed out after {timeout_seconds:g}s",
-                "timeout_seconds": timeout_seconds,
-                "exit_code": process.exitcode,
-            }
-
-        if output_path.exists():
-            try:
-                return json.loads(output_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError as exc:
-                return {
-                    "ok": False,
-                    "failure_kind": "worker_failed",
-                    "message": f"worker returned invalid JSON: {exc}",
-                    "error_type": type(exc).__name__,
-                    "exit_code": process.exitcode,
-                }
-
-        failure_kind = "worker_killed" if process.exitcode and process.exitcode < 0 else "worker_failed"
-        return {
-            "ok": False,
-            "failure_kind": failure_kind,
-            "message": f"worker exited with code {process.exitcode}",
-            "exit_code": process.exitcode,
-        }
+    execution = _run_worker_process(
+        "msv-structure-worker-",
+        {"config": config, "source": source, "detail_level": detail_level, "local_dir": str(local_dir) if local_dir is not None else None},
+        _structure_worker_entrypoint,
+        timeout_seconds,
+    )
+    return execution["output"] or {
+        "ok": False,
+        "failure_kind": execution["failure_kind"],
+        "message": execution["message"],
+        **execution.get("details", {}),
+    }
 
 
 def _run_transformers_verify_worker(
@@ -299,36 +263,10 @@ def _run_transformers_verify_worker(
     timeout_seconds: float,
 ) -> dict[str, Any]:
     if _parse_bool(os.environ.get("MSV_DISABLE_STRUCTURE_WORKER", "0")):
-        with _suppress_third_party_output():
-            return verify_transformers_structure(config, source=source, local_dir=local_dir).model_dump(mode="json")
-
-    with tempfile.TemporaryDirectory(prefix="msv-verify-worker-") as temp_dir:
-        temp_path = Path(temp_dir)
-        input_path = temp_path / "input.json"
-        output_path = temp_path / "output.json"
-        input_path.write_text(
-            json.dumps(
-                {
-                    "config": config,
-                    "source": source,
-                    "local_dir": str(local_dir) if local_dir is not None else None,
-                },
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
-
-        context = get_context("spawn")
-        process = context.Process(target=_verify_worker_entrypoint, args=(input_path, output_path))
-        process.start()
-        process.join(timeout_seconds)
-
-        if process.is_alive():
-            process.terminate()
-            process.join(2)
-            if process.is_alive():
-                process.kill()
-                process.join()
+        try:
+            with _suppress_third_party_output():
+                return verify_transformers_structure(config, source=source, local_dir=local_dir).model_dump(mode="json")
+        except Exception as exc:  # noqa: BLE001 - keep direct mode contract equal to subprocess mode
             return {
                 "ok": False,
                 "status": "failed",
@@ -336,46 +274,71 @@ def _run_transformers_verify_worker(
                 "model_id": source.get("model_id"),
                 "source": source,
                 "summary": _verify_minimal_summary(config),
-                "diagnostics": {
-                    "failure_kind": "worker_timeout",
-                    "worker_timeout_seconds": timeout_seconds,
-                    "worker_exit_code": process.exitcode,
-                },
-                "error": f"transformers verification worker timed out after {timeout_seconds:g}s",
+                "diagnostics": {"failure_kind": "worker_failed", "error_type": type(exc).__name__},
+                "error": f"{type(exc).__name__}: {exc}",
             }
 
+    execution = _run_worker_process(
+        "msv-verify-worker-",
+        {"config": config, "source": source, "local_dir": str(local_dir) if local_dir is not None else None},
+        _verify_worker_entrypoint,
+        timeout_seconds,
+    )
+    if execution["output"] is not None:
+        return execution["output"]
+    return {
+        "ok": False,
+        "status": "failed",
+        "strategy": "transformers-meta",
+        "model_id": source.get("model_id"),
+        "source": source,
+        "summary": _verify_minimal_summary(config),
+        "diagnostics": {
+            "failure_kind": execution["failure_kind"],
+            **execution.get("details", {}),
+        },
+        "error": execution["message"],
+    }
+
+
+def _run_worker_process(prefix: str, payload: dict[str, Any], entrypoint, timeout_seconds: float) -> dict[str, Any]:
+    """Run a JSON-file worker and return one normalized execution result."""
+    with tempfile.TemporaryDirectory(prefix=prefix) as temp_dir:
+        temp_path = Path(temp_dir)
+        input_path = temp_path / "input.json"
+        output_path = temp_path / "output.json"
+        input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        process = get_context("spawn").Process(target=entrypoint, args=(input_path, output_path))
+        process.start()
+        process.join(timeout_seconds)
+        if process.is_alive():
+            process.terminate()
+            process.join(2)
+            if process.is_alive():
+                process.kill()
+                process.join()
+            return {
+                "output": None,
+                "failure_kind": "worker_timeout",
+                "message": f"worker timed out after {timeout_seconds:g}s",
+                "details": {"worker_timeout_seconds": timeout_seconds, "worker_exit_code": process.exitcode},
+            }
         if output_path.exists():
             try:
-                return json.loads(output_path.read_text(encoding="utf-8"))
+                return {"output": json.loads(output_path.read_text(encoding="utf-8"))}
             except json.JSONDecodeError as exc:
                 return {
-                    "ok": False,
-                    "status": "failed",
-                    "strategy": "transformers-meta",
-                    "model_id": source.get("model_id"),
-                    "source": source,
-                    "summary": _verify_minimal_summary(config),
-                    "diagnostics": {
-                        "failure_kind": "worker_failed",
-                        "error_type": type(exc).__name__,
-                        "worker_exit_code": process.exitcode,
-                    },
-                    "error": f"verification worker returned invalid JSON: {exc}",
+                    "output": None,
+                    "failure_kind": "worker_failed",
+                    "message": f"worker returned invalid JSON: {exc}",
+                    "details": {"error_type": type(exc).__name__, "worker_exit_code": process.exitcode},
                 }
-
         failure_kind = "worker_killed" if process.exitcode and process.exitcode < 0 else "worker_failed"
         return {
-            "ok": False,
-            "status": "failed",
-            "strategy": "transformers-meta",
-            "model_id": source.get("model_id"),
-            "source": source,
-            "summary": _verify_minimal_summary(config),
-            "diagnostics": {
-                "failure_kind": failure_kind,
-                "worker_exit_code": process.exitcode,
-            },
-            "error": f"verification worker exited with code {process.exitcode}",
+            "output": None,
+            "failure_kind": failure_kind,
+            "message": f"worker exited with code {process.exitcode}",
+            "details": {"worker_exit_code": process.exitcode},
         }
 
 

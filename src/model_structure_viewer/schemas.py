@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 SourceKind = Literal["auto", "builtin", "local", "hf", "config"]
 CachePolicy = Literal["prefer-local", "refresh", "offline"]
+EndpointKind = Literal["huggingface", "modelscope"]
 ExportFormat = Literal["json", "mermaid", "dot"]
 
 
@@ -41,12 +42,13 @@ class StructureRequest(BaseModel):
     config_path: str | None = None
     config_json: dict[str, Any] | None = None
     revision: str = "main"
-    cache_policy: CachePolicy = "prefer-local"
+    cache_policy: CachePolicy | None = None
     detail_level: Literal["compressed", "expanded"] = "compressed"
     hf_endpoint: str | None = None
     model_root: str | None = None
-    offline: bool = False
+    offline: bool | None = None
     auto_fetch_remote_code: bool | None = None
+    endpoint: EndpointKind | None = None
 
 
 class VerifyRequest(StructureRequest):

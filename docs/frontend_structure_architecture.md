@@ -38,6 +38,7 @@ frontend/src/structure/
     normalize.js
   registry/
     aliases.js
+    architectureCatalog.js
     resolveArchitecture.js
   model_executor/
     models/

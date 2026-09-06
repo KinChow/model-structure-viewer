@@ -122,6 +122,8 @@ npm run dev
 - `auto`：优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页端和后端保持相同顺序
 - `config`：使用粘贴或上传的 JSON
 
+网页模型入口接受 `org/model`，也接受对应的 Hugging Face / ModelScope 模型 URL；系统会先归一化为仓库 ID，再拼接 resolve 地址。
+
 仓库内置的轻量 Hugging Face 元数据包括 `config.json`、`model.safetensors.index.json`、`README.md`、`configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py`。其中 `model.safetensors.index.json` 只保存分片映射，不包含 tensor header；dtype、shape 和参数量真值仍在运行时按 HF → ModelScope 读取。
 
 下面这些权重或模型文件不会被这个工具缓存：
@@ -151,6 +153,12 @@ npm run dev
 
 ### Qwen
 
+- `Qwen/Qwen3.8-2.4T-A95B`
+- `Qwen/Qwen3.8-2.4T-A95B-FP8`
+- `Qwen/Qwen3.8-27B`
+- `Qwen/Qwen3.8-27B-FP8`
+- `Qwen/Qwen3.8-Flash-Next`
+- `Qwen/Qwen3.8-Flash-Next-FP8`
 - `Qwen/Qwen3.5-0.8B`
 - `Qwen/Qwen3.5-0.8B-Base`
 - `Qwen/Qwen3.5-2B`
@@ -179,6 +187,9 @@ npm run dev
 
 ### DeepSeek
 
+- `deepseek-ai/DeepSeek-V4-Flash-0731`
+- `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp`
+- `deepseek-ai/DeepSeek-V4-Pro-0813`
 - `deepseek-ai/DeepSeek-R1`
 - `deepseek-ai/DeepSeek-V3.1`
 - `deepseek-ai/DeepSeek-V3.2`
@@ -187,6 +198,11 @@ npm run dev
 
 ### GLM
 
+- `zai-org/GLM-5.2-FP8`
+- `zai-org/GLM-5.3`
+- `zai-org/GLM-5.3-BF16`
+- `zai-org/GLM-5.3-Flash`
+- `zai-org/GLM-5.3-Flash-BF16`
 - `zai-org/GLM-4.7`
 - `zai-org/GLM-5`
 - `zai-org/GLM-5.1`
@@ -194,6 +210,7 @@ npm run dev
 
 ### Kimi
 
+- `moonshotai/Kimi-K3`
 - `moonshotai/Kimi-K2-Base`
 - `moonshotai/Kimi-K2-Instruct`
 - `moonshotai/Kimi-K2-Instruct-0905`

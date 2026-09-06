@@ -84,7 +84,7 @@ export async function searchHfApi(query, limit = 10, endpoint) {
   try {
     return await searchHfDirect(query, limit, endpoint);
   } catch {
-    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    const params = new URLSearchParams({ q: query, limit: String(limit), endpoint: endpoint || "huggingface" });
     return requestJson(`/api/hf/search?${params.toString()}`);
   }
 }
@@ -93,7 +93,7 @@ export async function fetchHfConfigApi({ modelId, revision = "main", endpoint })
   try {
     return await fetchHfConfigDirect({ modelId, revision, endpoint });
   } catch {
-    const params = new URLSearchParams({ model_id: modelId, revision });
+    const params = new URLSearchParams({ model_id: modelId, revision, endpoint: endpoint || "huggingface" });
     return requestJson(`/api/hf/config?${params.toString()}`);
   }
 }

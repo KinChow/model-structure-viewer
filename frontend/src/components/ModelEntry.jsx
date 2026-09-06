@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { staticAssetPath } from "../structure/catalog/manifest.js";
 
 const PROVIDER_MARKS = { MiniMax: "M", Qwen: "Q", DeepSeek: "D", "zai-org": "Z" };
 // Synced from the vLLM Recipes provider assets into /public/providers.
 const PROVIDER_LOGOS = {
-  MiniMaxAI: "/providers/MiniMaxAI.jpeg",
-  Qwen: "/providers/Qwen.png",
-  "deepseek-ai": "/providers/deepseek-ai.png",
-  moonshotai: "/providers/moonshotai.jpeg",
-  "zai-org": "/providers/zai-org.png",
+  MiniMaxAI: staticAssetPath("providers/MiniMaxAI.jpeg"),
+  Qwen: staticAssetPath("providers/Qwen.png"),
+  "deepseek-ai": staticAssetPath("providers/deepseek-ai.png"),
+  moonshotai: staticAssetPath("providers/moonshotai.jpeg"),
+  "zai-org": staticAssetPath("providers/zai-org.png"),
 };
 
 function providerName(modelId) {

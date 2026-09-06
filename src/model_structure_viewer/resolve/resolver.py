@@ -17,7 +17,7 @@ from ..errors import ConfigError, NotFoundError, RemoteError
 from ..schemas import HfSearchResult, ModelEntry
 from ..settings import AppSettings
 from .hf_client import HuggingFaceClient
-from .local_cache import LocalModelCache, ResolvedConfig
+from .local_cache import LocalModelCache, ResolvedConfig, model_id_parts
 from .remote_code import RemoteCodeFetcher
 
 _LOG = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ class ModelSourceResolver:
         return resolved
 
     def builtin_config_path(self, model_id: str) -> Path:
-        parts = [part for part in model_id.split("/") if part]
+        parts = model_id_parts(model_id)
         return _repo_root().joinpath("models", *parts, "config.json")
 
     # ---- HF helpers ----------------------------------------------------------------

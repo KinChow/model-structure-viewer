@@ -10,14 +10,12 @@
 // 这里只做结构合并与展示字段落位，不做任何换算。
 
 import { buildSkeleton } from "./skeleton.js";
+import { ARCHITECTURE_CATALOG, hasTemplateArchitecture } from "../structure/registry/architectureCatalog.js";
 
-/** 模板家族（命中则走模板树绑定；否则 trie 兜底）。 */
-export const TEMPLATE_FAMILIES = new Set([
-  "gqa-decoder",
-  "gqa-moe-decoder",
-  "mla-moe-decoder",
-  "multimodal-sparse-moe-decoder",
-]);
+/** 模板家族（由统一架构目录派生，避免 registry/materializer 漂移）。 */
+export const TEMPLATE_FAMILIES = new Set(
+  Object.keys(ARCHITECTURE_CATALOG).filter(hasTemplateArchitecture),
+);
 
 /** 从路径末尾逐段比较，返回连续匹配段数（用于模板路径 ↔ trie 路径的对齐）。 */
 function suffixScore(triePath, templatePath) {

@@ -9,6 +9,8 @@
 // 不做子字节量化的打包换算——parameterCount 按 Σnumel 计（未量化模型即精确值）。
 // 模型级精确参数量优先走 parseSafetensorsMetadata（weights.js 库优先）；本路径为浏览器降级。
 
+import { normalizeModelId } from "../api/hf.js";
+
 /**
  * 读取模型 repo 的全部 safetensors header，归一化为 {tensors, parameterCount, parameterTotal}。
  * @param {{modelId: string, revision?: string, hubUrl?: string, resolvePrefix?: string, fetchImpl?: typeof fetch}} params
@@ -20,7 +22,8 @@ export async function readSafetensorsHeaders({
   resolvePrefix = "",
   fetchImpl = fetch,
 }) {
-  const base = `${hubUrl}${resolvePrefix}/${modelId}/resolve/${revision}`;
+  const normalizedModelId = normalizeModelId(modelId, resolvePrefix === "/models" ? "modelscope" : "huggingface");
+  const base = `${hubUrl}${resolvePrefix}/${normalizedModelId}/resolve/${encodeURIComponent(revision)}`;
 
   // 分片 index 存在 → 按 index 的 shard 读；否则单文件
   const indexUrl = `${base}/model.safetensors.index.json`;

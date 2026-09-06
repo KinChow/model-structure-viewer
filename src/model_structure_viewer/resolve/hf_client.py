@@ -26,6 +26,7 @@ class HuggingFaceClient:
 
     def __init__(self, hf_endpoint: str):
         self.hf_endpoint = hf_endpoint.rstrip("/")
+        self.resolve_prefix = "/models" if "modelscope.cn" in self.hf_endpoint else ""
 
     # ---- public, hub-aware helpers -------------------------------------------------
     def download_text(self, model_id: str, filename: str, revision: str) -> str:
@@ -65,7 +66,7 @@ class HuggingFaceClient:
         encoded = urllib.parse.quote(model_id, safe="/")
         rev = urllib.parse.quote(revision, safe="")
         file_name = urllib.parse.quote(filename, safe="/")
-        return f"{self.hf_endpoint}/{encoded}/resolve/{rev}/{file_name}"
+        return f"{self.hf_endpoint}{self.resolve_prefix}/{encoded}/resolve/{rev}/{file_name}"
 
     def _http_json(self, url: str, *, log_errors: bool = True) -> Any:
         text = self._request_text(url, context=url, log_errors=log_errors)

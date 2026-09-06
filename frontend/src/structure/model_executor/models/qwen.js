@@ -24,13 +24,27 @@ export function buildGqaMoeDecoderNetwork(resolved, normalized) {
 }
 
 export function buildQwenMultimodalNetwork(resolved, normalized) {
+  return buildMultimodalDecoderNetwork(resolved, normalized, {
+    attentionKind: "gqa",
+    defaultLayerKind: normalized.experts ? "moe" : "dense",
+  });
+}
+
+export function buildMlaMultimodalNetwork(resolved, normalized) {
+  return buildMultimodalDecoderNetwork(resolved, normalized, {
+    attentionKind: "mla",
+    defaultLayerKind: "moe",
+  });
+}
+
+function buildMultimodalDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind }) {
   return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.canonicalArchitecture, [
     visionTowerModule(normalized),
-    projectorModule(normalized),
+    ...(normalized.hasVisionProjector ? [projectorModule(normalized)] : []),
     embeddingModule("embed_tokens", normalized),
     decoderStackNetwork("decoder", normalized, {
-      attentionKind: "gqa",
-      defaultLayerKind: normalized.experts ? "moe" : "dense",
+      attentionKind,
+      defaultLayerKind,
     }),
     ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),

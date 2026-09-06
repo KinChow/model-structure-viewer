@@ -1,4 +1,11 @@
 import { ARCHITECTURE_ALIASES } from "./aliases.js";
+import { multimodalVariant } from "./architectureCatalog.js";
+
+function withVision(normalized, canonicalArchitecture) {
+  return normalized.hasVision
+    ? multimodalVariant(canonicalArchitecture) || canonicalArchitecture
+    : canonicalArchitecture;
+}
 
 export function resolveArchitecture(normalized, options = {}) {
   if (normalized.visionConfig && normalized.architecture === "Qwen4ExpForConditionalGeneration") {
@@ -6,7 +13,7 @@ export function resolveArchitecture(normalized, options = {}) {
   }
   if (normalized.architecture && ARCHITECTURE_ALIASES[normalized.architecture]) {
     return {
-      canonicalArchitecture: ARCHITECTURE_ALIASES[normalized.architecture],
+      canonicalArchitecture: withVision(normalized, ARCHITECTURE_ALIASES[normalized.architecture]),
       architecture: normalized.architecture,
       resolution: "architecture-alias",
     };
@@ -17,13 +24,13 @@ export function resolveArchitecture(normalized, options = {}) {
     return { canonicalArchitecture: "multimodal-sparse-moe-decoder", architecture: normalized.architecture, resolution: "model-type" };
   }
   if (probe.includes("deepseek") || probe.includes("glm_moe_dsa") || probe.includes("glmmoedsa")) {
-    return { canonicalArchitecture: "mla-moe-decoder", architecture: normalized.architecture, resolution: "model-type" };
+    return { canonicalArchitecture: withVision(normalized, "mla-moe-decoder"), architecture: normalized.architecture, resolution: "model-type" };
   }
   if (probe.includes("qwen") && normalized.experts) {
-    return { canonicalArchitecture: "gqa-moe-decoder", architecture: normalized.architecture, resolution: "model-type" };
+    return { canonicalArchitecture: withVision(normalized, "gqa-moe-decoder"), architecture: normalized.architecture, resolution: "model-type" };
   }
   if (probe.includes("qwen")) {
-    return { canonicalArchitecture: "gqa-decoder", architecture: normalized.architecture, resolution: "model-type" };
+    return { canonicalArchitecture: withVision(normalized, "gqa-decoder"), architecture: normalized.architecture, resolution: "model-type" };
   }
   if (normalized.layers) {
     return { canonicalArchitecture: "generic-decoder", architecture: normalized.architecture, resolution: "field-inference" };

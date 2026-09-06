@@ -133,6 +133,25 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
   assert.equal(TEMPLATE_FAMILIES.has(resolved.canonicalArchitecture), true);
 });
 
+test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks", () => {
+  const cases = [
+    ["Qwen/Qwen3.6-27B", "multimodal-gqa-decoder", true],
+    ["moonshotai/Kimi-K2.5", "multimodal-mla-moe-decoder", true],
+    ["deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", "multimodal-mla-moe-decoder", false],
+  ];
+  for (const [modelId, canonicalArchitecture, hasProjector] of cases) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, `models/${modelId}/config.json`), "utf8"));
+    const normalized = normalizeConfig(config);
+    const resolved = resolveArchitecture(normalized, { modelId });
+    const network = buildNetwork(resolved, normalized);
+
+    assert.equal(normalized.hasVision, true, modelId);
+    assert.equal(resolved.canonicalArchitecture, canonicalArchitecture, modelId);
+    assert.equal(network.children.some((node) => node.id === "vision_tower"), true, modelId);
+    assert.equal(network.children.some((node) => node.id === "projector"), hasProjector, modelId);
+  }
+});
+
 test("keeps inferred architecture diagnostics in the IR", () => {
   const normalized = normalizeConfig({
     model_type: "qwen3",

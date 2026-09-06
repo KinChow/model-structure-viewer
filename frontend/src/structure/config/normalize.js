@@ -131,7 +131,18 @@ function explicitAttentionSchedule(config, layers) {
 
 export function normalizeConfig(config) {
   const textConfig = typeof config?.text_config === "object" && config.text_config ? config.text_config : config;
-  const visionConfig = typeof config?.vision_config === "object" && config.vision_config ? config.vision_config : null;
+  const nestedVisionConfig = typeof config?.vision_config === "object" && config.vision_config ? config.vision_config : null;
+  const flatVisionConfig = firstNumber(config, ["vision_n_layers"]) != null
+    ? {
+      num_hidden_layers: firstNumber(config, ["vision_n_layers"]),
+      hidden_size: firstNumber(config, ["vision_dim"]),
+      num_attention_heads: firstNumber(config, ["vision_n_heads"]),
+      intermediate_size: firstNumber(config, ["vision_inter_dim"]),
+      patch_size: firstNumber(config, ["vision_patch_size"]),
+    }
+    : null;
+  const visionConfig = nestedVisionConfig || flatVisionConfig;
+  const hasVision = Boolean(visionConfig) && config?.language_model_only !== true;
   const linearAttentionConfig = typeof textConfig?.linear_attn_config === "object" && textConfig.linear_attn_config
     ? textConfig.linear_attn_config
     : null;
@@ -147,6 +158,8 @@ export function normalizeConfig(config) {
     modelType: config?.model_type,
     textConfig,
     visionConfig,
+    hasVision,
+    hasVisionProjector: Boolean(nestedVisionConfig),
     layers,
     visionLayers,
     hiddenSize,

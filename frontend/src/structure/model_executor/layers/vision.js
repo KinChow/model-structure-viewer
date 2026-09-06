@@ -11,7 +11,7 @@ export function visionTowerModule(normalized) {
     "vision-encoder",
     {
       class: "VisionTower",
-      hidden_size: normalized.visionConfig?.hidden_size,
+      hidden_size: normalized.visionHiddenSize,
       output_hidden_size: normalized.visionOutputSize,
       num_hidden_layers: normalized.visionLayers,
       ...shapeFlow(shapes.visionInput, shapes.visionOutput),

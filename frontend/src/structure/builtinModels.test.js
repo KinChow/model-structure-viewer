@@ -32,6 +32,12 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       resolved,
     }));
     assert.ok(structure.root.children.length > 0, `${entry.model_id}: empty module tree`);
+    if (normalized.hasVision) {
+      assert.ok(
+        structure.root.children.some((node) => node.type === "vision-encoder"),
+        `${entry.model_id}: vision config is missing from the structure`,
+      );
+    }
     walk(structure.root, (node) => {
       if (node.type !== "operator") return;
       assert.ok(node.attributes.formula, `${entry.model_id}: missing formula for ${node.attributes.operator_id}`);

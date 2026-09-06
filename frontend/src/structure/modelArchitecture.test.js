@@ -781,3 +781,22 @@ test("DeepSeek V4 DSV4 attention edges are builder-declared", () => {
     assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...dsv4Ids].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
   }
 });
+
+test("Kimi K3, GLM5 Flash, and Qwen4Exp linear edges are builder-declared", () => {
+  for (const modelPath of [
+    "models/moonshotai/Kimi-K3/config.json",
+    "models/zai-org/GLM-5.3-Flash/config.json",
+    "models/Qwen/Qwen3.8-Flash-Next/config.json",
+  ]) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, modelPath), "utf8"));
+    const normalized = normalizeConfig(config);
+    const resolved = resolveArchitecture(normalized, { modelId: modelPath });
+    const structure = materializeModelStructure(createStructureIr({
+      network: buildNetwork(resolved, normalized),
+      normalized,
+      resolved,
+    }));
+    const linearIds = new Set(structure.graph.nodes.filter((node) => node.type === "attention" && node.attributes.attention_kind === "linear").map((node) => node.id));
+    assert.equal(structure.graph.edges.filter((edge) => edge.evidence === "semantic-flow" && [...linearIds].some((id) => edge.source.startsWith(`${id}.`))).length, 0, modelPath);
+  }
+});

@@ -26,6 +26,7 @@ Model Structure Viewer 的重要变更记录。
 - Qwen3.5/3.6 的 linear/full attention dataflow 改为 builder 声明边，覆盖不同规模和配置变体。
 - DeepSeek V3.2、GLM DSA/Flash 和 Qwen4Exp 的 QSA dataflow 改为 builder 声明边。
 - DeepSeek V4 Flash/Pro DSV4 attention dataflow 改为按 compressor 变体声明边。
+- Kimi K3、GLM5 Flash、Qwen4Exp linear attention dataflow 改为按 qkvz/非 qkvz 变体声明边。
 - 本阶段验证：后端 `148 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
 
 ## [0.2.0] - 2026-09-06

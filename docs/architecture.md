@@ -56,11 +56,11 @@ CLI / HTTP request
 
 - 模型摘要和规范化配置
 - 节点树、重复层、输入输出 shape
-- `graph.schema_version=2`、节点事实、稳定 path 节点和显式 dataflow edges
+- `graph.schema_version=2`、节点事实、canonical node ids、稳定 path 节点和显式 dataflow edges
 - 参数量、dtype、权重来源和 tensor 名称
 - 算子、公式、诊断和结构生成策略
 
-`graph` 是新的内部事实载体；`root.children` 是由 graph projection 生成的兼容层，当前仍服务旧 API、truth/cost 迁移和 breadcrumb。新功能应优先消费 `graph.nodes/graph.edges`，不直接重新解析原始配置或调用 registry。
+`graph` 是新的内部事实载体；`root.children` 是由 graph projection 生成的兼容层，当前仍服务旧 API、truth 迁移和 breadcrumb。layout、compute、aggregate、通信、PP/PD projection 和导出已经优先消费 graph；新功能不应直接解析原始配置或调用 registry。
 
 ## 责任边界
 

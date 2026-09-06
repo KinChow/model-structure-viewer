@@ -1,5 +1,5 @@
 import { moduleSpec, withShapeDims } from "./base.js";
-import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttentionOperatorSpecs, minimaxDenseAttentionOperatorSpecs, minimaxSparseAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs, qwen35FullAttentionOperatorSpecs } from "../ops/index.js";
+import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttentionOperatorSpecs, minimaxDenseAttentionOperatorSpecs, minimaxM2AttentionOperatorSpecs, minimaxSparseAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs, qwen35FullAttentionOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 
@@ -32,6 +32,8 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
         ? minimaxSparseAttentionOperatorSpecs(id, normalized, layerIndex)
       : attentionKind === "gqa" && normalized.modelType === "minimax_m3_vl"
         ? minimaxDenseAttentionOperatorSpecs(id, normalized)
+      : attentionKind === "gqa" && normalized.modelType === "minimax_m2"
+        ? minimaxM2AttentionOperatorSpecs(id, normalized)
       : attentionKind === "qwen35_full"
         ? qwen35FullAttentionOperatorSpecs(id, normalized)
       : attentionKind === "qsa"

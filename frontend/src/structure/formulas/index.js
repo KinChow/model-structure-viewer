@@ -258,6 +258,13 @@ const FORMULAS = {
     inputs: ["x", "W_{qkvz}"],
     outputs: ["q", "k", "v", "z"],
   },
+  attention_qkv_split: {
+    title: "Attention QKV Split",
+    formula: "[q,k,v] = split(W_{qkv}x; q,k,v)",
+    explanation: "MiniMax-M2/3 的 fused QKV 投影在进入归一化与 RoPE 前拆成 q、k、v 语义分支。",
+    inputs: ["x", "W_{qkv}"],
+    outputs: ["q", "k", "v"],
+  },
   attention_output_gate: {
     title: "Attention Output Gate",
     formula: "O' = sigmoid(G) * O",

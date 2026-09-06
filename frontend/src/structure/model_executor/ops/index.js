@@ -743,6 +743,53 @@ export function minimaxSparseAttentionOperatorSpecs(prefix, normalized, layerInd
   return minimaxAttentionCommon(prefix, normalized, true, layerIndex);
 }
 
+export function minimaxM2AttentionOperatorSpecs(prefix, normalized) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const qProjection = (normalized.attentionHeads || 0) * (normalized.headDim || 0);
+  const kvProjection = (normalized.kvHeads || normalized.attentionHeads || 0) * (normalized.headDim || 0);
+  const fusedWidth = qProjection + 2 * kvProjection;
+  const fusedShape = `[batch, sequence, fused qkv=${fusedWidth}]`;
+  return [
+    operatorSpec(`${prefix}.qkv_proj`, "fused QKV projection", "linear", {
+      ...shapeFlow(shapes.hidden, fusedShape),
+      projection_layout: ["q", "k", "v"],
+      implementation: ["vLLM.MiniMaxM2Attention.qkv_proj", "SGLang.MiniMaxM2Attention.qkv_proj"],
+    }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
+    operatorSpec(`${prefix}.qkv_split`, "QKV split", "attention_qkv_split", {
+      ...shapeFlow(fusedShape, `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`),
+      split_sizes: [qProjection, kvProjection, kvProjection],
+    }, { input: [-1, -1, fusedWidth], output: [-1, -1, qProjection] }),
+    operatorSpec(`${prefix}.q_norm`, "Q RMSNorm", "rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), {
+      input: dims.attentionQuery,
+      output: dims.attentionQuery,
+      norm_type: normalized.qkNormType || "per_layer",
+      implementation: ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
+    }),
+    operatorSpec(`${prefix}.k_norm`, "K RMSNorm", "rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), {
+      input: dims.attentionKey,
+      output: dims.attentionKey,
+      norm_type: normalized.qkNormType || "per_layer",
+      implementation: ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
+    }),
+    operatorSpec(`${prefix}.rope`, "partial rotary position embedding", "rope", {
+      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
+      rotary_dim: normalized.rotaryDim,
+      partial_rotary_factor: normalized.partialRotaryFactor,
+    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {
+      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
+      formula: "S = Q K^T / sqrt(d)",
+    }, { input: dims.attentionQuery, output: dims.attentionScores }),
+    operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }),
+    operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
+      ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
+      formula: "O = P V",
+    }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", shapeFlow(shapes.attentionContext, shapes.hidden), { input: dims.attentionContext, output: dims.hidden }),
+  ];
+}
+
 // DeepSeek V3.2/GLM DSA 共用一份 MLA + indexer 语义；vLLM/SGLang 的融合方式只记录在 implementation。
 function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const shapes = tensorShapes(normalized);
@@ -853,18 +900,19 @@ export function mlpOperatorSpecs(prefix, normalized) {
 export function moeOperatorSpecs(prefix, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
+  const isMiniMaxRouter = ["minimax_m2", "minimax_m3_vl"].includes(normalized.modelType);
   return [
     operatorSpec(`${prefix}.router`, "router logits", "linear", {
       ...shapeFlow(shapes.hidden, shapes.routerLogits),
-      scoring_func: normalized.modelType === "minimax_m3_vl" ? "sigmoid" : undefined,
-      routing_bias: normalized.modelType === "minimax_m3_vl" ? true : undefined,
-      implementation: normalized.modelType === "minimax_m3_vl" ? ["vLLM.GateLinear fp32 router", "SGLang.GateLinear fp32 router"] : undefined,
+      scoring_func: isMiniMaxRouter ? "sigmoid" : undefined,
+      routing_bias: isMiniMaxRouter ? true : undefined,
+      implementation: isMiniMaxRouter ? ["vLLM.GateLinear fp32 router", "SGLang.GateLinear fp32 router"] : undefined,
     }, { input: dims.hidden, output: dims.routerLogits }),
     operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
       ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
       expert_ids_shape: shapes.topExperts,
       expert_weights_shape: shapes.topExperts,
-      scoring_func: normalized.modelType === "minimax_m3_vl" ? "sigmoid" : undefined,
+      scoring_func: isMiniMaxRouter ? "sigmoid" : undefined,
     }, { input: dims.routerLogits, output: dims.topExperts }),
     operatorSpec(`${prefix}.dispatch`, "expert dispatch", "moe_dispatch", {
       ...shapeFlow(`${shapes.hidden}, ${shapes.topExperts}`, shapes.expertInput),

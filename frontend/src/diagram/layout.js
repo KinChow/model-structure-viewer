@@ -349,6 +349,33 @@ function semanticEdges(item) {
     return edges.length >= 6 ? edges : null;
   }
 
+  if (item.node?.attributes?.model_variant === "minimax_m2") {
+    const fused = find(/fused qkv projection/);
+    const split = find(/qkv split/);
+    const qNorm = find(/^q rmsnorm$/);
+    const kNorm = find(/^k rmsnorm$/);
+    const rope = find(/partial rotary/);
+    const scores = find(/attention scores/);
+    const softmax = find(/attention probabilities|softmax/);
+    const context = find(/weighted value/);
+    const output = find(/output projection|out_proj/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+    };
+    add(fused, split);
+    add(split, qNorm);
+    add(split, kNorm);
+    add(qNorm, rope);
+    add(kNorm, rope);
+    add(rope, scores);
+    add(scores, softmax);
+    add(softmax, context);
+    add(context, output);
+    return edges.length >= 7 ? edges : null;
+  }
+
   if (item.node?.attributes?.attention_kind === "dsv4") {
     const fused = find(/fused q\/kv projection/);
     const split = find(/q\/kv latent split/);

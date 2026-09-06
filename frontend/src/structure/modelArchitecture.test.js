@@ -603,3 +603,33 @@ test("maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE", () 
   assert.equal(moe.children.find((node) => node.name === "expert MLP").attributes.activation, "swigluoai_uninterleave");
   assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
 });
+
+test("maps MiniMax M2 fused QKV, QK norms, and partial RoPE", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/MiniMaxAI/MiniMax-M2.7/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.equal(normalized.modelType, "minimax_m2");
+  assert.equal(normalized.rotaryDim, 64);
+  assert.equal(normalized.qkNormType, "per_layer");
+  const resolved = resolveArchitecture(normalized, { modelId: "MiniMaxAI/MiniMax-M2.7" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "decoder");
+  const attention = decoder.children[0].children.find((node) => node.type === "attention");
+  assert.deepEqual(attention.children.map((node) => node.name), [
+    "fused QKV projection",
+    "QKV split",
+    "Q RMSNorm",
+    "K RMSNorm",
+    "partial rotary position embedding",
+    "attention scores",
+    "attention probabilities",
+    "weighted value",
+    "output projection",
+  ]);
+  assert.equal(attention.children.find((node) => node.name === "QKV split").attributes.formula_id, "attention_qkv_split");
+  const moe = decoder.children[0].children.find((node) => node.type === "moe");
+  assert.equal(moe.children.find((node) => node.name === "router logits").attributes.scoring_func, "sigmoid");
+});

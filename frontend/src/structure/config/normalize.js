@@ -227,6 +227,9 @@ export function normalizeConfig(config) {
     partialRotaryFactor: firstNumber(textConfig, ["partial_rotary_factor"])
       ?? firstNumber(textConfig?.rope_parameters, ["partial_rotary_factor"])
       ?? firstNumber(textConfig?.rope_scaling, ["partial_rotary_factor"]),
+    rotaryDim: firstNumber(textConfig, ["rotary_dim"]) ?? firstNumber(config, ["rotary_dim"]),
+    useQkNorm: Boolean(textConfig?.use_qk_norm ?? config?.use_qk_norm),
+    qkNormType: textConfig?.qk_norm_type ?? config?.qk_norm_type,
     normMode: ["qwen3_5", "minimax_m3"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
       || Boolean(textConfig?.use_gemma_norm ?? config?.use_gemma_norm)
       ? "gemma_rmsnorm"

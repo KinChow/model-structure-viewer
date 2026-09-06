@@ -1,5 +1,5 @@
 """Unit tests for semantics and fold helpers."""
-from model_structure_viewer.schemas import StructureNode
+from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphNode, StructureNode
 from model_structure_viewer.structure.fold import collapse
 from model_structure_viewer.structure import semantics
 from model_structure_viewer.structure.introspect import _walk
@@ -144,3 +144,15 @@ def test_structure_graph_materializes_stable_paths_and_edges():
         ("root.0", "root.1"),
         ("root.1", "root.2"),
     ]
+
+
+def test_model_structure_normalizes_root_and_graph_as_reversible_views():
+    root_only = ModelStructure(root=StructureNode(id="model", name="Model", type="model"))
+    assert root_only.graph is None
+
+    graph_only = ModelStructure(graph=StructureGraph(
+        nodes=[StructureGraphNode(id="root", canonical_id="model", name="Graph Model", type="model")],
+    ))
+    assert graph_only.root is not None
+    assert graph_only.root.id == "model"
+    assert graph_only.root.name == "Graph Model"

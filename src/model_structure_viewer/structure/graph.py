@@ -138,7 +138,7 @@ def collapse_graph(graph: StructureGraph) -> StructureGraph:
 def project_graph_to_tree(graph: StructureGraph) -> StructureNode:
     """Create the legacy hierarchy view from the graph node index."""
     by_id = {node.id: StructureNode(
-        id=node.module_id or node.id,
+        id=node.canonical_id or node.module_id or node.id,
         name=node.name,
         type=node.type,
         repeat=node.repeat,

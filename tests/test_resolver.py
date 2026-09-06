@@ -129,6 +129,26 @@ def test_modelscope_client_uses_models_prefix():
     assert client._resolve_url("Org/Model", "config.json", "master") == "https://www.modelscope.cn/models/Org/Model/resolve/master/config.json"
 
 
+def test_hf_client_resolves_huggingface_revision(monkeypatch):
+    client = HuggingFaceClient("https://huggingface.co")
+    monkeypatch.setattr(client, "_http_json", lambda url, log_errors=False: {"sha": "commit-a"})
+
+    assert client.resolve_revision("Org/Model", "main") == "commit-a"
+
+
+def test_hf_client_resolves_modelscope_config_revision(monkeypatch):
+    client = HuggingFaceClient("https://www.modelscope.cn")
+    monkeypatch.setattr(
+        client,
+        "_http_json",
+        lambda url, log_errors=False: {
+            "Data": {"Files": [{"Path": "config.json", "Revision": "commit-b"}]},
+        },
+    )
+
+    assert client.resolve_revision("Org/Model", "master") == "commit-b"
+
+
 def test_auto_offline_fails_when_local_missing(tmp_path):
     resolver = ModelSourceResolver(AppSettings(model_root=tmp_path, offline=True))
     with pytest.raises(SourceResolutionError):
@@ -301,6 +321,7 @@ def test_hf_source_does_not_download_remote_code_when_disabled(tmp_path, monkeyp
             "auto_map": {"AutoModel": "modeling_untrusted.UntrustedModel"},
         },
     )
+    monkeypatch.setattr(HuggingFaceClient, "resolve_revision", lambda *args: "commit-a")
 
     def reject_code_fetch(*args, **kwargs):
         raise AssertionError("remote code must not be listed or downloaded")
@@ -317,6 +338,60 @@ def test_hf_source_does_not_download_remote_code_when_disabled(tmp_path, monkeyp
     assert (resolved.local_dir / "config.json").exists()
     assert list(resolved.local_dir.glob("*.py")) == []
     assert "remote_code_fetch" not in resolved.source
+
+
+def test_hf_cache_isolated_by_endpoint_and_revision(tmp_path, monkeypatch):
+    downloads = []
+
+    def configure(resolver, marker):
+        monkeypatch.setattr(resolver._hf, "resolve_revision", lambda model_id, revision: f"{marker}-{revision}")
+
+        def download(model_id, filename, revision):
+            downloads.append((marker, revision))
+            return {"model_type": "tiny", "marker": marker, "revision": revision}
+
+        monkeypatch.setattr(resolver._hf, "download_json", download)
+
+    hf = ModelSourceResolver(AppSettings(model_root=tmp_path, hf_endpoint="https://huggingface.co", auto_fetch_remote_code=False))
+    ms = ModelSourceResolver(AppSettings(model_root=tmp_path, hf_endpoint="https://www.modelscope.cn", auto_fetch_remote_code=False))
+    configure(hf, "hf")
+    configure(ms, "ms")
+
+    hf_a = hf.resolve(source="hf", model_id="Org/Model", revision="rev-a", cache_policy="refresh")
+    hf_b = hf.resolve(source="hf", model_id="Org/Model", revision="rev-b", cache_policy="refresh")
+    ms_a = ms.resolve(source="hf", model_id="Org/Model", revision="rev-a", cache_policy="refresh")
+
+    monkeypatch.setattr(hf._hf, "download_json", lambda *args: (_ for _ in ()).throw(AssertionError("cache miss")))
+    cached_a = hf.resolve(source="hf", model_id="Org/Model", revision="rev-a", cache_policy="prefer-local")
+
+    assert hf_a.local_dir != hf_b.local_dir
+    assert hf_a.local_dir != ms_a.local_dir
+    assert cached_a.config == hf_a.config
+    assert cached_a.source["kind"] == "hf cache"
+    assert cached_a.source["resolved_revision"] == "hf-rev-a"
+    assert downloads == [("hf", "hf-rev-a"), ("hf", "hf-rev-b"), ("ms", "ms-rev-a")]
+
+
+def test_remote_snapshot_remains_visible_in_local_model_list(tmp_path, monkeypatch):
+    resolver = _stub_resolver(tmp_path, auto_fetch=False)
+    monkeypatch.setattr(resolver._hf, "resolve_revision", lambda model_id, revision: "commit-a")
+    monkeypatch.setattr(
+        resolver._hf,
+        "download_json",
+        lambda model_id, filename, revision: {
+            "model_type": "tiny",
+            "num_hidden_layers": 1,
+            "hidden_size": 8,
+        },
+    )
+    resolved = resolver.resolve(source="hf", model_id="Org/Model", cache_policy="refresh")
+
+    entries = resolver.list_local_models()
+
+    assert len(entries) == 1
+    assert entries[0].model_id == "Org/Model"
+    assert entries[0].config_path == str(resolved.local_dir / "config.json")
+    assert entries[0].load_by == "config_path"
 
 
 def test_ensure_remote_code_disabled_in_offline(tmp_path, monkeypatch):

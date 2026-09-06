@@ -169,25 +169,30 @@ class ModelSourceResolver:
         cache_policy: str,
         detail_level: str,
     ) -> ResolvedConfig:
-        cache_dir = self._cache.local_config_path(model_id).parent
-        config_path = cache_dir / "config.json"
-        if cache_policy == "prefer-local" and config_path.exists():
-            return self._cache.resolve_local_model(model_id, detail_level)
+        endpoint = self.settings.hf_endpoint.rstrip("/")
+        if cache_policy == "prefer-local":
+            cached = self._cache.try_remote_snapshot(
+                model_id,
+                endpoint=endpoint,
+                revision=revision,
+                detail_level=detail_level,
+            )
+            if cached is not None:
+                return cached
 
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        config = self._hf.download_json(model_id, "config.json", revision)
-        self._cache.write_json(config_path, config)
-        return ResolvedConfig(
-            config=config,
-            source={
-                "kind": "hf remote",
-                "model_id": model_id,
-                "revision": revision,
-                "hf_endpoint": self.settings.hf_endpoint,
-                "cache_path": str(config_path),
-                "detail_level": detail_level,
-            },
-            local_dir=cache_dir,
+        resolved_revision = self._hf.resolve_revision(model_id, revision)
+        config = self._hf.download_json(
+            model_id,
+            "config.json",
+            resolved_revision or revision,
+        )
+        return self._cache.store_remote_snapshot(
+            model_id,
+            config,
+            endpoint=endpoint,
+            revision=revision,
+            resolved_revision=resolved_revision,
+            detail_level=detail_level,
         )
 
     def _resolve_builtin_model(self, model_id: str, detail_level: str) -> ResolvedConfig:
@@ -211,7 +216,7 @@ class ModelSourceResolver:
             return
         info = self._remote_code.ensure_remote_code(
             model_id=model_id,
-            revision=revision,
+            revision=resolved.source.get("resolved_revision") or revision,
             local_dir=resolved.local_dir,
             config=resolved.config,
         )

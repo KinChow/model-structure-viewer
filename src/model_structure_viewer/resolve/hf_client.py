@@ -61,6 +61,30 @@ class HuggingFaceClient:
             return []
         return payload if isinstance(payload, list) else []
 
+    def resolve_revision(self, model_id: str, revision: str) -> str | None:
+        """Best-effort resolution of a mutable ref to an immutable revision."""
+        encoded = urllib.parse.quote(model_id, safe="/")
+        rev = urllib.parse.quote(revision, safe="")
+        try:
+            if self.resolve_prefix:
+                params = urllib.parse.urlencode({"Revision": revision, "Recursive": "False"})
+                payload = self._http_json(
+                    f"{self.hf_endpoint}/api/v1/models/{encoded}/repo/files?{params}",
+                    log_errors=False,
+                )
+                files = payload.get("Data", {}).get("Files", []) if isinstance(payload, dict) else []
+                config = next((item for item in files if item.get("Path") == "config.json"), None)
+                value = config.get("Revision") if isinstance(config, dict) else None
+            else:
+                payload = self._http_json(
+                    f"{self.hf_endpoint}/api/models/{encoded}/revision/{rev}",
+                    log_errors=False,
+                )
+                value = payload.get("sha") if isinstance(payload, dict) else None
+        except RemoteError:
+            return None
+        return value if isinstance(value, str) and value else None
+
     # ---- low-level -----------------------------------------------------------------
     def _resolve_url(self, model_id: str, filename: str, revision: str) -> str:
         encoded = urllib.parse.quote(model_id, safe="/")

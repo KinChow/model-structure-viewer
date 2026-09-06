@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { attentionMacs, computeNodeCosts, linearMacs } from "../compute.js";
+import { attentionMacs, computeNodeCosts, linearAttentionMacs, linearMacs } from "../compute.js";
 
 test("packed qweight is unknown without logical shape metadata", () => {
   assert.equal(linearMacs({ weight_shapes: { qweight: [4, 1] } }, { batch: 1, sequence: 1 }), null);
@@ -16,6 +16,20 @@ test("F9 Attention core MACs 区分 Prefill 的 T² 与 Decode 的 T", () => {
   const config = { attentionHeads: 2, headDim: 4, valueHeadDim: 6 };
   assert.equal(attentionMacs(config, { batch: 2, sequence: 3, phase: "prefill" }), 360);
   assert.equal(attentionMacs(config, { batch: 2, sequence: 3, phase: "decode" }), 120);
+});
+
+test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent state", () => {
+  const config = {
+    linearAttentionMode: "qwen3_5",
+    hiddenSize: 4,
+    linearKeyHeads: 1,
+    linearValueHeads: 2,
+    linearKeyDim: 2,
+    linearValueDim: 2,
+    linearConvKernelSize: 3,
+  };
+  assert.equal(linearAttentionMacs(config, { batch: 1, sequence: 5, phase: "prefill" }), 700);
+  assert.equal(linearAttentionMacs(config, { batch: 1, sequence: 5, phase: "decode" }), 140);
 });
 
 test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {

@@ -122,6 +122,7 @@ function semanticEdges(item) {
     const latentUp = find(/latent up projection/);
     const sharedAdd = find(/shared expert branch add/);
     const sharedMlp = find(/shared expert mlp/);
+    const sharedGate = find(/shared expert gate/);
     const edges = [];
     const add = (source, target) => {
       if (!source || !target || source.path === target.path) return;
@@ -153,6 +154,16 @@ function semanticEdges(item) {
       add(sharedMlp, sharedAdd);
       return edges.length >= 8 ? edges : null;
     }
+    if (sharedAdd && sharedMlp) {
+      add(router, topk);
+      add(topk, dispatch);
+      add(dispatch, expert);
+      add(expert, combine);
+      add(combine, sharedAdd);
+      add(sharedMlp, sharedAdd);
+      add(sharedGate, sharedAdd);
+      return edges.length >= 5 ? edges : null;
+    }
     add(router, topk);
     add(topk, dispatch);
     add(dispatch, expert);
@@ -183,13 +194,15 @@ function semanticEdges(item) {
     };
     const qwenNorm = find(/gated rmsnorm|^norm$/);
     const canonicalQkv = find(/^qkv projection$/);
+    const canonicalQkvzSplit = find(/qkvz split/);
     const canonicalBeta = find(/^beta projection$/);
     const canonicalDecay = find(/forget\/decay gate projection/);
     const canonicalConv = find(/qkv causal short convolution/);
     const canonicalState = find(/kda recurrent state/);
     const canonicalGateNorm = find(/gated rmsnorm/);
     if (canonicalQkv && canonicalBeta && canonicalDecay && canonicalConv && canonicalState && canonicalGateNorm) {
-      add(canonicalQkv, canonicalConv);
+      add(canonicalQkv, canonicalQkvzSplit || canonicalConv);
+      if (canonicalQkvzSplit) add(canonicalQkvzSplit, canonicalConv);
       add(canonicalConv, canonicalState);
       add(canonicalBeta, canonicalState);
       add(canonicalDecay, canonicalState);
@@ -286,6 +299,35 @@ function semanticEdges(item) {
     add(inverseRope, woA);
     add(woA, woB);
     return edges.length >= 6 ? edges : null;
+  }
+
+  if (item.node?.attributes?.attention_kind === "qwen35_full") {
+    const fused = find(/fused qkv \+ attention gate projection/);
+    const split = find(/qkv \+ gate split/);
+    const qNorm = find(/q attention .*rmsnorm/);
+    const kNorm = find(/k attention .*rmsnorm/);
+    const rope = find(/rotary|rope/);
+    const scores = find(/attention scores/);
+    const probabilities = find(/attention probabilities|softmax/);
+    const context = find(/weighted value/);
+    const gate = find(/attention output gate/);
+    const output = find(/output projection|out_proj/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+    };
+    add(fused, split);
+    add(split, qNorm);
+    add(split, kNorm);
+    add(qNorm, rope);
+    add(kNorm, rope);
+    add(rope, scores);
+    add(scores, probabilities);
+    add(probabilities, context);
+    add(context, gate);
+    add(gate, output);
+    return edges.length >= 7 ? edges : null;
   }
 
   if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;

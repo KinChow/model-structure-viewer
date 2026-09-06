@@ -26,6 +26,21 @@ test("KDA recurrent and convolution state is request-scoped, not token KV", () =
   assert.equal(result.kvBytes, 6400);
 });
 
+test("Qwen3.5 GDN state uses separate key/value heads and dimensions", () => {
+  const config = {
+    layers: 1,
+    attentionSchedule: ["linear"],
+    linearKeyHeads: 1,
+    linearValueHeads: 2,
+    linearKeyDim: 2,
+    linearValueDim: 2,
+    linearConvKernelSize: 3,
+    headDim: 2,
+    kvHeads: 1,
+  };
+  assert.equal(linearStateBytesPerSequence(config, 2), 48);
+});
+
 test("offline weight fallback multiplies folded layer repeats", () => {
   const root = { weight_shapes: {}, children: [{ repeat: 3, weight_shapes: {}, children: [
     { weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] },

@@ -26,9 +26,13 @@ export function derivedWeightParameters(config = {}) {
         ? glm5NextLinearAttentionParameters(config)
         : config.linearAttentionMode === "kimi_k3"
           ? kimiK3LinearAttentionParameters(config)
-          : config.linearAttentionMode === "qwen4_exp"
-            ? qwen4ExpLinearAttentionParameters(config)
-        : genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim });
+      : config.linearAttentionMode === "qwen4_exp"
+          ? qwen4ExpLinearAttentionParameters(config)
+            : config.linearAttentionMode === "qwen3_5"
+              ? qwen35LinearAttentionParameters(config)
+            : genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim });
+    } else if (attentionKind === "qwen35_full") {
+      attentionParameters = qwen35FullAttentionParameters(config);
     } else if (attentionKind === "dsv4" && config.qLoraRank && config.oLoraRank) {
       attentionParameters = deepseekV4AttentionParameters(config, i);
     } else if (attentionKind === "mla" && config.qLoraRank && config.kvLoraRank) {
@@ -58,6 +62,33 @@ export function derivedWeightParameters(config = {}) {
   const outputResidual = config.attnResBlockSize ? 2 * hidden : 0;
   const finalHyperConnection = config.hyperConnectionCount ? hyperConnectionFinalParameters(config) : 0;
   return embedding + decoder + hidden + lmHead + outputResidual + finalHyperConnection;
+}
+
+function qwen35LinearAttentionParameters(config) {
+  const hidden = config.hiddenSize || 0;
+  const keyHeads = config.linearKeyHeads || 0;
+  const valueHeads = config.linearValueHeads || 0;
+  const keyDim = config.linearKeyDim || 0;
+  const valueDim = config.linearValueDim || 0;
+  const keyProjection = keyHeads * keyDim;
+  const valueProjection = valueHeads * valueDim;
+  const convDim = 2 * keyProjection + valueProjection;
+  const kernel = config.linearConvKernelSize || 0;
+  return hidden * (2 * keyProjection + 2 * valueProjection)
+    + 2 * hidden * valueHeads
+    + convDim * kernel
+    + 2 * valueHeads
+    + valueDim
+    + valueProjection * hidden;
+}
+
+function qwen35FullAttentionParameters(config) {
+  const hidden = config.hiddenSize || 0;
+  const heads = config.attentionHeads || 0;
+  const kvHeads = config.kvHeads || heads;
+  const headDim = config.headDim || 0;
+  return hidden * (2 * heads * headDim + 2 * kvHeads * headDim)
+    + hidden * heads * headDim;
 }
 
 function deepseekV4AttentionParameters(config, layerIndex) {

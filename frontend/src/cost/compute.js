@@ -53,6 +53,7 @@ export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "
   if (config?.linearAttentionMode === "glm5_next") return glm5NextLinearAttentionMacs(config, { batch, sequence, phase });
   if (config?.linearAttentionMode === "kimi_k3") return kimiK3LinearAttentionMacs(config, { batch, sequence, phase });
   if (config?.linearAttentionMode === "qwen4_exp") return qwen4ExpLinearAttentionMacs(config, { batch, sequence, phase });
+  if (config?.linearAttentionMode === "qwen3_5") return qwen35LinearAttentionMacs(config, { batch, sequence, phase });
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -62,6 +63,26 @@ export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "
   // Linear attention keeps a recurrent state, so its state update is O(T),
   // unlike full attention's O(T^2) score/context products.
   return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
+}
+
+function qwen35LinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const tokens = batch * (phase === "decode" ? 1 : sequence);
+  const hidden = config?.hiddenSize || 0;
+  const keyHeads = config?.linearKeyHeads || 0;
+  const valueHeads = config?.linearValueHeads || 0;
+  const keyDim = config?.linearKeyDim || 0;
+  const valueDim = config?.linearValueDim || 0;
+  const keyProjection = keyHeads * keyDim;
+  const valueProjection = valueHeads * valueDim;
+  const convDim = 2 * keyProjection + valueProjection;
+  const kernel = config?.linearConvKernelSize || 0;
+  const qkvzProjection = hidden * (2 * keyProjection + 2 * valueProjection);
+  const baProjection = 2 * hidden * valueHeads;
+  const shortConvolution = convDim * kernel;
+  const recurrentState = 3 * valueHeads * valueDim * keyDim;
+  const gatedNorm = 3 * valueProjection;
+  const outputProjection = valueProjection * hidden;
+  return tokens * (qkvzProjection + baProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
 
 // GLM-5.3-Flash KDA cost follows the actual vLLM execution chain rather than

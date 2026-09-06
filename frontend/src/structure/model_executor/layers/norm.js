@@ -7,7 +7,9 @@ export function rmsNormModule(id, name = "RMSNorm", normalized = null) {
   const shapes = normalized ? tensorShapes(normalized) : null;
   const flow = shapes ? shapeFlow(shapes.hidden, shapes.hidden) : {};
   const dims = normalized ? tensorDims(normalized) : null;
-  return withShapeDims(moduleSpec(id, name, "normalization", { class: "RMSNorm", ...flow }, [
-    operatorSpec(`${id}.rmsnorm`, "RMSNorm", "rmsnorm", flow, { input: dims?.hidden, output: dims?.hidden }),
+  const gemmaStyle = normalized?.normMode === "gemma_rmsnorm";
+  const formulaId = gemmaStyle ? "gemma_rmsnorm" : "rmsnorm";
+  return withShapeDims(moduleSpec(id, name, "normalization", { class: gemmaStyle ? "GemmaRMSNorm" : "RMSNorm", ...flow }, [
+    operatorSpec(`${id}.rmsnorm`, gemmaStyle ? "Gemma RMSNorm" : "RMSNorm", formulaId, flow, { input: dims?.hidden, output: dims?.hidden }),
   ]), dims?.hidden, dims?.hidden);
 }

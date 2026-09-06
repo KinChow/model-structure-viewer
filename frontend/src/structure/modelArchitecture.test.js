@@ -439,7 +439,8 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
     "Routed MoE",
   ]);
   const linear = firstLayer.children.find((node) => node.type === "attention");
-  assert.equal(linear.children.length, 7);
+  assert.equal(linear.children.length, 8);
+  assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.formula_id, "qwen_qkvz_split");
   assert.equal(linear.children.find((node) => node.name === "KDA recurrent state").attributes.decay_activation, "softplus");
   const pleLayer = decoder.children.find((node) => node.attributes.range === "1..1");
   assert.equal(pleLayer.children[0].name, "PLE");
@@ -451,4 +452,57 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   assert.equal(ple.attributes.heads_per_ngram, 8);
   assert.equal(ple.attributes.conv_dilation, 3);
   assert.equal(ple.children[0].attributes.formula_id, "ple");
+});
+
+test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics", () => {
+  const denseConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.5-27B/config.json"), "utf8"));
+  const denseNormalized = normalizeConfig(denseConfig);
+  assert.equal(denseNormalized.linearAttentionMode, "qwen3_5");
+  assert.equal(denseNormalized.normMode, "gemma_rmsnorm");
+  assert.equal(denseNormalized.partialRotaryFactor, 0.25);
+  assert.deepEqual(denseNormalized.attentionSchedule.reduce((counts, kind) => {
+    counts[kind] = (counts[kind] || 0) + 1;
+    return counts;
+  }, {}), { linear: 48, qwen35_full: 16 });
+
+  const denseResolved = resolveArchitecture(denseNormalized, { modelId: "Qwen/Qwen3.5-27B" });
+  const denseStructure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(denseResolved, denseNormalized),
+    normalized: denseNormalized,
+    resolved: denseResolved,
+  }));
+  const denseDecoder = denseStructure.root.children.find((node) => node.id === "decoder");
+  const linear = denseDecoder.children[0].children.find((node) => node.type === "attention");
+  assert.deepEqual(linear.children.map((node) => node.name), [
+    "QKV projection",
+    "qkvz split",
+    "beta projection",
+    "forget/decay gate projection",
+    "qkv causal short convolution",
+    "KDA recurrent state",
+    "gated RMSNorm",
+    "output projection",
+  ]);
+  assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.formula_id, "qwen_qkvz_split");
+  const full = denseDecoder.children.find((node) => node.attributes.range === "3..3").children.find((node) => node.type === "attention");
+  assert.equal(full.name, "Qwen3.5 Full Attention");
+  assert.equal(full.attributes.attention_kind, "qwen35_full");
+  assert.equal(full.children.find((node) => node.name === "rotary position embedding").attributes.partial_rotary_factor, 0.25);
+  assert.equal(full.children.find((node) => node.name === "Q attention Gemma RMSNorm").attributes.formula_id, "gemma_rmsnorm");
+  assert.equal(full.children.find((node) => node.name === "attention output gate").attributes.formula_id, "attention_output_gate");
+
+  const moeConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.5-35B-A3B/config.json"), "utf8"));
+  const moeNormalized = normalizeConfig(moeConfig);
+  assert.equal(moeNormalized.sharedExperts, 1);
+  assert.equal(moeNormalized.sharedExpertGate, true);
+  const moeResolved = resolveArchitecture(moeNormalized, { modelId: "Qwen/Qwen3.5-35B-A3B" });
+  const moeStructure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(moeResolved, moeNormalized),
+    normalized: moeNormalized,
+    resolved: moeResolved,
+  }));
+  const moe = moeStructure.root.children.find((node) => node.id === "decoder").children[0].children.find((node) => node.type === "moe");
+  assert.ok(moe.children.some((node) => node.id.endsWith(".shared_experts")));
+  assert.ok(moe.children.some((node) => node.name === "Shared Expert Gate"));
+  assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
 });

@@ -62,6 +62,13 @@ const FORMULAS = {
     inputs: ["x", "weight", "eps"],
     outputs: ["y"],
   },
+  gemma_rmsnorm: {
+    title: "Gemma RMSNorm",
+    formula: "y = x / sqrt(mean(x^2) + eps) * (1 + weight)",
+    explanation: "Qwen3.5 使用 Gemma 风格 RMSNorm；checkpoint 权重在归一化缩放时先加 1。",
+    inputs: ["x", "weight", "eps"],
+    outputs: ["y"],
+  },
   swiglu: {
     title: "SwiGLU",
     formula: "y = SiLU(xW_gate) * (xW_up)",
@@ -141,8 +148,8 @@ const FORMULAS = {
   },
   gated_rmsnorm: {
     title: "Gated RMSNorm",
-    formula: "y = RMSNorm(o, weight) * sigmoid(g_2)",
-    explanation: "KDA recurrent attention 输出使用输入相关 gate 执行 gated RMSNorm；不同模型的 gate projection 实现记录在节点属性中。",
+    formula: "y = RMSNorm(o, weight) * phi(g_2)",
+    explanation: "KDA recurrent attention 输出使用输入相关 gate 执行 gated RMSNorm；phi 由模型配置决定（例如 sigmoid 或 SiLU）。",
     inputs: ["o", "g_2", "weight"],
     outputs: ["y"],
   },
@@ -236,6 +243,20 @@ const FORMULAS = {
     explanation: "只在 QSA indexer 选择的候选位置上执行 paged sparse attention。",
     inputs: ["Q", "K_selected", "V_selected", "selected_indices"],
     outputs: ["O"],
+  },
+  qwen_qkvz_split: {
+    title: "Qwen GDN QKVZ Split",
+    formula: "[q,k,v,z] = split(W_{qkvz}x; q,k,v,z)",
+    explanation: "Qwen3.5/Qwen4Exp 将 q、k、v 和 gated RMSNorm 输入 z 打包投影；只有 q/k/v 进入 short convolution，z 旁路到输出归一化。",
+    inputs: ["x", "W_{qkvz}"],
+    outputs: ["q", "k", "v", "z"],
+  },
+  attention_output_gate: {
+    title: "Attention Output Gate",
+    formula: "O' = sigmoid(G) * O",
+    explanation: "Qwen3.5 full attention 在 attention 聚合后，用 qkv projection 中的 gate 经 sigmoid 调制输出。",
+    inputs: ["O", "G"],
+    outputs: ["O'"],
   },
   dsv4_hash_route: {
     title: "DeepSeek V4 Hash MoE Routing",

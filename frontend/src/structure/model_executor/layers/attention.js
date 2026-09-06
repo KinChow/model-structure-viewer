@@ -1,14 +1,15 @@
 import { moduleSpec, withShapeDims } from "./base.js";
-import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs } from "../ops/index.js";
+import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs, qwen35FullAttentionOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 
 export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
+  const displayName = attentionKind === "qwen35_full" ? "Qwen3.5 Full Attention" : `${attentionKind.toUpperCase()} Attention`;
   return withShapeDims(moduleSpec(
     id,
-    `${attentionKind.toUpperCase()} Attention`,
+    displayName,
     "attention",
     {
       class: `${attentionKind.toUpperCase()}Attention`,
@@ -26,6 +27,8 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     },
     attentionKind === "linear"
       ? linearAttentionOperatorSpecs(id, normalized)
+      : attentionKind === "qwen35_full"
+        ? qwen35FullAttentionOperatorSpecs(id, normalized)
       : attentionKind === "qsa"
         ? qsaAttentionOperatorSpecs(id, normalized)
       : attentionKind === "dsv4"

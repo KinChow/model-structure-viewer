@@ -83,11 +83,17 @@ function explicitAttentionSchedule(config, layers) {
   if (modelType === "deepseek_v4" && Array.isArray(config?.compress_ratios) && config.compress_ratios.length > 0) {
     return Array.from({ length: layers || config.compress_ratios.length }, () => "dsv4");
   }
+  const isQwen35 = modelType.includes("qwen3_5");
   const layerTypes = config?.layer_types;
   const useQsa = firstNumber(config, ["index_n_heads", "indexer_n_heads"]) != null
     || firstNumber(config, ["index_topk", "indexer_budget"]) != null;
   if (Array.isArray(layerTypes) && layerTypes.length > 0) {
-    return layerTypes.map((layerType) => attentionKindForLayerType(layerType, useQsa));
+    return layerTypes.map((layerType) => {
+      const kind = attentionKindForLayerType(layerType, useQsa);
+      return isQwen35 && kind === "gqa" && String(layerType).toLowerCase().includes("full")
+        ? "qwen35_full"
+        : kind;
+    });
   }
   const linearConfig = config?.linear_attn_config;
   if (linearConfig && layers) {
@@ -168,13 +174,24 @@ export function normalizeConfig(config) {
     experts: firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS),
     routedExpertHiddenSize: firstNumber(textConfig, ["routed_expert_hidden_size"]) ?? firstNumber(config, ["routed_expert_hidden_size"]),
     expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),
-    sharedExperts: firstNumber(textConfig, SHARED_EXPERT_KEYS) ?? firstNumber(config, SHARED_EXPERT_KEYS),
+    sharedExperts: firstNumber(textConfig, SHARED_EXPERT_KEYS) ?? firstNumber(config, SHARED_EXPERT_KEYS)
+      ?? (String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")
+        && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
     sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS)
       ?? (["kimi_k3", "deepseek_v4"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
         ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
         : undefined),
     sharedExpertsAreFused: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3"),
-    sharedExpertGate: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null && textConfig?.output_gate_type != null,
+    sharedExpertGate: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null
+      && (textConfig?.output_gate_type != null || String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")),
+    attentionOutputGate: Boolean(textConfig?.attn_output_gate ?? config?.attn_output_gate),
+    outputGateType: String(textConfig?.output_gate_type ?? config?.output_gate_type ?? "silu"),
+    partialRotaryFactor: firstNumber(textConfig, ["partial_rotary_factor"])
+      ?? firstNumber(textConfig?.rope_parameters, ["partial_rotary_factor"])
+      ?? firstNumber(textConfig?.rope_scaling, ["partial_rotary_factor"]),
+    normMode: String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5")
+      ? "gemma_rmsnorm"
+      : "rmsnorm",
     hyperConnectionCount: firstNumber(textConfig, ["hc_count"]) ?? firstNumber(config, ["hc_count"]),
     hyperConnectionLowrank: firstNumber(textConfig, ["hc_lowrank"]) ?? firstNumber(config, ["hc_lowrank"]),
     pleLayerIds: Array.isArray(textConfig?.ple_layer_ids) ? textConfig.ple_layer_ids : Array.isArray(config?.ple_layer_ids) ? config.ple_layer_ids : [],
@@ -190,6 +207,8 @@ export function normalizeConfig(config) {
         ? "kimi"
       : String(config?.model_type || textConfig?.model_type || "").includes("qwen4_exp")
         ? "qwen4_exp"
+        : String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5")
+          ? "qwen3_5"
         : String(config?.model_type || textConfig?.model_type || "").includes("glm5_next")
           ? "glm5_next"
         : "generic",

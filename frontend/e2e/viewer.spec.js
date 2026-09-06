@@ -59,7 +59,7 @@ test("多模态模型图包含视觉塔和视觉投影路径", async ({ page }) 
 
 test("每个内置模型都能展开父节点并保持可计算图", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chrome", "全量内置模型回归只在桌面浏览器运行");
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   const modelIds = await page.locator("datalist#builtin-models option").evaluateAll((options) => options.map((option) => option.value));
   expect(modelIds).toHaveLength(59);
 

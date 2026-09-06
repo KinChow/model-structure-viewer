@@ -29,7 +29,7 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
     ...(sharedExpert ? [sharedExpert] : []),
     ...(normalized.sharedExpertGate ? [sharedExpertGateModule(`${id}.shared_expert_gate`, normalized)] : []),
   ];
-  if (normalized.sharedExperts && (isDeepseekV4 || isMiniMaxM3 || (normalized.sharedExpertGate && !isKimiK3))) {
+  if (normalized.sharedExperts && (isDeepseekV4 || isMiniMaxM3 || (!normalized.sharedExpertGate && !isKimiK3) || normalized.sharedExpertGate)) {
     children.push(operatorSpec(`${id}.shared_expert_add`, "shared expert branch add", "moe_add", {
       ...shapeFlow(`${shapes.hidden}, ${shapes.hidden}`, shapes.hidden),
       shared_experts: normalized.sharedExperts,

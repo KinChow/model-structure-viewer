@@ -216,7 +216,7 @@ export function normalizeConfig(config) {
       ?? (String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")
         && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
     sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS)
-      ?? (["kimi_k3", "deepseek_v4"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
+      ?? (["kimi", "deepseek_v4"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
         ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
         : undefined),
     sharedExpertsAreFused: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3"),

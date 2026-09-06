@@ -439,6 +439,39 @@ function semanticEdges(item) {
   }
 
   if (type !== "attention" && !/(^|\b)(mla|multi.?head|attention)(\b|$)/.test(name)) return null;
+  const mlaQueryDown = find(/query down projection/);
+  const mlaQueryNorm = find(/query latent rmsnorm/);
+  const mlaQueryUp = find(/query up projection/);
+  const mlaKvDown = find(/kv compression projection/);
+  const mlaKvSplit = find(/kv latent and rope split/);
+  const mlaKvNorm = find(/kv latent rmsnorm/);
+  const mlaKvUp = find(/kv expansion projection/);
+  if (mlaQueryDown && mlaQueryNorm && mlaQueryUp && mlaKvDown && mlaKvSplit && mlaKvNorm && mlaKvUp) {
+    const rotary = find(/rotary|rope/);
+    const scores = find(/attention scores|latent attention scores/);
+    const probabilities = find(/attention probabilities|softmax/);
+    const weighted = find(/weighted value/);
+    const output = find(/output projection|out_proj/);
+    const outputGate = find(/mla output gate/);
+    const edges = [];
+    const add = (source, target) => {
+      if (!source || !target || source.path === target.path) return;
+      edges.push({ id: `${source.path}=>${target.path}`, source: source.path, target: target.path, kind: "dataflow", evidence: "semantic-flow" });
+    };
+    add(mlaQueryDown, mlaQueryNorm);
+    add(mlaQueryNorm, mlaQueryUp);
+    add(mlaKvDown, mlaKvSplit);
+    add(mlaKvSplit, mlaKvNorm);
+    add(mlaKvNorm, mlaKvUp);
+    add(mlaQueryUp, rotary);
+    add(mlaKvUp, rotary);
+    add(rotary, scores);
+    add(scores, probabilities);
+    add(probabilities, weighted);
+    add(weighted, outputGate || output);
+    add(outputGate, output);
+    return edges.length >= 8 ? edges : null;
+  }
   const q = find(/(^|\b)q\s*(projection|proj)\b|q_proj|query/);
   const k = find(/(^|\b)k\s*(projection|proj)\b|k_proj|key/);
   const v = find(/(^|\b)v\s*(projection|proj)\b|v_proj|value/);

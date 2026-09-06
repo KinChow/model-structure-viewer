@@ -633,3 +633,34 @@ test("maps MiniMax M2 fused QKV, QK norms, and partial RoPE", () => {
   const moe = decoder.children[0].children.find((node) => node.type === "moe");
   assert.equal(moe.children.find((node) => node.name === "router logits").attributes.scoring_func, "sigmoid");
 });
+
+test("maps Kimi K2 family MLA latent norms and shared expert branch", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/moonshotai/Kimi-K2-Base/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.equal(normalized.qLoraRank, 1536);
+  assert.equal(normalized.kvLoraRank, 512);
+  assert.equal(normalized.sharedExperts, 1);
+  assert.equal(normalized.sharedExpertIntermediateSize, 2048);
+  const resolved = resolveArchitecture(normalized, { modelId: "moonshotai/Kimi-K2-Base" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const decoder = structure.root.children.find((node) => node.id === "decoder");
+  const mlaLayer = decoder.children.find((node) => node.children?.some((child) => child.type === "attention" && child.attributes.attention_kind === "mla"));
+  const attention = mlaLayer.children.find((node) => node.type === "attention");
+  assert.deepEqual(attention.children.slice(0, 8).map((node) => node.name), [
+    "query down projection",
+    "query latent RMSNorm",
+    "query up projection",
+    "KV compression projection",
+    "KV latent and rope split",
+    "KV latent RMSNorm",
+    "KV expansion projection",
+    "rotary position embedding",
+  ]);
+  const moeLayer = decoder.children.find((node) => node.children?.some((child) => child.type === "moe"));
+  const moe = moeLayer.children.find((node) => node.type === "moe");
+  assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
+});

@@ -467,11 +467,17 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
   const specs = [];
   if (normalized.qLoraRank != null) {
     specs.push(operatorSpec(`${prefix}.q_a_proj`, "query down projection", "mla_query_compress", shapeFlow(shapes.hidden, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: dims.hidden, output: [-1, -1, normalized.qLoraRank] }));
+    specs.push(operatorSpec(`${prefix}.q_a_norm`, "query latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: [-1, -1, normalized.qLoraRank], output: [-1, -1, normalized.qLoraRank] }));
     specs.push(operatorSpec(`${prefix}.q_b_proj`, "query up projection", "linear", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, shapes.attentionQuery), { input: [-1, -1, normalized.qLoraRank], output: dims.attentionQuery }));
   } else {
     specs.push(operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }));
   }
-  specs.push(operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", shapeFlow(shapes.hidden, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`), { input: dims.hidden, output: [-1, -1, normalized.kvLoraRank] }));
+  specs.push(operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", shapeFlow(shapes.hidden, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"} + rope=${normalized.qkRopeHeadDim ?? "unknown"}]`), { input: dims.hidden, output: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)] }));
+  specs.push(operatorSpec(`${prefix}.kv_split`, "KV latent and rope split", "mla_kv_split", {
+    ...shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"} + rope=${normalized.qkRopeHeadDim ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}], [batch, sequence, rope=${normalized.qkRopeHeadDim ?? "unknown"}]`),
+    split_sizes: [normalized.kvLoraRank, normalized.qkRopeHeadDim],
+  }, { input: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)], output: [-1, -1, normalized.kvLoraRank] }));
+  specs.push(operatorSpec(`${prefix}.kv_a_norm`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`), { input: [-1, -1, normalized.kvLoraRank], output: [-1, -1, normalized.kvLoraRank] }));
   specs.push(operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `${shapes.attentionKey}, ${shapes.attentionValue}`), { input: [-1, -1, normalized.kvLoraRank], output: dims.attentionKey }));
   specs.push(operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
     ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),

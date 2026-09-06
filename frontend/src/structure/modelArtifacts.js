@@ -170,8 +170,10 @@ export async function loadModelArtifacts(
     fetchLocalConfig = fetchLocalConfigApi,
     fetchTruth = fetchCheckpointTruth,
     deferCheckpointTruth = false,
+    onProgress,
   } = {},
 ) {
+  onProgress?.("reading");
   if (payload.source === "config" && payload.config_json) {
     return createModelArtifacts({
       config: payload.config_json,
@@ -184,6 +186,7 @@ export async function loadModelArtifacts(
 
   if ((payload.source === "builtin" || payload.source === "auto") && (payload.builtin_entry || payload.model_id)) {
     try {
+      onProgress?.("reading");
       const data = await fetchBuiltinConfig({ entry: payload.builtin_entry, modelId: payload.model_id });
       const modelId = data.model_id || payload.model_id;
       const endpoint = payload.endpoint || "huggingface";
@@ -197,8 +200,10 @@ export async function loadModelArtifacts(
           checkpointTruthStatus: CHECKPOINT_TRUTH_STATUS.NOT_REQUESTED,
           configEndpoint: "built-in",
         });
+        onProgress?.("building");
         return { ...artifacts, deferredTruth: { modelId, endpoint, revision } };
       }
+      onProgress?.("metadata");
       return withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, configEndpoint: "built-in" });
     } catch (error) {
       if (payload.source !== "auto") throw error;
@@ -207,6 +212,7 @@ export async function loadModelArtifacts(
 
   if ((payload.source === "local" || payload.source === "auto") && (payload.config_path || payload.model_id)) {
     try {
+      onProgress?.("reading");
       const data = await fetchLocalConfig({ modelId: payload.model_id, configPath: payload.config_path });
       return createModelArtifacts({
         config: data.config,
@@ -221,12 +227,14 @@ export async function loadModelArtifacts(
   }
 
   if (payload.source === "hf" && payload.model_id) {
+    onProgress?.("reading");
     const remoteConfig = await loadRemoteConfig({
       modelId: payload.model_id,
       endpoint: payload.endpoint,
       revision: payload.revision,
       fetchHfConfig,
     });
+    onProgress?.("metadata");
     return withRemoteTruth(
       {
         config: remoteConfig.config,

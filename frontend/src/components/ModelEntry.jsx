@@ -26,6 +26,7 @@ export default function ModelEntry({
   theme = "dark",
   onThemeChange,
   loading = false,
+  loadingPhase = "reading",
 }) {
   const [mode, setMode] = useState("model");
   const [endpoint, setEndpoint] = useState("huggingface");
@@ -62,6 +63,7 @@ export default function ModelEntry({
     placeholder: "Hugging Face / ModelScope model ID or URL",
     open: "Open model",
     opening: "Opening...",
+    loadingSteps: { reading: "Reading model files", building: "Building model structure", metadata: "Checking weight metadata" },
     localPlaceholder: "Path on the backend machine, or choose a folder",
     browse: "Browse by Provider",
     browseHint: "Choose a provider to view mapped models",
@@ -81,6 +83,7 @@ export default function ModelEntry({
     placeholder: "Hugging Face / ModelScope 模型 ID 或地址",
     open: "打开模型",
     opening: "打开中...",
+    loadingSteps: { reading: "读取模型配置", building: "构建模型结构", metadata: "检查权重元数据" },
     localPlaceholder: "后端机器上的路径，或选择本地目录",
     browse: "按 Provider 浏览",
     browseHint: "选择厂商查看已映射模型",
@@ -107,6 +110,13 @@ export default function ModelEntry({
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
       </section>
+      {loading && <div className="entry-loading" role="status" aria-live="polite">
+        <div className="entry-loading-card">
+          <div className="entry-loading-mark" aria-hidden="true"><span /><span /><span /></div>
+          <div className="entry-loading-copy"><strong>{t.loadingSteps[loadingPhase] || t.opening}</strong><span>{language === "en" ? "Preparing your model view" : "正在准备模型视图"}<i aria-hidden="true">...</i></span></div>
+          <div className="entry-loading-track" aria-hidden="true"><span className={`phase-${loadingPhase}`} /></div>
+        </div>
+      </div>}
       <section className="entry-box" aria-label="Model entry">
         <div className="entry-modes">
           <EntryButton active={mode === "model"} disabled={loading} onClick={() => setMode("model")}>{t.model}</EntryButton>

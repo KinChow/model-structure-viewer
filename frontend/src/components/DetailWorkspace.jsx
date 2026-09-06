@@ -96,6 +96,7 @@ export default function DetailWorkspace({
   onCollapseAllLayers,
   exporter,
   loading = false,
+  loadingPhase = "reading",
 }) {
   const [auxView, setAuxView] = useState(null);
   const [costOpen, setCostOpen] = useState(false);
@@ -149,7 +150,7 @@ export default function DetailWorkspace({
         </div>
         <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={parameterTotal.value} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} parameterTotal={parameterTotal} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>
       </section>
-      {loading && <div className="detail-loading-overlay" role="status" aria-live="polite"><span className="detail-loading-dot" />{language === "en" ? "Opening model..." : "正在打开模型..."}</div>}
+      {loading && <div className="detail-loading-overlay" role="status" aria-live="polite"><span className="detail-loading-dot" /><span>{({ reading: language === "en" ? "Reading model files" : "读取模型配置", building: language === "en" ? "Building model structure" : "构建模型结构", metadata: language === "en" ? "Checking weight metadata" : "检查权重元数据" })[loadingPhase] || (language === "en" ? "Opening model..." : "正在打开模型...")}</span><i aria-hidden="true">...</i></div>}
     </main>
   );
 }

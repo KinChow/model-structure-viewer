@@ -63,7 +63,7 @@ function App() {
   const { models: builtinModels, refresh: refreshBuiltinModels } = useBuiltinModels();
   const { models, refresh: refreshModels } = useLocalModels();
   const hf = useHfSearch();
-  const { structure, build, loading, error: structureError } = useStructure();
+  const { structure, build, loading, loadingPhase, error: structureError } = useStructure();
   const exporter = useExport();
 
   const [source, setSource] = useState("auto");
@@ -289,6 +289,7 @@ function App() {
           theme={theme}
           onThemeChange={handleThemeChange}
           loading={loading}
+          loadingPhase={loadingPhase}
         />
         {error && <div className="error entry-error" role="alert">{error}</div>}
       </main>
@@ -329,6 +330,7 @@ function App() {
           onCollapseAllLayers={handleCollapseAllLayers}
           exporter={exporter}
           loading={loading}
+          loadingPhase={loadingPhase}
         />
         {error && <div className="error detail-error">{error}</div>}
         <Drawer

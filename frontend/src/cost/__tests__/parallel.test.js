@@ -76,6 +76,37 @@ test("F14 按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
   assert.equal(result.stages[1].weightBytes, 28);
 });
 
+test("projectNodePlan prefers Graph IR nodes over a stale legacy root", () => {
+  const result = projectNodePlan({
+    root: { id: "stale", children: [] },
+    graph: {
+      version: 2,
+      schema_version: 2,
+      root_id: "root",
+      nodes: [
+        { id: "root", module_id: "model", parent_id: null, order: 0, type: "model" },
+        {
+          id: "root.0",
+          module_id: "decoder.layers.0",
+          parent_id: "root",
+          order: 0,
+          type: "layer",
+          attributes: { range: "0..1" },
+          weight_shapes: { weight: [4, 4] },
+        },
+      ],
+      edges: [],
+    },
+    targetWeightBytes: 64,
+    config: { layers: 2, kvHeads: 1 },
+    plan: { pp: 2, tp: 1 },
+    kvBytes: 0,
+  });
+  assert.equal(result.ok, true);
+  assert.ok(result.stages[0].weightBytes > 0);
+  assert.ok(result.stages[1].weightBytes > 0);
+});
+
 test("PP 按 stage 层数分配 KV 而不是每个 stage 复制全量", () => {
   const result = projectNodePlan({ root: { id: "model", children: [] }, config: { layers: 5, kvHeads: 1 }, plan: { pp: 2 }, kvBytes: 100 });
   assert.deepEqual(result.stages.map((stage) => stage.kvBytes), [40, 60]);

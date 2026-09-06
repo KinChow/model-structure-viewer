@@ -4,7 +4,7 @@ export function childRepeatMultiplier(node, inheritedMultiplier = 1, { repeatHan
   return inheritedMultiplier * (repeatHandled || childHasExplicitRepeat ? 1 : repeat);
 }
 
-function nodeFromGraphNode(graphNode) {
+export function graphNodeToNode(graphNode) {
   return {
     id: graphNode.module_id || graphNode.id,
     name: graphNode.name || graphNode.module_id || graphNode.id,
@@ -40,7 +40,7 @@ export function walkGraph(graph, visit) {
   function walk(nodeId, multiplier = 1) {
     const graphNode = byId.get(nodeId);
     if (!graphNode) return;
-    const node = nodeFromGraphNode(graphNode);
+    const node = graphNodeToNode(graphNode);
     const children = childrenByParent.get(nodeId) || [];
     visit({ node, path: graphNode.id, multiplier });
     const childHasExplicitRepeat = children.some((child) => Number.isFinite(child.repeat));

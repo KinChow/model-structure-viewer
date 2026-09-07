@@ -54,6 +54,36 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M5** 真值绑定显式化 | W4.5 | 绑定差分一致 **且 `ambiguous` = 0**；可逆校验通过 | §4.3 层 2、§4.4、§4.5、§4.6 |
 | **M6** 成本分层 | W5 | 现有 cost 测试数值全不变；未实现算子返回 `null`；换卡只走表乘法 | §3.2、§3.3、§3.4 |
 | **M7** 诚实性上界面 | W6 | 三类边样式互不相同；未覆盖提示与 gaps 面板可见 | §2.2 UI 侧、§4.2、§4.4 |
+
+---
+
+## 状态总览（2026-09-08 复核）
+
+| 波次 | 状态 | 实际落点与原设计的偏差 |
+|---|---|---|
+| W0 / W0.5 | ✅ | 按计划；护栏基线 16→15（D1 后首次下降） |
+| W1 | ✅ | 42 条目动作向量 + 芯片 schema（vector_flops/sfu_ops 已入 chips.public.js） |
+| W2 | ✅ | scaledDotProductTail + 59 模型 spec 树哈希基线（新增 oracle） |
+| W3a | ✅（→W3-A/B） | 组件表=layers/ 原地升级；archs/ 取代 adapters 命名； ATTENTION_COMPONENTS 表 |
+| W3b | ✅（→W3-C） | plan.js 承接方案决定；normalize 纯字段归一；结构债登记（家族知识 5 住址） |
+| W4 | ✅（→W3-D1） | legacySemanticEdges/mergeSemantics/杂项死代码删除 |
+| W4.5 | ✅（→W3-B2） | role 连接键绑定；archs/ canonical + FAMILY_OVERRIDES；可逆校验测试 |
+| **M2** | ✅ | "normalizeConfig 输出深度相等"语义已由 normalize.golden 取代（C 有意删方案字段） |
+| **M3** | ✅ | D2：边 evidence 全非空 + 声明覆盖执法测试 |
+| **M4** | ✅ | C：normalizeConfig 不再输出方案类字段 |
+| **M5** | ✅ | B2：ambiguous=0（fixture 级）+ 可逆校验 |
+| **M6** | ⬜ 下一波 | W5 范围需微调（见 W5 状态注） |
+| **M7** | ⬜ | W6，新增待办：sequence/attn_residual 分支边的视觉呈现 |
+
+### W5 范围校准（2026-09-08 对齐用）
+
+- **新增**：extractor.js 内 ~20 处 legacy 镜像函数随旧链同批删除（原计划漏列）；
+  切换期以 W1 差分测试为双跑断言，删旧链后差分测试退役、identity 恒等式接守；
+- **收缩**：第 3 项"正则统一"已部分完成（extractor 侧 W1 已统一 LAYER_INDEX_RE，
+  剩 compute.js 单处）；
+- **不变**：第 1/2/4/5 项照做；ERT×counts 分离与芯片数量无关的论证仍成立；
+- **新增验收**：D2 遗产——cost 改动不得触碰边基线（ops-edge.golden.json）；
+  identity 恒等式 2% 容差不回退。
 | **旁路 B** 后端定位归位 | B | `msv verify` 出三类差异列表；跳源码且显示 transformers 版本 | §5.1–§5.4、§6.1–§6.3 |
 | **旁路 C** 芯片参数补账 | C | 手工卡有 `field_sources`；单位异常有警告；文案与实现一致 | §7 |
 | **旁路 D** 后端内部清理 | D | 后端无平行修复机制；无 `assert` 做入参校验 | §6.1 SRP 侧 |

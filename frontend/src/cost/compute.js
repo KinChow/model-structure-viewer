@@ -29,9 +29,8 @@ function computeMacsForNode(node, config, options = {}) {
   return nodeMacs(node, config, options);
 }
 
-function macsSource(node, config, options = {}) {
+function macsSource(node, counts) {
   if (node?.children?.length) return "aggregate";
-  const counts = countsFor(node, config, options);
   if (!counts) return "unknown";
   return counts.matrix > 0 ? "formula" : "not-compute";
 }
@@ -39,10 +38,25 @@ function macsSource(node, config, options = {}) {
 export function computeNodeCosts(root, config, options = {}) {
   const rows = [];
   walkStructure(root, ({ node, path, multiplier }) => {
-    const computeMacs = computeMacsForNode(node, config, options);
+    const counts = countsFor(node, config, options);
+    const computeMacs = node?.children?.length ? 0 : (counts ? counts.matrix : null);
     const compute = computeMacs == null ? null : computeMacs * multiplier;
+    const scale = (value) => (value == null ? null : value * multiplier);
+    // 动作向量（§3.1）：叶子携带五单元计数，父节点不重复计费 → null。
+    // matrix=0 是精确陈述（该单元无事可做），null 是未知（§3.3）。
+    const actions = node?.children?.length || !counts ? null : {
+      matrix: scale(counts.matrix),
+      vector: scale(counts.vector),
+      sfu: scale(counts.sfu),
+      bytes: {
+        weights: scale(counts.bytes.weights),
+        actIn: scale(counts.bytes.actIn),
+        actOut: scale(counts.bytes.actOut),
+      },
+    };
     rows.push({ path, node, multiplier, macs: compute, compute_macs: compute,
-      macs_source: macsSource(node, config, options),
+      macs_source: macsSource(node, counts),
+      actions,
       weightBytes: nodeWeightBytes(node) * multiplier,
       estimate_status: compute == null ? "unknown" : "estimated" });
   }, options.graph);

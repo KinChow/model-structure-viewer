@@ -12,7 +12,7 @@ function getPath(object, path) {
   return path.split(".").reduce((value, key) => value?.[key], object);
 }
 
-function missingFields(chip, dtype = "bf16") {
+export function missingFields(chip, dtype = "bf16") {
   const missing = [];
   if (!hasPositiveNumber(chip?.memory_bytes)) missing.push("memory_bytes");
   if (!hasPositiveNumber(chip?.memory_bandwidth)) missing.push("memory_bandwidth");

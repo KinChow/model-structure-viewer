@@ -26,13 +26,30 @@ export function aggregateCost({ root, graph, config, parameterCount, batch = 1, 
   const totalMacs = computeComplete ? knownMacs : null;
   const forwardTokens = batch * (phase === "decode" ? 1 : sequence);
   const derivedSource = config?.quantizationBytesPerParameter > 0 ? "derived-quantized" : "derived";
+  const actions = summarizeActions(nodes, computeComplete);
   return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : derivedSource, nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
+    actions,
     knownMacs, computeComplete, unknownComputePaths,
     macsPerToken: totalMacs != null && forwardTokens > 0 ? totalMacs / forwardTokens : null,
     flopsPerToken: totalMacs != null && forwardTokens > 0 ? (totalMacs * 2) / forwardTokens : null,
     macsSources: summarizeMacsSources(nodes),
     assumptions: { theoretical: true, activationPeak, runtimeConst, commBuffer, kvBytes, quantization: config?.quantizationMethod || null,
       weightBytesPerParameter: config?.quantizationBytesPerParameter || null } };
+}
+
+// 模型级动作向量汇总（§3.4：ERT 与 counts 分离）；任一叶子未实现则整体 unknown。
+function summarizeActions(nodes, computeComplete) {
+  if (!computeComplete) return null;
+  return nodes.reduce((acc, row) => {
+    if (!row.actions) return acc;
+    acc.matrix += row.actions.matrix ?? 0;
+    acc.vector += row.actions.vector ?? 0;
+    acc.sfu += row.actions.sfu ?? 0;
+    acc.weights += row.actions.bytes.weights ?? 0;
+    acc.actIn += row.actions.bytes.actIn ?? 0;
+    acc.actOut += row.actions.bytes.actOut ?? 0;
+    return acc;
+  }, { matrix: 0, vector: 0, sfu: 0, weights: 0, actIn: 0, actOut: 0 });
 }
 
 function summarizeMacsSources(nodes) {

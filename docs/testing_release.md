@@ -25,6 +25,17 @@ npm --prefix frontend test
 
 通过标准：命令退出码为 0，不存在 failure、error、unexpected skip。
 
+### 基线记录
+
+重构（[`refactor_plan.md`](refactor_plan.md)）的差分替换以本表为参照。每完成一个里程碑后应刷新一次。
+
+| 日期 | 命令 | 结果 |
+|---|---|---|
+| 2026-09-07 | `npm --prefix frontend run test` | 208/208 pass，0 fail |
+| 2026-09-07 | `.venv/bin/python -m pytest -q` | 148 passed（11.7s） |
+| 2026-09-07 | `npm --prefix frontend run verify:models` | 59 个内置模型全过，`"failed": 0`（离线跑通，不依赖外网） |
+| 2026-09-07 | `npm --prefix frontend run test:e2e` | 9 passed，1 skipped（设计使然：`e2e/viewer.spec.js:61` 将"全量内置模型回归"限定为仅 desktop-chrome） |
+
 ## 2. 内置模型组网验证
 
 ```bash

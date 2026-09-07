@@ -374,12 +374,16 @@ export function countsForNode(node, env = {}) {
     case "swiglu": {
       // 旧链：仅 expert 路径的 swiglu 计矩阵（gate/up/down GEMM 语义融合）；
       // 结构化判据用路径（专家目录），W3 换 attributes 标记。
-      const routed = ROUTED_EXPERT_RE.test(String(node?.id || path));
+      const idPath = String(node?.id || path);
+      const routed = ROUTED_EXPERT_RE.test(idPath);
       if (!routed) return swigluCounts({ tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement });
-      const expertFraction = expertFractionFor(node?.id || path, config);
       const expertHidden = node?.attributes?.latent_size || config?.routedExpertHiddenSize || config?.hiddenSize || 0;
       const expertIntermediate = config?.moeIntermediateSize || config?.intermediateSize || 0;
-      return { matrix: tokens * 3 * expertHidden * expertIntermediate * expertFraction, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      // 压缩的 routed FFN 叶（expert_mlp，无 per-expert repeat）：每 token 激活
+      // k 个专家 → 正确计数 = T·k·3·EH·EI。旧链的 ·(k/E) 少乘 E（已知双链 bug）。
+      // 若未来出现 per-expert 展开树（祖先 repeat=E），应改回 k/E 并依赖 walker 乘 E。
+      const topk = config?.expertsPerToken || 1;
+      return { matrix: tokens * 3 * expertHidden * expertIntermediate * topk, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
     }
     case "causal_conv1d": {
       const { keyProjection, valueProjection } = legacyLinearAttentionDimensions(config);

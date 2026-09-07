@@ -34,6 +34,7 @@ test("T3 差分：elementwise/MoE/递推/复合 分类清晰", async () => {
   let checked = 0;
   let sharedKnown = 0;
   let knownVision = 0;
+  let knownSwiglu = 0;
 
   for (const entry of catalog.models) {
     const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
@@ -59,6 +60,12 @@ test("T3 差分：elementwise/MoE/递推/复合 分类清晰", async () => {
       if (oldMatrix == null && newMatrix == null) continue;
       if (oldMatrix === newMatrix) continue;
 
+      if (operatorId === "swiglu" && /experts?\\.|expert_mlp/.test(row.node?.id || "")) {
+        // 双链已知 bug：压缩 routed FFN 叶旧链按 ·(k/E) 计，少乘 E/k；
+        // 新链按 T·k·3·EH·EI 计（每 token 激活 k 个专家全量 FFN）。
+        knownSwiglu += 1;
+        continue;
+      }
       if (row.node?.attributes?.modality === "vision") { knownVision += 1; continue; }
       if (oldMatrix != null && newMatrix != null && COMPOSITE_PROJECTION.has(operatorId)) {
         knownProjection.push(`${entry.model_id} ${row.path}: old=${oldMatrix} new=${newMatrix}`);

@@ -29,6 +29,8 @@ import {
 import { formulaForOperator } from "./index.js";
 import { tensorDims } from "../model_executor/dims.js";
 import { visionDimensions } from "../model_executor/layers/vision.js";
+import { deriveBuildPlan } from "../model_executor/plan.js";
+const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 // 路径正则全仓统一处（旧 compute.js/parallel.js 三种变体收敛于此）
 export const LAYER_INDEX_RE = /(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/;
@@ -47,7 +49,7 @@ export function layerIndexOf(path) {
 /** 与旧 compute.js:309-312 逐字等价（routed expert 且该层非 dense 时按 k/E 缩放）。 */
 export function expertFractionFor(path, config) {
   const layerIndex = layerIndexOf(path);
-  const layerKind = layerIndex != null ? config?.layerSchedule?.[layerIndex] : null;
+  const layerKind = layerIndex != null ? planOf(config).layerSchedule?.[layerIndex] : null;
   const routed = ROUTED_EXPERT_RE.test(String(path || ""));
   return routed && layerKind !== "dense" && config?.experts && config?.expertsPerToken
     ? config.expertsPerToken / config.experts
@@ -146,10 +148,10 @@ function legacyDeepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase 
 
 // 旧 linearAttentionMacs（含各 mode 变体的逐字镜像）。
 function legacyLinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  if (config?.linearAttentionMode === "glm5_next") return legacyGlm5Next(config, { batch, sequence, phase });
-  if (config?.linearAttentionMode === "kimi_k3") return legacyKimiK3(config, { batch, sequence, phase });
-  if (config?.linearAttentionMode === "qwen4_exp") return legacyQwen4Exp(config, { batch, sequence, phase });
-  if (config?.linearAttentionMode === "qwen3_5") return legacyQwen35(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "glm5_next") return legacyGlm5Next(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "kimi_k3") return legacyKimiK3(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen4_exp") return legacyQwen4Exp(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen3_5") return legacyQwen35(config, { batch, sequence, phase });
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -244,7 +246,7 @@ function legacyLinearAttentionDimensions(config = {}) {
 // 旧 linearStateUpdateMacs。
 function legacyStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   const { keyHeads, valueHeads, keyDim, valueDim } = legacyLinearAttentionDimensions(config);
-  const stateUpdate = config?.linearAttentionMode === "generic"
+  const stateUpdate = planOf(config).linearAttentionMode === "generic"
     ? keyHeads * valueHeads * keyDim * valueDim
     : 3 * valueHeads * valueDim * keyDim;
   return batch * (phase === "decode" ? 1 : sequence) * stateUpdate;

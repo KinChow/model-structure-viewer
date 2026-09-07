@@ -3,6 +3,8 @@
 
 import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeightBytes } from "./memory.js";
 import { childRepeatMultiplier, graphNodeToNode, walkStructure } from "./traverse.js";
+import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 function positiveInteger(value) {
   return Number.isInteger(value) && value > 0;
@@ -58,7 +60,7 @@ export function stateBytesPerCard(totalStateBytes, config = {}, plan = {}) {
 }
 
 function stateBytesForLayerRange(totalStateBytes, config = {}, start = 0, end = -1) {
-  const layers = config.layers || config.attentionSchedule?.length || 0;
+  const layers = config.layers || planOf(config).attentionSchedule?.length || 0;
   const totalElements = linearStateElementsPerSequence(config);
   if (!layers || !totalElements || end < start) return 0;
   let selected = 0;

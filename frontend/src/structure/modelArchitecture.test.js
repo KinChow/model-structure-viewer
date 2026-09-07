@@ -10,6 +10,7 @@ import { createStructureIr } from "./ir/createStructureIr.js";
 import { materializeModelStructure } from "./materializers/toStructureNode.js";
 import { formulaForOperator } from "./formulas/index.js";
 import { TEMPLATE_FAMILIES } from "./truth/mergeSemantics.js";
+import { deriveBuildPlan } from "./model_executor/plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -311,8 +312,8 @@ test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () =>
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-5.3-Flash/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
   assert.equal(normalized.headDim, 256);
-  assert.equal(normalized.attentionSchedule.filter((kind) => kind === "linear").length, 34);
-  assert.equal(normalized.attentionSchedule.filter((kind) => kind === "qsa").length, 11);
+  assert.equal(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "linear").length, 34);
+  assert.equal(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "qsa").length, 11);
   assert.equal(normalized.mhcNumResidualStreams, 4);
   assert.equal(normalized.mhcSinkhornIterations, 20);
   assert.equal(normalized.linearLowerBound, -5);
@@ -356,7 +357,7 @@ test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () =>
 test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific implementations", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/moonshotai/Kimi-K3/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
-  assert.equal(normalized.linearAttentionMode, "kimi_k3");
+  assert.equal(deriveBuildPlan(normalized.raw ?? normalized).linearAttentionMode, "kimi_k3");
   assert.equal(normalized.sharedExpertIntermediateSize, 6144);
   assert.equal(normalized.routedExpertHiddenSize, 3584);
   assert.equal(normalized.visionTokens, 1024);
@@ -409,7 +410,7 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
 test("maps DeepSeek V4 compression variants and hash MoE without duplicating framework kernels", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V4-Flash/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
-  assert.deepEqual(normalized.attentionSchedule.every((kind) => kind === "dsv4"), true);
+  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.every((kind) => kind === "dsv4"), true);
   assert.deepEqual(normalized.compressRatios.slice(0, 4), [0, 0, 4, 128]);
   assert.equal(normalized.numHashLayers, 3);
   assert.equal(normalized.indexerHeadDim, 128);
@@ -449,8 +450,8 @@ test("maps DeepSeek V4 compression variants and hash MoE without duplicating fra
 test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.8-Flash-Next/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
-  assert.equal(normalized.linearAttentionMode, "qwen4_exp");
-  assert.deepEqual(normalized.attentionSchedule.reduce((counts, kind) => {
+  assert.equal(deriveBuildPlan(normalized.raw ?? normalized).linearAttentionMode, "qwen4_exp");
+  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { linear: 36, qsa: 12 });
@@ -492,10 +493,10 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
 test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics", () => {
   const denseConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.5-27B/config.json"), "utf8"));
   const denseNormalized = normalizeConfig(denseConfig);
-  assert.equal(denseNormalized.linearAttentionMode, "qwen3_5");
-  assert.equal(denseNormalized.normMode, "gemma_rmsnorm");
+  assert.equal(deriveBuildPlan(denseNormalized.raw ?? denseNormalized).linearAttentionMode, "qwen3_5");
+  assert.equal(deriveBuildPlan(denseNormalized.raw ?? denseNormalized).normMode, "gemma_rmsnorm");
   assert.equal(denseNormalized.partialRotaryFactor, 0.25);
-  assert.deepEqual(denseNormalized.attentionSchedule.reduce((counts, kind) => {
+  assert.deepEqual(deriveBuildPlan(denseNormalized.raw ?? denseNormalized).attentionSchedule.reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { linear: 48, qwen35_full: 16 });
@@ -545,9 +546,9 @@ test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
 test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse schedule", () => {
   const deepseekConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V3.2/config.json"), "utf8"));
   const deepseekNormalized = normalizeConfig(deepseekConfig);
-  assert.equal(deepseekNormalized.attentionSchedule.length, 61);
-  assert.equal(deepseekNormalized.attentionSchedule.every((kind) => kind === "qsa"), true);
-  assert.equal(deepseekNormalized.indexerSchedule.every((kind) => kind === "compute"), true);
+  assert.equal(deriveBuildPlan(deepseekNormalized.raw ?? deepseekNormalized).attentionSchedule.length, 61);
+  assert.equal(deriveBuildPlan(deepseekNormalized.raw ?? deepseekNormalized).attentionSchedule.every((kind) => kind === "qsa"), true);
+  assert.equal(deriveBuildPlan(deepseekNormalized.raw ?? deepseekNormalized).indexerSchedule.every((kind) => kind === "compute"), true);
   const deepseekResolved = resolveArchitecture(deepseekNormalized, { modelId: "deepseek-ai/DeepSeek-V3.2" });
   const deepseekStructure = materializeModelStructure(createStructureIr({
     network: buildNetwork(deepseekResolved, deepseekNormalized),
@@ -576,7 +577,7 @@ test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse sched
 
   const glmConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-5.2/config.json"), "utf8"));
   const glmNormalized = normalizeConfig(glmConfig);
-  assert.deepEqual(glmNormalized.indexerSchedule.slice(0, 8), ["compute", "compute", "compute", "reuse", "reuse", "reuse", "compute", "reuse"]);
+  assert.deepEqual(deriveBuildPlan(glmNormalized.raw ?? glmNormalized).indexerSchedule.slice(0, 8), ["compute", "compute", "compute", "reuse", "reuse", "reuse", "compute", "reuse"]);
   const glmResolved = resolveArchitecture(glmNormalized, { modelId: "zai-org/GLM-5.2" });
   const glmStructure = materializeModelStructure(createStructureIr({
     network: buildNetwork(glmResolved, glmNormalized),
@@ -592,15 +593,15 @@ test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse sched
 test("maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/MiniMaxAI/MiniMax-M3/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
-  assert.deepEqual(normalized.attentionSchedule.reduce((counts, kind) => {
+  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { gqa: 3, sparse: 57 });
-  assert.deepEqual(normalized.layerSchedule.reduce((counts, kind) => {
+  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).layerSchedule.reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { dense: 3, moe: 57 });
-  assert.equal(normalized.normMode, "gemma_rmsnorm");
+  assert.equal(deriveBuildPlan(normalized.raw ?? normalized).normMode, "gemma_rmsnorm");
   assert.equal(normalized.sparseIndexHeads, 4);
   assert.equal(normalized.sparseIndexDim, 128);
   assert.equal(normalized.sparseTopkBlocks, 16);

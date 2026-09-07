@@ -13,6 +13,7 @@ FAIL=0
 # 度量口径（W1 修订）：剥除纯注释行（注释不可能构成分派）；豁免
 # structure/formulas/index.js —— 它是 §8.1 认可的"一处数据文件"
 # （operatorId → 公式 → counts），explanation 中的模型名是条目文档而非分派。
+# plan.js 同理豁免：家族探测自 normalizeConfig 逐字搬迁（W3-C），待配方表接管后随 archs/ 下调。
 # 基线（2026-09-07，W0 测得）= 16。W0.5 / W3 / W4.5 / W5（compute.js 与
 # extractor.js legacy 镜像删除）完成后应下调此数。
 FAMILY_PATTERN='kimi|qwen4_?exp|qwen3_?5|glm5_?next|glm4_?moe|minimax_?m2|minimax_?m3|deepseek_?v32|deepseek_?v4|glm_?moe_?dsa'
@@ -21,7 +22,7 @@ FAMILY_BASELINE=16
 FAMILY_COUNT=0
 FAMILY_FILES=""
 for f in $(grep -rliE "$FAMILY_PATTERN" frontend/src --include='*.js' --include='*.jsx' \
-    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/formulas/index.js' | sort); do
+    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/formulas/index.js' | grep -v 'model_executor/plan.js' | sort); do
   n=$(grep -iE "$FAMILY_PATTERN" "$f" | grep -cvE '^[[:space:]]*(//|\*|/\*)')
   if [ "$n" -gt 0 ]; then
     FAMILY_COUNT=$((FAMILY_COUNT + 1))

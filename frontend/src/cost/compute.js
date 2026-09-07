@@ -2,6 +2,8 @@
 
 import { nodeWeightBytes, product } from "./memory.js";
 import { walkStructure } from "./traverse.js";
+import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 function tokensFor({ batch = 1, sequence = 1, phase = "prefill", vision = false, visionTokens = 1 } = {}) {
   return batch * (vision ? visionTokens : phase === "decode" ? 1 : sequence);
@@ -62,7 +64,7 @@ function linearShortConvolutionMacs(config, { batch = 1, sequence = 1, phase = "
 
 function linearStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   const { keyHeads, valueHeads, keyDim, valueDim } = linearAttentionDimensions(config);
-  const stateUpdate = config?.linearAttentionMode === "generic"
+  const stateUpdate = planOf(config).linearAttentionMode === "generic"
     ? keyHeads * valueHeads * keyDim * valueDim
     : 3 * valueHeads * valueDim * keyDim;
   return tokensFor({ batch, sequence, phase }) * stateUpdate;
@@ -106,10 +108,10 @@ export function deepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase
 }
 
 export function linearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  if (config?.linearAttentionMode === "glm5_next") return glm5NextLinearAttentionMacs(config, { batch, sequence, phase });
-  if (config?.linearAttentionMode === "kimi_k3") return kimiK3LinearAttentionMacs(config, { batch, sequence, phase });
-  if (config?.linearAttentionMode === "qwen4_exp") return qwen4ExpLinearAttentionMacs(config, { batch, sequence, phase });
-  if (config?.linearAttentionMode === "qwen3_5") return qwen35LinearAttentionMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "glm5_next") return glm5NextLinearAttentionMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "kimi_k3") return kimiK3LinearAttentionMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen4_exp") return qwen4ExpLinearAttentionMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen3_5") return qwen35LinearAttentionMacs(config, { batch, sequence, phase });
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -305,7 +307,7 @@ export function computeNodeCosts(root, config, options = {}) {
     const modulePath = node?.id || path;
     const layerMatch = modulePath.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
     const layerIndex = layerMatch ? Number(layerMatch[1]) : null;
-    const layerKind = layerIndex != null ? config?.layerSchedule?.[layerIndex] : null;
+    const layerKind = layerIndex != null ? planOf(config).layerSchedule?.[layerIndex] : null;
     const routedExpert = /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(modulePath);
     const expertFraction = routedExpert && layerKind !== "dense" && config?.experts && config?.expertsPerToken
       ? config.expertsPerToken / config.experts

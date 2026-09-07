@@ -2,6 +2,7 @@ import { formulaForOperator } from "../../formulas/index.js";
 import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 import { resolveOperatorRole } from "../roles.js";
+import { deriveBuildPlan } from "../plan.js";
 
 function cleanAttributes(attributes) {
   return Object.fromEntries(
@@ -98,8 +99,9 @@ const KDA_LINEAR_MODES = new Set(["kimi_k3", "kimi", "glm5_next", "qwen4_exp", "
 
 export function linearAttentionOperatorSpecs(prefix, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
-  if (KDA_LINEAR_MODES.has(normalized.linearAttentionMode)) {
-    return canonicalKdaOperatorSpecs(prefix, normalized, normalized.linearAttentionMode);
+  const plan = deriveBuildPlan(normalized.raw ?? normalized);
+  if (KDA_LINEAR_MODES.has(plan.linearAttentionMode)) {
+    return canonicalKdaOperatorSpecs(prefix, normalized, plan.linearAttentionMode);
   }
   return [
     operatorSpec(`${prefix}.in_proj_qkv`, "linear attention qkv projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
@@ -274,7 +276,7 @@ export function qwen35FullAttentionOperatorSpecs(prefix, normalized) {
       context: { attention_kind: "qwen35_full" },
       preOutput: [operatorSpec(`${prefix}.output_gate`, "attention output gate", "attention_output_gate", {
         ...shapeFlow(`${shapes.attentionContext}, ${gateShape}`, shapes.attentionContext),
-        activation: normalized.attentionOutputGate ? "sigmoid" : "none",
+        activation: deriveBuildPlan(normalized.raw ?? normalized).attentionOutputGate ? "sigmoid" : "none",
         implementation: ["vLLM.fused_sigmoid_mul", "SGLang.fused_sigmoid_mul"],
       }, { input: dims.attentionContext, output: dims.attentionContext })],
     }),
@@ -615,7 +617,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const indexHeads = normalized.indexerNHeads || 0;
   const indexDim = normalized.indexerHeadDim || 0;
   const budget = normalized.indexerBudget || 0;
-  const indexerMode = normalized.indexerSchedule?.[layerIndex] || "compute";
+  const indexerMode = deriveBuildPlan(normalized.raw ?? normalized).indexerSchedule?.[layerIndex] || "compute";
   const qLatentShape = `[batch, sequence, q latent=${qRank}]`;
   const kvLatentShape = `[batch, sequence, kv latent=${kvRank}, rope=${ropeDim}]`;
   const qShape = `[batch, sequence, attention heads=${heads}, head dimension=${qkDim}]`;

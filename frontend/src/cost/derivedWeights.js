@@ -1,7 +1,10 @@
 // 离线或无 checkpoint 时的模型级权重参数量 fallback；结果必须标记为 derived。
 // 来源：llm-analysis 的 get_num_params_* 公式形态；不包含架构特有 bias/额外 head。
 
+import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+
 export function derivedWeightParameters(config = {}) {
+  const plan = deriveBuildPlan(config?.raw ?? config);
   const layers = config.layers || 0;
   const hidden = config.hiddenSize || 0;
   const heads = config.attentionHeads || 0;
@@ -14,24 +17,24 @@ export function derivedWeightParameters(config = {}) {
   const routedExpertHidden = config.routedExpertHiddenSize || hidden;
   const sharedExperts = config.sharedExperts || 0;
   const sharedIntermediate = config.sharedExpertIntermediateSize || denseIntermediate;
-  const schedule = config.layerSchedule || Array.from({ length: layers }, () => experts ? "moe" : "dense");
+  const schedule = plan.layerSchedule || Array.from({ length: layers }, () => experts ? "moe" : "dense");
   const attention = hidden * (heads * qDim + kvHeads * qDim + kvHeads * vDim + heads * vDim);
   const norms = config.hyperConnectionCount ? 0 : 2 * hidden;
   let decoder = 0;
   for (let i = 0; i < layers; i++) {
     // MLA 模型（qLoraRank+kvLoraRank）在无显式 schedule 时按 MLA 计
     // （kimi_k2/deepseek 系无 layer_types，schedule undefined → 曾误按 gqa 计 attention）
-    const attentionKind = config.attentionSchedule?.[i]
+    const attentionKind = plan.attentionSchedule?.[i]
       || (config.qLoraRank && config.kvLoraRank ? "mla" : "gqa");
     let attentionParameters = attention;
     if (attentionKind === "linear") {
-      attentionParameters = config.linearAttentionMode === "glm5_next"
+      attentionParameters = plan.linearAttentionMode === "glm5_next"
         ? glm5NextLinearAttentionParameters(config)
-        : config.linearAttentionMode === "kimi_k3"
+        : plan.linearAttentionMode === "kimi_k3"
           ? kimiK3LinearAttentionParameters(config)
-      : config.linearAttentionMode === "qwen4_exp"
+      : plan.linearAttentionMode === "qwen4_exp"
           ? qwen4ExpLinearAttentionParameters(config)
-            : config.linearAttentionMode === "qwen3_5"
+            : plan.linearAttentionMode === "qwen3_5"
               ? qwen35LinearAttentionParameters(config)
             : genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim });
     } else if (attentionKind === "qwen35_full") {
@@ -59,7 +62,7 @@ export function derivedWeightParameters(config = {}) {
         ? hidden * routedExpertHidden + routedExpertHidden * hidden
         : 0;
       decoder += attentionParameters + norms + mhcParameters + hcParameters + hidden * experts + routedExperts + latentProjection;
-      decoder += (config.sharedExpertsAreFused ? 1 : sharedExperts) * 3 * hidden * sharedIntermediate;
+      decoder += (plan.sharedExpertsAreFused ? 1 : sharedExperts) * 3 * hidden * sharedIntermediate;
     } else {
       decoder += attentionParameters + norms + mhcParameters + hcParameters + 3 * hidden * denseIntermediate;
     }
@@ -73,6 +76,7 @@ export function derivedWeightParameters(config = {}) {
 }
 
 function derivedVisionParameters(config) {
+  const plan = deriveBuildPlan(config?.raw ?? config);
   const layers = config.visionLayers || 0;
   const hidden = config.visionHiddenSize || 0;
   const heads = config.visionAttentionHeads || 0;
@@ -87,13 +91,13 @@ function derivedVisionParameters(config) {
   const mlp = config.visionMlpGated ? 3 * hidden * intermediate : 2 * hidden * intermediate;
   const output = config.visionOutputSize || hidden;
   const mergeWidth = (config.visionMergeSize || 1) ** 2 * hidden;
-  const merger = config.visionInternalMerger
+  const merger = plan.visionInternalMerger
     ? config.modelType === "glm5_next"
       ? mergeWidth * output + output * output + 2 * output * (config.visionMergerIntermediateSize || intermediate)
         + output * (config.visionMergerIntermediateSize || intermediate)
       : mergeWidth * mergeWidth + mergeWidth * output
     : output * (config.hiddenSize || hidden);
-  const downsample = config.visionInternalMerger && config.modelType === "glm5_next"
+  const downsample = plan.visionInternalMerger && config.modelType === "glm5_next"
     ? (config.visionMergeSize || 1) ** 2 * hidden * output
     : 0;
   return patchEmbedding + layers * (attention + mlp) + merger + downsample;

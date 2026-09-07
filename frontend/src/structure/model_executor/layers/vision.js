@@ -1,6 +1,7 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
+import { deriveBuildPlan } from "../plan.js";
 
 export function visionDimensions(normalized) {
   const hidden = normalized.visionHiddenSize || 0;
@@ -152,7 +153,7 @@ export function visionTowerModule(normalized) {
       modality: "vision",
     }, { input: d.visual, output: d.visual }),
     ...(layer ? [layer] : []),
-    ...(normalized.visionInternalMerger ? [visionMergerModule("vision_tower.merger", normalized)] : []),
+    ...(deriveBuildPlan(normalized.raw ?? normalized).visionInternalMerger ? [visionMergerModule("vision_tower.merger", normalized)] : []),
   ];
   return withShapeDims(moduleSpec(
     "vision_tower",
@@ -169,7 +170,7 @@ export function visionTowerModule(normalized) {
       dataflow_edges: [
         ["patch_embed", "position"],
         ...(layer ? [["position", "0"]] : []),
-        ...(normalized.visionInternalMerger ? [[layer ? "0" : "position", "merger"]] : []),
+        ...(deriveBuildPlan(normalized.raw ?? normalized).visionInternalMerger ? [[layer ? "0" : "position", "merger"]] : []),
       ],
       ...shapeFlow(shapes.visionInput, shapes.visionOutput),
     },

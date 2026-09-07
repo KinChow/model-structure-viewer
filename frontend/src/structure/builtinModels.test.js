@@ -12,6 +12,7 @@ import { formulaForOperator } from "./formulas/index.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";
 import { aggregateCost } from "../cost/aggregate.js";
+import { deriveBuildPlan } from "./model_executor/plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -57,8 +58,8 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
     assert.ok(Number.isFinite(linearStateBytesPerSequence(normalized)), `${entry.model_id}: invalid recurrent state cost`);
     if (entry.model_id === "moonshotai/Kimi-K3") {
       assert.equal(resolved.canonicalArchitecture, "hybrid-multimodal-moe-decoder");
-      assert.deepEqual(normalized.attentionSchedule.filter((kind) => kind === "linear").length, 69);
-      assert.deepEqual(normalized.attentionSchedule.filter((kind) => kind === "mla").length, 24);
+      assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "linear").length, 69);
+      assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "mla").length, 24);
       assert.equal(normalized.sharedExperts, 2);
       assert.equal(normalized.attnResBlockSize, 12);
       const nodes = [];

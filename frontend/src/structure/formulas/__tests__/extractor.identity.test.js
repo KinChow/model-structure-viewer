@@ -13,6 +13,7 @@ import { normalizeConfig } from "../../../structure/config/normalize.js";
 import { countsForNode } from "../../../structure/formulas/extractor.js";
 import { derivedWeightParameters } from "../../../cost/derivedWeights.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
+import { deriveBuildPlan } from "../../model_executor/plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const T = 128;
@@ -66,7 +67,8 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
     const total = derivedWeightParameters(normalized);
     // MoE：derived 的 routed 参数是全部专家；每 token 只激活 k/E →
     // 期望侧同口径缩放（镜像 derived 的 routed 公式：E·3·routedHidden·moeI + latent 投影）。
-    const layerSched = normalized.layerSchedule || Array.from({ length: normalized.layers || 0 }, () => (normalized.experts ? "moe" : "dense"));
+    const plan = deriveBuildPlan(normalized.raw ?? normalized);
+    const layerSched = plan.layerSchedule || Array.from({ length: normalized.layers || 0 }, () => (normalized.experts ? "moe" : "dense"));
     const moeLayerCount = layerSched.filter((kind) => kind === "moe").length;
     const routedHidden = normalized.routedExpertHiddenSize || hidden;
     const moeIntermediate = normalized.moeIntermediateSize || normalized.intermediateSize || 0;
@@ -76,7 +78,7 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
     const nEff = total - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0) - routedN + routedN * kOverE;
     // 无权重注意力 matmul（Q·K^T 与 P·V）：参数量不含、但是真实矩阵 MACs。
     // 打分式层每层 2·heads·T·S·D（prefill 近似 S=T）；linear 层走 F7b 无此项。
-    const schedule = normalized.attentionSchedule || [];
+    const schedule = plan.attentionSchedule || [];
     let scoreMatmulParams = 0;
     for (let i = 0; i < (normalized.layers || 0); i++) {
       const kind = schedule[i] || "gqa";

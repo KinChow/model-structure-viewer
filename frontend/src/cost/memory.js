@@ -1,5 +1,7 @@
 // 推理场景的一阶显存核算；结果是理论估算，不是运行时实测。
 
+import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 const BYTES_PER_DTYPE = {
   BF16: 2, F16: 2, FP16: 2, F32: 4, FP32: 4, F8_E4M3: 1, F8_E5M2: 1, I8: 1,
   U8: 1, I16: 2, I32: 4, I64: 8,
@@ -55,7 +57,7 @@ export function nodeWeightBytes(node) {
  * Shape source: vLLM MambaStateShapeCalculator.kda_state_shape.
  */
 export function linearStateElementsPerLayer(config = {}, layerIndex = 0) {
-  if (config?.attentionSchedule?.[layerIndex] !== "linear") return 0;
+  if (planOf(config).attentionSchedule?.[layerIndex] !== "linear") return 0;
   const keyHeads = config.linearKeyHeads || config.attentionHeads || 0;
   const valueHeads = config.linearValueHeads || config.attentionHeads || 0;
   const keyDim = config.linearKeyDim || config.headDim || 0;
@@ -67,7 +69,7 @@ export function linearStateElementsPerLayer(config = {}, layerIndex = 0) {
 }
 
 export function linearStateElementsPerSequence(config = {}) {
-  const layers = config?.layers || config?.attentionSchedule?.length || 0;
+  const layers = config?.layers || planOf(config).attentionSchedule?.length || 0;
   let total = 0;
   for (let index = 0; index < layers; index += 1) total += linearStateElementsPerLayer(config, index);
   return total;
@@ -84,10 +86,10 @@ export function kvBytesPerToken(config, kvBytes = 2) {
   const headDim = config?.headDim || 0;
   const mlaRank = config?.kvLoraRank;
   const ropeDim = config?.qkRopeHeadDim;
-  if (Array.isArray(config?.attentionSchedule) && config.attentionSchedule.length && layers) {
+  if (Array.isArray(planOf(config).attentionSchedule) && planOf(config).attentionSchedule.length && layers) {
     let perLayer = 0;
     for (let index = 0; index < layers; index += 1) {
-      const kind = config.attentionSchedule[index] || "gqa";
+      const kind = planOf(config).attentionSchedule[index] || "gqa";
       if (kind === "linear") {
         // KDA state is request-scoped and is returned separately below.
         perLayer += 0;

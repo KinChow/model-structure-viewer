@@ -1,3 +1,4 @@
+import { deriveBuildPlan } from "../plan.js";
 export function compactRanges(kinds) {
   if (!Array.isArray(kinds) || kinds.length === 0) return [];
   const ranges = [];
@@ -12,7 +13,8 @@ export function compactRanges(kinds) {
 }
 
 export function layerKinds(normalized, defaultKind) {
-  if (normalized.layerSchedule?.length) return normalized.layerSchedule;
+  const plan = deriveBuildPlan(normalized.raw ?? normalized);
+  if (plan.layerSchedule?.length) return plan.layerSchedule;
   if (!normalized.layers) return [];
   return Array.from({ length: normalized.layers }, () => defaultKind);
 }

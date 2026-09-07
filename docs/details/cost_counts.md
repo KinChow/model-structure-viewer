@@ -15,6 +15,8 @@
 | A2 | softmax 按**融合单遍**实现，logits 读 1 遍；多遍未融合读放大不建模 | 2026-09-07 拍板 |
 | A3 | rope 的 sin/cos **查表**，SFU ≈ 0 | 常规实现 |
 | A4 | 复合节点的分解假设（F9）逐条标注 | §3.1 分解声明 |
+| A5 | SFU 计数约定：sigmoid = 2（exp + rcp）、exp = 1、rsqrt = 1、div = 1；elementwise/vector 操作逐 flop 计 | 2026-09-07 统一口径 |
+| A6 | 线性注意力按 per-token 递推语义计（下界）；chunked kernel 的 chunk 内展开会多做 QK^T 项，不建模 | Gated DeltaNet arXiv 2412.06464 |
 
 记号：`T`=tokens（phase 决定），`H`=hidden，`D`=head_dim，`I`=intermediate，
 `S`=可见 key tokens，`E`=专家数，`k`=topk，`b`=每元素字节。
@@ -71,9 +73,9 @@ keyDim/valueDim 为每头维度，heads 显式（state = heads·dk·dv）。
 
 ### F3 归一化
 
-rmsnorm：matrix=0；vector ≈ 3TH（x²、mean-reduce、×w）；sfu = T（rsqrt）；
+rmsnorm：matrix=0；vector = 4TH（x²、mean-reduce、×rsqrt、×w）；sfu = T（rsqrt）；
 bytes = { H·b, TH·b, TH·b }。
-gemma_rmsnorm：同上 + TH（(1+w) 加法）。gated_rmsnorm：rmsnorm + 门乘（sfu += TH、vector += TH、bytes + gate 输入）。
+gemma_rmsnorm：同上 + TH（(1+w) 加法）。gated_rmsnorm：rmsnorm + 门乘（sfu += 2TH、vector += TH、bytes + gate 输入）。
 分解声明：`mul / reduce / rsqrt / mul`，无单一 aten 对应。
 
 ### F4 门控乘

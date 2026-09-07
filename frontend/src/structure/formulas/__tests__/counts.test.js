@@ -78,20 +78,20 @@ test("F2 prefill vs decode：矩阵差一个 seq 量级，decode 的 K/V 读即�
 test("F3 rmsnorm：3TH 向量 + T 次 rsqrt；gemma 多 TH；gated 多一路门", () => {
   const base = rmsnormCounts({ tokens: 5, hidden: 10, bytesPerElement: B });
   assert.equal(base.matrix, 0);
-  assert.equal(base.vector, 3 * 5 * 10);
+  assert.equal(base.vector, 4 * 5 * 10);
   assert.equal(base.sfu, 5);
   assert.equal(base.bytes.weights, 10 * B);
   const gemma = rmsnormCounts({ tokens: 5, hidden: 10, bytesPerElement: B, weightOne: true });
-  assert.equal(gemma.vector, 4 * 5 * 10);
+  assert.equal(gemma.vector, 5 * 5 * 10);
   const gated = rmsnormCounts({ tokens: 5, hidden: 10, bytesPerElement: B, gated: true });
-  assert.equal(gated.vector, 4 * 5 * 10);
-  assert.equal(gated.sfu, 5 + 5 * 10);
+  assert.equal(gated.vector, 5 * 5 * 10);
+  assert.equal(gated.sfu, 5 + 2 * 5 * 10);
 });
 
 test("F4 门控乘：TW 次 sigmoid + TW 次乘；带输入投影时计权重", () => {
   const bare = gateCounts({ tokens: 4, width: 8, bytesPerElement: B });
   assert.equal(bare.matrix, 0);
-  assert.equal(bare.sfu, 4 * 8);
+  assert.equal(bare.sfu, 2 * 4 * 8); // sigmoid = exp + rcp
   assert.equal(bare.bytes.weights, 0);
   const projected = gateCounts({ tokens: 4, width: 8, bytesPerElement: B, gateProjection: true, gateProjectionInput: 6 });
   assert.equal(projected.bytes.weights, 6 * 8 * B);
@@ -101,7 +101,7 @@ test("F5 SwiGLU：2TI 乘 + TI 次 sigmoid；输入是 gate/up 两路", () => {
   const c = swigluCounts({ tokens: 3, intermediate: 8, bytesPerElement: B });
   assert.equal(c.matrix, 0);
   assert.equal(c.vector, 2 * 3 * 8);
-  assert.equal(c.sfu, 3 * 8);
+  assert.equal(c.sfu, 2 * 3 * 8); // silu = sigmoid(2 SFU) + mul
   assert.equal(c.bytes.actIn, 2 * 3 * 8 * B);
 });
 
@@ -117,18 +117,18 @@ test("F7a 因果卷积：T·C·w MACs + SiLU", () => {
   const c = causalConvCounts({ tokens: 4, channels: 6, kernel: 3, bytesPerElement: B });
   assert.equal(c.matrix, 4 * 6 * 3);
   assert.equal(c.vector, 4 * 6);
-  assert.equal(c.sfu, 4 * 6);
+  assert.equal(c.sfu, 2 * 4 * 6); // silu
 });
 
 test("F7b 递推状态：plain 2T·dk·dv，delta 3T·dk·dv（delta matvec 是矩阵 MACs）；多头 state 流量显式", () => {
   const plain = linearAttentionStateCounts({ tokens: 3, heads: 4, keyDim: 8, valueDim: 8, bytesPerElement: B });
   assert.equal(plain.matrix, 2 * 3 * 4 * 64);
   assert.equal(plain.vector, 3 * 4 * 64);
-  assert.equal(plain.sfu, 3);
+  assert.equal(plain.sfu, 4 * 3); // decay exp 每 head 1 次
   const delta = linearAttentionStateCounts({ tokens: 3, heads: 4, keyDim: 8, valueDim: 8, bytesPerElement: B, delta: true });
   assert.equal(delta.matrix, 3 * 3 * 4 * 64);
   assert.equal(delta.vector, 2 * 3 * 4 * 64);
-  assert.equal(delta.sfu, 2 * 3); // exp decay + sigmoid beta
+  assert.equal(delta.sfu, 3 * 4 * 3); // exp decay + sigmoid beta(2)
   // 状态读+写主导：actIn = 2·T·heads·dk·dv·b（多头 state 显式进入流量）
   assert.equal(plain.bytes.actIn, 2 * 3 * 4 * 64 * B);
 });
@@ -174,7 +174,7 @@ test("复合节点：mla_query_compress = 两段 linear + 一段 rmsnorm", () =>
     qb: { logicalShape: [32, 16], tokens: 2, bytesPerElement: B },
   });
   assert.equal(c.matrix, 2 * 16 * 32 + 2 * 32 * 16);
-  assert.equal(c.vector, 3 * 2 * 16); // rmsnorm 部分
+  assert.equal(c.vector, 4 * 2 * 16); // rmsnorm 部分（A5：4 flop/元素）
   assert.equal(c.bytes.weights, (16 * 32 + 16 + 32 * 16) * B);
 });
 

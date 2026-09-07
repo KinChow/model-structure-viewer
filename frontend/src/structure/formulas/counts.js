@@ -68,8 +68,8 @@ export function rmsnormCounts({ tokens, hidden, bytesPerElement, weightOne = fal
   const gate = gated ? hidden * tokens : 0;
   return {
     matrix: 0,
-    vector: 3 * hidden * tokens + (weightOne ? hidden * tokens : 0) + gate,
-    sfu: tokens + (gated ? hidden * tokens : 0),
+    vector: 4 * hidden * tokens + (weightOne ? hidden * tokens : 0) + gate,
+    sfu: tokens + (gated ? 2 * hidden * tokens : 0),
     bytes: {
       weights: hidden * bytesPerElement,
       actIn: (hidden * tokens + (gated ? hidden * tokens : 0)) * bytesPerElement,
@@ -85,7 +85,7 @@ export function gateCounts({ tokens, width, bytesPerElement, gateProjection = fa
   return {
     matrix: 0,
     vector: tokens * width,
-    sfu: tokens * width,
+    sfu: 2 * tokens * width, // sigmoid = exp + rcp
     bytes: {
       weights: gateProjection ? gateProjectionInput * width * bytesPerElement : 0,
       actIn: (tokens * width + (gateProjection ? tokens * gateProjectionInput : 0)) * bytesPerElement,
@@ -99,7 +99,7 @@ export function swigluCounts({ tokens, intermediate, bytesPerElement }) {
   return {
     matrix: 0,
     vector: 2 * tokens * intermediate,
-    sfu: tokens * intermediate,
+    sfu: 2 * tokens * intermediate, // silu = sigmoid(2 SFU) + mul
     bytes: { weights: 0, actIn: 2 * tokens * intermediate * bytesPerElement, actOut: tokens * intermediate * bytesPerElement },
   };
 }
@@ -119,7 +119,7 @@ export function causalConvCounts({ tokens, channels, kernel, bytesPerElement }) 
   return {
     matrix: tokens * channels * kernel,
     vector: tokens * channels,
-    sfu: tokens * channels,
+    sfu: 2 * tokens * channels, // silu = sigmoid(2 SFU) + mul
     bytes: { weights: channels * kernel * bytesPerElement, actIn: tokens * channels * bytesPerElement, actOut: tokens * channels * bytesPerElement },
   };
 }
@@ -142,7 +142,7 @@ export function linearAttentionStateCounts({ tokens, heads = 1, keyDim, valueDim
   return {
     matrix: (delta ? 3 : 2) * tokens * state,
     vector: tokens * state * (delta ? 2 : 1),
-    sfu: tokens + (delta ? tokens : 0),
+    sfu: heads * tokens * (delta ? 3 : 1), // decay exp 每 head 1 次；delta 另加 beta sigmoid 2 次
     bytes: {
       weights: 0,
       actIn: 2 * tokens * state * bytesPerElement,

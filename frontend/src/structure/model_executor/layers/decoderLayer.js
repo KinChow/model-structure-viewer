@@ -45,7 +45,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     id,
     "DecoderLayer",
     "decoder",
-    { class: "DecoderLayer", layer_kind: layerKind, ...shapeFlow(shapes.hidden, shapes.hidden) },
+    { class: "DecoderLayer", layer_kind: layerKind, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
     children,
   ), dims.hidden, dims.hidden);
 }

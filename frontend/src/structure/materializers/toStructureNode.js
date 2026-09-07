@@ -68,6 +68,7 @@ export function materializeModelStructure(ir) {
       class: network.name,
       model_type: normalized.modelType,
       canonical_architecture: resolved.canonicalArchitecture,
+      ...(network.attributes || {}),
     },
     source_fields: ["model_type", "canonical_architecture"],
     confidence: "high",

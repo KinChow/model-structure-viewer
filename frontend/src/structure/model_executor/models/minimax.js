@@ -13,5 +13,5 @@ export function buildMiniMaxM3Network(resolved, normalized) {
       defaultLayerKind: normalized.experts ? "moe" : "dense",
     }),
     lmHeadModule("lm_head", normalized),
-  ]);
+  ], { sequence: true });
 }

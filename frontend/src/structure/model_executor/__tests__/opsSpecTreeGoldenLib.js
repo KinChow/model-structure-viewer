@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../../buildStructure.js";
+import { materializeStructureGraph } from "../../graph/materializeStructureGraph.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
@@ -49,4 +50,17 @@ export function buildSpecTreeMap() {
 
 export function hashSpecTree(json) {
   return createHash("sha256").update(json).digest("hex").slice(0, 16);
+}
+
+/** { model_id: 边集哈希源（[source,target,evidence] 列表的规范化 JSON） } */
+export function buildEdgeMap() {
+  const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
+  const map = {};
+  for (const entry of catalog.models) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
+    const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "spec-golden" });
+    const graph = materializeStructureGraph(structure.root);
+    map[entry.model_id] = JSON.stringify(graph.edges.map((edge) => [edge.source, edge.target, edge.evidence]));
+  }
+  return map;
 }

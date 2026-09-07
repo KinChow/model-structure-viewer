@@ -22,6 +22,14 @@ export function attentionResidualModule(id, normalized, { layerIndex = 0 } = {})
       block_write: blockWrite,
       previous_blocks: previousBlocks,
       bank_shape: `[batch, sequence, snapshot blocks=${previousBlocks + (blockWrite ? 1 : 0)}, hidden size=${normalized.hiddenSize}]`,
+      // 快照库双分支数据流（pre_attention / pre_mlp），非线性链——
+      // 声明真实分支，取代推断层伪造的线性序（§2.1）
+      dataflow_edges: [
+        ["aggregate", "self_attention_res_norm"],
+        ["self_attention_res_norm", "self_attention_res_proj"],
+        ["aggregate", "mlp_res_norm"],
+        ["mlp_res_norm", "mlp_res_proj"],
+      ],
       ...{ input_shape: "[residual states, batch, sequence, hidden size]", output_shape: "[batch, sequence, hidden size]" },
     },
     [
@@ -74,6 +82,7 @@ export function outputAttentionResidualModule(id, normalized) {
       block_size: normalized.attnResBlockSize,
       snapshot_blocks: snapshotBlocks,
       aggregation_point: "output",
+      dataflow_edges: [["norm", "proj"]],
     },
     [
       operatorSpec(`${id}.norm`, "output residual norm", "rmsnorm", {

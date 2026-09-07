@@ -52,7 +52,7 @@ export function decoderStackNetwork(id, normalized, options = {}) {
     id,
     id === "text_decoder" ? "Text Decoder Layers" : "Decoder Layers",
     "decoder",
-    { class: "DecoderStack", num_hidden_layers: layers, ...shapeFlow(shapes.hidden, shapes.hidden) },
+    { class: "DecoderStack", num_hidden_layers: layers, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
     children,
     layers || undefined,
   ), dims.hidden, dims.hidden);

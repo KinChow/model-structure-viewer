@@ -51,7 +51,7 @@ function buildMultimodalDecoderNetwork(resolved, normalized, { attentionKind, de
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     rmsNormModule("norm", "final norm", normalized, "output_norm"),
     lmHeadModule("lm_head", normalized),
-  ]);
+  ], { sequence: true });
 }
 
 export function buildHybridMultimodalNetwork(resolved, normalized) {

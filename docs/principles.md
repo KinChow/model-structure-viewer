@@ -250,8 +250,18 @@ softmax 等 score 归一化按**融合单遍实现**假设（logits 读 1 遍，
 
 ### 4.3 适配产物的形态：两张表 + 一份代码
 
-结构的**骨架来自适配**（人工 / agent 对照 transformers 源码组织关系），不来自 config 推导，
-也不来自 checkpoint 自动推断。运行时**不做结构推断**。
+结构的**骨架来自适配**（人工 / agent 对照**该模型的 modeling 文件**组织关系），不来自
+config 推导，也不来自 checkpoint 自动推断。运行时**不做结构推断**。
+
+**语义标准的层级**（2026-09-07 定）：
+
+1. **数学定义**——counts 的真正标准，与实现无关；
+2. **该模型的 modeling 文件**（版本锚定）——语义分解与执行顺序的规范参考实现：
+   库内模型用 transformers 副本（`models/<arch>/modeling_*.py`），remote-code 模型用
+   **随 checkpoint 自带的文件**（它本身就是定义）；`models/` 目录已 vendored 内置模型
+   的全部 modeling 文件，适配（agent 对照）离线可做；
+3. **vLLM / SGLang**——下游优化实现，只提供 `implementation` 属性与融合假设的来源
+   （A2/A3），**不得作为语义标准**：融合把语义做没了，且两个引擎互相不一致。
 
 形态照抄成熟方案，分三层：
 

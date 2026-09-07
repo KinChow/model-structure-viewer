@@ -187,3 +187,68 @@ vision_position：vector = T·H_v（加法）；bytes = { 0, 2TH·b, TH·b }。
 
 - **embedding gather 无算子节点**：查表流量 T·H·b 不可见（`embedding.js` 无 operator 子节点）。
 - **残差加法无算子节点**：decoder 层 `+x` 隐含在顺序边，每次 2TH·b 读 + TH·b 写不可见。
+
+---
+
+## 提取器规格（W1 第二批 / W5 前置件，2026-09-07 定稿）
+
+新增 `frontend/src/structure/formulas/extractor.js`（纯新增，`cost/compute.js` 不动）：
+
+```js
+countsForNode(node, config, options, { bytesPerElement }) → { matrix, vector, sfu, bytes, source } | null
+```
+
+签名与旧 `nodeMacs` 对齐（W5 可直接换装）；返回 null = 该算子矩阵维未知（如 packed
+weight 无逻辑形状），沿用旧链的诚实语义。
+
+### 提取原则
+
+1. **查表优先**：节点已有 `weight_shapes`（checkpoint 真值）、`input_shape/output_shape`
+   （dims.js 数值形状）、`attributes`——提取器只补三样节点上没有的东西：
+   ① phase 相关的 T/S；② 变体选择参数（budget/blocks/window/compress）；③ expertFraction。
+2. **-1 位替换**：dims.js 约定 -1 = 自由维。T = batch·(decode ? 1 : sequence)·(vision ? visionTokens : 1)；
+   S 默认 = sequence（prefill）/ 上下文全长（decode）。
+3. **结构化判据**：scores 与 context 两类 matmul 用「output_shape 与
+   `tensorDims(config)` 的模式匹配」区分——scores 全 -1，context 末两维 = heads/valueHeadDim
+   已知。**禁止显示名**（§3.2）。
+4. **层向**：extractor 不 import cost 层；`bytesPerElement` 由调用方从
+   `bytesPerDtype(node.dtype)` 传入（W5 接线点）。
+5. **repeat/multiplier**：counts 返回单实例；倍乘由 W5 的 walker 沿用 multiplier（与旧链同）。
+6. **expertFraction**：node.id 路径 + `config.layerSchedule`（复用旧逻辑；正则统一为一处，
+   顺带完成 W5 范围第 3 项的一半）。
+
+### 分派表（36 个在用 operatorId → 规则）
+
+| 族 | operatorId | ctx 来源 |
+|---|---|---|
+| 线性 | linear | weight_shapes 逻辑形状（packed 无 logical → null）；bias 暂 false（与旧链一致） |
+| scores matmul | matmul（output 全 -1） | heads/headDim/valueHeadDim/kvHeads 来自 tensorDims(config)；T/S 按 phase |
+| context matmul | matmul（output=attentionContext 模式） | 同上 |
+| 融合注意力 | qsa_attention / minimax_sparse_attention / dsv4_swa / dsv4_compressed | F2 整体；S = indexerBudget / blocks×blockSize / window / 压缩长；kvHeads 按变体矩阵 |
+| softmax | softmax | elements = heads·T·S（input 模式 + phase 补 -1） |
+| rope | rope | ropeDims = headDim·(partial_rotary_factor ?? 1)；attributes 有则用 |
+| 归一化 | rmsnorm / gemma_rmsnorm / gated_rmsnorm | hidden = input_shape 末维 |
+| 门控 | attention_output_gate / mla_output_gate / linear_attention_gate / shared_expert_gate | width = output_shape 末维 |
+| 激活 | swiglu / vision_activation | intermediate = latent_size ?? moeIntermediateSize ?? intermediateSize；expert 路径乘 expertFraction |
+| 卷积 | causal_conv1d | channels/linearConvKernelSize 来自 config |
+| 递推 | linear_attention / gated_delta_attention | heads·dk·dv 来自 config linear* 维；delta=true |
+| MoE | topk / moe_dispatch / moe_combine / moe_add / dsv4_hash_route | E/k/H 来自 config |
+| 视觉 | vision_position / vision_merge / vision_activation | vision dims |
+| 复合 | mhc_* / hyper_connection / ple / attention_residual / mla_* / *_indexer | 嵌套 ctx，逐条核对 attributes 字段名（实现时任务 T3） |
+
+### 与旧链的差分预期
+
+- **matrix**：应逐节点全等。softmax/rope/gate 等 matrix=0 与旧链一致，不影响差分；
+- **vector/sfu/bytes**：旧链无对应维度，不比较（新维度由 per-op golden 与恒等式覆盖）；
+- 旧链 = 0 而新链 > 0 的节点（mhc/hyper/ple/indexer 复合、qsa/minimax/dsv4 融合节点）
+  → 输出**旧链漏算清单**，作为 W5 切换的价值证明。
+
+### 任务分解（对齐后执行）
+
+- **T1** extractor 骨架 + 线性族 → 旧链差分（linear 子集先行）
+- **T2** attention 族（scores/context 模式匹配 + 融合变体 + kvHeads 映射表）
+- **T3** elementwise 与其余 + 复合节点（逐条核对 attributes）
+- **T4** 整模型恒等式（59 模型；tie_word_embeddings 与 embedding 表的会计处理在此定）
+- **T5** 旧链差分全量 + 漏算清单产出
+- **验收**：identity 通过（容差仅限已登记建模边界）；差分：旧链>0 节点全等；
+  §10 的 §3.1 条目清账

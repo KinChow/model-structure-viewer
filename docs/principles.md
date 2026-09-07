@@ -257,13 +257,22 @@ config 推导，也不来自 checkpoint 自动推断。运行时**不做结构�
 
 1. **数学定义**——counts 的真正标准，与实现无关；
 2. **该模型的 modeling 文件**（版本锚定）——语义分解与执行顺序的规范参考实现。
-   多数模型 checkpoint 里**没有** model.py，定义在库内，因此按**四级来源阶梯**取源
-   （与 §7 的 confidence 阶梯同构）：
-   - ① checkpoint 自带的 `modeling_*.py`（remote code）——随权重分发，天然自锚定；
-   - ② transformers 库内该架构的 `modeling_<arch>.py`——版本钉死，首选锚为
-     config.json 自带的 `transformers_version` 字段（catalog 可覆盖）；
-   - ③ 架构原始发布仓库的实现——仅当库未收录，标注仓库 + commit；
-   - ④ 都没有 → 未适配（§4.5），不出语义结构。
+   多数模型 checkpoint 里**没有** model.py，定义在库内，因此按**五级来源阶梯**取源
+   （与 §7 的 confidence 阶梯同构；排序判据 = 与 msv 所读 config 的契约契合度 +
+   可锚定性 + "作者 > 转述者"；优先级 2026-09-07 定）：
+   - ① **checkpoint 自带的** `modeling_*.py`（remote code）——模型作者所写，随权重分发，
+     天然自锚定。识别方式：config.json 的 `auto_map` 字段（如 Kimi-K3：
+     `"AutoModelForCausalLM": "modeling_kimi_k3.KimiK3ForConditionalGeneration"`）；
+   - ② **transformers 库内**该架构的 `modeling_<arch>.py`——HF 收录时的转写，
+     版本钉死，首选锚为 config.json 自带的 `transformers_version` 字段（catalog 可覆盖）；
+   - ③ **原始发布仓库**（官方 GitHub 等模型作者自己的实现）——裸 commit 锚定；
+     原始配置格式与 HF config.json 的字段映射需人工桥接，映射关系入档；
+   - ④ **vLLM / SGLang 的模型实现**（`vllm/model_executor/models/*.py` 等）——引擎作者
+     的转写。必须标注引擎 + 版本；
+   - ⑤ 都没有 → 未适配（§4.5），不出语义结构。
+
+   任意两级来源之间发现**语义冲突**：记录冲突进 diagnostics，人工裁决后登记，
+   **不得静默选一**——阶梯只是执行顺序，不预设谁对。
    `models/` 目录已 vendored 内置模型的 modeling 文件（覆盖 ①），适配离线可做；
    版本漂移的发现机制 = 旁路 B source_ref 再生的 diff 分级（class_name 变化即上游重构告警）。
 3. **vLLM / SGLang**——下游优化实现，只提供 `implementation` 属性与融合假设的来源

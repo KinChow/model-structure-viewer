@@ -17,10 +17,13 @@ import { childRepeatMultiplier } from "../../../cost/traverse.js";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const T = 128;
 
-// 校准状态（2026-09-07）：dense 模型恒等式通过（|ratio-1|<=0.15）；
-// MoE 模型待校准（两个方向：期望侧 routed 未按 k/E 缩放使 Kimi 类 ratio<1；
-// counts/derived 侧 GLM/Qwen3.8 类 ratio>1 待归因）。MoE 断言暂以报告代替。
-test("T4 整模型恒等式：dense 全过，MoE 报告校准中", async () => {
+// 校准状态（2026-09-07 收敛）：目录内无纯 dense 模型（37 vision + 21 MoE + 1 MoE），
+// dense 覆盖由 T4b 合成配置承担；全部 21 个 MoE 行 |ratio-1| <= 3.2%。
+// 容差 2% 起步；仅 V4-Flash 对（dsa 稀疏注意力）放宽到 3.5%——已归因：
+// 期望侧 score matmul 近似 S=T，counts 侧按 indexerBudget（S<T），期望被高估。
+const TOLERANCE = 0.02;
+const REGISTERED = { "deepseek-ai/DeepSeek-V4-Flash": 0.035, "deepseek-ai/DeepSeek-V4-Flash-0731": 0.035 };
+test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建模边界）", async () => {
   const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models/catalog.json"), "utf8"));
   const rows = [];
   let unknownTotal = 0;
@@ -49,8 +52,7 @@ test("T4 整模型恒等式：dense 全过，MoE 报告校准中", async () => {
         bytesPerElement: 2,
       });
       if (node?.type === "embedding") continue; // 查表无 MAC；bytes 缺口登记于 §10
-      if (node?.type === "embedding") continue; // 查表无 MAC
-    if (fresh == null || fresh.matrix == null) { unknown += 1; continue; }
+      if (fresh == null || fresh.matrix == null) { unknown += 1; continue; }
       totalMatrix += fresh.matrix * multiplier;
     }
     unknownTotal += unknown;
@@ -87,11 +89,10 @@ test("T4 整模型恒等式：dense 全过，MoE 报告校准中", async () => {
     console.error(`${r.model.padEnd(38)} ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)} matrix=${r.totalMatrix.toExponential(3)} nEff=${r.nEff.toExponential(3)} unknown=${r.unknown}`);
   }
   console.error(`unknown 叶子总数: ${unknownTotal}`);
-  const dense = rows.filter((r) => !r.moe && r.ratio != null);
-  const denseBad = dense.filter((r) => Math.abs(r.ratio - 1) > 0.15);
-  if (denseBad.length > 0) console.error("dense 超容差:\n" + denseBad.map((r) => `${r.model}: ratio=${r.ratio.toFixed(4)}`).join("\n"));
   assert.ok(rows.length >= 20, "非视觉模型数不足");
-  assert.deepEqual(denseBad.map((r) => r.model), [], "dense 恒等式必须通过；MoE 校准进行中（见上方 ratio 表）");
+  const bad = rows.filter((r) => r.ratio == null || Math.abs(r.ratio - 1) > (REGISTERED[r.model] ?? TOLERANCE));
+  if (bad.length > 0) console.error("超容差:\n" + bad.map((r) => `${r.model}: ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)}`).join("\n"));
+  assert.deepEqual(bad.map((r) => r.model), [], "恒等式超差须先归因：要么修 counts/derived，要么登记为建模边界并写入 REGISTERED");
 });
 
 test("T4b 合成 dense 恒等式：小配置精确对账", () => {

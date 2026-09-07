@@ -245,10 +245,15 @@ weight 无逻辑形状），沿用旧链的诚实语义。
 
 ### 任务分解（对齐后执行）
 
-- **T1** extractor 骨架 + 线性族 → 旧链差分（linear 子集先行）
-- **T2** attention 族（scores/context 模式匹配 + 融合变体 + kvHeads 映射表）
-- **T3** elementwise 与其余 + 复合节点（逐条核对 attributes）
-- **T4** 整模型恒等式（59 模型；tie_word_embeddings 与 embedding 表的会计处理在此定）
-- **T5** 旧链差分全量 + 漏算清单产出
-- **验收**：identity 通过（容差仅限已登记建模边界）；差分：旧链>0 节点全等；
-  §10 的 §3.1 条目清账
+- **T1** extractor 骨架 + 线性族 → 旧链差分（linear 子集先行）✅
+- **T2** attention 族（scores/context 模式匹配 + 融合变体 + kvHeads 映射表）✅
+- **T3** elementwise 与其余 + 复合节点（逐条核对 attributes）✅
+- **T4** 整模型恒等式 ✅（2026-09-07 收敛）：
+  - 目录构成：37 vision（恒等式 v2 再覆盖）+ 21 MoE + 1 MoE；**无纯 dense**，dense 覆盖由合成配置承担（ratio=0.9993）；
+  - 全部 21 个 MoE 行 |ratio-1| ≤ 3.2%（Kimi 0.9890、R1/V3.1 0.9812、GLM-5.x 0.9970–1.0030、Qwen3.8 1.0036）；
+  - 测试断言收紧为全模型容差 2%，仅 V4-Flash 对放宽 3.5%（已归因：dsa 稀疏注意力期望侧近似 S=T，counts 侧按 indexerBudget，期望被高估）；
+  - 校准过程中修复：routed swiglu 按 k 而非 k/E 计数、qb 重复计费、derived MLA 调度回退、sharedExpertIntermediateSize 通用 MoE 回退。
+- **T5** 旧链差分全量 + 漏算清单产出 → 差分测试已常驻（T1-T3 各建 diff 测试，
+  226/442 等已知差异均已归因）；旧链删除在 W5，漏算清单作为 W5 切换的价值证明随删随出。
+- **验收**：identity 通过（容差仅限已登记建模边界）✅；差分：旧链>0 节点全等 ✅；
+  §10 的 §3.1 条目清账 → counts 侧已全量动作向量，剩余是 `compute.js` 旧分派链（W5 删除）。

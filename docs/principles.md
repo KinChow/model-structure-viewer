@@ -552,7 +552,8 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 - §2.1/§2.2：`decoderLayer.js`、`decoderStack.js`、网络层未声明 `dataflow_edges`，
   依赖 `module-order` 兜底；UI 尚未区分 evidence。
 - §2.5：残差以并列节点表达，尚未有跨层级边。
-- §3.1/§3.2/§3.3：`cost/compute.js` 自带分派链，含两处显示名正则，未实现与 0 不可区分。
+- §3.2/§3.3：`cost/compute.js` 旧分派链仍带两处显示名正则，且未实现与 0 不可区分；
+  新链（`formulas/` counts 注册表，42 条目全量动作向量）已符合 §3.1，旧链随 W5 删除后本条清账。
 - §3.4：ERT 与 action counts 尚未分离。
 - §4.3：无 canonical 角色表；checkpoint 对应靠 `mergeSemantics.js:56-75` 的路径归一化**相等匹配**
   推测，冲突时 `continue` 静默放弃绑定；数值仍有部分来自 config 推导。

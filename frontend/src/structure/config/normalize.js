@@ -210,6 +210,9 @@ export function normalizeConfig(config) {
   //   C 变体（A 再兜一层 textConfig）：linearAttentionMode 的 kimi 分支。
   // 它们在"顶层 model_type 与 text_config 不同"时结果不同，统一属功能决策，不在重构范围。
   const modelTypeProbe = String(config?.model_type || textConfig?.model_type || "");
+  // kimi_k3 将多个 shared expert 打包为单个 gate/up/down 张量（fused），
+  // 决定 sharedExpertIntermediateSize 回退语义是"模块宽"而非"单专家宽"。
+  const sharedExpertsFused = modelTypeProbe.includes("kimi_k3");
   const layers = pick(LAYER_KEYS);
   const visionLayers = visionConfig ? firstNumber(visionConfig, [...LAYER_KEYS, "depth", "vt_num_hidden_layers"]) : undefined;
   const hiddenSize = pick(HIDDEN_KEYS);
@@ -320,10 +323,19 @@ export function normalizeConfig(config) {
       ?? (modelTypeProbe.includes("qwen3_5_moe")
         && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
     sharedExpertIntermediateSize: pick(SHARED_EXPERT_INTERMEDIATE_KEYS)
-      ?? (["kimi", "deepseek_v4", "glm4_moe", "glm5_next"].some((kind) => modelTypeProbe.includes(kind))
-        ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
+      // 通用 MoE 回退：shared expert 模块中间维 = moeIntermediateSize；仅 kimi_k3
+      // （fused，多个 shared expert 打包为单张量）乘 n_shared。非 fused 模型的
+      // 个数由 derivedWeights/moe.js 的 count 乘子处理，回退只给单专家宽。
+      // 列表式启发式曾两次漏模型（deepseek_v3、glm_moe_dsa）。
+      ?? ((firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS))
+        ? (() => {
+          const moeI = firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) ?? firstNumber(config, MOE_INTERMEDIATE_KEYS);
+          return moeI != null && sharedExpertsFused
+            ? moeI * (pick(SHARED_EXPERT_KEYS) ?? 1)
+            : moeI;
+        })()
         : undefined),
-    sharedExpertsAreFused: modelTypeProbe.includes("kimi_k3"),
+    sharedExpertsAreFused: sharedExpertsFused,
     sharedExpertGate: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null
       && (textConfig?.output_gate_type != null || modelTypeProbe.includes("qwen3_5_moe")),
     attentionOutputGate: Boolean(textConfig?.attn_output_gate ?? config?.attn_output_gate),

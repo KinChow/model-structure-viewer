@@ -257,6 +257,27 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
   attentionKind 家族品牌 id 改名（输出可见，见未排期）
 - **回退**：表驱动与三元链可共存一个提交，差分后再删旧链
 
+> **状态（2026-09-08）**：W3 已重组为单波四阶段（A 分派合表 → B 角色表+映射绑定 →
+> C normalize 瘦身 → D evidence+死代码），原 W3b/W4/W4.5 全部并入（其内容一行不少，
+> 消失的是等待成本）。A/B 已完成（commit f4eb1a3、6953d66、344336f），实际落点与
+> 原设计的差异：组件表=**layers/ 原地升级**（非新建 components/）；每架构映射=
+> **structure/archs/**（非 adapters/，命名对标 llama.cpp llama-arch）。
+>
+> **B2 遗留登记（勿忘）**：
+> 1. **vision 域 checkpoint 绑定仍走路径兜底**——SUFFIX_ROLES 未覆盖 vision 后缀
+>    （`fc1`/`fc2`/`norm1`/`patch_merge` 等）；待真实 vision checkpoint 在可逆校验
+>    暴露第一处失配时，新建对应 `archs/<family>.js` 覆盖规则（机制已就位）；
+> 2. **mergeSemantics.js 是死代码**（src 零引用，活路径为 graphTruth.bindTruthToGraph，
+>    B2 时才发现）——D 阶段删除，连同其 5 个测试的语义评估（有价值断言已由
+>    roleBinding.test.js 覆盖）；
+> 3. **FAMILY_OVERRIDES 注册表当前空置**——22 个文本家族全部符合 canonical 命名；
+>    首个偏离出现时新建家族文件，不预造空壳；
+> 4. **ambiguous=0 目前仅在 fixture 级证明**（roleBinding.test.js 4 例）——真实
+>    checkpoint 数据的 `graph_ambiguous_truth_matches` 需线上 diagnostics 观察，
+>    UI 呈现（§4.5 未适配标注等）统一推 W6；
+> 5. **"norm" 顶层特判**是深度规则（剥 wrapper 后 depth=1）；未来若出现非顶层
+>    final-norm 例外，先归因再改规则。
+
 ---
 
 ## W3b 组网：方案决定权归还组网，normalizeConfig 瘦身

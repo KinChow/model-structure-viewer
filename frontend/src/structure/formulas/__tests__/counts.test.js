@@ -34,6 +34,27 @@ test("F2 选择集注意力：两组 bmm + softmax（A2 单遍）+ KV cache 写"
   assert.equal(c.bytes.actOut, (2 * scores + 2 * 4 * 16 + 2 * 4 * 32) * B);
 });
 
+test("F2 GQA/MQA：matrix 不随 kvHeads 变，K/V 流量随 kvHeads 缩小", () => {
+  // 32 query 头、8 KV 头（GQA）：K/V 读/写是 MHA 的 1/4
+  const mha = attentionCounts({ heads: 32, queryTokens: 4, keyTokens: 8, headDim: 16, valueDim: 16, bytesPerElement: B });
+  const gqa = attentionCounts({ heads: 32, queryTokens: 4, keyTokens: 8, headDim: 16, valueDim: 16, bytesPerElement: B, kvHeads: 8 });
+  assert.equal(gqa.matrix, mha.matrix); // 每个 query head 都要做完整点积
+  const kvBytesMha = (mha.bytes.actIn - (32 * 4 * 16 + 2 * 32 * 4 * 8) * B);
+  const kvBytesGqa = (gqa.bytes.actIn - (32 * 4 * 16 + 2 * 32 * 4 * 8) * B);
+  assert.equal(kvBytesGqa * 4, kvBytesMha);
+  // MQA：kvHeads=1
+  const mqa = attentionCounts({ heads: 32, queryTokens: 4, keyTokens: 8, headDim: 16, valueDim: 16, bytesPerElement: B, kvHeads: 1 });
+  assert.equal(mqa.bytes.actIn - (32 * 4 * 16 + 2 * 32 * 4 * 8) * B, kvBytesMha / 32);
+});
+
+test("F2 MLA：共享 latent → kvHeads=1，打分宽度 = latent + rope，V 宽 = latent", () => {
+  // DeepSeek MLA 典型值：kv_lora_rank=512, rope=64
+  const c = attentionCounts({ heads: 128, queryTokens: 4, keyTokens: 8, headDim: 512 + 64, valueDim: 512, bytesPerElement: B, kvHeads: 1 });
+  assert.equal(c.matrix, 128 * 4 * 8 * (576 + 512));
+  const kvShared = (8 * 576 + 8 * 512) * B;
+  assert.equal(c.bytes.actIn - (128 * 4 * 576 + 2 * 128 * 4 * 8) * B, kvShared);
+});
+
 test("F2 prefill vs decode：矩阵差一个 seq 量级，decode 的 K/V 读即读 cache", () => {
   const heads = 8, headDim = 128, valueDim = 128;
   // prefill：T=S=4096（因果近似按全量算）

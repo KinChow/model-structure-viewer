@@ -42,7 +42,17 @@ bytes：Q+K_S+V_S 读一遍（decode 时 K/V 读即读 KV cache），scores 写+
 probs 写+读，O 写，**新算 K/V 写回 cache（T·(D+dv)·heads：prefill 全量、decode 1 token）**。
 prefill：T=S=seq → O(seq²)；decode：T=1、S=上下文全长 → O(S)（2026-09-07 补 KV cache 写）。
 aten: `aten.bmm` ×2 + `aten._softmax`。
-S 的取法由条目决定（见逐条表）；MLA 系（dsv4_compressed）value 维 = kv latent 宽度。
+S 的取法与 kvHeads 由条目/提取器决定：
+| 变体 | id | S | kvHeads | headDim | valueDim |
+|---|---|---|---|---|---|
+| MHA | gqa | seq/上下文 | =heads | D | D |
+| GQA | gqa | 同上 | 实际 KV 头数 | D | D |
+| MQA / SWA | dsv4_swa 等 | window | 1 | D | D |
+| MLA | mla、dsv4_compressed | 上下文/压缩长 | 1（共享 latent） | kv_lora_rank+rope | kv_lora_rank |
+| QSA/DSA | qsa | indexerBudget | 按模型 | D | D |
+| 块稀疏 | sparse | blocks×blockSize | 按模型 | D | D |
+matrix 不随 kvHeads 变（每个 query head 做完整点积），只有 K/V 流量随 kvHeads 缩小。
+（变体覆盖矩阵 2026-09-07 补；KDA/GDA 走 F7b 递推，不经 F2。）
 
 ### F3 归一化
 

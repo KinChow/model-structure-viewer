@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateNodeCosts, attentionMacs, computeNodeCosts, linearAttentionMacs, linearMacs } from "../compute.js";
+import { aggregateNodeCosts, computeNodeCosts, nodeMacs } from "../compute.js";
 import { aggregateCost } from "../aggregate.js";
 
 test("packed qweight is unknown without logical shape metadata", () => {
-  assert.equal(linearMacs({ weight_shapes: { qweight: [4, 1] } }, { batch: 1, sequence: 1 }), null);
+  assert.equal(nodeMacs({ weight_shapes: { qweight: [4, 1] } }, {}, { batch: 1, sequence: 1 }), null);
 });
 
 test("unknown linear MACs remain unknown in model totals", () => {
@@ -33,23 +33,23 @@ test("checkpoint skeleton linear leaves contribute to model totals", () => {
 
   assert.equal(result.totalMacs, 24);
   assert.equal(result.computeComplete, true);
-  assert.equal(result.nodes[1].macs_source, "checkpoint-shape");
+  assert.equal(result.nodes[1].macs_source, "formula"); // W5-1：weight_shapes 由 counts 表直接消费，来源类目归并
 });
 
 test("template linear operators derive MACs from numeric tensor shapes", () => {
   const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] };
-  assert.equal(linearMacs(node, { batch: 1, sequence: 3, phase: "prefill" }), 96);
+  assert.equal(nodeMacs(node, {}, { batch: 1, sequence: 3, phase: "prefill" }), 96);
   const result = aggregateCost({ root: { children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }, config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3, activationPeak: 0, runtimeConst: 0 });
   assert.equal(result.totalMacs, 96);
   assert.equal(result.macsPerToken, 32);
   assert.equal(result.totalFlops, 192);
-  assert.equal(result.macsSources["config-derived-shape"], 1);
+  assert.equal(result.macsSources["formula"], 1);
   assert.equal(result.nodes.find((row) => row.node.type === "normalization").macs_source, "not-compute");
 });
 
 test("二维专家投影按逻辑输入输出宽度估算 MACs", () => {
   const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 8], output_shape: [-1, 4], children: [] };
-  assert.equal(linearMacs(node, { batch: 2, sequence: 3, phase: "prefill" }), 192);
+  assert.equal(nodeMacs(node, {}, { batch: 2, sequence: 3, phase: "prefill" }), 192);
 });
 
 test("父节点 lens 可以汇总叶子成本，但模型总量不重复计费", () => {
@@ -98,7 +98,7 @@ test("参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度�
   assert.equal(result.nodes[2].compute_macs, 36);
   assert.equal(result.nodes[3].compute_macs, 24);
   assert.equal(result.totalMacs, 60);
-  assert.equal(result.nodes.filter((row) => row.macs_source === "not-compute").length >= 2, true);
+  assert.equal(result.nodes.filter((row) => row.macs_source === "not-compute").length >= 1, true); // root 现标 aggregate（W5-1）
 });
 
 test("模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs", () => {
@@ -117,20 +117,23 @@ test("模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs",
     children: [],
   };
   const config = { hiddenSize: 4, intermediateSize: 6, experts: 8, expertsPerToken: 2 };
-  assert.equal(computeNodeCosts(standard, config, { batch: 1, sequence: 3 })[0].compute_macs, 54);
-  assert.equal(computeNodeCosts(latent, config, { batch: 1, sequence: 3 })[0].compute_macs, 27);
+  // W5-1 语义修正：routed swiglu 按 k 全激活（T·k·3·EH·EI），旧链的 ·(k/E) 少乘 E
+  // ——identity 收敛校准结论（39B≈官方 37B）。
+  assert.equal(computeNodeCosts(standard, config, { batch: 1, sequence: 3 })[0].compute_macs, 432);
+  assert.equal(computeNodeCosts(latent, config, { batch: 1, sequence: 3 })[0].compute_macs, 216);
 });
 
 test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {
   const node = { weight_shapes: { weight: [4, 2] } };
-  assert.equal(linearMacs(node, { batch: 2, sequence: 3, phase: "prefill" }), 48);
-  assert.equal(linearMacs(node, { batch: 2, sequence: 3, phase: "decode" }), 16);
+  assert.equal(nodeMacs(node, {}, { batch: 2, sequence: 3, phase: "prefill" }), 48);
+  assert.equal(nodeMacs(node, {}, { batch: 2, sequence: 3, phase: "decode" }), 16);
 });
 
 test("F9 Attention core MACs 区分 Prefill 的 T² 与 Decode 的 T", () => {
   const config = { attentionHeads: 2, headDim: 4, valueHeadDim: 6 };
-  assert.equal(attentionMacs(config, { batch: 2, sequence: 3, phase: "prefill" }), 360);
-  assert.equal(attentionMacs(config, { batch: 2, sequence: 3, phase: "decode" }), 120);
+  const node = { type: "attention", attributes: { attention_kind: "gqa" }, id: "decoder.0.self_attn" };
+  assert.equal(nodeMacs(node, config, { batch: 2, sequence: 3, phase: "prefill" }), 360);
+  assert.equal(nodeMacs(node, config, { batch: 2, sequence: 3, phase: "decode" }), 120);
 });
 
 test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent state", () => {
@@ -143,8 +146,9 @@ test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent stat
     linearValueDim: 2,
     linearConvKernelSize: 3,
   };
-  assert.equal(linearAttentionMacs(config, { batch: 1, sequence: 5, phase: "prefill" }), 700);
-  assert.equal(linearAttentionMacs(config, { batch: 1, sequence: 5, phase: "decode" }), 140);
+  const node = { type: "attention", attributes: { attention_kind: "linear" }, id: "decoder.0.self_attn" };
+  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 5, phase: "prefill" }), 700);
+  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 5, phase: "decode" }), 140);
 });
 
 test("MiniMax M3 sparse attention MACs use selected blocks plus local/init blocks", () => {

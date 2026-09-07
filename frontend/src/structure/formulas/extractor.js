@@ -148,10 +148,10 @@ function legacyDeepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase 
 
 // 旧 linearAttentionMacs（含各 mode 变体的逐字镜像）。
 function legacyLinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  if (planOf(config).linearAttentionMode === "glm5_next") return legacyGlm5Next(config, { batch, sequence, phase });
-  if (planOf(config).linearAttentionMode === "kimi_k3") return legacyKimiK3(config, { batch, sequence, phase });
-  if (planOf(config).linearAttentionMode === "qwen4_exp") return legacyQwen4Exp(config, { batch, sequence, phase });
-  if (planOf(config).linearAttentionMode === "qwen3_5") return legacyQwen35(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "glm5_next") return glm5NextLinearStateMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "kimi_k3") return kimiK3LinearStateMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen4_exp") return qwen4ExpLinearStateMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen3_5") return qwen35LinearStateMacs(config, { batch, sequence, phase });
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -160,7 +160,47 @@ function legacyLinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "p
   const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
   return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
 }
-function legacyQwen35(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+// 旧 linearShortConvolutionMacs。
+// 旧 linearAttentionDimensions。
+
+function attentionCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const heads = config?.attentionHeads || 0;
+  const qk = config?.headDim || 0;
+  const value = config?.valueHeadDim || qk;
+  const lengthTerm = phase === "decode" ? sequence : sequence ** 2;
+  return batch * heads * lengthTerm * (qk + value);
+}
+function linearAttentionCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  if (planOf(config).linearAttentionMode === "glm5_next") return glm5NextLinearStateMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "kimi_k3") return kimiK3LinearStateMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen4_exp") return qwen4ExpLinearStateMacs(config, { batch, sequence, phase });
+  if (planOf(config).linearAttentionMode === "qwen3_5") return qwen35LinearStateMacs(config, { batch, sequence, phase });
+  const tokens = batch * (phase === "decode" ? 1 : sequence);
+  const hidden = config?.hiddenSize || 0;
+  const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
+  const valueHeads = config?.linearValueHeads || config?.attentionHeads || 0;
+  const keyDim = config?.linearKeyDim || config?.headDim || 0;
+  const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
+  return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
+}
+function qsaCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const heads = config?.attentionHeads || 0;
+  const qk = config?.headDim || 0;
+  const value = config?.valueHeadDim || qk;
+  const selected = Math.min(sequence, config?.indexerBudget || sequence);
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  return queryTokens * heads * selected * (qk + value);
+}
+function minimaxSparseCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const heads = config?.attentionHeads || 0;
+  const headDim = config?.headDim || 0;
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  const selectedBlocks = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
+  const selectedTokens = selectedBlocks * (config?.sparseBlockSize || 1);
+  return queryTokens * heads * selectedTokens * (headDim + headDim);
+}
+
+function qwen35LinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || 0;
@@ -179,7 +219,7 @@ function legacyQwen35(config, { batch = 1, sequence = 1, phase = "prefill" } = {
   const outputProjection = valueProjection * hidden;
   return tokens * (qkvzProjection + baProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
-function legacyGlm5Next(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+function glm5NextLinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const heads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -194,7 +234,7 @@ function legacyGlm5Next(config, { batch = 1, sequence = 1, phase = "prefill" } =
   const outputProjection = projection * hidden;
   return tokens * (fusedProjection + gateProjections + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
-function legacyKimiK3(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+function kimiK3LinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const heads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -210,7 +250,7 @@ function legacyKimiK3(config, { batch = 1, sequence = 1, phase = "prefill" } = {
   const outputProjection = projection * hidden;
   return tokens * (fusedQkvg + betaProjection + decayProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
-function legacyQwen4Exp(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+function qwen4ExpLinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
   const tokens = batch * (phase === "decode" ? 1 : sequence);
   const hidden = config?.hiddenSize || 0;
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
@@ -229,14 +269,8 @@ function legacyQwen4Exp(config, { batch = 1, sequence = 1, phase = "prefill" } =
   const outputProjection = valueProjection * hidden;
   return tokens * (qkvzProjection + baProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
-// 旧 linearShortConvolutionMacs。
-function legacyShortConvolutionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const { keyProjection, valueProjection } = legacyLinearAttentionDimensions(config);
-  const kernel = config?.linearConvKernelSize || 0;
-  return batch * (phase === "decode" ? 1 : sequence) * (2 * keyProjection + valueProjection) * kernel;
-}
-// 旧 linearAttentionDimensions。
-function legacyLinearAttentionDimensions(config = {}) {
+
+function linearAttentionDimensions(config = {}) {
   const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
   const valueHeads = config?.linearValueHeads || config?.attentionHeads || keyHeads;
   const keyDim = config?.linearKeyDim || config?.headDim || 0;
@@ -244,8 +278,8 @@ function legacyLinearAttentionDimensions(config = {}) {
   return { keyHeads, valueHeads, keyDim, valueDim, keyProjection: keyHeads * keyDim, valueProjection: valueHeads * valueDim };
 }
 // 旧 linearStateUpdateMacs。
-function legacyStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const { keyHeads, valueHeads, keyDim, valueDim } = legacyLinearAttentionDimensions(config);
+function linearStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const { keyHeads, valueHeads, keyDim, valueDim } = linearAttentionDimensions(config);
   const stateUpdate = planOf(config).linearAttentionMode === "generic"
     ? keyHeads * valueHeads * keyDim * valueDim
     : 3 * valueHeads * valueDim * keyDim;
@@ -272,19 +306,27 @@ export function countsForNode(node, env = {}) {
     visionTokens: config?.visionTokens || 1,
   });
 
-  // 注意力模块节点（type === "attention"）：旧链镜像（模块 own 值不进总量，W5 裁决去留）
+  // 注意力模块节点（type === "attention"）：own 值 = 注意力核心公式（投影由独立叶子计费）
   if (type === "attention") {
     const legacyOptions = { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase };
     let matrix = null;
-    if (kind === "linear") matrix = legacyLinearAttentionMacs(config, legacyOptions);
-    else if (kind === "qsa") matrix = legacyQsaAttentionMacs(config, legacyOptions);
-    else if (kind === "sparse" && config?.modelType === "minimax_m3_vl") matrix = legacyMinimaxSparseAttentionMacs(config, legacyOptions);
+    if (kind === "linear") matrix = linearAttentionCoreMacs(config, legacyOptions);
+    else if (kind === "qsa") matrix = qsaCoreMacs(config, legacyOptions);
+    else if (kind === "sparse" && config?.modelType === "minimax_m3_vl") matrix = minimaxSparseCoreMacs(config, legacyOptions);
     else if (kind === "dsv4") matrix = legacyDeepseekV4AttentionMacs(config, { ...legacyOptions, layerIndex: layerIndexOf(node?.id || path) ?? 0 });
-    else matrix = legacyAttentionMacs(config, legacyOptions);
-    return { matrix, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-module-mirror" };
+    else matrix = attentionCoreMacs(config, legacyOptions);
+    return { matrix, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
   }
 
-  switch (operatorId) {
+  // 旧 isLinear 等价：无 operatorId 但 weight_shapes 含 ≥2 维形状的节点按 linear 计
+  // （checkpoint 绑定叶的常见形态）；embed 排除以结构化路径判断（§3.2）。
+  const isLinearNode = operatorId === "linear"
+    || (Object.values(node?.weight_shapes || {}).some((shape) => Array.isArray(shape) && shape.length >= 2)
+      && !/(^|\.)(patch_)?embed/.test(String(node?.id || path)));
+  // 旧 isLinear 的 weight-shapes 命中按 linear 分派（改写 operatorId，不递归）
+  const effectiveOperatorId = isLinearNode ? "linear" : operatorId;
+
+  switch (effectiveOperatorId) {
     case "linear": {
       // 与旧 isLinear 的 embed 排除等价：以结构化路径判断（node.name 不参与，§3.2）。
       // TODO(W3): builder 为 embed 投影声明结构化标记后移除路径判断。
@@ -309,10 +351,10 @@ export function countsForNode(node, env = {}) {
         : patterns.scores.some((pattern) => shapeMatchesPattern(output, pattern)) ? "scores"
         : null;
       if (part === "scores") {
-        return { matrix: queryTokens * heads * keyTokens * headDim, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-matmul-mirror" };
+        return { matrix: queryTokens * heads * keyTokens * headDim, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
       }
       if (part === "context") {
-        return { matrix: queryTokens * heads * keyTokens * valueDim, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-matmul-mirror" };
+        return { matrix: queryTokens * heads * keyTokens * valueDim, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
       }
       return null;
     }
@@ -322,7 +364,7 @@ export function countsForNode(node, env = {}) {
       const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
       const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
       const selected = Math.min(keyTokens, config?.indexerBudget || keyTokens);
-      return { matrix: tokens * heads * selected * (headDim + valueDim), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      return { matrix: tokens * heads * selected * (headDim + valueDim), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "minimax_sparse_attention": {
       const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
@@ -331,14 +373,14 @@ export function countsForNode(node, env = {}) {
       const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
       const selectedTokens = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
       const size = config?.sparseBlockSize || 1;
-      return { matrix: tokens * heads * selectedTokens * size * (headDim + valueDim), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      return { matrix: tokens * heads * selectedTokens * size * (headDim + valueDim), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "dsv4_swa_attention":
     case "dsv4_compressed_attention": {
       const layerIndex = layerIndexOf(node?.id || path) ?? 0;
       const batch = options.batch ?? 1;
       const sequence = options.sequence ?? 1;
-      return { matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      return { matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "softmax": {
       const dims = attentionShapePatterns(config);
@@ -385,28 +427,28 @@ export function countsForNode(node, env = {}) {
       // k 个专家 → 正确计数 = T·k·3·EH·EI。旧链的 ·(k/E) 少乘 E（已知双链 bug）。
       // 若未来出现 per-expert 展开树（祖先 repeat=E），应改回 k/E 并依赖 walker 乘 E。
       const topk = config?.expertsPerToken || 1;
-      return { matrix: tokens * 3 * expertHidden * expertIntermediate * topk, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      return { matrix: tokens * 3 * expertHidden * expertIntermediate * topk, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "causal_conv1d": {
-      const { keyProjection, valueProjection } = legacyLinearAttentionDimensions(config);
+      const { keyProjection, valueProjection } = linearAttentionDimensions(config);
       const kernel = config?.linearConvKernelSize || 0;
-      return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "linear_attention": {
       // 叶级 state/conv 用路径区分（旧链用显示名；W3 换结构化标记）。
       const idPath = String(node?.id || path);
       if (/short_conv|conv/.test(idPath)) {
-        const { keyProjection, valueProjection } = legacyLinearAttentionDimensions(config);
+        const { keyProjection, valueProjection } = linearAttentionDimensions(config);
         const kernel = config?.linearConvKernelSize || 0;
-        return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+        return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
       }
       if (/state|recurrent/.test(idPath)) {
-        return { matrix: legacyStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+        return { matrix: linearStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
       }
       return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "gated_delta_attention":
-      return { matrix: legacyStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      return { matrix: linearStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     case "topk":
       return topkCounts({ tokens, experts: config?.experts || 0, topk: config?.expertsPerToken || 0, bytesPerElement, normTopkProb: config?.normTopkProb ?? true });
     case "moe_dispatch":
@@ -421,7 +463,11 @@ export function countsForNode(node, env = {}) {
       // 复合节点：调注册表的组合 counts（§3.1 唯一注册点），ctx 按规格构建。
       // 精度为初版（n 流参数用 normalized 近似），恒等式（T4）校准后复核。
       const entry = formulaForOperator(operatorId);
-      if (typeof entry?.counts !== "function") return null;
+      // 无 operatorId 的结构节点（normalization/module 容器等）= 非算子，零向量；
+      // 有 operatorId 但注册表未实现 = 真未实现算子 → null（unknownComputePaths）。
+      if (typeof entry?.counts !== "function") {
+        return operatorId ? null : { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      }
       const H = config?.hiddenSize || 0;
       const ctxBuilders = {
         mla_query_compress: () => ({
@@ -482,7 +528,7 @@ export function countsForNode(node, env = {}) {
       };
       const builder = ctxBuilders[operatorId];
       if (!builder) return null;
-      return { ...entry.counts(builder()), source: "composite" };
+      return { ...entry.counts(builder()) };
     }
   }
 }

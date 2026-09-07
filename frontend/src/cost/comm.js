@@ -31,7 +31,7 @@ export function pipelineP2PBytes({ batch = 1, tokens = 1, hidden, bytesPerElemen
 
 /** 从节点路径和计划推导该节点的通信字节数。 */
 export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {}) {
-  const path = String(node?.id || node?.name || "").toLowerCase();
+  const path = String(node?.id || "").toLowerCase();
   const role = node?.attributes?.communication_role;
   const tp = plan.tp ?? plan.TP ?? 1;
   const ep = plan.ep ?? plan.EP ?? 1;

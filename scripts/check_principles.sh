@@ -41,20 +41,16 @@ fi
 
 # ---------- §3.2 cost/ 禁止显示名参与数值计算 ----------
 # 分派只允许基于 type / attributes.operator_id / 结构化 attributes。
-# 允许清单（全部计划在 W5 清空，清空后本节收紧为全禁）：
-#   cost/compute.js   —— 现存显示名分派链（W5 改查表后删除本条）
-#   cost/comm.js      —— node?.id || node?.name 路径兜底（W5 收紧为仅 id）
-#   cost/parallel.js  —— 同上
-COST_ALLOWED='cost/compute\.js|cost/comm\.js|cost/parallel\.js'
+# W5-1（2026-09-08）起全禁：显示名一律不参与成本计算。
 COST_HITS=$(grep -rnE 'node\??\.name' frontend/src/cost --include='*.js' \
-  | grep -v '\.test\.' | grep -vE "$COST_ALLOWED" || true)
+  | grep -v '\.test\.' || true)
 
 if [ -n "$COST_HITS" ]; then
   echo "✗ §3.2 违反：cost/ 下新增显示名参与计算："
   printf '%s\n' "$COST_HITS" | sed 's/^/  /'
   FAIL=1
 else
-  echo "§3.2 cost/ 显示名检查: 通过（允许清单 3 个文件，W5 清空）"
+  echo "§3.2 cost/ 显示名检查: 通过（全禁，无允许清单）"
 fi
 
 # ---------- §3.1 公式注册表完整性：每条目终止于 counts（无白名单） ----------

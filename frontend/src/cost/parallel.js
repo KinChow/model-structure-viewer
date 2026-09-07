@@ -71,7 +71,7 @@ function stateBytesForLayerRange(totalStateBytes, config = {}, start = 0, end = 
 }
 
 function modulePath(node) {
-  return String(node?.id || node?.name || "").toLowerCase();
+  return String(node?.id || "").toLowerCase();
 }
 
 function isRoutedExpertPath(path) {
@@ -203,7 +203,7 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
   const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, stateBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
   function accountNode(node, inheritedRepeat, inheritedLayerSpan, children, visitChild) {
     const nodeForScope = children.length ? { ...node, children } : node;
-    const path = String(node?.id || node?.name || "").toLowerCase();
+    const path = String(node?.id || "").toLowerCase();
     const ownLayerSpan = layerSpanForNode(nodeForScope);
     const layerSpan = ownLayerSpan || inheritedLayerSpan;
     const rawWeight = nodeWeightBytes(node) * inheritedRepeat * weightScale;

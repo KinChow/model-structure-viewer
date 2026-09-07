@@ -44,4 +44,13 @@ else
   echo "§3.2 cost/ 显示名检查: 通过（允许清单 3 个文件，W5 清空）"
 fi
 
+# ---------- §3.1 公式注册表完整性：每条目终止于 counts（无白名单） ----------
+COUNTS_CHECK=$(node --input-type=module -e "
+import { FORMULAS } from './frontend/src/structure/formulas/index.js';
+const missing = Object.entries(FORMULAS).filter(([, v]) => typeof v.counts !== 'function').map(([k]) => k);
+if (missing.length) { console.log('✗ §3.1 违反：以下条目未接线 counts：' + missing.join(', ')); process.exit(1); }
+console.log('§3.1 公式注册表: ' + Object.keys(FORMULAS).length + ' 条全部终止于 counts');
+") || FAIL=1
+[ -n "$COUNTS_CHECK" ] && echo "$COUNTS_CHECK"
+
 exit $FAIL

@@ -19,6 +19,10 @@ export const PUBLIC_CHIPS = [
       fp16: 312e12,
       int8: 624e12,
     },
+    vector_flops: 19500000000000,
+    // SFU 吞吐 = vector_flops / 4（sm_80：FP32 64/SM/clk，SFU 16/SM/clk，CUDA C++ Programming Guide）
+    sfu_ops: 4875000000000,
+
     interconnect: {
       intra_node: { kind: "NVLink", bandwidth: 600e9 },
     },
@@ -28,6 +32,8 @@ export const PUBLIC_CHIPS = [
       memory_bandwidth: NVIDIA_A100_SOURCE,
       peak_flops: NVIDIA_A100_SOURCE,
       interconnect: NVIDIA_A100_SOURCE,
+          vector_flops: NVIDIA_A100_SOURCE,
+      sfu_ops: "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions",
     },
     confidence: "official",
     notes: ["峰值算力采用官方表中未启用稀疏性的数值。"],
@@ -45,6 +51,10 @@ export const PUBLIC_CHIPS = [
       fp8: 1979e12,
       int8: 1979e12,
     },
+    vector_flops: 67000000000000,
+    // SFU 吞吐 = vector_flops / 8（sm_90：FP32 128/SM/clk，SFU 16/SM/clk，CUDA C++ Programming Guide）
+    sfu_ops: 8375000000000,
+
     interconnect: {
       intra_node: { kind: "NVLink", bandwidth: 900e9 },
     },
@@ -54,6 +64,8 @@ export const PUBLIC_CHIPS = [
       memory_bandwidth: NVIDIA_H100_SOURCE,
       peak_flops: NVIDIA_H100_SOURCE,
       interconnect: NVIDIA_H100_SOURCE,
+          vector_flops: NVIDIA_H100_SOURCE,
+      sfu_ops: "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions",
     },
     confidence: "official",
     notes: ["官方峰值算力表标注为启用稀疏性；此处按官方稀疏峰值除以 2，记录稠密峰值。"],
@@ -71,6 +83,10 @@ export const PUBLIC_CHIPS = [
       fp8: 733e12,
       int8: 733e12,
     },
+    vector_flops: 91600000000000,
+    // SFU 吞吐 = vector_flops / 8（sm_89：FP32 128/SM/clk，SFU 16/SM/clk，CUDA C++ Programming Guide）
+    sfu_ops: 11450000000000,
+
     interconnect: {
       intra_node: { kind: "PCIe Gen4 x16", bandwidth: 64e9 },
     },
@@ -80,6 +96,8 @@ export const PUBLIC_CHIPS = [
       memory_bandwidth: NVIDIA_L40S_SOURCE,
       peak_flops: NVIDIA_L40S_SOURCE,
       interconnect: NVIDIA_L40S_SOURCE,
+          vector_flops: NVIDIA_L40S_SOURCE,
+      sfu_ops: "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions",
     },
     confidence: "official",
     notes: ["BF16/FP16/FP8/INT8 采用官方未启用稀疏性的数值；PCIe 为官方双向带宽。"],

@@ -17,6 +17,8 @@ function missingFields(chip, dtype = "bf16") {
   if (!hasPositiveNumber(chip?.memory_bytes)) missing.push("memory_bytes");
   if (!hasPositiveNumber(chip?.memory_bandwidth)) missing.push("memory_bandwidth");
   if (!hasPositiveNumber(chip?.peak_flops?.[dtype])) missing.push(`peak_flops.${dtype}`);
+  if (!hasPositiveNumber(chip?.vector_flops)) missing.push("vector_flops");
+  if (!hasPositiveNumber(chip?.sfu_ops)) missing.push("sfu_ops");
   for (const path of REQUIRED_INTERCONNECT) {
     if (!hasPositiveNumber(getPath(chip?.interconnect, path))) missing.push(`interconnect.${path}`);
   }
@@ -35,11 +37,15 @@ export function getChipCoverage(chip, dtype = "bf16") {
   const hasFlops = !missing.includes(`peak_flops.${dtype}`);
   const hasIntraLink = !missing.includes("interconnect.intra_node.bandwidth");
   const hasInterLink = hasPositiveNumber(chip?.interconnect?.inter_node?.bandwidth);
+  const hasVector = !missing.includes("vector_flops");
+  const hasSfu = !missing.includes("sfu_ops");
   const warnings = [];
 
   if (!hasInterLink && hasIntraLink) {
     warnings.push("缺少 interconnect.inter_node.bandwidth，跨节点按节点内带宽估算，结果偏乐观");
   }
+  if (!hasVector) warnings.push("缺少 vector_flops，向量单元瓶颈不可判；请补充带来源的 FP32 吞吐");
+  if (!hasSfu) warnings.push("缺少 sfu_ops，SFU 瓶颈不可判；请补充带来源的特殊函数吞吐（NVIDIA 可按 CUDA guide 每 SM 每时钟比值推导）");
   if (chip?.source == null || chip.source === "") warnings.push("缺少规格来源 source");
   if (chip?.confidence != null && !CONFIDENCE_VALUES.has(chip.confidence)) {
     warnings.push(`未知 confidence：${chip.confidence}`);
@@ -60,6 +66,8 @@ export function getChipCoverage(chip, dtype = "bf16") {
       memory_bound: hasBandwidth && hasFlops,
       comm_bound: hasBandwidth && hasFlops && hasIntraLink,
       parallel_compare: hasBandwidth && hasFlops && hasIntraLink,
+      vector_bound: hasVector,
+      sfu_bound: hasSfu,
     },
   };
 }

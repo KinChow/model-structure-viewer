@@ -94,22 +94,47 @@ diagram 层测试断言 `module-order` 边的样式与 `declared` 不同。
 
 ## 3. 成本原则：算子 → 公式 → 成本
 
-### 3.1 公式表是算子的**唯一注册点**，成本函数挂在公式条目上
+### 3.1 公式表是算子的**唯一注册点**，条目产出**动作向量**
 
-参照 PyTorch `torch.utils.flop_counter` 的 `flop_registry`：一张表，op → formula。
+参照 PyTorch `torch.utils.flop_counter` 的 `flop_registry`（按 aten op 注册、入参仅 shape、
+未注册先分解再记 0），但**有意超越它**：flop_counter 只数矩阵系 FLOPs 且明确不数
+elementwise（softmax/norm 贡献 0）；本仓的注册条目产出**四维动作向量**
+（多单元动作模型即 Accelergy 的 Action Counts 原生形态）：
 
 ```js
 // frontend/src/structure/formulas/index.js
-linear: {
+softmax: {
   title, formula, explanation, inputs, outputs,
-  macs: (node, config, options) => …,   // null = 未实现；0 = 明确非计算算子
+  aten: "aten._softmax",            // 对照锚点；无对应则省略，用 counts 注释声明分解
+  // ref: torch flop_counter 明确不数 softmax（有意超越，依据 Accelergy 多单元动作模型）；
+  //      SFU 吞吐见 chip.sfu_ops（CUDA guide：16/SM/clk vs FP32 128）
+  // 假设：未融合实现，logits 读 2 遍（FlashAttention 式单遍不建模，§2.3）
+  counts: ({ tokens, vocab, bytesPerElement }) => ({
+    matrix: 0,                      // 精确陈述：不用矩阵单元
+    vector: 3 * tokens * vocab,     // max/sum 归约 + 逐元素乘
+    sfu:    2 * tokens * vocab,     // exp + div
+    bytes:  { weights: 0,
+              actIn:  2 * tokens * vocab * bytesPerElement,
+              actOut: tokens * vocab * bytesPerElement },
+  }),
 }
 ```
+
+**条目四分类**：计算+访存（matrix>0）/ 仅访存（matrix=0，vector/sfu/bytes 非零）/
+分解声明（声明由哪些已知 op 组成，不另编公式）/ 未实现（白名单，查表得 `null`）。
+
+**约定**：
+- `counts` 入参**只含结构化 shape 参数**，拿不到 `node` 与显示名（§3.2 在结构上不可违反）。
+- `matrix` 存 MACs；aten 公式是 FLOPs（含 2×），抄公式时显式换算并注明。
+  `vector` 存 flop，`sfu` 存操作次数——单位不同，逐条注明。
+- `bytes` 是**每次前向的 compulsory traffic**（权重读一遍 + 输入 + 输出），**无 phase 分支**：
+  decode 的 memory-bound 现象由 seq=1 自然涌现（activations 与 matrix 变小、weights 不变）。
 
 **判据**：新增算子时，若需要在 `formulas/index.js` **之外**再改一处分派逻辑
 才能让成本生效，即违反。
 
-**检查**：CI 断言 `FORMULAS` 中每个条目都定义了 `macs`（可为返回 0 的函数）。
+**检查**：CI 断言每个条目四选一：`counts` / `nonCompute`（等价于全零 matrix + 纯 traffic）/
+分解声明 / 白名单。白名单写进 `check_principles.sh`，W5 后应清零。
 
 ### 3.2 禁止显示名参与任何数值计算
 
@@ -121,14 +146,17 @@ linear: {
 
 **检查**：CI 用 grep 断言 `frontend/src/cost/**` 不含 `node?.name` 参与计算的模式。
 
-### 3.3 `null` 与 `0` 必须区分
+### 3.3 `null` 与 `0` 必须区分——且按单元区分
 
-`macs = 0` 表示"该算子明确不产生 MAC"（softmax / norm / reshape / 路由）；
-`macs = null` 表示"未实现或无法确定"。
+`matrix = 0` 是**精确陈述**："该算子不使用矩阵单元"（softmax / norm / rope）——
+它的 vector / sfu / bytes 通常非零，不得因 matrix 为 0 而宣称"无成本"。
+任一单元 `null` 表示"未实现或无法确定"。
 
 **判据**：把未实现当成 0 计入总量即违反——它会让不完整的总量看起来像完整的。
+把"matrix 为 0"渲染成"零成本"同样违反。
 
-**检查**：汇总条必须展示"N 个算子成本未覆盖"，`aggregate.js` 的 null 传播有单测。
+**检查**：汇总条必须展示"N 个算子成本未覆盖"（按单元缺失分别计数），
+`aggregate.js` 的 null 传播有单测。
 
 ### 3.4 "做多少事"与"每件事多贵"必须分离
 
@@ -162,6 +190,34 @@ linear: {
 - DP-attention：每个 DP rank 持有完整 KV，单卡 KV 不随 DP 下降
 
 **判据**：验收标准写"能得出正确的定性结论"，**不写**"与实测偏差 < X%"。
+
+### 3.7 算力按单元分：矩阵 / 向量 / SFU，瓶颈取多路 max
+
+算力不是一种资源。逐算子模型必须区分：
+
+| 单元 | 内容 | 芯片字段 | 吞吐特征 |
+|---|---|---|---|
+| 矩阵 | GEMM/CONV（MACs） | `peak_flops[dtype]` | 最高，`η_flops=0.7` |
+| 向量 | elementwise、归约加法、逐元素乘（flop） | `fp32`（即向量吞吐，语义正名为 `vector_flops`） | 通常为矩阵 1/10~1/16 |
+| SFU | `exp`/`rsqrt`/`sin`/除法（操作次数） | `sfu_ops`（新增） | CUDA guide：16/SM/clk vs FP32 128，≈向量 1/8 |
+| 访存 | compulsory bytes | `memory_bandwidth` | — |
+
+**时间模型**：单算子时间 = `max(矩阵, 向量, SFU, 访存, 通信)` 各路除以对应 rate
+（§3.4 的 ERT ⋈ counts）。瓶颈分类随之细化为五类；
+**国产芯片的 向量：矩阵 与 SFU：矩阵 比例与 NVIDIA 差异大，同一算子会落进不同瓶颈类**
+——这正是多芯片对比要暴露的东西。
+
+**规约的处理**：reduce = N−1 次向量加法 + 访存（读 N 写 ~0），
+强度 ≈ 1 flop / 4~8 byte，**在 roofline 分类里几乎必然落 memory-bound**——
+不发明"规约单元"，分类交给模型算出来。
+softmax 等未融合实现的多遍读放大（logits 读 2 遍）作为显式假设写进 counts 注释；
+融合 kernel 不建模（§2.3）。
+
+**效率因子**：矩阵沿用 `η_flops=0.7`；向量/SFU 初始 `η=1.0`（下界语义 + UI 可调 + 明示假设，
+不做校准流程，§3.6）。
+
+**缺项降级（§7）**：芯片缺 `sfu_ops` / `vector_flops` → 对应单元的时间不可判，
+`coverage.js` 关闭相应能力门控，绝不估算。
 
 ---
 

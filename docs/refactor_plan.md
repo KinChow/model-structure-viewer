@@ -48,7 +48,7 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 |---|---|---|---|
 | **M0** 绿色基线 | — | 四条验证命令的红绿状态已知并记录 | — |
 | **M1** 护栏与止损 | W0 | 故意加一处家族名 → CI 失败；两类边样式不同 | §2.2 部分、§3.2/§8.1 检查手段 |
-| **M2** 底层收敛 | W0.5 + W1 + W2 | 59 模型 `normalizeConfig` 输出深度相等；spec 树 JSON 深度相等；每公式条目有 `macs` 或 `nonCompute` | §3.1、§3.5、§8.2（ops 侧） |
+| **M2** 底层收敛 | W0.5 + W1 + W2 | 59 模型 `normalizeConfig` 输出深度相等；spec 树 JSON 深度相等；每条目四选一（counts/纯traffic/分解/白名单）；matrix 维度差分相等 | §3.1、§3.5、§3.7（counts 接口）、§8.2（ops 侧） |
 | **M3** 结构声明化 | W3a + W4 | 边集合（含 evidence）差分一致；所有边 evidence 非空；含参节点均有 `role` | §2.1、§2.2、§4.3 层 1、§8.2 |
 | **M4** 方案归组网 | W3b | 最终 spec 树差分一致；`normalizeConfig` 不再输出方案类字段 | §4.3（配方）、§4.7 |
 | **M5** 真值绑定显式化 | W4.5 | 绑定差分一致 **且 `ambiguous` = 0**；可逆校验通过 | §4.3 层 2、§4.4、§4.5、§4.6 |
@@ -160,16 +160,29 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 
 ---
 
-## W1 formulas：公式表成为算子唯一注册点
+## W1 formulas：注册条目产出动作向量
 
-- **范围**：`FORMULAS` 48 条各加 `macs(shapeArgs)` 与 `nonCompute` 标记。
-  未实现的算子**不写** `macs`，查表得 `null`。
-  公式函数**只接受结构化 shape 参数**，拿不到 `node`，因此 §3.2 在结构上不可违反。
+- **范围**
+  1. 48 个 `FORMULAS` 条目逐条盘点，产出**四分类清单**：计算+访存 / 仅访存 /
+     分解声明 / 未实现白名单（预计白名单 30 条上下，W6 上界面时"未覆盖"数字会显著变大，
+     这是诚实性的代价，§3.3）；
+  2. 每条目实现 `counts(ctx) → { matrix, vector, sfu, bytes: {weights, actIn, actOut} }`
+     （§3.1 形态；`matrix` 存 MACs，aten 公式含 2× 需显式换算注明；`bytes` 为
+     每次前向 compulsory traffic，无 phase 分支）；
+  3. 有 aten 对应的条目加 `aten` 锚点字段（公式照抄 `flop_registry` 并换算）；
+     语义复合算子（rope / KDA / DSA）用分解声明；
+  4. `counts` 入参只含结构化 shape 参数，拿不到 `node` 与显示名（§3.2 结构上不可违反）。
 - **入口**：`frontend/src/structure/formulas/index.js`
 - **依赖**：W0
-- **验收**：CI 断言每个条目要么有 `macs`、要么标 `nonCompute`、要么在"未实现"白名单里；
-  `npm --prefix frontend run test`
-- **不包含**：改动 `cost/compute.js`（W5 才切换消费方）；改动任何公式的数学形式
+- **验收**
+  - CI 新增第 ③ 项：每条目四选一（counts / 纯 traffic / 分解声明 / 白名单）；
+  - **数值差分的现实限制**：旧 `nodeMacs` 只产出矩阵维度，因此可机械差分的只有
+    `matrix`（用 59 个内置模型的真实节点，旧链 vs 新表逐节点相等）；
+    `vector` / `sfu` / `bytes` 用手算样例单测 + 抽查——**此限制是"新旧并行"的固有属性，
+    W5 切换消费方后差分覆盖全部单元**；
+  - `npm --prefix frontend run test`
+- **不包含**：改动 `cost/compute.js`（W5 才切换消费方）；改动任何公式的数学形式；
+  芯片 schema 的 `vector_flops`/`sfu_ops` 字段与 coverage 门控（W5）
 - **回退**：纯新增字段，旧路径未动
 
 参考 PyTorch `torch/utils/flop_counter.py` 的 `flop_registry`：一个 op 一个注册点，
@@ -296,21 +309,29 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 ## W5 cost：查表 + ERT/counts 分离
 
 - **范围**
-  1. `nodeMacs` 改为 `FORMULAS[operatorId]?.macs?.(args) ?? null`；删 `macsSource` 第二套 switch
-     （从查表结果推导）；删两处显示名正则（`compute.js:243-244`）；
+  1. `nodeMacs` 改为查 `FORMULAS[operatorId]?.counts`（§3.1 动作向量）；
+     删 `macsSource` 第二套 switch（从查表结果推导）；删两处显示名正则（`compute.js:243-244`）；
   2. 删 `qwen4ExpLinearAttentionMacs`（与 `qwen35LinearAttentionMacs` 逐行相同，只差 fallback）
      与 `nodeMacs:245-255` 内联重写的 qsa/minimax 公式；
   3. layer-index 正则 3 种变体、routed-expert 正则 3 处各统一到一处；
-  4. 拆 ERT × action counts：`computeNodeCosts` 产出与芯片无关的
-     `{ macs, weightBytes, actInBytes, actOutBytes, commBytes: { intra, inter } }`；
-     新增 `chips/rates.js` 把芯片规格 + 效率因子转成 rate 表；`roofline.js` 退化为纯 join，
-     其 `missing` 判定复用 `chips/coverage.js:missingFields`。
-- **入口**：`frontend/src/cost/{compute,roofline,aggregate}.js`、新增 `cost/chips/rates.js`
+  4. 拆 ERT × action counts：`computeNodeCosts` 产出与芯片无关的动作向量
+     `{ matrix, vector, sfu, bytes: {weights, actIn, actOut}, commBytes: { intra, inter } }`；
+     新增 `chips/rates.js` 把芯片规格 + 效率因子转成 rate 表
+     ——**rate 含四列**：`peak_flops[dtype]·η_flops` / `vector_flops·η=1.0` /
+     `sfu_ops·η=1.0` / `memory_bandwidth·η_hbm`；`roofline.js` 退化为纯 join，
+     时间 = **五路 max**（矩阵/向量/SFU/访存/通信），瓶颈分类细化为五类（§3.7）；
+     其 `missing` 判定复用 `chips/coverage.js:missingFields`；
+  5. 芯片 schema 扩展：`fp32` 语义正名为 `vector_flops`（保留旧名兼容），
+     新增 `sfu_ops`（NVIDIA 条目带 CUDA guide source）；`chips/coverage.js` 能力门控
+     扩展两列——缺 `vector_flops`/`sfu_ops` 时对应单元时间不可判（§3.7 缺项降级）。
+- **入口**：`frontend/src/cost/{compute,roofline,aggregate}.js`、`cost/chips/{rates,coverage,public}.js`
 - **依赖**：W1、W4
-- **验收**：`cost/__tests__/compute.test.js` **现有断言数值全部不变**；
+- **验收**：`cost/__tests__/compute.test.js` **现有断言数值全部不变**（matrix 维度）；
   新增"未实现算子返回 null 且计入 `unknownComputePaths`"用例；
-  新增"同一 actionCounts 换两张卡只走表乘法"用例；`bash scripts/check_principles.sh` 检查 ② 通过
-- **不包含**：改动公式数学形式；新增芯片条目
+  新增"同一 actionCounts 换两张卡只走表乘法"用例；
+  新增"softmax 在 seq=1 时落 memory/sfu-bound、prefill 落 memory-bound"的定性用例；
+  `bash scripts/check_principles.sh` 检查 ② 通过，白名单清零
+- **不包含**：改动公式数学形式；新增国产芯片条目
 - **回退**：差分不通过即整波 revert
 
 `aggregate.js:20-27` 的 null 传播、`computeComplete`、`unknownComputePaths`、`macsSources`
@@ -328,10 +349,12 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 - **范围**
   1. evidence 三级视觉区分：`declared` 实线、`shape-match` 细线、`module-order` 虚线 + hover
      提示"此边由兄弟顺序推断"（§2.2）；
-  2. 汇总条展示"N 个算子成本未覆盖"（数据来自 `aggregate.js` 的 `unknownComputePaths`，已存在）；
-  3. `template_gaps` / `ambiguous_truth_matches` 上界面（现在只进 diagnostics，
+  2. 汇总条展示"N 个算子成本未覆盖"（数据来自 `aggregate.js` 的 `unknownComputePaths`，已存在），
+     并按单元缺失分别计数（§3.3：matrix=0 是精确陈述，不是零成本）；
+  3. 瓶颈分类显示五类（矩阵 / 向量 / SFU / 访存 / 通信，§3.7）；
+  4. `template_gaps` / `ambiguous_truth_matches` 上界面（现在只进 diagnostics，
      等于真值静默缺失，§4.4）；
-  4. `value_source` 扩展到 Cost Lens 与汇总条（现仅 `NodeDetailPanel.jsx:24` 一处）。
+  5. `value_source` 扩展到 Cost Lens 与汇总条（现仅 `NodeDetailPanel.jsx:24` 一处）。
 - **入口**：`frontend/src/diagram/edgeStyle.js`、`components/{CostSummary,SummaryChips,NodeDetailPanel}.jsx`
 - **依赖**：W4、W5
 - **验收**：`npm --prefix frontend run test:e2e` 断言三类边样式互不相同、未覆盖提示可见、

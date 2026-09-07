@@ -2,7 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 
-function visionDimensions(normalized) {
+export function visionDimensions(normalized) {
   const hidden = normalized.visionHiddenSize || 0;
   const heads = normalized.visionAttentionHeads || 0;
   const headDim = normalized.visionHeadDim || (heads ? hidden / heads : 0);

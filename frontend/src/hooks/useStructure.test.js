@@ -180,6 +180,8 @@ test("built-in config returns before deferred safetensors truth and updates in b
   let resolveTruth;
   let truthRequests = 0;
   let backgroundStructure = null;
+  let resolveBackgroundUpdate;
+  const backgroundUpdate = new Promise((resolve) => { resolveBackgroundUpdate = resolve; });
   const truthPromise = new Promise((resolve) => { resolveTruth = resolve; });
   const structure = await buildStructureForPayload(
     {
@@ -206,7 +208,10 @@ test("built-in config returns before deferred safetensors truth and updates in b
       truthRequests += 1;
       return truthPromise;
     },
-    (updated) => { backgroundStructure = updated; },
+    (updated) => {
+      backgroundStructure = updated;
+      resolveBackgroundUpdate();
+    },
   );
 
   assert.equal(truthRequests, 1);
@@ -218,7 +223,7 @@ test("built-in config returns before deferred safetensors truth and updates in b
     parameterCount: { BF16: 32000 * 1024 },
     parameterTotal: 32000 * 1024,
   });
-  for (let attempt = 0; attempt < 10 && !backgroundStructure; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  await backgroundUpdate;
   assert.equal(backgroundStructure?.source.checkpoint_truth, "available");
   assert.equal(backgroundStructure?.summary.parameters_total, 32000 * 1024);
 });

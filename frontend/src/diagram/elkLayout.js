@@ -67,7 +67,8 @@ export async function layoutGraphWithElk(graph) {
     const children = node.path === "root" ? allChildren.filter((child) => !isExternalRootNode(child)) : allChildren;
     const childIds = new Set(children.map((child) => child.path));
     if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
-    const semanticFlow = graph.edges.some((edge) => ["semantic-flow", "declared"].includes(edge.evidence)
+    // 语义流布局只信任 builder 声明的边；semantic-flow 已随 legacySemanticEdges 退役。
+    const semanticFlow = graph.edges.some((edge) => edge.evidence === "declared"
       && parentPath(edge.source) === node.path && parentPath(edge.target) === node.path);
     const internalEdges = directEdges(node.path, childIds);
     const inputIds = new Set(children

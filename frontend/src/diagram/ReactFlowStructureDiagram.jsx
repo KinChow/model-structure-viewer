@@ -129,12 +129,14 @@ const RF_NODE_TYPES = { msvNode: MsvNode, groupFrame: MsvGroupFrame, stageBand: 
 const RF_EDGE_TYPES = { msvEdge: MsvEdge, msvNativeEdge: MsvNativeEdge };
 
 function edgeClassName(data) {
-  return `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.evidence === "semantic-flow" ? " semantic-flow" : ""}${data?.related ? " related" : ""}`;
+  // §2.2：declared（事实）走默认实线样式；module-order / shape-match（推断）加弱化 class。
+  // semantic-flow 已随 legacySemanticEdges 一并退役，不再识别。
+  return `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.evidence === "shape-match" ? " shape-match" : ""}${data?.related ? " related" : ""}`;
 }
 
 function edgeStyle(style, data) {
-  const mainFlow = data?.evidence === "module-order" || data?.evidence === "semantic-flow";
-  return { ...style, strokeWidth: data?.related ? 2.8 : data?.width, strokeDasharray: mainFlow ? undefined : "7 4" };
+  // 虚线/实线由 CSS 按 evidence class 决定，此处只管宽度和关联态。
+  return { ...style, strokeWidth: data?.related ? 2.8 : data?.width };
 }
 
 function MsvNativeEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {

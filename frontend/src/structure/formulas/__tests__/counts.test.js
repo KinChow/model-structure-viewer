@@ -120,17 +120,17 @@ test("F7a 因果卷积：T·C·w MACs + SiLU", () => {
   assert.equal(c.sfu, 4 * 6);
 });
 
-test("F7b 递推状态：plain 2T·dk·dv，delta 3T·dk·dv（delta matvec 是矩阵 MACs）；bytes 由状态主导", () => {
-  const plain = linearAttentionStateCounts({ tokens: 3, keyDim: 8, valueDim: 8, bytesPerElement: B });
-  assert.equal(plain.matrix, 2 * 3 * 64);
-  assert.equal(plain.vector, 3 * 64);
+test("F7b 递推状态：plain 2T·dk·dv，delta 3T·dk·dv（delta matvec 是矩阵 MACs）；多头 state 流量显式", () => {
+  const plain = linearAttentionStateCounts({ tokens: 3, heads: 4, keyDim: 8, valueDim: 8, bytesPerElement: B });
+  assert.equal(plain.matrix, 2 * 3 * 4 * 64);
+  assert.equal(plain.vector, 3 * 4 * 64);
   assert.equal(plain.sfu, 3);
-  const delta = linearAttentionStateCounts({ tokens: 3, keyDim: 8, valueDim: 8, bytesPerElement: B, delta: true });
-  assert.equal(delta.matrix, 3 * 3 * 64);
-  assert.equal(delta.vector, 2 * 3 * 64);
+  const delta = linearAttentionStateCounts({ tokens: 3, heads: 4, keyDim: 8, valueDim: 8, bytesPerElement: B, delta: true });
+  assert.equal(delta.matrix, 3 * 3 * 4 * 64);
+  assert.equal(delta.vector, 2 * 3 * 4 * 64);
   assert.equal(delta.sfu, 2 * 3); // exp decay + sigmoid beta
-  // 状态读+写主导：actIn = 2·T·dk·dv·b ≥ q/k/v 流（此处无其他流）
-  assert.equal(plain.bytes.actIn, 2 * 3 * 64 * B);
+  // 状态读+写主导：actIn = 2·T·heads·dk·dv·b（多头 state 显式进入流量）
+  assert.equal(plain.bytes.actIn, 2 * 3 * 4 * 64 * B);
 });
 
 test("F8 MoE：topk 选择 + dispatch/combine 搬运 + combine 加权求和计 vector", () => {

@@ -52,7 +52,22 @@ S 的取法与 kvHeads 由条目/提取器决定：
 | QSA/DSA | qsa | indexerBudget | 按模型 | D | D |
 | 块稀疏 | sparse | blocks×blockSize | 按模型 | D | D |
 matrix 不随 kvHeads 变（每个 query head 做完整点积），只有 K/V 流量随 kvHeads 缩小。
-（变体覆盖矩阵 2026-09-07 补；KDA/GDA 走 F7b 递推，不经 F2。）
+（打分式变体覆盖矩阵 2026-09-07 补；linear attention 家族不经 F2，见下表。）
+
+### F7 家族的 linear attention 变体覆盖（2026-09-07 补）
+
+| 变体 | linearAttentionMode | 状态更新 | F7b 参数 |
+|---|---|---|---|
+| generic gated LA | generic | decay⊙S + k^Tv（plain） | delta=false |
+| Qwen3.5 / Qwen4Exp GDN | qwen3_5 / qwen4_exp | gated delta rule | delta=true |
+| Kimi / Kimi-K3（KDA） | kimi / kimi_k3 | gated delta rule | delta=true |
+| GLM-5.3-Flash | glm5_next | gated delta rule | delta=true |
+
+配套算子：short conv = F7a、output gate = F4、gated RMSNorm = F3(gated)。
+投影打包差异（fused qkvz vs 分离 beta/decay）是 linear 节点（F1），与打包无关；
+decay 参数化（safe gate / lower_bound / A_log / dt_bias）是属性级，零计数影响。
+执行形态假设：按 per-token 递推计，chunked 实现总量等价。
+keyDim/valueDim 为每头维度，heads 显式（state = heads·dk·dv）。
 
 ### F3 归一化
 

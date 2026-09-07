@@ -125,16 +125,20 @@ export function causalConvCounts({ tokens, channels, kernel, bytesPerElement }) 
 }
 
 /**
- * F7b 线性注意力递推状态。
- * plain（gated linear attention）：S_t = decay⊙S + k^Tv（外积），o_t = q_t S_t
- *   → matrix = 2T·dk·dv（外积 + query）。
- * delta（gated delta attention，数学修正 2026-09-07：S_{t-1}k_t 是 matvec，
+ * F7b 线性注意力递推状态（覆盖全部 linearAttentionMode 变体：
+ * generic=plain；qwen3_5/qwen4_exp/kimi/kimi_k3/glm5_next=delta）。
+ * keyDim/valueDim 为**每头**维度；heads 显式给出（state = heads·dk·dv，
+ * 多头下 state 流量是主导项，必须显式）。
+ * plain：S_t = decay⊙S + k^Tv（外积），o_t = q_t S_t
+ *   → matrix = 2T·heads·dk·dv（外积 + query）。
+ * delta（gated delta rule，数学修正 2026-09-07：S_{t-1}k_t 是 matvec，
  *   属矩阵 MACs 而非 vector——修正 cost_counts.md 的规格）
- *   → matrix = 3T·dk·dv（外积 + delta matvec + query）。
- * **bytes 由递推状态主导：每 token 状态读+写 2·dk·dv·b。**
+ *   → matrix = 3T·heads·dk·dv（外积 + delta matvec + query）。
+ * 执行形态假设：按 per-token 递推计；chunked 实现总量等价（仅流量分布不同）。
+ * **bytes 由递推状态主导：每 token 状态读+写 2·heads·dk·dv·b。**
  */
-export function linearAttentionStateCounts({ tokens, keyDim, valueDim, bytesPerElement, delta = false }) {
-  const state = keyDim * valueDim;
+export function linearAttentionStateCounts({ tokens, heads = 1, keyDim, valueDim, bytesPerElement, delta = false }) {
+  const state = heads * keyDim * valueDim;
   return {
     matrix: (delta ? 3 : 2) * tokens * state,
     vector: tokens * state * (delta ? 2 : 1),

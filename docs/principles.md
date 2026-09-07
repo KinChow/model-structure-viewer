@@ -120,8 +120,10 @@ softmax: {
 }
 ```
 
-**条目四分类**：计算+访存（matrix>0）/ 仅访存（matrix=0，vector/sfu/bytes 非零）/
-分解声明（声明由哪些已知 op 组成，不另编公式）/ 未实现（白名单，查表得 `null`）。
+**条目三分类**：计算+访存（matrix>0）/ 仅访存（matrix=0，vector/sfu/bytes 非零）/
+分解声明（counts 写成已知 op 的组合，分解假设显式标注）。
+**不存在"未实现"类**：每条必须终止于 counts；null 唯一来源是芯片缺字段（§7 降级），
+那是硬件信息问题，不是实现缺口。
 
 **约定**：
 - `counts` 入参**只含结构化 shape 参数**，拿不到 `node` 与显示名（§3.2 在结构上不可违反）。
@@ -133,8 +135,12 @@ softmax: {
 **判据**：新增算子时，若需要在 `formulas/index.js` **之外**再改一处分派逻辑
 才能让成本生效，即违反。
 
-**检查**：CI 断言每个条目四选一：`counts` / `nonCompute`（等价于全零 matrix + 纯 traffic）/
-分解声明 / 白名单。白名单写进 `check_principles.sh`，W5 后应清零。
+**检查**：
+- CI 断言每个条目三选一（counts / 纯 traffic / 分解声明），无白名单；
+- **整模型恒等式作为 matrix 维度的外部 oracle**：对每个内置模型，
+  counts 聚合的 matrix FLOPs ≈ `2 × 参数量 × tokens`（dense；MoE 按 expertFraction 缩放）
+  ——训练 6ND / 推理 2ND 的标准 invariant，独立于实现，能抓住 /TP 写错、漏 2×、单位错；
+  decode 场景补充恒等式：seq=1 时 traffic ≈ 权重字节数（强度 ~1-2，memory-bound）。
 
 ### 3.2 禁止显示名参与任何数值计算
 
@@ -198,14 +204,18 @@ softmax: {
 | 单元 | 内容 | 芯片字段 | 吞吐特征 |
 |---|---|---|---|
 | 矩阵 | GEMM/CONV（MACs） | `peak_flops[dtype]` | 最高，`η_flops=0.7` |
-| 向量 | elementwise、归约加法、逐元素乘（flop） | `fp32`（即向量吞吐，语义正名为 `vector_flops`） | 通常为矩阵 1/10~1/16 |
-| SFU | `exp`/`rsqrt`/`sin`/除法（操作次数） | `sfu_ops`（新增） | CUDA guide：16/SM/clk vs FP32 128，≈向量 1/8 |
+| 向量 | elementwise、归约加法、逐元素乘（flop） | `vector_flops`（即 FP32 吞吐） | NVIDIA 64/SM/clk @sm80、128 @sm90（CUDA guide 吞吐表） |
+| SFU | `exp`/`rsqrt`/`sin`/除法（操作次数） | `sfu_ops`（新增） | 16/SM/clk（CUDA guide）；官方比值 × fp32 rate 推导，source 标注 |
 | 访存 | compulsory bytes | `memory_bandwidth` | — |
 
 **时间模型**：单算子时间 = `max(矩阵, 向量, SFU, 访存, 通信)` 各路除以对应 rate
-（§3.4 的 ERT ⋈ counts）。瓶颈分类随之细化为五类；
-**国产芯片的 向量：矩阵 与 SFU：矩阵 比例与 NVIDIA 差异大，同一算子会落进不同瓶颈类**
-——这正是多芯片对比要暴露的东西。
+（§3.4 的 ERT ⋈ counts）。瓶颈分类随之细化为五类。
+
+**跨芯片分化有公开数据支撑**：NVIDIA 向量：矩阵 ≈ 1:4~1:8（CUDA guide），
+昇腾 910A/B/C ≈ **1:32 ~ 1:128**（Cube FP16 256/294.9/378.9 vs Vector FP32 2/9.2/11.8
+TFLOPS，arXiv 2607.20120）。同一 RMSNorm/softmax 在两类芯片上会落进不同瓶颈类
+——这正是多芯片对比要暴露的东西。昇腾无独立 SFU（超越函数在向量单元执行），
+`sfu_ops` 缺失时可选 per-chip 单元映射（sfu→vector rate，语义映射非估算），W5 定。
 
 **规约的处理**：reduce = N−1 次向量加法 + 访存（读 N 写 ~0），
 强度 ≈ 1 flop / 4~8 byte，**在 roofline 分类里几乎必然落 memory-bound**——

@@ -277,6 +277,13 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 >    UI 呈现（§4.5 未适配标注等）统一推 W6；
 > 5. **"norm" 顶层特判**是深度规则（剥 wrapper 后 depth=1）；未来若出现非顶层
 >    final-norm 例外，先归因再改规则。
+>
+> **W3-C 后的结构债（带债进 W5，触发点：接入新模型家族）**：C 把方案逻辑从
+> normalize 搬到了 plan.js，但家族知识仍住 5 处（models/*.js、attention.js 组件表
+> 匹配器、plan.js 探测、archs/、normalize 数字派生探测）。C 的对齐文档原定
+> "models/*.js 迁移后删除"未随 C 执行——收口 = 家族声明化（FAMILY_OVERRIDES
+> 扩展为完整配方声明，plan.js 收缩为纯执行器、护栏豁免取消）+ models/ 迁入
+> archs/ + 组件表改按配方 id 键控。接新家族前必须先做，否则新家族要改 3 处。
 
 ---
 

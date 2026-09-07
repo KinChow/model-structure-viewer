@@ -460,7 +460,13 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 
 ---
 
-## 旁路 B 后端降级 + source_ref（与 W1–W6 无依赖，可并行）
+## 旁路 B 后端保留 + source_ref（2026-09-08 裁决：不降级）
+
+> **裁决**：后端保留，定位 = "验证前端是否正确"的 transformers oracle
+> （与 principles.md §6.1/§6.3 原始设计一致）。"降级"方向作废；本旁路的
+> 有效剩余范围收窄为 source_ref 采集与 /api/verify 的对齐强化（W6 前再对齐）。
+
+## 旁路 B（原"后端降级"）+ source_ref（与 W1–W6 无依赖，可并行）
 
 - **范围**
   1. 后端职责收缩为产出 `[(module_path, class_name, source_ref, has_params)]`；

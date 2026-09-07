@@ -18,13 +18,23 @@
 Playwright 已替换旧版 SVG/CDP 验收路径。`npm --prefix frontend run test:e2e`
 使用隔离 Vite 服务和桌面/移动 Chrome，覆盖入口来源、React Flow 节点与显式边、成本交互、窄屏布局和多模态视觉节点；`verify:page` 保留为兼容别名。
 
-## P1：协议和维护性
+## P1：原则收口重构
+
+[`principles.md`](principles.md) 已定为强制约束，当前代码存在多处存量偏离（登记在该文 §10）。
+收口路线见 [`refactor_plan.md`](refactor_plan.md)：自底向上分 W0–W6（含 W4.5）+ 一条可并行旁路，
+每波含范围、入口、依赖、验收命令、不包含项与回退方式，全部可用差分测试验收（行为不变）。
+
+未排期项（需先决策，不属于任一波次）：
+
+- **§6.4 来源解析归并**：endpoint fallback / revision 默认值 / auto 降级顺序目前前后端各一套且已不一致，需确定统一到前端 `model/loadModelArtifacts.js`。
+- **§7 国产芯片条目**：每字段必须有公开来源，缺项保持 unknown。此项决定 W5 第 4 步（ERT 分离）的优先级。
+- **§2.5 残差与跨层级边**：需先扩展 IR 才能表达，暂缓；不得用并列节点伪装。
 
 ### 统一结构协议的生成或契约测试
 
 当前前后端 schema 与前端 materializer 仍由两边维护。优先增加跨端契约样例和字段兼容测试；只有重复维护成本继续上升时，才引入 schema-first 生成，避免为了工具本身扩大构建复杂度。
 
-当前图协议已经一等化为 `graph.version/nodes/edges`，常见模块已通过 `dataflow_edges` 声明稳定子算子边；后续继续迁移专项模型，并最终将声明升级为更细粒度的 value names，逐步删除通用 materializer 中按模型语义匹配名称的兼容规则。
+`schemas.py:13-50` 的 `StructureNode` 与 `StructureGraphNode` 逐字重复 13 个字段，`materializeStructureGraph.js:503-522` 在 JS 侧再抄一遍；抽公共基模型属本项范围。
 
 ### 模型 catalog 维护自动化
 

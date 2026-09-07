@@ -19,7 +19,7 @@ export function textDecoderNetwork(resolved, normalized, { attentionKind, defaul
     embeddingModule("embed_tokens", normalized),
     decoderStackNetwork("decoder", normalized, { attentionKind, defaultLayerKind }),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
-    rmsNormModule("norm", "final norm", normalized),
+    rmsNormModule("norm", "final norm", normalized, "output_norm"),
     lmHeadModule("lm_head", normalized),
   ]);
 }

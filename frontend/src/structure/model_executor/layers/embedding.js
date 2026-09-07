@@ -10,5 +10,5 @@ export function embeddingModule(id, normalized) {
     hidden_size: normalized.hiddenSize,
     vocab_size: normalized.vocabSize,
     ...shapeFlow(shapes.tokenIds, shapes.hidden),
-  }), dims.tokenIds, dims.hidden);
+  }, [], undefined, "token_embd"), dims.tokenIds, dims.hidden);
 }

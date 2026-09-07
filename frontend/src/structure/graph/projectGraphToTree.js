@@ -4,6 +4,7 @@ export function projectGraphToTree(graph) {
     id: node.canonical_id || node.module_id || node.id,
     name: node.name || node.module_id || node.id,
     type: node.type || "module",
+    role: node.role ?? undefined,
     repeat: node.repeat ?? undefined,
     attributes: node.attributes || {},
     source_fields: node.source_fields || [],

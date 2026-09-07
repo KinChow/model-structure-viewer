@@ -508,6 +508,7 @@ export function materializeStructureGraph(root) {
       order: item.parentId == null ? 0 : Number(item.path.split(".").at(-1)),
       name: item.node?.name || "",
       type: item.node?.type || "module",
+      role: item.node?.role ?? null,
       repeat: item.node?.repeat ?? null,
       attributes: item.node?.attributes || {},
       source_fields: item.node?.source_fields || [],

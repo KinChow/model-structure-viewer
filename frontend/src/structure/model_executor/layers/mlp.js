@@ -3,7 +3,7 @@ import { mlpOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 
-export function mlpModule(id, normalized) {
+export function mlpModule(id, normalized, { roleScope = undefined } = {}) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   return withShapeDims(moduleSpec(
@@ -19,6 +19,6 @@ export function mlpModule(id, normalized) {
         intermediate_shape: shapes.intermediate,
       }),
     },
-    mlpOperatorSpecs(id, normalized),
+    mlpOperatorSpecs(id, normalized, roleScope),
   ), dims.hidden, dims.hidden);
 }

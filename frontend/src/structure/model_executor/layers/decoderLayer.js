@@ -30,9 +30,9 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized, "mlp_combine_mix"),
     layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
   ] : [
-    rmsNormModule(`${id}.input_layernorm`, "input layernorm", normalized),
+    rmsNormModule(`${id}.input_layernorm`, "input layernorm", normalized, "attn_norm"),
     attentionModule(`${id}.self_attn`, normalized, attentionKind, layerIndex),
-    rmsNormModule(`${id}.post_attention_layernorm`, "post attention layernorm", normalized),
+    rmsNormModule(`${id}.post_attention_layernorm`, "post attention layernorm", normalized, "ffn_norm"),
     layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
     ...(normalized.pleLayerIds?.includes(layerIndex + 1) ? [pleModule(`${id}.ple`, normalized)] : []),
     ...(normalized.hyperConnectionCount ? [

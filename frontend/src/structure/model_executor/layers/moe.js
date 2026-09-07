@@ -21,7 +21,7 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
     ? mlpModule(`${id}.shared_experts`, {
       ...normalized,
       intermediateSize: normalized.sharedExpertIntermediateSize || normalized.moeIntermediateSize,
-    })
+    }, { roleScope: "shexp" })
     : null;
   if (sharedExpert && isKimiK3) sharedExpert.name = "Shared Expert MLP";
   const children = [

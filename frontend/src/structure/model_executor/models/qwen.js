@@ -48,7 +48,7 @@ function buildMultimodalDecoderNetwork(resolved, normalized, { attentionKind, de
     }),
     ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
-    rmsNormModule("norm", "final norm", normalized),
+    rmsNormModule("norm", "final norm", normalized, "output_norm"),
     lmHeadModule("lm_head", normalized),
   ]);
 }

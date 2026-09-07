@@ -9,6 +9,7 @@ function structureNodeFromSpec(spec) {
       id: spec.id,
       name: spec.name,
       type: "operator",
+      role: spec.role,
       attributes: {
         class: spec.name,
         operator_id: spec.operatorId,
@@ -31,6 +32,7 @@ function structureNodeFromSpec(spec) {
     id: spec.id,
     name: spec.name,
     type: spec.type,
+    role: spec.role,
     repeat: spec.repeat,
     attributes: spec.attributes || {},
     source_fields: Object.keys(spec.attributes || {}),

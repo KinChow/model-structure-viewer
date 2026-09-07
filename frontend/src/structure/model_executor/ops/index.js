@@ -1,6 +1,7 @@
 import { formulaForOperator } from "../../formulas/index.js";
 import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../dims.js";
+import { resolveOperatorRole } from "../roles.js";
 
 function cleanAttributes(attributes) {
   return Object.fromEntries(
@@ -8,13 +9,14 @@ function cleanAttributes(attributes) {
   );
 }
 
-export function operatorSpec(id, name, operatorId, attributes = {}, numericShapes = {}) {
+export function operatorSpec(id, name, operatorId, attributes = {}, numericShapes = {}, roleOverride = undefined) {
   const formula = formulaForOperator(operatorId);
   return {
     kind: "operator",
     id,
     name,
     operatorId,
+    role: roleOverride ?? resolveOperatorRole(id, operatorId),
     input_shape: numericShapes.input,
     output_shape: numericShapes.output,
     attributes: cleanAttributes({
@@ -688,11 +690,11 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   ];
 }
 
-export function mlpOperatorSpecs(prefix, normalized) {
+export function mlpOperatorSpecs(prefix, normalized, roleScope = undefined) {
   const { shapes, dims } = shapesAndDims(normalized);
   return [
-    operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }),
-    operatorSpec(`${prefix}.up_proj`, "up projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }),
+    operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.gate_proj`, "linear", roleScope)),
+    operatorSpec(`${prefix}.up_proj`, "up projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.up_proj`, "linear", roleScope)),
     operatorSpec(`${prefix}.swiglu`, "SwiGLU activation", "swiglu", {
       ...shapeFlow(`${shapes.intermediate}, ${shapes.intermediate}`, shapes.intermediate),
       gate_shape: shapes.intermediate,
@@ -702,7 +704,7 @@ export function mlpOperatorSpecs(prefix, normalized) {
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,
     }, { input: dims.intermediate, output: dims.intermediate }),
-    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", { ...shapeFlow(shapes.intermediate, shapes.hidden), communication_role: "tp_mlp_output" }, { input: dims.intermediate, output: dims.hidden }),
+    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", { ...shapeFlow(shapes.intermediate, shapes.hidden), communication_role: "tp_mlp_output" }, { input: dims.intermediate, output: dims.hidden }, resolveOperatorRole(`${prefix}.down_proj`, "linear", roleScope)),
   ];
 }
 

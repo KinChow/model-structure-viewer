@@ -1,9 +1,10 @@
-export function moduleSpec(id, name, type, attributes = {}, children = [], repeat = undefined) {
+export function moduleSpec(id, name, type, attributes = {}, children = [], repeat = undefined, role = undefined) {
   return {
     kind: "module",
     id,
     name,
     type,
+    role,
     repeat,
     attributes: Object.fromEntries(
       Object.entries(attributes).filter(([, value]) => value !== undefined && value !== null),

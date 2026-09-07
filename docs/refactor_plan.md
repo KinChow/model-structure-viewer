@@ -284,6 +284,15 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 > "models/*.js 迁移后删除"未随 C 执行——收口 = 家族声明化（FAMILY_OVERRIDES
 > 扩展为完整配方声明，plan.js 收缩为纯执行器、护栏豁免取消）+ models/ 迁入
 > archs/ + 组件表改按配方 id 键控。接新家族前必须先做，否则新家族要改 3 处。
+>
+> **review 补记（2026-09-08，本轮仅登记不改）**：
+> 1. cost 五文件（compute/derivedWeights/memory/parallel/extractor）对 plan.js 由
+>    数据耦合升级为代码耦合——收口时 plan.js 应移至 config/ 与 normalize 共享
+>    解析原语（textConfigOf/modelTypeProbe 两份解析合一）；
+> 2. normalize 数字派生内残留的家族探测（kimi fused / glm5_next / deepseek_v4）
+>    是否也归组网，待配方表落地时与 sharedExpertIntermediateSize 一并裁决；
+> 3. plan.js 的"显式声明优先"层语义边界已写入其头注释：raw config 若真出现
+>    方案字段键会被静默采纳，HF 配置不含这些键，风险可控但需知晓。
 
 ---
 

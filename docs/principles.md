@@ -108,13 +108,13 @@ softmax: {
   aten: "aten._softmax",            // 对照锚点；无对应则省略，用 counts 注释声明分解
   // ref: torch flop_counter 明确不数 softmax（有意超越，依据 Accelergy 多单元动作模型）；
   //      SFU 吞吐见 chip.sfu_ops（CUDA guide：16/SM/clk vs FP32 128）
-  // 假设：未融合实现，logits 读 2 遍（FlashAttention 式单遍不建模，§2.3）
+  // 假设：融合单遍实现（FlashAttention 式），logits 读 1 遍；未融合的多遍读放大不建模（§2.3）
   counts: ({ tokens, vocab, bytesPerElement }) => ({
     matrix: 0,                      // 精确陈述：不用矩阵单元
     vector: 3 * tokens * vocab,     // max/sum 归约 + 逐元素乘
     sfu:    2 * tokens * vocab,     // exp + div
     bytes:  { weights: 0,
-              actIn:  2 * tokens * vocab * bytesPerElement,
+              actIn:  tokens * vocab * bytesPerElement,
               actOut: tokens * vocab * bytesPerElement },
   }),
 }
@@ -220,8 +220,8 @@ TFLOPS，arXiv 2607.20120）。同一 RMSNorm/softmax 在两类芯片上会落�
 **规约的处理**：reduce = N−1 次向量加法 + 访存（读 N 写 ~0），
 强度 ≈ 1 flop / 4~8 byte，**在 roofline 分类里几乎必然落 memory-bound**——
 不发明"规约单元"，分类交给模型算出来。
-softmax 等未融合实现的多遍读放大（logits 读 2 遍）作为显式假设写进 counts 注释；
-融合 kernel 不建模（§2.3）。
+softmax 等 score 归一化按**融合单遍实现**假设（logits 读 1 遍，2026-09-07 拍板）；
+多遍未融合读放大不建模（§2.3，实现差异进 implementation 属性）。
 
 **效率因子**：矩阵沿用 `η_flops=0.7`；向量/SFU 初始 `η=1.0`（下界语义 + UI 可调 + 明示假设，
 不做校准流程，§3.6）。
@@ -534,6 +534,8 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 - §4.7：`normalize.js` 混合字段归一与方案解读，含全部家族分支；方案类字段
   （attentionSchedule / layerSchedule / linearAttentionMode / normMode 等）被组网与 cost
   跨层消费（W3b 收口）。
+- §3.1（counts 覆盖）：embedding gather 与残差加法无算子节点，其流量不可见
+  （结构级缺口，随 W6/W7 决策；详见 `details/cost_counts.md`）。
 - §4.5：未适配模型走 generic 兜底会画出看起来完整的结构图，未标注"未适配"。
 - §4.6：无映射表，因此无可逆校验。
 - §5.x：`source_ref` 尚未实现（`source_fields` 语义不同，当前存的是 attribute keys）。

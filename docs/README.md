@@ -15,6 +15,7 @@
 
 5. [模型实现细节](details/models.md)：模型清单、来源、发布时间、缓存和适配入口。
 6. [模块实现细节](details/modules.md)：模型 builder、层、算子、公式、IR 和诊断。
+7. [算子动作向量注册表](details/cost_counts.md)：48 个公式条目的分类、counts 公式、共享实现与假设（W1 实现规格）。
 
 补充的实现细节：
 

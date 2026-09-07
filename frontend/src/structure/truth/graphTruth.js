@@ -1,5 +1,6 @@
 const PATH_WRAPPERS = new Set(["model", "language_model"]);
 import { buildSkeleton } from "./skeleton.js";
+import { bindingKey, resolveCheckpointModule, templateBindingKey } from "../archs/index.js";
 
 export function canonicalModulePath(value) {
   const parts = String(value || "").split(".").filter(Boolean);
@@ -50,24 +51,40 @@ export function skeletonTruthGraph(skeleton) {
   return { version: 2, schema_version: 2, root_id: "root", nodes, edges };
 }
 
-/** Bind checkpoint node facts to the canonical Graph IR node index. */
-export function bindTruthToGraph(graph, truthGraph) {
+/**
+ * 绑定（W3-B2）：优先 role 连接键（domain|bid|role，见 structure/archs/），
+ * 模板侧 role 未知时退化为 canonical 路径匹配（vision 等未覆盖域）。
+ * 多候选仍记录为 ambiguous（诊断可见，不静默丢弃任何一侧）；
+ * experts.{i} 等逐专家模块不参与 role 连接（模板无逐专家节点），走路径兜底。
+ */
+export function bindTruthToGraph(graph, truthGraph, { modelType } = {}) {
   const truthNodes = (truthGraph?.nodes || []).filter((node) => Number(node.params) > 0);
+  const truthByRole = new Map();
   const truthByPath = new Map();
   for (const node of truthNodes) {
-    const key = canonicalModulePath(node.canonical_id || node.module_id || node.id);
-    const entries = truthByPath.get(key) || [];
-    entries.push(node);
-    truthByPath.set(key, entries);
+    const truthId = node.canonical_id || node.module_id || node.id;
+    const resolved = resolveCheckpointModule(truthId, modelType);
+    if (resolved.role && !resolved.hasExpertIndex) {
+      const roleKey = bindingKey(resolved);
+      const roleEntries = truthByRole.get(roleKey) || [];
+      roleEntries.push(node);
+      truthByRole.set(roleKey, roleEntries);
+    }
+    const pathKey = canonicalModulePath(truthId);
+    const pathEntries = truthByPath.get(pathKey) || [];
+    pathEntries.push(node);
+    truthByPath.set(pathKey, pathEntries);
   }
   const used = new Set();
   const boundIds = [];
   const ambiguous = [];
   const nodes = (graph?.nodes || []).map((node) => {
-    const key = canonicalModulePath(node.canonical_id || node.module_id || node.id);
-    const candidates = (truthByPath.get(key) || []).filter((candidate) => !used.has(candidate.id));
+    const templateId = node.canonical_id || node.module_id || node.id;
+    const candidates = node.role
+      ? (truthByRole.get(templateBindingKey(node)) || []).filter((candidate) => !used.has(candidate.id))
+      : (truthByPath.get(canonicalModulePath(templateId)) || []).filter((candidate) => !used.has(candidate.id));
     if (candidates.length > 1) {
-      ambiguous.push({ template: node.canonical_id || node.module_id || node.id, candidates: candidates.map((candidate) => candidate.canonical_id || candidate.id) });
+      ambiguous.push({ template: templateId, candidates: candidates.map((candidate) => candidate.canonical_id || candidate.id) });
       return node;
     }
     const [truthNode] = candidates;
@@ -190,7 +207,7 @@ export function appendGraphGaps(graph, skeleton, usedTruthIds) {
   return { ...graph, nodes, edges };
 }
 
-export function enrichGraphWithTruth(graph, truth, { hasTemplate, modelName, canonicalArchitecture }) {
+export function enrichGraphWithTruth(graph, truth, { hasTemplate, modelName, canonicalArchitecture, modelType }) {
   if (!truth || !Array.isArray(truth.tensors) || truth.tensors.length === 0) {
     return { graph, diagnostics: { strategy: "no-truth" } };
   }
@@ -209,7 +226,7 @@ export function enrichGraphWithTruth(graph, truth, { hasTemplate, modelName, can
       diagnostics: { strategy: "skeleton-truth", total_tensors: truth.tensors.length, parameter_total: truth.parameterTotal ?? null },
     };
   }
-  const bound = bindTruthToGraph(graph, truthGraph);
+  const bound = bindTruthToGraph(graph, truthGraph, { modelType });
   const enrichedGraph = appendGraphGaps(bound.graph, skeleton, bound.diagnostics.graph_truth_used_ids);
   return {
     graph: enrichedGraph,

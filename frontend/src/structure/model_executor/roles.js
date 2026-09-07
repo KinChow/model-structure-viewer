@@ -24,7 +24,7 @@ const PARAM_CAPABLE_OPS = new Set([
 ]);
 
 // id 末段 → role。仅含 checkpoint 侧真实存在的参数模块。
-const SUFFIX_ROLES = {
+export const SUFFIX_ROLES = {
   // attention 投影
   q_proj: "attn_q",
   k_proj: "attn_k",
@@ -54,6 +54,16 @@ const SUFFIX_ROLES = {
   down_proj: "ffn_down",
   router: "ffn_gate_inp",
   hash_router: "ffn_gate_inp",
+  // kimi_k3 latent MoE 的共享压缩/扩展投影（llama.cpp 无对应，扩展词表）
+  routed_expert_down_proj: "ffn_latent_down",
+  routed_expert_up_proj: "ffn_latent_up",
+  // norm / embed / lm_head 模块后缀（checkpoint 与模板双侧同名）
+  input_layernorm: "attn_norm",
+  post_attention_layernorm: "ffn_norm",
+  embed_tokens: "token_embd",
+  lm_head: "output",
+  // 注意：通用后缀 "norm" 不入表——vision 的 merger.norm 等算子叶会误标
+  // output_norm；checkpoint 顶层 model.norm 由 archs/index.js 深度规则特判。
 };
 
 // roleScope → { 原 role: 作用域内 role }。shexp 对标 llama.cpp FFN_*_SHEXP。

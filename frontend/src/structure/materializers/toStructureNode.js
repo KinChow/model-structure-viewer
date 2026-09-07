@@ -78,6 +78,7 @@ export function materializeModelStructure(ir) {
     hasTemplate,
     modelName: templateNetwork?.name,
     canonicalArchitecture: resolved?.canonicalArchitecture,
+    modelType: normalized.modelType,
   });
   graph = graphTruth.graph;
   mergedDiagnostics = { ...diagnostics, ...graphTruth.diagnostics };

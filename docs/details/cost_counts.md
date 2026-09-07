@@ -255,5 +255,17 @@ weight 无逻辑形状），沿用旧链的诚实语义。
   - 校准过程中修复：routed swiglu 按 k 而非 k/E 计数、qb 重复计费、derived MLA 调度回退、sharedExpertIntermediateSize 通用 MoE 回退。
 - **T5** 旧链差分全量 + 漏算清单产出 → 差分测试已常驻（T1-T3 各建 diff 测试，
   226/442 等已知差异均已归因）；旧链删除在 W5，漏算清单作为 W5 切换的价值证明随删随出。
+
+已登记的恒等式残差（R1 逐项对账审计，2026-09-08，合计 ≈1% ratio 偏差）：
+
+- **counts 侧 kv_b 宽度**：extractor 用 `attentionKey=[kvHeads, headDim]`（192），
+  MLA 真值 kv_b 输出宽 = qk_nope + v_head_dim（128+128=256）；R1 上 −4.194M/层 ×61
+  = −255.9M/token，Kimi 同类（kv_b [64,192]→[64,256]）。修复点在 `model_executor/dims.js`
+  MLA 分支（对照 `ops/index.js:673` DSA 变体的正确写法），与 W3a/W3b dims 收口同批。
+- **测试期望侧 score 项**：按 `2·heads·T·headDim` 估，counts 实际为
+  scores 3.146M + context 2.097M/层（MLA latent 宽 576），+64.0M/token。
+  归 identity 测试自身近似，随上一条一起修。
+- 设计备忘：若残差再扩大，可考虑"期望侧改为同一 IR 的叶子权重清单 × 1 MAC"——
+  代价是恒等式从独立 oracle 退化为对账自检（会漏两侧同错的系统性误解）。
 - **验收**：identity 通过（容差仅限已登记建模边界）✅；差分：旧链>0 节点全等 ✅；
   §10 的 §3.1 条目清账 → counts 侧已全量动作向量，剩余是 `compute.js` 旧分派链（W5 删除）。

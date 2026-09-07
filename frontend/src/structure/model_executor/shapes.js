@@ -44,6 +44,11 @@ export function tensorShapes(normalized) {
   return out;
 }
 
+/** builder 头部样板收敛：spec 构建几乎总是 shapes + dims 成对取（W2）。 */
+export function shapesAndDims(normalized) {
+  return { shapes: tensorShapes(normalized), dims: tensorDims(normalized) };
+}
+
 export function shapeFlow(inputShape, outputShape, extra = {}) {
   return {
     input_shape: inputShape,

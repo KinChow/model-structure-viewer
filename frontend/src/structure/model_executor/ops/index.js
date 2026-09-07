@@ -1,5 +1,5 @@
 import { formulaForOperator } from "../../formulas/index.js";
-import { shapeFlow, tensorShapes } from "../shapes.js";
+import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 
 function cleanAttributes(attributes) {
@@ -28,65 +28,76 @@ export function operatorSpec(id, name, operatorId, attributes = {}, numericShape
   };
 }
 
-export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+// 打分式注意力的公共尾链：rope → scores → softmax → context → o_proj。
+// 五处调用（GQA / qwen35Full / MLA / minimaxCommon dense / minimaxM2）的节点结构
+// 与数值 shape 完全一致，差异全部落在 attributes：
+//   rope: { query_shape, key_shape, position_shape, rotary_dim, partial_rotary_factor, implementation }
+//   scores: { attention_kind, formula 覆写, name 覆写（MLA "latent attention scores"）, query/key_shape, explanation 等 }
+//   context: { attention_kind, explanation 等 }
+//   preOutput: 插在 context 与 o_proj 之间的节点（MLA 的 g_proj）
+//   before: 插在 tail 之前的节点（minimax sparse 的 indexer 链）
+// 真语义不同的变体（dsa、dsv4、qsa）不并入本 helper。
+function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary position embedding", rope = {}, scoresName = "attention scores", scores = {}, context = {}, preOutput = [], before = [] } = {}) {
   return [
-    operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.k_proj`, "k projection", "linear", shapeFlow(shapes.hidden, shapes.attentionKey), { input: dims.hidden, output: dims.attentionKey }),
-    operatorSpec(`${prefix}.v_proj`, "v projection", "linear", shapeFlow(shapes.hidden, shapes.attentionValue), { input: dims.hidden, output: dims.attentionValue }),
-    operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
+    ...before,
+    operatorSpec(`${prefix}.rope`, ropeName, "rope", {
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
-      query_shape: shapes.attentionQuery,
-      key_shape: shapes.attentionKey,
-      position_shape: "[batch, sequence]",
+      ...rope,
     }, { input: dims.attentionQuery, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {
+    operatorSpec(`${prefix}.scores`, scoresName, "matmul", {
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
       formula: "S = Q K^T / sqrt(d)",
-      explanation: "用旋转后的 Q 与 K^T 计算注意力分数。",
-      inputs: ["Q", "K"],
-      outputs: ["S"],
-      attention_kind: attentionKind,
-      query_shape: shapes.attentionQuery,
-      key_shape: shapes.attentionKey,
+      ...scores,
     }, { input: dims.attentionQuery, output: dims.attentionScores }),
-    operatorSpec(
-      `${prefix}.softmax`,
-      "attention probabilities",
-      "softmax",
-      shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities },
-    ),
+    operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }),
     operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
       ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
       formula: "O = P V",
-      explanation: "用注意力概率 P 对 V 做加权聚合。",
-      inputs: ["probabilities", "V"],
-      outputs: ["O"],
-      probabilities_shape: shapes.attentionProbabilities,
-      value_shape: shapes.attentionValue,
+      ...context,
     }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
+    ...preOutput,
     operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
 
+export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
+  const { shapes, dims } = shapesAndDims(normalized);
+  return [
+    operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.k_proj`, "k projection", "linear", shapeFlow(shapes.hidden, shapes.attentionKey), { input: dims.hidden, output: dims.attentionKey }),
+    operatorSpec(`${prefix}.v_proj`, "v projection", "linear", shapeFlow(shapes.hidden, shapes.attentionValue), { input: dims.hidden, output: dims.attentionValue }),
+    ...scaledDotProductTail(prefix, shapes, dims, {
+      rope: {
+        query_shape: shapes.attentionQuery,
+        key_shape: shapes.attentionKey,
+        position_shape: "[batch, sequence]",
+      },
+      scores: {
+        explanation: "用旋转后的 Q 与 K^T 计算注意力分数。",
+        inputs: ["Q", "K"],
+        outputs: ["S"],
+        attention_kind: attentionKind,
+        query_shape: shapes.attentionQuery,
+        key_shape: shapes.attentionKey,
+      },
+      context: {
+        explanation: "用注意力概率 P 对 V 做加权聚合。",
+        inputs: ["probabilities", "V"],
+        outputs: ["O"],
+        probabilities_shape: shapes.attentionProbabilities,
+        value_shape: shapes.attentionValue,
+      },
+    }),
+  ];
+}
+
+// KDA 各模型变体的 linearAttentionMode 值即 canonicalKdaOperatorSpecs 的 modelKind
+const KDA_LINEAR_MODES = new Set(["kimi_k3", "kimi", "glm5_next", "qwen4_exp", "qwen3_5"]);
+
 export function linearAttentionOperatorSpecs(prefix, normalized) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
-  if (normalized.linearAttentionMode === "kimi_k3") {
-    return canonicalKdaOperatorSpecs(prefix, normalized, "kimi_k3");
-  }
-  if (normalized.linearAttentionMode === "kimi") {
-    return canonicalKdaOperatorSpecs(prefix, normalized, "kimi");
-  }
-  if (normalized.linearAttentionMode === "glm5_next") {
-    return canonicalKdaOperatorSpecs(prefix, normalized, "glm5_next");
-  }
-  if (normalized.linearAttentionMode === "qwen4_exp") {
-    return canonicalKdaOperatorSpecs(prefix, normalized, "qwen4_exp");
-  }
-  if (normalized.linearAttentionMode === "qwen3_5") {
-    return canonicalKdaOperatorSpecs(prefix, normalized, "qwen3_5");
+  const { shapes, dims } = shapesAndDims(normalized);
+  if (KDA_LINEAR_MODES.has(normalized.linearAttentionMode)) {
+    return canonicalKdaOperatorSpecs(prefix, normalized, normalized.linearAttentionMode);
   }
   return [
     operatorSpec(`${prefix}.in_proj_qkv`, "linear attention qkv projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
@@ -104,8 +115,7 @@ export function linearAttentionOperatorSpecs(prefix, normalized) {
 // KDA is one semantic structure. Framework-specific fused projections remain
 // in attributes so vLLM/SGLang implementation details do not duplicate nodes.
 function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const keyHeads = normalized.linearKeyHeads || normalized.attentionHeads || 0;
   const valueHeads = normalized.linearValueHeads || normalized.attentionHeads || keyHeads;
   const keyDim = normalized.linearKeyDim || normalized.headDim || 0;
@@ -234,8 +244,7 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
 }
 
 export function qwen35FullAttentionOperatorSpecs(prefix, normalized) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const qProjection = (normalized.attentionHeads || 0) * (normalized.headDim || 0);
   const kvProjection = (normalized.kvHeads || normalized.attentionHeads || 0) * (normalized.headDim || 0);
   const fusedWidth = 2 * qProjection + 2 * kvProjection;
@@ -257,33 +266,21 @@ export function qwen35FullAttentionOperatorSpecs(prefix, normalized) {
     }, { input: qkvDims, output: [-1, -1, qProjection] }),
     operatorSpec(`${prefix}.q_norm`, "Q attention Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(qShape, qShape), { input: dims.attentionQuery, output: dims.attentionQuery }),
     operatorSpec(`${prefix}.k_norm`, "K attention Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(kShape, kShape), { input: dims.attentionKey, output: dims.attentionKey }),
-    operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
-      ...shapeFlow(`${qShape}, ${kShape}`, `${qShape}, ${kShape}`),
-      partial_rotary_factor: normalized.partialRotaryFactor,
-    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {
-      ...shapeFlow(`${qShape}, ${kShape}`, shapes.attentionScores),
-      formula: "S = Q K^T / sqrt(d)",
-      attention_kind: "qwen35_full",
-    }, { input: dims.attentionQuery, output: dims.attentionScores }),
-    operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }),
-    operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
-      ...shapeFlow(`${shapes.attentionProbabilities}, ${vShape}`, shapes.attentionContext),
-      formula: "O = P V",
-      attention_kind: "qwen35_full",
-    }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.output_gate`, "attention output gate", "attention_output_gate", {
-      ...shapeFlow(`${shapes.attentionContext}, ${gateShape}`, shapes.attentionContext),
-      activation: normalized.attentionOutputGate ? "sigmoid" : "none",
-      implementation: ["vLLM.fused_sigmoid_mul", "SGLang.fused_sigmoid_mul"],
-    }, { input: dims.attentionContext, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
+    ...scaledDotProductTail(prefix, shapes, dims, {
+      rope: { partial_rotary_factor: normalized.partialRotaryFactor },
+      scores: { attention_kind: "qwen35_full" },
+      context: { attention_kind: "qwen35_full" },
+      preOutput: [operatorSpec(`${prefix}.output_gate`, "attention output gate", "attention_output_gate", {
+        ...shapeFlow(`${shapes.attentionContext}, ${gateShape}`, shapes.attentionContext),
+        activation: normalized.attentionOutputGate ? "sigmoid" : "none",
+        implementation: ["vLLM.fused_sigmoid_mul", "SGLang.fused_sigmoid_mul"],
+      }, { input: dims.attentionContext, output: dims.attentionContext })],
+    }),
   ];
 }
 
 export function mlaAttentionOperatorSpecs(prefix, normalized) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const specs = [];
   if (normalized.qLoraRank != null) {
     specs.push(operatorSpec(`${prefix}.q_a_proj`, "query down projection", "mla_query_compress", shapeFlow(shapes.hidden, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: dims.hidden, output: [-1, -1, normalized.qLoraRank] }));
@@ -299,26 +296,20 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
   }, { input: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)], output: [-1, -1, normalized.kvLoraRank] }));
   specs.push(operatorSpec(`${prefix}.kv_a_norm`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`), { input: [-1, -1, normalized.kvLoraRank], output: [-1, -1, normalized.kvLoraRank] }));
   specs.push(operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `${shapes.attentionKey}, ${shapes.attentionValue}`), { input: [-1, -1, normalized.kvLoraRank], output: dims.attentionKey }));
-  specs.push(operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
-    ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
-    query_shape: shapes.attentionQuery,
-    key_shape: shapes.attentionKey,
-  }, { input: dims.attentionQuery, output: dims.attentionQuery }));
-  specs.push(operatorSpec(`${prefix}.scores`, "latent attention scores", "matmul", {
-    ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
-    formula: "S = Q K^T / sqrt(d_rope)",
-    attention_kind: "mla",
-  }, { input: dims.attentionQuery, output: dims.attentionScores }));
-  specs.push(operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }));
-  specs.push(operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
-    ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
-    formula: "O = P V",
-    attention_kind: "mla",
-  }, { input: dims.attentionProbabilities, output: dims.attentionContext }));
-  if (normalized.mlaUseOutputGate) {
-    specs.push(operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext }));
-  }
-  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }));
+  specs.push(...scaledDotProductTail(prefix, shapes, dims, {
+    rope: {
+      query_shape: shapes.attentionQuery,
+      key_shape: shapes.attentionKey,
+    },
+    scoresName: "latent attention scores",
+    scores: {
+      formula: "S = Q K^T / sqrt(d_rope)",
+      attention_kind: "mla",
+    },
+    context: { attention_kind: "mla" },    preOutput: normalized.mlaUseOutputGate
+      ? [operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext })]
+      : [],
+  }));
   return specs;
 }
 
@@ -445,8 +436,7 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
   if (["deepseek_v32", "glm_moe_dsa"].includes(normalized.modelType)) {
     return dsaAttentionOperatorSpecs(prefix, normalized, layerIndex);
   }
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const indexerHeads = normalized.indexerNHeads || 0;
   const indexerKVHeads = normalized.indexerKVHeads || 0;
   const indexerDim = normalized.indexerHeadDim || 0;
@@ -478,8 +468,7 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
 }
 
 function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const heads = normalized.attentionHeads || 0;
   const kvHeads = normalized.kvHeads || heads;
   const headDim = normalized.headDim || 0;
@@ -508,14 +497,14 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
     }, { input: [-1, -1, fusedWidth], output: [-1, -1, qProjection] }),
     operatorSpec(`${prefix}.q_norm`, "Q Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), { input: dims.attentionQuery, output: dims.attentionQuery }),
     operatorSpec(`${prefix}.k_norm`, "K Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), { input: dims.attentionKey, output: dims.attentionKey }),
-    operatorSpec(`${prefix}.rope`, "partial rotary position embedding", "rope", {
-      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
-      partial_rotary_factor: normalized.partialRotaryFactor,
-      implementation: ["vLLM.MiniMaxM3Attention.rotary_emb", "SGLang.MiniMaxM3Attention.rotary_emb"],
-    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
   ];
   if (sparse) {
     specs.push(
+      operatorSpec(`${prefix}.rope`, "partial rotary position embedding", "rope", {
+        ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
+        partial_rotary_factor: normalized.partialRotaryFactor,
+        implementation: ["vLLM.MiniMaxM3Attention.rotary_emb", "SGLang.MiniMaxM3Attention.rotary_emb"],
+      }, { input: dims.attentionQuery, output: dims.attentionQuery }),
       operatorSpec(`${prefix}.index_q_norm`, "index Q Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(indexShape, indexShape), { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
       operatorSpec(`${prefix}.index_k_norm`, "index K Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(indexShape, indexShape), { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
       operatorSpec(`${prefix}.index_rope`, "index partial rotary position embedding", "rope", {
@@ -545,20 +534,16 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         implementation: ["vLLM.MiniMaxM3SparseImpl", "SGLang.minimax_sparse_backend"],
       }, { input: dims.attentionQuery, output: dims.attentionContext }),
     );
+    specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }));
   } else {
-    specs.push(
-      operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {
-        ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
-        formula: "S = Q K^T / sqrt(d)",
-      }, { input: dims.attentionQuery, output: dims.attentionScores }),
-      operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }),
-      operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
-      ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
-      formula: "O = P V",
-      }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
-    );
+    specs.push(...scaledDotProductTail(prefix, shapes, dims, {
+      ropeName: "partial rotary position embedding",
+      rope: {
+        partial_rotary_factor: normalized.partialRotaryFactor,
+        implementation: ["vLLM.MiniMaxM3Attention.rotary_emb", "SGLang.MiniMaxM3Attention.rotary_emb"],
+      },
+    }));
   }
-  specs.push(operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }));
   return specs;
 }
 
@@ -571,8 +556,7 @@ export function minimaxSparseAttentionOperatorSpecs(prefix, normalized, layerInd
 }
 
 export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant = "minimax_m2") {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const qProjection = (normalized.attentionHeads || 0) * (normalized.headDim || 0);
   const kvProjection = (normalized.kvHeads || normalized.attentionHeads || 0) * (normalized.headDim || 0);
   const fusedWidth = qProjection + 2 * kvProjection;
@@ -606,28 +590,19 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant
         ? ["vLLM.Glm4MoeAttention.k_norm", "SGLang.Glm4MoeAttention.k_norm"]
         : ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
     }),
-    operatorSpec(`${prefix}.rope`, "partial rotary position embedding", "rope", {
-      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
-      rotary_dim: normalized.rotaryDim,
-      partial_rotary_factor: normalized.partialRotaryFactor,
-    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.scores`, "attention scores", "matmul", {
-      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
-      formula: "S = Q K^T / sqrt(d)",
-    }, { input: dims.attentionQuery, output: dims.attentionScores }),
-    operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }),
-    operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
-      ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
-      formula: "O = P V",
-    }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
+    ...scaledDotProductTail(prefix, shapes, dims, {
+      ropeName: "partial rotary position embedding",
+      rope: {
+        rotary_dim: normalized.rotaryDim,
+        partial_rotary_factor: normalized.partialRotaryFactor,
+      },
+    }),
   ];
 }
 
 // DeepSeek V3.2/GLM DSA 共用一份 MLA + indexer 语义；vLLM/SGLang 的融合方式只记录在 implementation。
 function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const heads = normalized.attentionHeads || 0;
   const qRank = normalized.qLoraRank || 0;
   const kvRank = normalized.kvLoraRank || 0;
@@ -714,8 +689,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
 }
 
 export function mlpOperatorSpecs(prefix, normalized) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   return [
     operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }),
     operatorSpec(`${prefix}.up_proj`, "up projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }),
@@ -733,8 +707,7 @@ export function mlpOperatorSpecs(prefix, normalized) {
 }
 
 export function moeOperatorSpecs(prefix, normalized) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const isMiniMaxRouter = ["minimax_m2", "minimax_m3_vl", "glm4_moe"].includes(normalized.modelType);
   return [
     operatorSpec(`${prefix}.router`, "router logits", "linear", {
@@ -774,8 +747,7 @@ export function moeOperatorSpecs(prefix, normalized) {
 
 // DeepSeek V4 的 hash 层和普通 MoE 共用同一 routed/shared expert 语义；差异只在路由节点。
 export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const specs = isHashMoe
     ? [operatorSpec(`${prefix}.hash_router`, "input-id hash expert routing", "dsv4_hash_route", {
       ...shapeFlow("[batch, sequence] input_ids", shapes.topExperts),
@@ -824,8 +796,7 @@ export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false
 }
 
 export function kimiK3MoeOperatorSpecs(prefix, normalized) {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
+  const { shapes, dims } = shapesAndDims(normalized);
   const latent = normalized.routedExpertHiddenSize;
   const latentShape = `[tokens_per_expert, routed expert hidden size=${latent}]`;
   const latentDims = [-1, latent];

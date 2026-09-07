@@ -173,9 +173,9 @@ test("复合节点：mla_query_compress = 两段 linear + 一段 rmsnorm", () =>
     norm: { tokens: 2, hidden: 16, bytesPerElement: B },
     qb: { logicalShape: [32, 16], tokens: 2, bytesPerElement: B },
   });
-  assert.equal(c.matrix, 2 * 16 * 32 + 2 * 32 * 16);
+  assert.equal(c.matrix, 2 * 16 * 32); // 仅 q_a；q_b 由独立叶计
   assert.equal(c.vector, 4 * 2 * 16); // rmsnorm 部分（A5：4 flop/元素）
-  assert.equal(c.bytes.weights, (16 * 32 + 16 + 32 * 16) * B);
+  assert.equal(c.bytes.weights, (16 * 32 + 16) * B);
 });
 
 test("注册表完整性：42 个条目全部终止于 counts（无白名单，§3.1）", () => {

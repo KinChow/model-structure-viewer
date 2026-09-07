@@ -216,7 +216,8 @@ export const FORMULAS = {
     explanation: "将 query 压缩到低秩 latent 后恢复多头 query。",
     inputs: ["x", "W_qa", "W_qb"],
     outputs: ["q"],
-    counts: (ctx) => sumCounts(linearCounts(ctx.qa), rmsnormCounts(ctx.norm), linearCounts(ctx.qb)),
+    // q_b 由独立 q_b_proj 叶计；组合含 qb 会与叶双计（2026-09-07 审计）
+    counts: (ctx) => sumCounts(linearCounts(ctx.qa), rmsnormCounts(ctx.norm)),
   },
   mla_kv_compress: {
     title: "MLA KV Compression",

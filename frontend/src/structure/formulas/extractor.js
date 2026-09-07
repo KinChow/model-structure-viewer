@@ -423,9 +423,10 @@ export function countsForNode(node, env = {}) {
       const H = config?.hiddenSize || 0;
       const ctxBuilders = {
         mla_query_compress: () => ({
+          // 仅 q_a + norm：q_b 由独立 q_b_proj 叶计（组合里含 qb 会与叶双计，
+          // 2026-09-07 审计发现 Kimi/GLM 各 +19M/+25M 参数每层）
           qa: { logicalShape: [config?.qLoraRank || 0, H], tokens, bytesPerElement },
           norm: { tokens, hidden: config?.qLoraRank || 0, bytesPerElement },
-          qb: { logicalShape: [(config?.attentionHeads || 0) * (config?.headDim || 0), config?.qLoraRank || 0], tokens, bytesPerElement },
         }),
         mla_kv_compress: () => ({
           proj: { logicalShape: [(config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0), H], tokens, bytesPerElement },

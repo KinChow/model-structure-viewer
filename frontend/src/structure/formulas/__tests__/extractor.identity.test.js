@@ -76,7 +76,7 @@ test("T4 整模型恒等式：dense 全过，MoE 报告校准中", async () => {
     for (let i = 0; i < (normalized.layers || 0); i++) {
       const kind = schedule[i] || "gqa";
       if (kind === "linear") continue;
-      scoreMatmulParams += 2 * (normalized.attentionHeads || 0) * T * (normalized.headDim || 0); // T·S，prefill S≈T
+      scoreMatmulParams += 2 * 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0); // scores+context 两个 matmul，各 heads·T·S·D
     }
     const expected = nEff * T + scoreMatmulParams;
     const ratio = expected > 0 ? totalMatrix / expected : null;

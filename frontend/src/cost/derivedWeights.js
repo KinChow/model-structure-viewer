@@ -19,7 +19,10 @@ export function derivedWeightParameters(config = {}) {
   const norms = config.hyperConnectionCount ? 0 : 2 * hidden;
   let decoder = 0;
   for (let i = 0; i < layers; i++) {
-    const attentionKind = config.attentionSchedule?.[i] || "gqa";
+    // MLA 模型（qLoraRank+kvLoraRank）在无显式 schedule 时按 MLA 计
+    // （kimi_k2/deepseek 系无 layer_types，schedule undefined → 曾误按 gqa 计 attention）
+    const attentionKind = config.attentionSchedule?.[i]
+      || (config.qLoraRank && config.kvLoraRank ? "mla" : "gqa");
     let attentionParameters = attention;
     if (attentionKind === "linear") {
       attentionParameters = config.linearAttentionMode === "glm5_next"
@@ -45,7 +48,8 @@ export function derivedWeightParameters(config = {}) {
       attentionParameters = hidden * config.qLoraRank
         + config.qLoraRank * heads * qDim
         + hidden * (config.kvLoraRank + ropeDim)
-        + config.kvLoraRank * (heads * nopeDim + vDim * (config.kvHeads || heads));
+        + config.kvLoraRank * (heads * nopeDim + vDim * (config.kvHeads || heads))
+        + hidden * heads * vDim; // o_proj（2026-09-07 补：原分支遗漏）
     }
     const mhcParameters = config.multiHyperConnection ? mhcLayerParameters(config) : 0;
     const hcParameters = config.hyperConnectionCount ? hyperConnectionLayerParameters(config) : 0;

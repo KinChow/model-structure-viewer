@@ -248,24 +248,35 @@ weight 无逻辑形状），沿用旧链的诚实语义。
 - **T1** extractor 骨架 + 线性族 → 旧链差分（linear 子集先行）✅
 - **T2** attention 族（scores/context 模式匹配 + 融合变体 + kvHeads 映射表）✅
 - **T3** elementwise 与其余 + 复合节点（逐条核对 attributes）✅
-- **T4** 整模型恒等式 ✅（2026-09-07 收敛）：
-  - 目录构成：37 vision（恒等式 v2 再覆盖）+ 21 MoE + 1 MoE；**无纯 dense**，dense 覆盖由合成配置承担（ratio=0.9993）；
-  - 全部 21 个 MoE 行 |ratio-1| ≤ 3.2%（Kimi 0.9890、R1/V3.1 0.9812、GLM-5.x 0.9970–1.0030、Qwen3.8 1.0036）；
-  - 测试断言收紧为全模型容差 2%，仅 V4-Flash 对放宽 3.5%（已归因：dsa 稀疏注意力期望侧近似 S=T，counts 侧按 indexerBudget，期望被高估）；
-  - 校准过程中修复：routed swiglu 按 k 而非 k/E 计数、qb 重复计费、derived MLA 调度回退、sharedExpertIntermediateSize 通用 MoE 回退。
+- **T4** 整模型恒等式 ✅（2026-09-08 二次收敛）：
+  - 目录构成：37 vision（恒等式 v2 再覆盖）+ 22 MoE；**无纯 dense**，dense 字段组合
+    由 T4b 合成变体覆盖（GQA untied / tied embeddings / headDim 推导 / MoE+shared+tied，
+    **四个变体全部 ratio=1.0000 精确闭合**）；
+  - 21 个目录 MoE 行 |ratio-1| ≤ 1.7%；MiniMax-M2.7 与 GLM-4.7 精确闭合（1.0000）；
+    测试断言为全模型统一 2% 容差（V4-Flash 已进入默认容差，特例移除）；
+  - 校准过程中修复（详见 refactor_plan.md W1 问题实录）：routed swiglu 按 k 而非 k/E、
+    qb 重复计费、derived MLA 调度回退、sharedExpertIntermediateSize 通用回退（含
+    kimi_k3 fused 语义）、期望侧 score 项 2× 双计、normsTerm 层数、generic-decoder 缺尾。
 - **T5** 旧链差分全量 + 漏算清单产出 → 差分测试已常驻（T1-T3 各建 diff 测试，
   226/442 等已知差异均已归因）；旧链删除在 W5，漏算清单作为 W5 切换的价值证明随删随出。
 
-已登记的恒等式残差（R1 逐项对账审计，2026-09-08，合计 ≈1% ratio 偏差）：
+已登记的恒等式残差（R1 逐项对账审计，2026-09-08）：
 
 - **counts 侧 kv_b 宽度**：extractor 用 `attentionKey=[kvHeads, headDim]`（192），
   MLA 真值 kv_b 输出宽 = qk_nope + v_head_dim（128+128=256）；R1 上 −4.194M/层 ×61
   = −255.9M/token，Kimi 同类（kv_b [64,192]→[64,256]）。修复点在 `model_executor/dims.js`
   MLA 分支（对照 `ops/index.js:673` DSA 变体的正确写法），与 W3a/W3b dims 收口同批。
-- **测试期望侧 score 项**：按 `2·heads·T·headDim` 估，counts 实际为
-  scores 3.146M + context 2.097M/层（MLA latent 宽 576），+64.0M/token。
-  归 identity 测试自身近似，随上一条一起修。
+- ~~测试期望侧 score 项~~ ✅ 已修（2026-09-08）：期望侧每层写成了
+  `2·2·heads·T²·D`（双计），真值 = scores + context 各 `heads·T·S·D`，合计
+  `2·heads·T²·D`。修复后目录模型整体收紧 ~0.5-1.7%，V4-Flash 进入默认容差。
+- **未归因正向残差 ≈+0.5%**：GLM-5/5.1（1.0050）、Qwen3.8（1.0047）counts 侧略高于
+  期望侧，方向与 kv_b 缺口相反，不随该修复消失；量级无害，登记待归因。
 - 设计备忘：若残差再扩大，可考虑"期望侧改为同一 IR 的叶子权重清单 × 1 MAC"——
   代价是恒等式从独立 oracle 退化为对账自检（会漏两侧同错的系统性误解）。
+  成熟方案调研结论（2026-09-08）：PyTorch `test_flop_counter.py`/fvcore 同样以
+  per-op golden + 独立端到端真值为准；定位困难靠**层级分解报告**（fvcore 的
+  module 级 breakdown）解决而非削弱 oracle；Megatron-LM 混合 MoE FLOPs 计数曾静默
+  出错 57.5%（arXiv 2605.20799），业界确认"手工公式随模型演化静默失效"是常态，
+  两侧对账 + 外部真值是主流做法。
 - **验收**：identity 通过（容差仅限已登记建模边界）✅；差分：旧链>0 节点全等 ✅；
   §10 的 §3.1 条目清账 → counts 侧已全量动作向量，剩余是 `compute.js` 旧分派链（W5 删除）。

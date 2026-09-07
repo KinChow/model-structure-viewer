@@ -196,6 +196,27 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 参考 PyTorch `torch/utils/flop_counter.py` 的 `flop_registry`：一个 op 一个注册点，
 公式入参是 shape，未注册的 op 先尝试分解、再记 0，且该语义写在 docstring 里。
 
+> **状态（2026-09-08 收口）**：✅ 完成。42 条目（6 死条目删除）全部终止于 counts；
+> 三层 golden 齐备。恒等式终态：21 个目录 MoE 行 |ratio-1|≤1.7%（两模型精确闭合），
+> 4 个合成 dense/MoE 变体 ratio=1.0000 精确闭合；统一 2% 容差无特例。
+>
+> **W1 问题实录**（校准期间咬出的真 bug，按发现顺序）：
+> 1. routed swiglu 按 k/E 计数 → 应按 k（被选中专家完整执行）；
+> 2. shared expert 中间维列表式回退两次漏模型（deepseek_v3、glm_moe_dsa）→ 通用化；
+> 3. 通用化又漏 kimi_k3 fused 语义（模块宽 = moeI×n_shared，非 fused 才是单专家宽）；
+> 4. `mla_query_compress` 复合含 qb + 独立 q_b 叶子重复计费；
+> 5. derived 在无 attentionSchedule 时 MLA 误按 GQA 计 attention；
+> 6. 期望侧 score 项 2× 双计（`2·2·heads·T²·D` → `2·heads·T²·D`）；
+> 7. identity 的 normsTerm 只减一层 norm 权重（→ `2·L+1` 层）；
+> 8. `generic-decoder` 结构缺 embed/final norm/lm_head——llama 不在 59 目录内，
+>    目录校验从未覆盖；由合成 llama 变体暴露；
+> 9. identity 测试自身两处（walk 的 repeat 乘子误读、score 项 T 双计）。
+>
+> **教训**：① 目录没有纯 dense 模型，dense 字段组合只能靠合成变体覆盖——合成配置
+> 是恒等式的第二覆盖面，不是可选项；② 期望侧与 counts 侧是两本手工账，新架构常
+> 只破坏其中一项（k/E、shared、fused 各坏一边），两侧对账 + 外部真值（官方参数量）
+> 是唯一能同时抓住两类的手段，与业界实践一致（PyTorch/fvcore/Megatron 同构）。
+
 ---
 
 ## W2 ops：消除注意力尾链复制

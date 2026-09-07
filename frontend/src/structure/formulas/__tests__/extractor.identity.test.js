@@ -17,12 +17,13 @@ import { childRepeatMultiplier } from "../../../cost/traverse.js";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const T = 128;
 
-// 校准状态（2026-09-07 收敛）：目录内无纯 dense 模型（37 vision + 21 MoE + 1 MoE），
-// dense 覆盖由 T4b 合成配置承担；全部 21 个 MoE 行 |ratio-1| <= 3.2%。
-// 容差 2% 起步；仅 V4-Flash 对（dsa 稀疏注意力）放宽到 3.5%——已归因：
-// 期望侧 score matmul 近似 S=T，counts 侧按 indexerBudget（S<T），期望被高估。
+// 校准状态（2026-09-08 二次收敛）：score 项 2× 双计修复 + normsTerm 修层后，
+// 全部 21 个 MoE 行 |ratio-1| <= 1.7%，MiniMax-M2.7 / GLM-4.7 精确闭合。
+// dense 字段组合由 T4b 合成变体覆盖（GQA/tied/headDim 推导/MoE+shared，全部精确闭合）。
+// 残差归因：V4-Flash ≈-1.7%（dsa 期望侧近似 S=T，counts 侧按 indexerBudget）；
+// GLM-5/Qwen3.8 ≈+0.5% 正向残差未完全归因（登记于 cost_counts.md）。
 const TOLERANCE = 0.02;
-const REGISTERED = { "deepseek-ai/DeepSeek-V4-Flash": 0.035, "deepseek-ai/DeepSeek-V4-Flash-0731": 0.035 };
+const REGISTERED = {};
 test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建模边界）", async () => {
   const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models/catalog.json"), "utf8"));
   const rows = [];
@@ -58,7 +59,9 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
     unknownTotal += unknown;
 
     const hidden = normalized.hiddenSize || 0;
-    const normsTerm = normalized.hyperConnectionCount ? 0 : 2 * hidden;
+    // derived 每层计 2·hidden 的 norm 权重，末尾再 +hidden（final norm）；
+    // hyper-connection 模型的 norm 权重并入 mixer，不单列
+    const normsTerm = normalized.hyperConnectionCount ? 0 : (2 * (normalized.layers || 0) + 1) * hidden;
     const embeddingTerm = (normalized.vocabSize || 0) * hidden;
     const total = derivedWeightParameters(normalized);
     // MoE：derived 的 routed 参数是全部专家；每 token 只激活 k/E →
@@ -78,7 +81,8 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
     for (let i = 0; i < (normalized.layers || 0); i++) {
       const kind = schedule[i] || "gqa";
       if (kind === "linear") continue;
-      scoreMatmulParams += 2 * 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0); // scores+context 两个 matmul，各 heads·T·S·D
+      // scores(QK^T) + context(PV) 各 heads·T·S·D，每层合计 2·heads·T·S·D（曾误写 2·2 双计）
+      scoreMatmulParams += 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0);
     }
     const expected = nEff * T + scoreMatmulParams;
     const ratio = expected > 0 ? totalMatrix / expected : null;
@@ -95,17 +99,15 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
   assert.deepEqual(bad.map((r) => r.model), [], "恒等式超差须先归因：要么修 counts/derived，要么登记为建模边界并写入 REGISTERED");
 });
 
-test("T4b 合成 dense 恒等式：小配置精确对账", () => {
-  const config = {
-    model_type: "qwen3", architectures: ["Qwen3ForCausalLM"],
-    hidden_size: 256, num_hidden_layers: 4, num_attention_heads: 8,
-    num_key_value_heads: 4, head_dim: 32, intermediate_size: 512,
-    vocab_size: 1000, tie_word_embeddings: false,
-  };
+// T4b：合成配置精确对账。目录内无纯 dense 模型（见 T4 注），dense 字段组合
+// 由合成变体覆盖：GQA、tied embeddings、headDim 推导、MoE+shared。
+// 恒等式仍是独立 oracle：期望侧按 derived 口径重写，不读 counts 实现。
+function syntheticIdentity(name, config, { tie = false, moe = false } = {}) {
   const normalized = normalizeConfig(config);
-  const structure = buildStructureFromConfig(config, { modelId: "synthetic-dense", source: "identity-test" });
   const T = 64;
-  let totalMatrix = 0; let unknown = 0;
+  const structure = buildStructureFromConfig(config, { modelId: name, source: "identity-test" });
+  let totalMatrix = 0;
+  let unknown = 0;
   const stack = [{ node: structure.root, multiplier: 1 }];
   while (stack.length > 0) {
     const { node, multiplier } = stack.pop();
@@ -121,14 +123,66 @@ test("T4b 合成 dense 恒等式：小配置精确对账", () => {
     totalMatrix += fresh.matrix * multiplier;
   }
   const hidden = normalized.hiddenSize;
-  const normsTerm = 2 * hidden;
+  // derived：每层 2·hidden norm 权重 + 末尾 final norm hidden
+  const normsTerm = (2 * (normalized.layers || 0) + 1) * hidden;
   const embeddingTerm = (normalized.vocabSize || 0) * hidden;
   const total = derivedWeightParameters(normalized);
-  const nEff = total - embeddingTerm - normsTerm; // untied：lm_head 已计入且参与矩阵乘
-  const scoreMatmulParams = 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0) * 4; // 4 层打分式，T·S
+  let nEff = total - embeddingTerm - normsTerm + (tie ? embeddingTerm : 0); // untied：lm_head 已计入且参与矩阵乘
+  if (moe) {
+    // 与 T4 期望侧同口径：routed 参数全部计入 derived，每 token 只激活 k/E
+    const moeI = normalized.moeIntermediateSize || normalized.intermediateSize;
+    const routedN = (normalized.layers || 0) * (normalized.experts || 0) * 3 * hidden * moeI;
+    const kOverE = (normalized.expertsPerToken || 0) / (normalized.experts || 1);
+    nEff = nEff - routedN + routedN * kOverE;
+  }
+  const layers = normalized.layers || 0;
+  // scores(QK^T) + context(PV) 各 heads·T·S·D，每层合计 2·heads·T·S·D（prefill S≈T）
+  const scoreMatmulParams = layers * 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0);
   const expected = nEff * T + scoreMatmulParams;
   const ratio = totalMatrix / expected;
-  console.error(`synthetic dense: counts=${totalMatrix} expected=${expected} ratio=${ratio.toFixed(4)} unknown=${unknown}`);
-  assert.equal(unknown, 0, "合成 dense 不应有 unknown 叶子");
-  assert.ok(Math.abs(ratio - 1) < 0.02, `合成 dense 恒等式失败: ratio=${ratio.toFixed(4)}`);
+  console.error(`${name}: counts=${totalMatrix} expected=${expected} ratio=${ratio.toFixed(4)} unknown=${unknown}`);
+  assert.equal(unknown, 0, `${name} 不应有 unknown 叶子`);
+  assert.ok(Math.abs(ratio - 1) < 0.02, `${name} 恒等式失败: ratio=${ratio.toFixed(4)}`);
+}
+
+test("T4b 合成 dense 恒等式：GQA untied 基线", () => {
+  syntheticIdentity("synthetic-dense-gqa", {
+    model_type: "qwen3", architectures: ["Qwen3ForCausalLM"],
+    hidden_size: 256, num_hidden_layers: 4, num_attention_heads: 8,
+    num_key_value_heads: 4, head_dim: 32, intermediate_size: 512,
+    vocab_size: 1000, tie_word_embeddings: false,
+  });
+});
+
+test("T4b 合成 dense 恒等式：tied embeddings", () => {
+  // tie 后 lm_head 与 embedding 共享权重；derived 不再单计 lm_head，
+  // 但 lm_head matmul 真实发生 → 期望侧加回 embeddingTerm
+  syntheticIdentity("synthetic-dense-tied", {
+    model_type: "qwen3", architectures: ["Qwen3ForCausalLM"],
+    hidden_size: 256, num_hidden_layers: 4, num_attention_heads: 8,
+    num_key_value_heads: 4, head_dim: 32, intermediate_size: 512,
+    vocab_size: 1000, tie_word_embeddings: true,
+  }, { tie: true });
+});
+
+test("T4b 合成 dense 恒等式：headDim 由 hidden/heads 推导", () => {
+  // 无 head_dim 字段：真实 dense 模型常见形态（llama 系），headDim=256/8=32
+  syntheticIdentity("synthetic-dense-derived-dim", {
+    model_type: "llama", architectures: ["LlamaForCausalLM"],
+    hidden_size: 256, num_hidden_layers: 4, num_attention_heads: 8,
+    num_key_value_heads: 2, intermediate_size: 512,
+    vocab_size: 1000, tie_word_embeddings: false,
+  });
+});
+
+test("T4b 合成 MoE 恒等式：routed k/E 缩放 + shared expert", () => {
+  // MoE 小配置：routed 每 token 只算 k/E，shared expert 每 token 全算，
+  // sharedI 无显式字段 → normalize 回退 moeI（与 R1/GLM-5.x 收敛结论一致）
+  syntheticIdentity("synthetic-moe-shared-tied", {
+    model_type: "qwen3_moe", architectures: ["Qwen3MoeForCausalLM"],
+    hidden_size: 128, num_hidden_layers: 2, num_attention_heads: 4,
+    num_key_value_heads: 2, head_dim: 32, moe_intermediate_size: 64,
+    num_experts: 8, num_experts_per_token: 2, num_shared_experts: 1,
+    intermediate_size: 128, vocab_size: 500, tie_word_embeddings: true,
+  }, { tie: true, moe: true });
 });

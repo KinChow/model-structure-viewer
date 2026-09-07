@@ -4,9 +4,6 @@
 import { kvBytesPerCard, stateBytesPerCard, validatePdPlan } from "./parallel.js";
 import { walkStructure } from "./traverse.js";
 
-function nonNegative(value, fallback = 0) {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
-}
 
 /**
  * Ring all-reduce 的每层通信字节数。
@@ -112,4 +109,3 @@ export function planCommunicationBytes({ root, graph, config = {}, plan = {}, ba
   return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes };
 }
 
-export { nonNegative };

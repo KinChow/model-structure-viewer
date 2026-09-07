@@ -98,7 +98,6 @@ export default function DetailWorkspace({
   chips,
   onAddChip,
   allCollapsiblePaths,
-  layersExpandedPaths,
   onToggleLayerPath,
   onExpandAllLayers,
   onCollapseAllLayers,

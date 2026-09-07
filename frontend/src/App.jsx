@@ -313,7 +313,6 @@ function App() {
             chips={chips}
             onAddChip={handleAddChip}
             allCollapsiblePaths={allCollapsiblePaths}
-            layersExpandedPaths={layersExpandedPaths}
             onToggleLayerPath={handleToggleLayerPath}
             onExpandAllLayers={handleExpandAllLayers}
             onCollapseAllLayers={handleCollapseAllLayers}

@@ -23,7 +23,6 @@ function staticWidth(shape) {
   // [tokens_per_expert, hidden] 的正数逻辑维度估算，因此只保留正维度。
   const dimensions = shape.filter((value) => Number.isFinite(value) && value > 0);
   if (dimensions.length === 0) return null;
-  if (dimensions.some((value) => !Number.isFinite(value) || value <= 0)) return null;
   return dimensions.reduce((total, value) => total * value, 1);
 }
 

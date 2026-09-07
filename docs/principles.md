@@ -256,10 +256,16 @@ config 推导，也不来自 checkpoint 自动推断。运行时**不做结构�
 **语义标准的层级**（2026-09-07 定）：
 
 1. **数学定义**——counts 的真正标准，与实现无关；
-2. **该模型的 modeling 文件**（版本锚定）——语义分解与执行顺序的规范参考实现：
-   库内模型用 transformers 副本（`models/<arch>/modeling_*.py`），remote-code 模型用
-   **随 checkpoint 自带的文件**（它本身就是定义）；`models/` 目录已 vendored 内置模型
-   的全部 modeling 文件，适配（agent 对照）离线可做；
+2. **该模型的 modeling 文件**（版本锚定）——语义分解与执行顺序的规范参考实现。
+   多数模型 checkpoint 里**没有** model.py，定义在库内，因此按**四级来源阶梯**取源
+   （与 §7 的 confidence 阶梯同构）：
+   - ① checkpoint 自带的 `modeling_*.py`（remote code）——随权重分发，天然自锚定；
+   - ② transformers 库内该架构的 `modeling_<arch>.py`——版本钉死，首选锚为
+     config.json 自带的 `transformers_version` 字段（catalog 可覆盖）；
+   - ③ 架构原始发布仓库的实现——仅当库未收录，标注仓库 + commit；
+   - ④ 都没有 → 未适配（§4.5），不出语义结构。
+   `models/` 目录已 vendored 内置模型的 modeling 文件（覆盖 ①），适配离线可做；
+   版本漂移的发现机制 = 旁路 B source_ref 再生的 diff 分级（class_name 变化即上游重构告警）。
 3. **vLLM / SGLang**——下游优化实现，只提供 `implementation` 属性与融合假设的来源
    （A2/A3），**不得作为语义标准**：融合把语义做没了，且两个引擎互相不一致。
 

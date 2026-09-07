@@ -17,6 +17,7 @@
 | A4 | 复合节点的分解假设（F9）逐条标注 | §3.1 分解声明 |
 | A5 | SFU 计数约定：sigmoid = 2（exp + rcp）、exp = 1、rsqrt = 1、div = 1；elementwise/vector 操作逐 flop 计 | 2026-09-07 统一口径 |
 | A6 | 线性注意力按 per-token 递推语义计（下界）；chunked kernel 的 chunk 内展开会多做 QK^T 项，不建模 | Gated DeltaNet arXiv 2412.06464 |
+| A7 | 融合算子（MegaMoE / fused gate+up / megakernel 等）按**语义分解**计数（matrix/vector/sfu 与融合无关）；bytes 按未融合口径（保守），融合收益记 attributes.implementation，不做流量折算 | TritonMoE arXiv 2605.23911（fused gate+up 省 35% 流量）；Megatron 2026 roadmap |
 
 记号：`T`=tokens（phase 决定），`H`=hidden，`D`=head_dim，`I`=intermediate，
 `S`=可见 key tokens，`E`=专家数，`k`=topk，`b`=每元素字节。
@@ -180,6 +181,9 @@ vision_position：vector = T·H_v（加法）；bytes = { 0, 2TH·b, TH·b }。
 | dsv4_compressed_attention | 计算+访存 | F2 | S=压缩长 |
 
 ## 结构级缺口（登记于 principles §10，不在 W1 修）
+
+量级备注（2026-09-07）：残差加法每层 2 次 × 3TH·b，60 层 H=8192 bf16 ≈ 6 MB/token，
+相对权重流量（GB 级）可忽略——暂缓是量化后的决定，不是遗漏。
 
 - **embedding gather 无算子节点**：查表流量 T·H·b 不可见（`embedding.js` 无 operator 子节点）。
 - **残差加法无算子节点**：decoder 层 `+x` 隐含在顺序边，每次 2TH·b 读 + TH·b 写不可见。

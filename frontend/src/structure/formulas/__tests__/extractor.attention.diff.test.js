@@ -18,6 +18,7 @@ test("attention 族差分：全部内置模型逐节点相等（vision 类为已
   const mismatches = [];
   const knownIssues = [];
   let checked = 0;
+  let sharedKnown = 0;
 
   for (const entry of catalog.models) {
     const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
@@ -43,6 +44,12 @@ test("attention 族差分：全部内置模型逐节点相等（vision 类为已
       if (bothZero) continue;
       if (oldMatrix == null && newMatrix == null) continue;
       if (oldMatrix !== newMatrix) {
+        if (/shared_experts/.test(row.node?.id || "")) {
+          // 双链已知 bug：shared_experts 被旧 ROUTED_EXPERT_RE 误按 k/E 缩放
+          // （shared 每 token 全跑，不稀疏）。extractor 已修，旧链 W5 修。
+          sharedKnown += 1;
+          continue;
+        }
         if (row.node?.attributes?.modality === "vision") {
           knownIssues.push(`${entry.model_id} ${row.path} (${operatorId || type}): old=${oldMatrix} new=${newMatrix}`);
           continue;
@@ -51,7 +58,7 @@ test("attention 族差分：全部内置模型逐节点相等（vision 类为已
       }
     }
   }
-  console.error(`checked=${checked} vision已知修正=${knownIssues.length}`);
+  console.error(`shared双链修正=${sharedKnown} checked=${checked} vision已知修正=${knownIssues.length}`);
   if (knownIssues.length > 0) console.error("vision 修正样例:\n" + knownIssues.slice(0, 4).join("\n"));
   if (mismatches.length > 0) console.error("未定性差分:\n" + mismatches.slice(0, 12).join("\n"));
   assert.ok(checked > 0, "attention 节点数为 0，测试无效");

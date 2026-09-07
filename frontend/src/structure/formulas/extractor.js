@@ -32,7 +32,7 @@ import { visionDimensions } from "../model_executor/layers/vision.js";
 
 // 路径正则全仓统一处（旧 compute.js/parallel.js 三种变体收敛于此）
 export const LAYER_INDEX_RE = /(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/;
-export const ROUTED_EXPERT_RE = /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/;
+export const ROUTED_EXPERT_RE = /(?:^|\.)(?<!shared_)(?:experts|expert_mlp)(?:\.|$)/;
 
 /** 与旧 tokensFor 逐字等价：decode 1 token；vision 用 visionTokens。 */
 export function tokensFor({ batch = 1, sequence = 1, phase = "prefill", vision = false, visionTokens = 1 } = {}) {

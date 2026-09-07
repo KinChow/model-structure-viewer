@@ -32,6 +32,7 @@ test("T3 差分：elementwise/MoE/递推/复合 分类清晰", async () => {
   const knownProjection = [];
   const uncounted = new Map(); // operatorId → 漏算节点数（旧链 0，新链 > 0）
   let checked = 0;
+  let sharedKnown = 0;
   let knownVision = 0;
 
   for (const entry of catalog.models) {
@@ -71,7 +72,7 @@ test("T3 差分：elementwise/MoE/递推/复合 分类清晰", async () => {
       mismatches.push(`${entry.model_id} ${row.path} (${operatorId}): old=${oldMatrix} new=${newMatrix}`);
     }
   }
-  console.error(`checked=${checked} vision=${knownVision} 复合投影旧链高估=${knownProjection.length} 漏算清单=`, Object.fromEntries(uncounted));
+  console.error(`shared双链修正=${sharedKnown} checked=${checked} vision=${knownVision} 复合投影旧链高估=${knownProjection.length} 漏算清单=`, Object.fromEntries(uncounted));
   if (knownProjection.length > 0) console.error("复合投影样例:\n" + knownProjection.slice(0, 3).join("\n"));
   if (mismatches.length > 0) console.error("未定性差分:\n" + mismatches.slice(0, 12).join("\n"));
   assert.ok(checked > 0, "T3 节点数为 0，测试无效");

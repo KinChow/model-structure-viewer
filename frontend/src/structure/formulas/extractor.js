@@ -12,7 +12,21 @@
 import {
   linearCounts,
   attentionCounts,
+  softmaxCounts,
+  rmsnormCounts,
+  gateCounts,
+  swigluCounts,
+  ropeCounts,
+  causalConvCounts,
+  linearAttentionStateCounts,
+  topkCounts,
+  moeDispatchCounts,
+  moeCombineCounts,
+  addCounts,
+  hashRouteCounts,
+  rearrangeCounts,
 } from "./counts.js";
+import { formulaForOperator } from "./index.js";
 import { tensorDims } from "../model_executor/dims.js";
 import { visionDimensions } from "../model_executor/layers/vision.js";
 
@@ -213,6 +227,28 @@ function legacyQwen4Exp(config, { batch = 1, sequence = 1, phase = "prefill" } =
   const outputProjection = valueProjection * hidden;
   return tokens * (qkvzProjection + baProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
+// 旧 linearShortConvolutionMacs。
+function legacyShortConvolutionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const { keyProjection, valueProjection } = legacyLinearAttentionDimensions(config);
+  const kernel = config?.linearConvKernelSize || 0;
+  return batch * (phase === "decode" ? 1 : sequence) * (2 * keyProjection + valueProjection) * kernel;
+}
+// 旧 linearAttentionDimensions。
+function legacyLinearAttentionDimensions(config = {}) {
+  const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
+  const valueHeads = config?.linearValueHeads || config?.attentionHeads || keyHeads;
+  const keyDim = config?.linearKeyDim || config?.headDim || 0;
+  const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
+  return { keyHeads, valueHeads, keyDim, valueDim, keyProjection: keyHeads * keyDim, valueProjection: valueHeads * valueDim };
+}
+// 旧 linearStateUpdateMacs。
+function legacyStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
+  const { keyHeads, valueHeads, keyDim, valueDim } = legacyLinearAttentionDimensions(config);
+  const stateUpdate = config?.linearAttentionMode === "generic"
+    ? keyHeads * valueHeads * keyDim * valueDim
+    : 3 * valueHeads * valueDim * keyDim;
+  return batch * (phase === "decode" ? 1 : sequence) * stateUpdate;
+}
 // ---------- 旧链镜像结束 ----------
 
 /**
@@ -302,8 +338,144 @@ export function countsForNode(node, env = {}) {
       const sequence = options.sequence ?? 1;
       return { matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
     }
-    default:
-      // T3 接入前返回 null（计入 unknown，不计 0）。
-      return null;
+    case "softmax": {
+      const dims = attentionShapePatterns(config);
+      void dims;
+      const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
+      const keyTokens = vision ? config?.visionTokens || 1 : phase === "decode" ? options.sequence ?? 1 : options.sequence ?? 1;
+      const queryTokens = tokens;
+      return softmaxCounts({ elements: heads * queryTokens * keyTokens, bytesPerElement });
+    }
+    case "rope": {
+      const factor = node?.attributes?.partial_rotary_factor ?? config?.partialRotaryFactor ?? 1;
+      return ropeCounts({ tokens, ropeDims: (config?.headDim || 0) * factor, bytesPerElement });
+    }
+    case "rmsnorm":
+    case "gemma_rmsnorm":
+      return rmsnormCounts({ tokens, hidden: staticWidth(node?.input_shape) || 0, bytesPerElement, weightOne: operatorId === "gemma_rmsnorm" });
+    case "gated_rmsnorm":
+      return rmsnormCounts({ tokens, hidden: staticWidth(node?.input_shape) || 0, bytesPerElement, gated: true });
+    case "attention_output_gate":
+    case "mla_output_gate":
+    case "linear_attention_gate":
+    case "shared_expert_gate":
+      return gateCounts({ tokens, width: staticWidth(node?.output_shape) || 0, bytesPerElement });
+    case "vision_activation":
+      return swigluCounts({ tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement });
+    case "vision_position":
+      return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || 0, bytesPerElement });
+    case "vision_merge":
+      return rearrangeCounts({ copy: true, inElements: staticWidth(node?.input_shape) || 0, outElements: staticWidth(node?.output_shape) || 0, bytesPerElement });
+    case "split":
+    case "mla_kv_split":
+    case "qwen_qkvz_split":
+    case "attention_qkv_split":
+      return rearrangeCounts();
+    case "swiglu": {
+      // 旧链：仅 expert 路径的 swiglu 计矩阵（gate/up/down GEMM 语义融合）；
+      // 结构化判据用路径（专家目录），W3 换 attributes 标记。
+      const routed = ROUTED_EXPERT_RE.test(String(node?.id || path));
+      if (!routed) return swigluCounts({ tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement });
+      const expertFraction = expertFractionFor(node?.id || path, config);
+      const expertHidden = node?.attributes?.latent_size || config?.routedExpertHiddenSize || config?.hiddenSize || 0;
+      const expertIntermediate = config?.moeIntermediateSize || config?.intermediateSize || 0;
+      return { matrix: tokens * 3 * expertHidden * expertIntermediate * expertFraction, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+    }
+    case "causal_conv1d": {
+      const { keyProjection, valueProjection } = legacyLinearAttentionDimensions(config);
+      const kernel = config?.linearConvKernelSize || 0;
+      return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+    }
+    case "linear_attention": {
+      // 叶级 state/conv 用路径区分（旧链用显示名；W3 换结构化标记）。
+      const idPath = String(node?.id || path);
+      if (/short_conv|conv/.test(idPath)) {
+        const { keyProjection, valueProjection } = legacyLinearAttentionDimensions(config);
+        const kernel = config?.linearConvKernelSize || 0;
+        return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      }
+      if (/state|recurrent/.test(idPath)) {
+        return { matrix: legacyStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+      }
+      return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+    }
+    case "gated_delta_attention":
+      return { matrix: legacyStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 }, source: "legacy-mirror" };
+    case "topk":
+      return topkCounts({ tokens, experts: config?.experts || 0, topk: config?.expertsPerToken || 0, bytesPerElement, normTopkProb: config?.normTopkProb ?? true });
+    case "moe_dispatch":
+      return moeDispatchCounts({ tokens, hidden: config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
+    case "moe_combine":
+      return moeCombineCounts({ tokens, hidden: config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
+    case "moe_add":
+      return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement });
+    case "dsv4_hash_route":
+      return hashRouteCounts({ tokens, topk: config?.expertsPerToken || 0, tableRows: 0, bytesPerElement });
+    default: {
+      // 复合节点：调注册表的组合 counts（§3.1 唯一注册点），ctx 按规格构建。
+      // 精度为初版（n 流参数用 normalized 近似），恒等式（T4）校准后复核。
+      const entry = formulaForOperator(operatorId);
+      if (typeof entry?.counts !== "function") return null;
+      const H = config?.hiddenSize || 0;
+      const ctxBuilders = {
+        mla_query_compress: () => ({
+          qa: { logicalShape: [config?.qLoraRank || 0, H], tokens, bytesPerElement },
+          norm: { tokens, hidden: config?.qLoraRank || 0, bytesPerElement },
+          qb: { logicalShape: [(config?.attentionHeads || 0) * (config?.headDim || 0), config?.qLoraRank || 0], tokens, bytesPerElement },
+        }),
+        mla_kv_compress: () => ({
+          proj: { logicalShape: [(config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0), H], tokens, bytesPerElement },
+        }),
+        qsa_indexer: () => ({
+          score: { heads: config?.indexerNHeads || 0, queryTokens: tokens, keyTokens: options.sequence ?? 1, headDim: config?.indexerHeadDim || 0, valueDim: config?.indexerHeadDim || 0, bytesPerElement },
+          topk: { tokens, experts: options.sequence ?? 1, topk: config?.indexerBudget || 0, bytesPerElement },
+        }),
+        minimax_sparse_indexer: () => ({
+          score: { heads: config?.sparseIndexHeads || 0, queryTokens: tokens, keyTokens: options.sequence ?? 1, headDim: config?.sparseIndexDim || 0, valueDim: config?.sparseIndexDim || 0, bytesPerElement },
+          topk: { tokens, experts: options.sequence ?? 1, topk: config?.sparseTopkBlocks || 0, bytesPerElement },
+        }),
+        attention_residual: () => ({
+          norms: { tokens, hidden: H, bytesPerElement },
+          scoreProj: { logicalShape: [1, H], tokens, bytesPerElement },
+          aggregate: { elements: H * tokens, bytesPerElement },
+          mix: { tokens, hidden: H, bytesPerElement },
+        }),
+        hyper_connection: () => ({
+          grouped: { tokens, hidden: H, bytesPerElement },
+          mix: { tokens, intermediate: H, bytesPerElement },
+          mixers: { logicalShape: [H, H], tokens, bytesPerElement },
+          gate: { tokens, width: H, bytesPerElement },
+          combine: { tokens, hidden: H, bytesPerElement },
+        }),
+        ple: () => ({
+          embed: { tokens, topk: 1, tableRows: 0, bytesPerElement },
+          kv: { logicalShape: [2 * (config?.pleEmbedDim || 0), H], tokens, bytesPerElement },
+          norm: { tokens, hidden: config?.pleEmbedDim || 0, bytesPerElement },
+          conv: { tokens: tokens, channels: config?.pleEmbedDim || 0, kernel: config?.pleNgramSize || 1, bytesPerElement },
+          add: { tokens, hidden: H, bytesPerElement },
+        }),
+        mhc_pre: () => ({
+          mix: { tokens, width: H, bytesPerElement },
+          matrix: { logicalShape: [H, config?.mhcNumResidualStreams || 1], tokens, bytesPerElement },
+          merge: { tokens, hidden: H, bytesPerElement },
+        }),
+        mhc_post: () => ({
+          combine: { logicalShape: [H, config?.mhcNumResidualStreams || 1], tokens, bytesPerElement },
+          inject: { tokens, hidden: H, bytesPerElement },
+        }),
+        mhc_fused_post_pre: () => ({
+          post: { tokens, width: H, bytesPerElement },
+          inject: { tokens, hidden: H, bytesPerElement },
+          pre: { tokens, width: H, bytesPerElement },
+          matrix: { logicalShape: [H, config?.mhcNumResidualStreams || 1], tokens, bytesPerElement },
+        }),
+        mhc_contract: () => ({
+          contract: { tokens, hidden: H, bytesPerElement },
+        }),
+      };
+      const builder = ctxBuilders[operatorId];
+      if (!builder) return null;
+      return { ...entry.counts(builder()), source: "composite" };
+    }
   }
 }

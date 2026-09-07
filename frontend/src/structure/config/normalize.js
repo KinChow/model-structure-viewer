@@ -193,10 +193,27 @@ export function normalizeConfig(config) {
   const linearAttentionConfig = typeof textConfig?.linear_attn_config === "object" && textConfig.linear_attn_config
     ? textConfig.linear_attn_config
     : null;
-  const layers = firstNumber(textConfig, LAYER_KEYS) ?? firstNumber(config, LAYER_KEYS);
+  // W0.5（refactor_plan）：收敛重复探测，行为与原
+  // `firstNumber(textConfig, K) ?? … ?? firstNumber(config, K)` 逐字等价。
+  // pick：textConfig 优先，可选中间源，最后回退顶层 config。
+  const pick = (keys, middle) =>
+    firstNumber(textConfig, keys)
+      ?? (middle ? firstNumber(middle.source, middle.keys) : undefined)
+      ?? firstNumber(config, keys);
+  // sparse_attention_config 是子对象，两侧来源与 pick 不同，单独收敛。
+  const pickSparse = (keys) =>
+    firstNumber(textConfig?.sparse_attention_config, keys)
+      ?? firstNumber(config?.sparse_attention_config, keys);
+  // 主流探测（A 变体）：先顶层后 text_config。
+  // 本文件有意保留两种语义不同的变体——
+  //   B 变体（仅顶层）：visionInternalMerger / visionMlpGated；
+  //   C 变体（A 再兜一层 textConfig）：linearAttentionMode 的 kimi 分支。
+  // 它们在"顶层 model_type 与 text_config 不同"时结果不同，统一属功能决策，不在重构范围。
+  const modelTypeProbe = String(config?.model_type || textConfig?.model_type || "");
+  const layers = pick(LAYER_KEYS);
   const visionLayers = visionConfig ? firstNumber(visionConfig, [...LAYER_KEYS, "depth", "vt_num_hidden_layers"]) : undefined;
-  const hiddenSize = firstNumber(textConfig, HIDDEN_KEYS) ?? firstNumber(config, HIDDEN_KEYS);
-  const attentionHeads = firstNumber(textConfig, HEAD_KEYS) ?? firstNumber(config, HEAD_KEYS);
+  const hiddenSize = pick(HIDDEN_KEYS);
+  const attentionHeads = pick(HEAD_KEYS);
   const headDim = attentionHeadDim(textConfig) ?? attentionHeadDim(config) ?? derivedHeadDim(hiddenSize, attentionHeads);
   const quantization = quantizationEstimate(config, textConfig);
 
@@ -212,60 +229,60 @@ export function normalizeConfig(config) {
     visionLayers,
     hiddenSize,
     attentionHeads,
-    kvHeads: firstNumber(textConfig, KV_HEAD_KEYS) ?? firstNumber(config, KV_HEAD_KEYS),
+    kvHeads: pick(KV_HEAD_KEYS),
     headDim,
-    kvLoraRank: firstNumber(textConfig, KV_LORA_RANK_KEYS) ?? firstNumber(config, KV_LORA_RANK_KEYS),
-    qLoraRank: firstNumber(textConfig, Q_LORA_RANK_KEYS) ?? firstNumber(config, Q_LORA_RANK_KEYS),
-    oLoraRank: firstNumber(textConfig, O_LORA_RANK_KEYS) ?? firstNumber(config, O_LORA_RANK_KEYS),
-    oGroups: firstNumber(textConfig, O_GROUP_KEYS) ?? firstNumber(config, O_GROUP_KEYS),
-    numHashLayers: firstNumber(textConfig, NUM_HASH_LAYER_KEYS) ?? firstNumber(config, NUM_HASH_LAYER_KEYS),
+    kvLoraRank: pick(KV_LORA_RANK_KEYS),
+    qLoraRank: pick(Q_LORA_RANK_KEYS),
+    oLoraRank: pick(O_LORA_RANK_KEYS),
+    oGroups: pick(O_GROUP_KEYS),
+    numHashLayers: pick(NUM_HASH_LAYER_KEYS),
     compressRatios: Array.isArray(textConfig?.compress_ratios)
       ? textConfig.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
       : Array.isArray(config?.compress_ratios)
         ? config.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
         : [],
-    linearKeyHeads: firstNumber(textConfig, LINEAR_KEY_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_KEY_HEADS_KEYS),
-    linearValueHeads: firstNumber(textConfig, LINEAR_VALUE_HEADS_KEYS) ?? firstNumber(linearAttentionConfig, ["num_heads"]) ?? firstNumber(config, LINEAR_VALUE_HEADS_KEYS),
-    linearKeyDim: firstNumber(textConfig, LINEAR_KEY_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_KEY_DIM_KEYS),
-    linearValueDim: firstNumber(textConfig, LINEAR_VALUE_DIM_KEYS) ?? firstNumber(linearAttentionConfig, ["head_dim"]) ?? firstNumber(config, LINEAR_VALUE_DIM_KEYS),
-    linearConvKernelSize: firstNumber(textConfig, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]) ?? firstNumber(linearAttentionConfig, ["short_conv_kernel_size"]) ?? firstNumber(config, ["linear_conv_kernel_dim", "linear_conv_kernel_size"]),
-    linearLowerBound: firstNumber(textConfig, ["linear_lower_bound"]) ?? firstNumber(linearAttentionConfig, ["gate_lower_bound"]) ?? firstNumber(config, ["linear_lower_bound"]),
+    linearKeyHeads: pick(LINEAR_KEY_HEADS_KEYS, { source: linearAttentionConfig, keys: ["num_heads"] }),
+    linearValueHeads: pick(LINEAR_VALUE_HEADS_KEYS, { source: linearAttentionConfig, keys: ["num_heads"] }),
+    linearKeyDim: pick(LINEAR_KEY_DIM_KEYS, { source: linearAttentionConfig, keys: ["head_dim"] }),
+    linearValueDim: pick(LINEAR_VALUE_DIM_KEYS, { source: linearAttentionConfig, keys: ["head_dim"] }),
+    linearConvKernelSize: pick(["linear_conv_kernel_dim", "linear_conv_kernel_size"], { source: linearAttentionConfig, keys: ["short_conv_kernel_size"] }),
+    linearLowerBound: pick(["linear_lower_bound"], { source: linearAttentionConfig, keys: ["gate_lower_bound"] }),
     linearUseFullRankGate: Boolean(textConfig?.linear_attn_config?.use_full_rank_gate ?? config?.linear_attn_config?.use_full_rank_gate),
-    indexerNHeads: firstNumber(textConfig, ["index_n_heads", "indexer_n_heads", "index_heads"]) ?? firstNumber(config, ["index_n_heads", "indexer_n_heads", "index_heads"]),
-    indexerKVHeads: firstNumber(textConfig, ["indexer_kv_heads"]) ?? firstNumber(config, ["indexer_kv_heads"]),
-    indexerHeadDim: firstNumber(textConfig, ["indexer_head_dim", "index_head_dim"]) ?? firstNumber(config, ["indexer_head_dim", "index_head_dim"]),
-    indexerBudget: firstNumber(textConfig, ["index_topk", "indexer_budget"]) ?? firstNumber(config, ["index_topk", "indexer_budget"]),
-    indexerCompressRatio: firstNumber(textConfig, ["indexer_compress_ratio"]) ?? firstNumber(config, ["indexer_compress_ratio"]),
-    sparseIndexHeads: firstNumber(textConfig?.sparse_attention_config, ["sparse_num_index_heads"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_num_index_heads"]),
-    sparseIndexDim: firstNumber(textConfig?.sparse_attention_config, ["sparse_index_dim"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_index_dim"]),
-    sparseTopkBlocks: firstNumber(textConfig?.sparse_attention_config, ["sparse_topk_blocks"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_topk_blocks"]),
-    sparseBlockSize: firstNumber(textConfig?.sparse_attention_config, ["sparse_block_size"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_block_size"]),
-    sparseInitBlock: firstNumber(textConfig?.sparse_attention_config, ["sparse_init_block"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_init_block"]),
-    sparseLocalBlock: firstNumber(textConfig?.sparse_attention_config, ["sparse_local_block"]) ?? firstNumber(config?.sparse_attention_config, ["sparse_local_block"]),
+    indexerNHeads: pick(["index_n_heads", "indexer_n_heads", "index_heads"]),
+    indexerKVHeads: pick(["indexer_kv_heads"]),
+    indexerHeadDim: pick(["indexer_head_dim", "index_head_dim"]),
+    indexerBudget: pick(["index_topk", "indexer_budget"]),
+    indexerCompressRatio: pick(["indexer_compress_ratio"]),
+    sparseIndexHeads: pickSparse(["sparse_num_index_heads"]),
+    sparseIndexDim: pickSparse(["sparse_index_dim"]),
+    sparseTopkBlocks: pickSparse(["sparse_topk_blocks"]),
+    sparseBlockSize: pickSparse(["sparse_block_size"]),
+    sparseInitBlock: pickSparse(["sparse_init_block"]),
+    sparseLocalBlock: pickSparse(["sparse_local_block"]),
     sparseScoreType: textConfig?.sparse_attention_config?.sparse_score_type ?? config?.sparse_attention_config?.sparse_score_type,
     sparseDisableIndexValue: Array.isArray(textConfig?.sparse_attention_config?.sparse_disable_index_value)
       ? textConfig.sparse_attention_config.sparse_disable_index_value.map((value) => Boolean(value))
       : Array.isArray(config?.sparse_attention_config?.sparse_disable_index_value)
         ? config.sparse_attention_config.sparse_disable_index_value.map((value) => Boolean(value))
         : [],
-    indexerSchedule: (String(config?.model_type || textConfig?.model_type || "").includes("deepseek_v32")
-      || String(config?.model_type || textConfig?.model_type || "").includes("glm_moe_dsa"))
+    indexerSchedule: (modelTypeProbe.includes("deepseek_v32")
+      || modelTypeProbe.includes("glm_moe_dsa"))
       ? dsaIndexerSchedule(textConfig, layers) ?? dsaIndexerSchedule(config, layers)
       : undefined,
-    slidingWindow: firstNumber(textConfig, ["sliding_window", "window_size"]) ?? firstNumber(config, ["sliding_window", "window_size"]),
-    routedScalingFactor: firstNumber(textConfig, ["routed_scaling_factor"]) ?? firstNumber(config, ["routed_scaling_factor"]),
-    swigluLimit: firstNumber(textConfig, ["swiglu_limit"]) ?? firstNumber(config, ["swiglu_limit"]),
-    swigluAlpha: firstNumber(textConfig, ["swiglu_alpha"]) ?? firstNumber(config, ["swiglu_alpha"]),
-    swigluBeta: firstNumber(textConfig, ["swiglu_beta"]) ?? firstNumber(config, ["swiglu_beta"]),
+    slidingWindow: pick(["sliding_window", "window_size"]),
+    routedScalingFactor: pick(["routed_scaling_factor"]),
+    swigluLimit: pick(["swiglu_limit"]),
+    swigluAlpha: pick(["swiglu_alpha"]),
+    swigluBeta: pick(["swiglu_beta"]),
     normTopkProb: textConfig?.norm_topk_prob ?? config?.norm_topk_prob,
     qkRopeHeadDim:
-      firstNumber(textConfig, QK_ROPE_HEAD_DIM_KEYS) ?? firstNumber(config, QK_ROPE_HEAD_DIM_KEYS),
+      pick(QK_ROPE_HEAD_DIM_KEYS),
     qkNopeHeadDim:
-      firstNumber(textConfig, ["qk_nope_head_dim"]) ?? firstNumber(config, ["qk_nope_head_dim"]),
-    valueHeadDim: firstNumber(textConfig, VALUE_HEAD_DIM_KEYS) ?? firstNumber(config, VALUE_HEAD_DIM_KEYS) ?? headDim,
-    intermediateSize: firstNumber(textConfig, INTERMEDIATE_KEYS) ?? firstNumber(config, INTERMEDIATE_KEYS),
-    moeIntermediateSize: firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) ?? firstNumber(config, MOE_INTERMEDIATE_KEYS),
-    vocabSize: firstNumber(textConfig, VOCAB_KEYS) ?? firstNumber(config, VOCAB_KEYS),
+      pick(["qk_nope_head_dim"]),
+    valueHeadDim: pick(VALUE_HEAD_DIM_KEYS) ?? headDim,
+    intermediateSize: pick(INTERMEDIATE_KEYS),
+    moeIntermediateSize: pick(MOE_INTERMEDIATE_KEYS),
+    vocabSize: pick(VOCAB_KEYS),
     visionHiddenSize: visionConfig ? firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]) : undefined,
     visionOutputSize: visionConfig
       ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"]) ?? firstNumber(visionConfig, ["vt_hidden_size", "mm_hidden_size"]) ?? firstNumber(visionConfig, HIDDEN_KEYS)
@@ -288,6 +305,7 @@ export function normalizeConfig(config) {
     visionTokens: visionConfig ? visionTokenCount(visionConfig) : undefined,
     visionPatchTokens: visionConfig ? visionPatchTokenCount(visionConfig) : undefined,
     visionMergeSize: visionConfig ? visionMergeSize(visionConfig) : 1,
+        // B 变体（仅顶层 model_type）：与 modelTypeProbe 语义不同，有意保留（W0.5）。
     visionInternalMerger: Boolean(visionConfig && ["qwen3_5", "qwen4_exp", "glm5_next"].some((kind) => String(config?.model_type || "").includes(kind))),
     visionMergerIntermediateSize: visionConfig ? firstNumber(visionConfig, ["projection_intermediate_size"]) : undefined,
     visionMlpGated: visionConfig
@@ -295,65 +313,66 @@ export function normalizeConfig(config) {
         || String(config?.model_type || "").toLowerCase().includes("glm5_next")
       : false,
     ...quantization,
-    experts: firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS),
-    routedExpertHiddenSize: firstNumber(textConfig, ["routed_expert_hidden_size"]) ?? firstNumber(config, ["routed_expert_hidden_size"]),
-    expertsPerToken: firstNumber(textConfig, EXPERTS_PER_TOKEN_KEYS) ?? firstNumber(config, EXPERTS_PER_TOKEN_KEYS),
-    sharedExperts: firstNumber(textConfig, SHARED_EXPERT_KEYS) ?? firstNumber(config, SHARED_EXPERT_KEYS)
-      ?? (String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")
+    experts: pick(EXPERT_KEYS),
+    routedExpertHiddenSize: pick(["routed_expert_hidden_size"]),
+    expertsPerToken: pick(EXPERTS_PER_TOKEN_KEYS),
+    sharedExperts: pick(SHARED_EXPERT_KEYS)
+      ?? (modelTypeProbe.includes("qwen3_5_moe")
         && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
-    sharedExpertIntermediateSize: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) ?? firstNumber(config, SHARED_EXPERT_INTERMEDIATE_KEYS)
-      ?? (["kimi", "deepseek_v4", "glm4_moe", "glm5_next"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
+    sharedExpertIntermediateSize: pick(SHARED_EXPERT_INTERMEDIATE_KEYS)
+      ?? (["kimi", "deepseek_v4", "glm4_moe", "glm5_next"].some((kind) => modelTypeProbe.includes(kind))
         ? (firstNumber(textConfig, MOE_INTERMEDIATE_KEYS) || 0) * (firstNumber(textConfig, SHARED_EXPERT_KEYS) || 0)
         : undefined),
-    sharedExpertsAreFused: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3"),
+    sharedExpertsAreFused: modelTypeProbe.includes("kimi_k3"),
     sharedExpertGate: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null
-      && (textConfig?.output_gate_type != null || String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5_moe")),
+      && (textConfig?.output_gate_type != null || modelTypeProbe.includes("qwen3_5_moe")),
     attentionOutputGate: Boolean(textConfig?.attn_output_gate ?? config?.attn_output_gate),
     attentionBias: Boolean(textConfig?.attention_bias ?? config?.attention_bias),
     outputGateType: String(textConfig?.output_gate_type ?? config?.output_gate_type ?? "silu"),
     partialRotaryFactor: firstNumber(textConfig, ["partial_rotary_factor"])
       ?? firstNumber(textConfig?.rope_parameters, ["partial_rotary_factor"])
       ?? firstNumber(textConfig?.rope_scaling, ["partial_rotary_factor"]),
-    rotaryDim: firstNumber(textConfig, ["rotary_dim"]) ?? firstNumber(config, ["rotary_dim"]),
+    rotaryDim: pick(["rotary_dim"]),
     useQkNorm: Boolean(textConfig?.use_qk_norm ?? config?.use_qk_norm),
     qkNormType: textConfig?.qk_norm_type ?? config?.qk_norm_type,
-    normMode: ["qwen3_5", "minimax_m3"].some((kind) => String(config?.model_type || textConfig?.model_type || "").includes(kind))
+    normMode: ["qwen3_5", "minimax_m3"].some((kind) => modelTypeProbe.includes(kind))
       || Boolean(textConfig?.use_gemma_norm ?? config?.use_gemma_norm)
       ? "gemma_rmsnorm"
       : "rmsnorm",
-    hyperConnectionCount: firstNumber(textConfig, ["hc_count"]) ?? firstNumber(config, ["hc_count"]),
-    hyperConnectionLowrank: firstNumber(textConfig, ["hc_lowrank"]) ?? firstNumber(config, ["hc_lowrank"]),
+    hyperConnectionCount: pick(["hc_count"]),
+    hyperConnectionLowrank: pick(["hc_lowrank"]),
     pleLayerIds: Array.isArray(textConfig?.ple_layer_ids) ? textConfig.ple_layer_ids : Array.isArray(config?.ple_layer_ids) ? config.ple_layer_ids : [],
-    pleEmbedDim: firstNumber(textConfig, ["ple_embed_dim"]) ?? firstNumber(config, ["ple_embed_dim"]),
-    pleNgramSize: firstNumber(textConfig, ["ngram_size"]) ?? firstNumber(config, ["ngram_size"]),
-    pleHeadsPerNgram: firstNumber(textConfig, ["heads_per_ngram"]) ?? firstNumber(config, ["heads_per_ngram"]),
-    pleConvKernelSize: firstNumber(textConfig, ["ple_conv_kernel_size"]) ?? firstNumber(config, ["ple_conv_kernel_size"]),
-    attnResBlockSize: firstNumber(textConfig, ["attn_res_block_size"]) ?? firstNumber(config, ["attn_res_block_size"]),
+    pleEmbedDim: pick(["ple_embed_dim"]),
+    pleNgramSize: pick(["ngram_size"]),
+    pleHeadsPerNgram: pick(["heads_per_ngram"]),
+    pleConvKernelSize: pick(["ple_conv_kernel_size"]),
+    attnResBlockSize: pick(["attn_res_block_size"]),
     mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
-    linearAttentionMode: String(config?.model_type || textConfig?.model_type || "").includes("kimi_k3")
+    linearAttentionMode: modelTypeProbe.includes("kimi_k3")
       ? "kimi_k3"
-      : String(config?.model_type || textConfig?.model_type || "").includes("kimi") || String(textConfig?.model_type || "").includes("kimi")
+            // C 变体：在 A 之外多兜一层 textConfig，与纯 probe 语义不同，有意保留（W0.5）。
+    : modelTypeProbe.includes("kimi") || String(textConfig?.model_type || "").includes("kimi")
         ? "kimi"
-      : String(config?.model_type || textConfig?.model_type || "").includes("qwen4_exp")
+      : modelTypeProbe.includes("qwen4_exp")
         ? "qwen4_exp"
-        : String(config?.model_type || textConfig?.model_type || "").includes("qwen3_5")
+        : modelTypeProbe.includes("qwen3_5")
           ? "qwen3_5"
-        : String(config?.model_type || textConfig?.model_type || "").includes("glm5_next")
+        : modelTypeProbe.includes("glm5_next")
           ? "glm5_next"
         : "generic",
     multiHyperConnection: Boolean(
       textConfig?.mhc
       ?? config?.mhc
-      ?? (String(config?.model_type || textConfig?.model_type || "").includes("deepseek_v4")
+      ?? (modelTypeProbe.includes("deepseek_v4")
         && firstNumber(textConfig, ["hc_mult"]) != null),
     ),
-    mhcNumResidualStreams: firstNumber(textConfig, ["mhc_num_residual_streams", "hc_mult"]) ?? firstNumber(config, ["mhc_num_residual_streams", "hc_mult"]),
-    mhcSinkhornIterations: firstNumber(textConfig, ["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]) ?? firstNumber(config, ["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]),
-    mhcTau: firstNumber(textConfig, ["mhc_tau"]) ?? firstNumber(config, ["mhc_tau"]),
-    mhcEps: firstNumber(textConfig, ["hc_eps", "mhc_eps"]) ?? firstNumber(config, ["hc_eps", "mhc_eps"]),
-    mhcPostMultValue: firstNumber(textConfig, ["mhc_post_mult_value"]) ?? firstNumber(config, ["mhc_post_mult_value"])
-      ?? (String(config?.model_type || textConfig?.model_type || "").includes("deepseek_v4") ? 2 : undefined),
-    contextLength: firstNumber(textConfig, CONTEXT_KEYS) ?? firstNumber(config, CONTEXT_KEYS),
+    mhcNumResidualStreams: pick(["mhc_num_residual_streams", "hc_mult"]),
+    mhcSinkhornIterations: pick(["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]),
+    mhcTau: pick(["mhc_tau"]),
+    mhcEps: pick(["hc_eps", "mhc_eps"]),
+    mhcPostMultValue: pick(["mhc_post_mult_value"])
+      ?? (modelTypeProbe.includes("deepseek_v4") ? 2 : undefined),
+    contextLength: pick(CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
     layerSchedule: explicitLayerSchedule(textConfig, layers) ?? explicitLayerSchedule(config, layers),
     attentionSchedule:

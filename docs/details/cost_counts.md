@@ -38,7 +38,9 @@ aten: `aten.mm`（torch `mm_flop` = m·n·2k FLOPs → 换算 MACs）。
 ### F2 选择集注意力
 
 matrix = heads·T·S·D ×2（scores + context）；vector ≈ 3·heads·T·S；sfu = 2·heads·T·S；
-bytes：Q+K_S+V_S 读一遍，scores 写+读（A2 单遍），probs 写+读，O 写。
+bytes：Q+K_S+V_S 读一遍（decode 时 K/V 读即读 KV cache），scores 写+读（A2 单遍），
+probs 写+读，O 写，**新算 K/V 写回 cache（T·(D+dv)·heads：prefill 全量、decode 1 token）**。
+prefill：T=S=seq → O(seq²)；decode：T=1、S=上下文全长 → O(S)（2026-09-07 补 KV cache 写）。
 aten: `aten.bmm` ×2 + `aten._softmax`。
 S 的取法由条目决定（见逐条表）；MLA 系（dsv4_compressed）value 维 = kv latent 宽度。
 
@@ -72,7 +74,7 @@ linear_attention / gated_delta_attention：
 matrix = 2·T·D_k·D_v（k^Tv 外积 + qS）；vector = T·D_k·D_v（decay 乘）；
 sfu = T（exp decay；gated_delta 另加 sigmoid(beta)）；
 **bytes = state 读+写 2·T·D_k·D_v·b（递推状态访存主导）+ q/k/v/decay 流**。
-gated_delta 比 generic 多 beta 门与 delta 校正（vector +2·T·D_k·D_v）。
+gated_delta 比 generic 多 delta matvec（**修正：属矩阵 MACs，matrix = 3T·dk·dv**）与 beta 门。
 
 ### F8 MoE 路由与分发
 

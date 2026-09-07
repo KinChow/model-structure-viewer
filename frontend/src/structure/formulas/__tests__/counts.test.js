@@ -22,7 +22,7 @@ test("F1 linear：T·out·in MACs，权重整表读一遍", () => {
   assert.equal(c.bytes.actOut, 3 * 8 * B);
 });
 
-test("F2 选择集注意力：两组 bmm + softmax（A2 单遍）", () => {
+test("F2 选择集注意力：两组 bmm + softmax（A2 单遍）+ KV cache 写", () => {
   const c = attentionCounts({ heads: 2, queryTokens: 4, keyTokens: 8, headDim: 16, valueDim: 16, bytesPerElement: B });
   const scores = 2 * 4 * 8;
   assert.equal(c.matrix, scores * (16 + 16)); // scores bmm + context bmm
@@ -30,7 +30,28 @@ test("F2 选择集注意力：两组 bmm + softmax（A2 单遍）", () => {
   assert.equal(c.sfu, 2 * scores);
   const q = 2 * 4 * 16, k = 2 * 8 * 16, v = 2 * 8 * 16;
   assert.equal(c.bytes.actIn, (q + k + v + 2 * scores) * B); // Q/K/V 各一遍 + scores 写读
-  assert.equal(c.bytes.actOut, (2 * scores + 2 * 4 * 16) * B);
+  // actOut：scores + probs 写读 + 输出 + 新算 K/V 写回 cache（T 个 token，非 S）
+  assert.equal(c.bytes.actOut, (2 * scores + 2 * 4 * 16 + 2 * 4 * 32) * B);
+});
+
+test("F2 prefill vs decode：矩阵差一个 seq 量级，decode 的 K/V 读即读 cache", () => {
+  const heads = 8, headDim = 128, valueDim = 128;
+  // prefill：T=S=4096（因果近似按全量算）
+  const prefill = attentionCounts({ heads, queryTokens: 4096, keyTokens: 4096, headDim, valueDim, bytesPerElement: B });
+  // decode：T=1，S=4096（全部 cached K/V）
+  const decode = attentionCounts({ heads, queryTokens: 1, keyTokens: 4096, headDim, valueDim, bytesPerElement: B });
+  assert.equal(prefill.matrix / 4096, decode.matrix); // O(S²) vs O(S)
+  // decode actIn 的 K/V 部分 = 读整个 KV cache（S 个 token）
+  const kvRead = heads * 4096 * (headDim + valueDim) * B;
+  assert.equal(decode.bytes.actIn - (heads * 1 * headDim + 2 * heads * 1 * 4096) * B, kvRead);
+  // decode 写回 cache 只有当前 1 个 token 的 K/V
+  const kvWritePerToken = heads * 1 * (headDim + valueDim) * B;
+  const decodeIntermediate = (2 * heads * 1 * 4096 + heads * 1 * valueDim) * B;
+  assert.equal(decode.bytes.actOut - decodeIntermediate, kvWritePerToken);
+  // prefill 写回全量 cache
+  const prefillKvWrite = heads * 4096 * (headDim + valueDim) * B;
+  const prefillIntermediate = (2 * heads * 4096 * 4096 + heads * 4096 * valueDim) * B;
+  assert.equal(prefill.bytes.actOut - prefillIntermediate, prefillKvWrite);
 });
 
 test("F3 rmsnorm：3TH 向量 + T 次 rsqrt；gemma 多 TH；gated 多一路门", () => {

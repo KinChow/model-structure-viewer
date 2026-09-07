@@ -29,9 +29,12 @@ export function linearCounts({ logicalShape, tokens, bytesPerElement, bias = fal
 
 /**
  * F2 选择集注意力。aten: aten.bmm ×2 + aten._softmax。
- * 覆盖全注意力与 qsa/minimax/dsv4 变体——差异只在 keyTokens(S) 的取法。
+ * 覆盖全注意力与 qsa/minimax/dsv4 变体——差异只在 keyTokens(S) 的取法：
+ * prefill 时 T=S=seq（因果，O(seq²)）；decode 时 T=1、S=上下文全长（O(S)）。
  * A2：softmax 融合单遍，scores 写+读各一次。
- * bytes 中间张量：Q/K/V 读一遍，scores 与 probs 各写+读一遍，输出写。
+ * bytes 中间张量：Q/K/V 读一遍（decode 时 K/V 读即"读 KV cache"），
+ * 新算出的 K/V 写回 cache（actOut 的 T·(D+dv) 项：prefill 全量、decode 1 token），
+ * scores 与 probs 各写+读一遍，输出写。
  */
 export function attentionCounts({ heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement }) {
   const q = heads * queryTokens * headDim;
@@ -39,6 +42,8 @@ export function attentionCounts({ heads, queryTokens, keyTokens, headDim, valueD
   const v = heads * keyTokens * valueDim;
   const scores = heads * queryTokens * keyTokens;
   const context = heads * queryTokens * valueDim;
+  // 新算出的 K/V 写回 cache：T 个 token（prefill 全量、decode 仅当前 token）
+  const kvWrite = heads * queryTokens * (headDim + valueDim);
   return {
     matrix: scores * (headDim + valueDim),
     vector: 3 * scores,
@@ -46,7 +51,7 @@ export function attentionCounts({ heads, queryTokens, keyTokens, headDim, valueD
     bytes: {
       weights: 0,
       actIn: (q + k + v + 2 * scores) * bytesPerElement,
-      actOut: (2 * scores + context) * bytesPerElement,
+      actOut: (2 * scores + context + kvWrite) * bytesPerElement,
     },
   };
 }

@@ -13,10 +13,10 @@ const product = (values) => values.reduce((total, value) => total * value, 1);
  * F1 线性。aten: aten.mm（torch mm_flop = m·n·2k FLOPs → 此处 MACs）。
  * logicalShape = [out, in]（weight 逻辑形状；packed 存储形状由 W5 提取层换算）。
  */
-export function linearCounts({ logicalShape, tokens, bytesPerElement, bias = false }) {
+export function linearCounts({ logicalShape, tokens, bytesPerElement, bias = false, expertFraction = 1 }) {
   const [out, inDim] = logicalShape;
   return {
-    matrix: tokens * out * inDim,
+    matrix: tokens * out * inDim * expertFraction,
     vector: bias ? tokens * out : 0,
     sfu: 0,
     bytes: {

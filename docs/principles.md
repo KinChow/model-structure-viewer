@@ -217,6 +217,12 @@ ffn_experts: { from: "model.layers.{bid}.mlp.experts.{eid}.gate_proj", op: Merge
 对齐 llama.cpp `src/models/<arch>.cpp`、transformers `modeling_*.py`、vLLM `models/*.py`。
 负责执行顺序、无参算子插入、条件分支。msv 现有的 `layers/*.js` + `ops/index.js` 就是这一层。
 
+**组件配方是一级概念，家族不是。** 现在的模型都是 transformer，变化只在组件选型
+（attention / norm / FFN / 位置编码 / 附加结构），不同家族会采用同一配方
+（代码内证据：`minimax_m2` 与 `glm4_moe` 共用同一条 attention 算子链，`attention.js:17-19`）。
+**模型 = 配方 + 数字 + 逐层调度。** 新增模型应当是"选一个已有配方 + 填数字"；
+只有发明新组件方案才写新代码。家族名只允许出现在"模型 → 配方"的薄解析层。
+
 **判据**：
 - 适配产物里出现"为了得到参数量 / shape 而写的公式分支"即违反——那些必须来自真值（§4.1）。
 - checkpoint 名与结构节点的对应**必须显式声明在层 2**，**禁止**运行时用路径归一化做相等匹配去猜。
@@ -261,6 +267,24 @@ GGUF / `pytorch_model.bin` / `.pth` / MLX 格式模型永远读不到 safetensor
 
 **检查**：层 2 写完后必须有一条测试——用映射把 trie 反推成角色集合，再正推回 checkpoint 名，
 与原始 header 逐项对比。对不上即映射错误。这比"看图对不对"可靠得多，是映射表的唯一质量闸门。
+
+### 4.7 config 只供数，方案由组网决定
+
+config 解读包含两种性质不同的工作，归属不同：
+
+- **字段归一**（别名吸收、默认值）：合法的独立层，对应 transformers 的 `Config` 类。
+  终态是一个瘦的 config 视图。
+- **方案解读**（这个模型的 attention 用哪个方案、逐层怎么调度、归一化用哪种 norm）：
+  这是**骨架决策**，属于组网（builder / 配方表），**禁止**在 config 归一层预先决定。
+  transformers 的分工即如此：`Config` 类管字段，`modeling_*.py` 的 `__init__` 管决定。
+
+**判据**：config 归一层出现家族条件分支、或输出"selected scheme"类字段即违反。
+
+**检查**：config 视图的输出对象不含方案类字段；逐层调度只在组网入口被消费。
+
+**存量偏离（W3b 收口）**：`normalize.js` 的 `attentionSchedule` / `layerSchedule` /
+`linearAttentionMode` / `normMode` 等方案类字段与全部家族条件分支；
+`cost/compute.js:308` 对 `layerSchedule` 的跨层消费。
 
 ---
 
@@ -383,12 +407,15 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 
 ## 8. 扩展性硬约束
 
-### 8.1 新增模型家族只允许改**一处**数据文件
+### 8.1 新增模型只允许"选配方 + 填数字"
 
-**判据**：新增一个家族需要修改的文件数**不得增加**。当前基线（2026-09-07，W0 以完整
-pattern 实测）为 **16** 个文件，清单见 `scripts/check_principles.sh`；更早 review 用窄
-pattern 得出的 11 只是漏计变体（独立 `kimi`、`deepseek_v4`、`qwen3_5` 等），
-这是待偿债务，不是可以照抄的先例。
+真正的目标是 §4.3 的组件配方：新增模型 = 选一个已有配方 + 填数字；只有发明新组件方案
+才写新代码。"家族名硬编码的非测试文件数"是它的**可测量代理指标**，不是目标本身——
+配方表落地后，家族名只应出现在配方解析与映射表两处。
+
+**判据**：家族名文件数**不得增加**。当前基线（2026-09-07，W0 以完整 pattern 实测）为
+**16** 个文件，清单见 `scripts/check_principles.sh`；更早 review 用窄 pattern 得出的 11
+只是漏计变体（独立 `kimi`、`deepseek_v4`、`qwen3_5` 等），这是待偿债务，不是可以照抄的先例。
 
 **检查**：CI 统计家族名（`kimi_k3` / `qwen4_exp` / `glm5_next` / `minimax_m3_vl` /
 `deepseek_v32` / … ）出现的**非测试文件数**，只允许下降。
@@ -438,6 +465,9 @@ pattern 得出的 11 只是漏计变体（独立 `kimi`、`deepseek_v4`、`qwen3
 - §3.4：ERT 与 action counts 尚未分离。
 - §4.3：无 canonical 角色表；checkpoint 对应靠 `mergeSemantics.js:56-75` 的路径归一化**相等匹配**
   推测，冲突时 `continue` 静默放弃绑定；数值仍有部分来自 config 推导。
+- §4.7：`normalize.js` 混合字段归一与方案解读，含全部家族分支；方案类字段
+  （attentionSchedule / layerSchedule / linearAttentionMode / normMode 等）被组网与 cost
+  跨层消费（W3b 收口）。
 - §4.5：未适配模型走 generic 兜底会画出看起来完整的结构图，未标注"未适配"。
 - §4.6：无映射表，因此无可逆校验。
 - §5.x：`source_ref` 尚未实现（`source_fields` 语义不同，当前存的是 attribute keys）。

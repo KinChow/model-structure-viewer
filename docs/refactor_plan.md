@@ -24,16 +24,18 @@ M0 绿色基线（不改代码）
 W0 护栏 + 纠偏（非分层）
      |
      v
-W0.5 normalize -> W1 formulas -> W2 ops -> W3 layers+角色表 -> W4 graph
-     |                                                            |
-     |                                                            v
-     |                                         W4.5 映射表 -> W5 cost -> W6 UI
+W0.5 normalize 提取层收敛 -> W1 formulas -> W2 ops -> W3a 分派表+角色表+配方表
+     |                                                        |
+     |                                                        v
+     |                              W3b 方案归组网 -> W4 graph -> W4.5 映射表 -> W5 cost -> W6 UI
      |
      +--(无依赖，可并行)--> 旁路 B 后端降级 + source_ref
      +--(无依赖，可并行)--> 旁路 C 芯片自定义参数补账
      +--(无依赖，可并行)--> 旁路 D 后端内部清理
      +--(依赖 W6)--------> 旁路 E UI 状态收敛
 ```
+
+W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 
 全部波次都可用差分测试验收（行为不变），没有需要重做快照的波次。
 **原 W7"trie 成为骨架"已取消** —— 骨架来自适配产物（§4.3），trie 只提供数值与未适配兜底视图
@@ -46,11 +48,12 @@ W0.5 normalize -> W1 formulas -> W2 ops -> W3 layers+角色表 -> W4 graph
 |---|---|---|---|
 | **M0** 绿色基线 | — | 四条验证命令的红绿状态已知并记录 | — |
 | **M1** 护栏与止损 | W0 | 故意加一处家族名 → CI 失败；两类边样式不同 | §2.2 部分、§3.2/§8.1 检查手段 |
-| **M2** 底层收敛 | W0.5 + W1 + W2 | spec 树 JSON 深度相等；每公式条目有 `macs` 或 `nonCompute` | §3.1、§3.5、§8.2（ops 侧） |
-| **M3** 结构声明化 | W3 + W4 | 边集合（含 evidence）差分一致；所有边 evidence 非空；含参节点均有 `role` | §2.1、§2.2、§4.3 层 1、§8.2 |
-| **M4** 真值绑定显式化 | W4.5 | 绑定差分一致 **且 `ambiguous` = 0**；可逆校验通过 | §4.3 层 2、§4.4、§4.5、§4.6 |
-| **M5** 成本分层 | W5 | 现有 cost 测试数值全不变；未实现算子返回 `null`；换卡只走表乘法 | §3.2、§3.3、§3.4 |
-| **M6** 诚实性上界面 | W6 | 三类边样式互不相同；未覆盖提示与 gaps 面板可见 | §2.2 UI 侧、§4.2、§4.4 |
+| **M2** 底层收敛 | W0.5 + W1 + W2 | 59 模型 `normalizeConfig` 输出深度相等；spec 树 JSON 深度相等；每公式条目有 `macs` 或 `nonCompute` | §3.1、§3.5、§8.2（ops 侧） |
+| **M3** 结构声明化 | W3a + W4 | 边集合（含 evidence）差分一致；所有边 evidence 非空；含参节点均有 `role` | §2.1、§2.2、§4.3 层 1、§8.2 |
+| **M4** 方案归组网 | W3b | 最终 spec 树差分一致；`normalizeConfig` 不再输出方案类字段 | §4.3（配方）、§4.7 |
+| **M5** 真值绑定显式化 | W4.5 | 绑定差分一致 **且 `ambiguous` = 0**；可逆校验通过 | §4.3 层 2、§4.4、§4.5、§4.6 |
+| **M6** 成本分层 | W5 | 现有 cost 测试数值全不变；未实现算子返回 `null`；换卡只走表乘法 | §3.2、§3.3、§3.4 |
+| **M7** 诚实性上界面 | W6 | 三类边样式互不相同；未覆盖提示与 gaps 面板可见 | §2.2 UI 侧、§4.2、§4.4 |
 | **旁路 B** 后端定位归位 | B | `msv verify` 出三类差异列表；跳源码且显示 transformers 版本 | §5.1–§5.4、§6.1–§6.3 |
 | **旁路 C** 芯片参数补账 | C | 手工卡有 `field_sources`；单位异常有警告；文案与实现一致 | §7 |
 | **旁路 D** 后端内部清理 | D | 后端无平行修复机制；无 `assert` 做入参校验 | §6.1 SRP 侧 |
@@ -134,24 +137,25 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 
 ---
 
-## W0.5 normalize：配置归一化收敛
+## W0.5 normalize：提取层机械收敛
 
-最底层且无依赖，纯机械，适合作为差分替换的第一次演练。
+范围收缩（2026-09-07 对齐）：只做无争议的机械收敛。**方案决定权归还组网（Job B 迁移）
+不在本波**——若终态是消融进配方表，中间站（如拆到 derive.js）没有存在价值（§4.7）。
 
 - **范围**
-  1. 函数开头建 `const pick = (keys) => firstNumber(textConfig, keys) ?? firstNumber(config, keys)`
-     → 收敛 **63 处**重复；
-  2. 建 `const modelTypeProbe = String(config?.model_type || textConfig?.model_type || "")`
-     → 收敛 **14 处**重复；
-  3. 把散落在 160 行 return 字面量里的家族条件抽成一张**家族特征表**
-     （`registry/families.js`），供 `normalize.js` 与 `registry/resolveArchitecture.js` **共用**
-     —— 现在这两个文件各有一套家族判据。
-- **入口**：`structure/config/normalize.js`（365 行）、`structure/registry/resolveArchitecture.js`、
-  新增 `structure/registry/families.js`
+  1. `pick(keys)` 闭包 → 收敛 **63 处** `firstNumber(textConfig, keys) ?? firstNumber(config, keys)`；
+  2. `modelTypeProbe` 常量 → 收敛 **14 处** model_type 探测，并显式登记现存**三种变体**
+     （A：`config || textConfig` 全量探测，约 14 处；B：仅 `config`，`normalize.js:291,295`；
+     C：A 再兜一层 textConfig，`normalize.js:335`）。**行为逐字保留，只集中、不统一**——
+     B/C 是潜在功能分歧（A/B 在"顶层 model_type 与 text_config 不同"时结果不同），
+     统一语义属功能决策，不在重构范围；
+  3. ~~家族特征表 families.js~~ **已取消**：家族是错轴（§4.3 组件配方为一级概念），
+     配方表在 W3a 建立。
+- **入口**：`structure/config/normalize.js`（365 行）
 - **依赖**：W0
-- **验收**：差分测试断言全部内置模型的 `normalizeConfig` 输出对象**深度相等**；
-  `bash scripts/check_principles.sh` 家族名文件数不上升
-- **不包含**：改变任何字段的取值语义或 fallback 顺序
+- **验收**：差分测试断言全部 **59 个内置模型**的 `normalizeConfig` 输出**深度相等**；
+  护栏 §8.1 计数不升（≤16）
+- **不包含**：Job B 迁移（W3b）、统一 B/C probe 语义、任何字段取值变化
 - **回退**：纯内部实现替换，消费方接口不变
 
 ---
@@ -188,7 +192,7 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 
 ---
 
-## W3 layers：分派改查表 + 建立 canonical 角色表
+## W3a layers：分派改查表 + 角色表 + 配方表
 
 - **范围**
   1. `layers/attention.js:10-28` 与 `:29-53` 两条平行嵌套三元合并为一张表，
@@ -196,15 +200,43 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
   2. 新建 **canonical 节点角色表**（§4.3 层 1），对齐 llama.cpp 的 `MODEL_TENSOR` 枚举 +
      `MODEL_TENSORS[arch]` 列表。含参节点声明 `role`（`attn_q` / `attn_qkv` / `attn_norm` /
      `ffn_gate` …）而不是自己编 id；`role` 与 `operator_id` 是两个维度，都保留；
-  3. `decoderLayer.js` / `decoderStack.js` / 网络层显式声明顺序执行，
+  3. 新建**配方表**（如 `structure/components.js`）：以组件配方为键
+     （attention / norm / FFN / 位置编码 / 附加结构），家族名只出现在
+     "模型 → 配方"的薄解析层（§4.3）。注意与 W3b 的分工：本波只建表并让分派消费它，
+     **不改 normalizeConfig**；
+  4. `decoderLayer.js` / `decoderStack.js` / 网络层显式声明顺序执行，
      让 `evidence` 落到 `module-order` 且**被明确标注**，而非兜底静默产生（§2.1）。
 - **入口**：`layers/attention.js`、`layers/decoderLayer.js`、`layers/decoderStack.js`、
-  `model_executor/models/common.js`、新增 `structure/roles.js`
+  `model_executor/models/common.js`、新增 `structure/roles.js`、新增 `structure/components.js`
 - **依赖**：W2
 - **验收**：差分测试断言 spec 树深度相等（`role` 是新增字段，不改变既有字段）；
   新增用例断言含 children 的模块均有边声明或顺序标记；断言每个含参节点都有 `role`
-- **不包含**：checkpoint 映射表（W4.5）、残差跨层级边（§2.5，暂缓）
+- **不包含**：checkpoint 映射表（W4.5）、Job B 迁移（W3b）、残差跨层级边（§2.5，暂缓）、
+  attentionKind 家族品牌 id 改名（输出可见，见未排期）
 - **回退**：表驱动与三元链可共存一个提交，差分后再删旧链
+
+---
+
+## W3b 组网：方案决定权归还组网，normalizeConfig 瘦身
+
+- **背景**：`normalizeConfig` 现在替 builder 预先做完全部方案决定
+  （`attentionSchedule` / `layerSchedule` / `linearAttentionMode` / `normMode` / …），
+  是 god-object 耦合枢纽——每个字段单看意义不明，合起来是某几个 builder 的私人菜单，
+  且泄漏到 cost（`compute.js:308` 读 `layerSchedule` 算专家比例）。
+  transformers 的分工是 `Config` 类管字段、`modeling_*.py` 管决定（§4.7）。
+- **范围**
+  1. 配方表（W3a 建立的）接管 Job B：逐层调度与方案选择由配方声明；
+     调度读取逻辑可为共享 util，但**调用权在配方/组装点**；
+  2. builder 在组装点消费 config 视图 + 配方，自行决定造什么；
+  3. `normalizeConfig` 瘦身为纯字段归一（别名 + 默认值），删除全部方案类字段与家族分支；
+  4. `cost/compute.js:308` 对 `layerSchedule` 的消费改为结构节点属性或显式 plan 对象。
+- **入口**：`structure/config/normalize.js`、`structure/model_executor/**`、`cost/compute.js`
+- **依赖**：W3a
+- **验收**：**最终 spec 树**差分一致（59 模型）；`normalizeConfig` 输出不再含方案类字段
+  ——后一项是输出变化，需重建差分参照并人工核对一次；
+  护栏 §8.1 计数应显著下降（normalize.js 退出计数）
+- **不包含**：attentionKind 家族品牌 id 改名（见未排期）
+- **回退**：新旧两条组装路径可共存，差分后再删旧
 
 ---
 
@@ -421,10 +453,11 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 | 波次 | 收口的原则 |
 |---|---|
 | W0 | §2.2（部分）、§3.2 与 §8.1 的检查手段 |
-| W0.5 | §8.1（家族判据合一） |
+| W0.5 | —（机械收敛；维护 §8.1 计数不升） |
 | W1 | §3.1、§3.5 |
 | W2 | §8.2（ops 侧） |
-| W3 | §2.1、§4.3（层 1 角色表）、§8.2（layers 侧） |
+| W3a | §2.1、§4.3（层 1 角色表 + 配方表）、§8.2（layers 侧） |
+| W3b | §4.7、§4.3（配方接管 Job B） |
 | W4 | §2.2（evidence 三值齐全） |
 | W4.5 | §4.3（层 2 映射表 + 禁止运行时猜测）、§4.4、§4.5、§4.6 |
 | W5 | §3.2、§3.3、§3.4 |
@@ -433,7 +466,7 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 | C | §7（自定义参数侧） |
 | D | §6.1（SRP 侧）、错误处理一致性 |
 | E | §6（UI 分层） |
-| 未排期 | §2.5 残差边、§6.4 来源解析归并、§7 国产芯片条目、§8.1 基线下调（待 W0.5+W3+W4.5 完成后重新测量） |
+| 未排期 | §2.5 残差边、§6.4 来源解析归并、§7 国产芯片条目、§8.1 基线下调（待 W3a+W3b+W4.5 完成后重新测量）、attentionKind 家族品牌 id 改名（`qwen35_full` → 组件名；会改变输出 attributes，需单独拍板） |
 
 每波完成后，从 [`principles.md`](principles.md) §10 例外登记中删除对应条目。
 §10 清空之日即本文作废之日。

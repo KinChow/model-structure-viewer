@@ -59,7 +59,16 @@ test("T4 整模型恒等式：dense 全过，MoE 报告校准中", async () => {
     const normsTerm = normalized.hyperConnectionCount ? 0 : 2 * hidden;
     const embeddingTerm = (normalized.vocabSize || 0) * hidden;
     const total = derivedWeightParameters(normalized);
-    const nEff = total - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0);
+    // MoE：derived 的 routed 参数是全部专家；每 token 只激活 k/E →
+    // 期望侧同口径缩放（镜像 derived 的 routed 公式：E·3·routedHidden·moeI + latent 投影）。
+    const layerSched = normalized.layerSchedule || Array.from({ length: normalized.layers || 0 }, () => (normalized.experts ? "moe" : "dense"));
+    const moeLayerCount = layerSched.filter((kind) => kind === "moe").length;
+    const routedHidden = normalized.routedExpertHiddenSize || hidden;
+    const moeIntermediate = normalized.moeIntermediateSize || normalized.intermediateSize || 0;
+    let routedN = moeLayerCount * (normalized.experts || 0) * 3 * routedHidden * moeIntermediate;
+    if (routedHidden !== hidden) routedN += moeLayerCount * 2 * hidden * routedHidden;
+    const kOverE = normalized.experts && normalized.expertsPerToken ? normalized.expertsPerToken / normalized.experts : 1;
+    const nEff = total - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0) - routedN + routedN * kOverE;
     // 无权重注意力 matmul（Q·K^T 与 P·V）：参数量不含、但是真实矩阵 MACs。
     // 打分式层每层 2·heads·T·S·D（prefill 近似 S=T）；linear 层走 F7b 无此项。
     const schedule = normalized.attentionSchedule || [];

@@ -39,7 +39,8 @@
 4. **哈希基线 diff 审阅**：有意变更 → 重生成 → diff 中只允许出现该变更
    声称的字段类型，任何其他差异 = 回归；
 5. **恒等式超差**：先归因（counts/期望侧/建模边界三选一），建模边界写入
-   REGISTERED 并同步 `details/cost_counts.md`。
+   REGISTERED 并同步 `details/cost_counts.md`。归因方法（域拆分账本、
+   四样东西、已排除假设纪律）见 `details/identity_calibration.md`。
 
 ## 已知登记残差（不阻塞，详见 principles.md §10 与 details/cost_counts.md）
 

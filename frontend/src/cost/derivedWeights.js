@@ -84,8 +84,9 @@ export function derivedVisionParameters(config) {
   const intermediate = config.visionIntermediateSize || 0;
   const patch = config.visionPatchSize || 0;
   const temporalPatch = config.visionTemporalPatchSize || 1;
-  const channels = config.visionChannels || 0;
-  if (!layers || !hidden || !heads || !headDim || !intermediate || !patch || !channels) return 0;
+  // channels 缺省按 RGB=3（Kimi 等不含 in_channels 字段，曾一票否决整个推导 → vision 期望侧 7× 低估）
+  const channels = config.visionChannels || 3;
+  if (!layers || !hidden || !heads || !headDim || !intermediate || !patch) return 0;
   const patchEmbedding = channels * temporalPatch * patch * patch * hidden;
   const attention = hidden * (3 * heads * headDim) + (heads * headDim) * hidden + 2 * hidden;
   const mlp = config.visionMlpGated ? 3 * hidden * intermediate : 2 * hidden * intermediate;

@@ -76,7 +76,10 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
     const diagram = page.locator(".react-flow-diagram");
     await expect.poll(() => page.locator(".react-flow__node").count()).toBeGreaterThan(3);
     await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(1);
-    expect(await diagram.innerText()).not.toMatch(/\bUNKNOWN\b|\bunknown\b/);
+    // 语义断言（M11-P0-1）：图内不得出现空标题占位节点。旧断言
+    // not.toMatch(/unknown/i) 惩罚诚实展示的"未知"标签，已废弃。
+    const titles = await page.locator(".rf-node-title").allTextContents();
+    expect(titles.filter((title) => !title.trim())).toHaveLength(0);
 
     const decoder = page.locator(".rf-node-content").filter({ hasText: /Decoder Layers|Text Decoder Layers/ }).first();
     const expand = decoder.getByRole("button", { name: "展开", exact: true });
@@ -105,7 +108,12 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       await costToggle.click();
       const costPanel = page.locator(".cost-summary");
       await expect(costPanel.getByText("MACs / forward", { exact: false })).toBeVisible();
-      expect(await costPanel.innerText()).not.toMatch(/\bunknown\b/i);
+      // 语义断言（M11-P0-1）：内置模型聚合 bound 必须可分类，不得为 unknown
+      // （data-bound 契约，扩展 W6 的 data-evidence 先例）。旧断言
+      // not.toMatch(/unknown/i) 惩罚诚实展示，已废弃。
+      const roofline = costPanel.locator(".cost-metrics [data-bound]");
+      await expect(roofline).toBeVisible();
+      expect(await roofline.getAttribute("data-bound")).not.toBe("unknown");
     }
     await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
     await expect(page.getByLabel("model id")).toBeVisible();

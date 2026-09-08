@@ -79,7 +79,7 @@ function MsvNode({ data, selected }) {
     searchActive && !isMatch ? "dimmed" : "",
     isOpenGroup ? "open-group" : "closed-group",
   ].filter(Boolean).join(" ");
-  return <div className={classes} style={{ width: node.width, height }} onMouseEnter={() => hover.onHover?.(node.path)} onMouseLeave={() => hover.onHover?.(null)} onClick={(event) => {
+  return <div className={classes} style={{ width: node.width, height }} data-bound={lensEnabled ? (bound || "unknown") : undefined} onMouseEnter={() => hover.onHover?.(node.path)} onMouseLeave={() => hover.onHover?.(null)} onClick={(event) => {
     if (event.target.closest("button, a, input, select, textarea")) return;
     onSelect(node.path);
   }}>

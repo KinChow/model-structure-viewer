@@ -1,5 +1,7 @@
 # 算子动作向量注册表（W1 实现规格）
 
+> 逐算子对照审查：[`operators_reference.md`](./operators_reference.md)——每算子的触发面探针实证、公式实现位置、来源三级标注与对齐勾选（2026-09-08）。
+
 本文是 `frontend/src/structure/formulas/index.js` 每个条目 `counts()` 的实现规格：
 分类、公式、共享实现与假设。实现以本文为准；修改公式先改本文。
 

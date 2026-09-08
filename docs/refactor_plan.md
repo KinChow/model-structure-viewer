@@ -736,8 +736,9 @@ out=64，实际应为 1024/2048（模板 output_shape 本来就对，counts 侧�
   2·headDim 且无 kvWrite（归 compressor 叶）；swa/compressed 拆成独立
   case。基线 diff 审阅：actIn/actOut/bytesMoved/times.memory 恰好 16
   模型，零 bound 翻转。**PENDING_UNMODELED 已清空**，§3.1c 棘轮全绿。
-- dsv4_hash_route 的 tid2eid 路由表是真实参数（≈775,680 条目），
-  hashRouteCounts 现传 tableRows:0 → weights 低估，另立小项接表行数。
+- ~~dsv4_hash_route 的 tid2eid 路由表~~ **✅（2026-09-08 C 路落地）**：
+  tableRows = vocabSize×expertsPerToken 实算（129280×6≈775,680 条目/层），
+  weights 补齐；基线 diff 恰好 5 个 V4 模型 weights 变化。
 - cost_counts.md 42 条目补 bytes 公式说明（并 P2 文档批）。
 - 压缩层 hybrid 滑窗读（dsv4 报告线索）待查。
 - 证据缺口仍在（不阻塞公式，阻塞口径裁决）：Qwen3.8-Flash-Next /
@@ -806,8 +807,10 @@ out=64，实际应为 1024/2048（模板 output_shape 本来就对，counts 侧�
 4. 42 条 `// ref:` 来源标注 + 护栏第四项：当前 ref: 计数 0
    （grep 实证 formulas/ 与 cost/ 全部为 0），principles.md:178-184 已写成
    生效硬门槛——补护栏使门槛成真，或改口径（倾向前者，与 §8.1 棘轮同构）。
-5. comm.js 删路径正则兜底（已验证 4 个 communication_role 与模板声明完全对齐，
-   兜底为死路径）。
+5. ~~comm.js 删路径正则兜底~~ **✗ 2026-09-08 探针推翻**：兜底是活路径——
+   50 个节点（Kimi/GLM 的 routed_expert_down_proj，路径段不匹配 experts
+   排除正则）正走 o_proj/down_proj 兜底分支计通信量，删除将改变其字节。
+   审计"4 个 role 对齐"属实，但"兜底为死路径"推论不成立。兜底保留。
 6. weightBytesPerCard 切分规则表化。
 7. layerSpanForNode 收敛至共享正则。
 8. 文档现状化（四路审计的文档修订清单）：MAINTENANCE 数字修正

@@ -75,7 +75,7 @@ export function derivedWeightParameters(config = {}) {
   return embedding + decoder + hidden + lmHead + outputResidual + finalHyperConnection + derivedVisionParameters(config);
 }
 
-function derivedVisionParameters(config) {
+export function derivedVisionParameters(config) {
   const plan = deriveBuildPlan(config?.raw ?? config);
   const layers = config.visionLayers || 0;
   const hidden = config.visionHiddenSize || 0;

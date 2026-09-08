@@ -54,6 +54,11 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M5** 真值绑定显式化 | W4.5 | 绑定差分一致 **且 `ambiguous` = 0**；可逆校验通过 | §4.3 层 2、§4.4、§4.5、§4.6 |
 | **M6** 成本分层 | W5 | ✅（2026-09-08）：主链查表 + ERT 分离 + 五路 max；cost 数值变化仅 routed swiglu k 语义修正（校准结论）；未实现算子返回 `null`；换卡只走表乘法（用例证明） | §3.2、§3.3、§3.4 |
 | **M7** 诚实性上界面 | W6 | ✅（2026-09-08）：诊断面板（gaps/ambiguous/未适配 banner）+ evidence 数据契约与三轴样式（e2e 断言）+ 五类瓶颈时间展开 + value_source 徽标 | §2.2 UI 侧、§4.2、§4.4 |
+| **M8** vision 完成 | V1 ✅（词表+绑定+kv_b 修复）/ V2（恒等式域拆分，进行中）/ V3（visualTokens 用户输入+成本链验证） | V2：38 vision 模型 ratio 收敛；V3：loads.visionTokens 输入 |
+| **M9** 维护基线 | ✅ | §10 三态快照 + MAINTENANCE.md（docs/MAINTENANCE.md） |
+| **M11** 冗余清扫 + 并行/通信层对齐 | B 档全量：死代码系统扫描（导出引用矩阵）；comm.js 删路径正则兜底只认 communication_role；AllToAll 补 dp>1 条件（vLLM 口径，行为变化需知晓）；nodeCostPerCard 补 vector/sfu 投影（W5-2 闭环）；weightBytesPerCard 切分规则表化；layerSpanForNode 收敛至共享正则 | 零未引用导出；PP/DP/EP 切分矩阵测试；每公式有 source |
+| **M12** 并行策略功能扩展（后期） | C 档：KV keep-ratio 压缩档位、overlap 参数化、per-stage 通信五路 roofline——越过"纯理论估算"边界的行为变化，开工前单独对齐 | 单独对齐后定 |
+| **M10** 小项收尾 | 旁路 C（手工卡 field_sources 等 5 项）；昇腾条目（sfu_rate_source:"vector" 落地）；qwen35_full 改名撤销；§2.5 保持登记 | 旁路 C：field_sources 齐全 |
 
 ---
 

@@ -79,7 +79,7 @@ M8-V1 修复，账本预测的量值与修复后实测一致。
 ## 案例二（进行中）：K3 双侧偏离——锚点已立（2026-09-08）
 
 **外部锚点（官方模型卡，confidence 高）**：total **2.8T**、active **104B**。
-源码已入库：`details/models/kimi-k3/modeling_kimi_linear.py`（文本解码器真身）。
+源码已入库：[`models/moonshotai/Kimi-K3/modeling_kimi_linear.py`](../../models/moonshotai/Kimi-K3/modeling_kimi_linear.py)（文本解码器真身）。
 
 **已澄清事实**（agent 取证，含行号）：
 - 层型混合：**69 KDA + 24 MLA**（每 4 层 3 KDA + 1 MLA，末层 93 为 MLA；
@@ -145,8 +145,10 @@ GLM 的 `model.safetensors.index.json`（8.4MB，76108 张量）已本地解析
 
 ## M8-V2 案例三（进行中）：Kimi K3/K2.5 vision 塔逐层对账（源码已核实）
 
-一手源码已入库：`details/models/kimi-k3/{modeling_kimi_k3,configuration_kimi_k3}.py`、
-`kimi-k25/`、`glm5-next/`（modeling_glm5_next.py，glm5_next 文本层待解析）。
+一手源码已入库（HF hub 单模型仓库惯例，与 config.json 同仓）：
+[`models/moonshotai/Kimi-K3/`](../../models/moonshotai/Kimi-K3/)（modeling_kimi_k3.py、modeling_kimi_linear.py、configuration_kimi_k3.py、kimi-linear-analysis.md、k3-layer-tensors.json）、
+[`models/moonshotai/Kimi-K2.5/modeling_kimi_k25.py`](../../models/moonshotai/Kimi-K2.5/modeling_kimi_k25.py)、
+[`models/zai-org/GLM-5.3-Flash/modeling_glm5_next.py`](../../models/zai-org/GLM-5.3-Flash/modeling_glm5_next.py)（glm5_next 文本层待解析）。
 
 **K3 vision 塔真值**（MoonViT3dEncoder，27 层，源码核实）：
 - 每层：norm0/norm1（各 1024）、wqkv = Linear(1024 → **4608**)（qkv_hidden_size

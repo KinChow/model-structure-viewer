@@ -43,7 +43,7 @@
    evidence-manifest.json 登记来源 URL。公式级校准按
    /details/identity_calibration.md 的域拆分账本方法执行；
 3c. **公式来源标注**：新算子进 `formulas/` 必须带来源注释——一等
-   （aten 锚点）/二等（modeling 源码对照，引用 details/models/ 证据）/
+   （aten 锚点）/二等（modeling 源码对照，引用 `models/<org>/<id>/` 内入库源码证据）/
    三等（分解声明），并写明单位换算（FLOPs↔MACs 2× 等），样式照
    counts.js F1 注释；
 4. **哈希基线 diff 审阅**：有意变更 → 重生成 → diff 中只允许出现该变更

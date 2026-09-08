@@ -135,3 +135,22 @@ npm --prefix frontend run verify:models
 - 顶层组网：`frontend/src/structure/model_executor/models/`
 - 可复用层：`frontend/src/structure/model_executor/layers/`
 - 专项模型说明：`docs/details/models/`
+
+
+## 模型目录内的证据文件（M8-V2 起）
+
+部分模型目录除 `config.json` 外还带有校准证据文件（HF hub 单模型仓库惯例：
+模型相关文件同仓）：
+
+- `modeling_*.py` / `configuration_*.py`：官方 modeling 源码（L2 结构语义证据，
+  公式对照依据）；
+- `model.safetensors.index.json`：权重清单原件（L3，体积大不入 git，
+  由 manifest 的来源 URL 可重下）；
+- `index-summary.json`：index 派生摘要——逐层张量模式（入 git）；
+- `evidence-manifest.json`：证据清单——文件名/级别（L1 config、L2 modeling、
+  L3 index）/来源 URL/下载日期；
+- `kimi-linear-analysis.md` 等分析报告。
+
+取证入口：`node scripts/fetch-evidence.mjs <org>/<id> --probe <文件名列表>`。
+用途与纪律见 [`MAINTENANCE.md`](../MAINTENANCE.md) 纪律 3b/3c 与
+[`identity_calibration.md`](identity_calibration.md)。

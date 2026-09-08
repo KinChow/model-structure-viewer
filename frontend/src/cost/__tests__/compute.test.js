@@ -155,7 +155,7 @@ test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent stat
 test("MiniMax M3 sparse attention MACs use selected blocks plus local/init blocks", () => {
   const node = { type: "attention", attributes: { attention_kind: "sparse" }, id: "text_decoder.3.self_attn" };
   const config = { modelType: "minimax_m3_vl", attentionHeads: 2, headDim: 3, sparseTopkBlocks: 2, sparseBlockSize: 4, sparseInitBlock: 1, sparseLocalBlock: 0 };
-  assert.equal(computeNodeCosts(node, config, { batch: 1, sequence: 5, phase: "prefill" })[0].macs, 720);
+  assert.equal(computeNodeCosts(node, config, { batch: 1, sequence: 5, phase: "prefill" })[0].compute_macs, 720);
 });
 
 test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {
@@ -164,25 +164,25 @@ test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {
     { id: "decoder.1.mlp.experts.0", weight_shapes: { weight: [4, 2] }, children: [] },
   ] };
   const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2, layerSchedule: ["dense", "moe"] }, { batch: 1, sequence: 1 });
-  assert.equal(rows[1].macs, 8);
-  assert.equal(rows[2].macs, 2);
+  assert.equal(rows[1].compute_macs, 8);
+  assert.equal(rows[2].compute_macs, 2);
 });
 
 test("F16 真实专家路径在缺少 layerSchedule 时仍使用活跃比例", () => {
   const root = { children: [{ id: "decoder.0.mlp.experts.0", weight_shapes: { weight: [4, 2] }, children: [] }] };
   const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2 }, { batch: 1, sequence: 1 });
-  assert.equal(rows[1].macs, 2);
+  assert.equal(rows[1].compute_macs, 2);
 });
 
 test("layernorm 名称包含 attention 时不应误判为 attention 核心", () => {
   const node = { type: "normalization", name: "post attention layernorm", output_shape: [-1, -1, 8] };
-  assert.equal(computeNodeCosts(node, { attentionHeads: 2, headDim: 4 }, { batch: 1, sequence: 2 })[0].macs, 0);
+  assert.equal(computeNodeCosts(node, { attentionHeads: 2, headDim: 4 }, { batch: 1, sequence: 2 })[0].compute_macs, 0);
 });
 
 test("父节点和范围子节点同时有 repeat 时只计算一次范围倍数", () => {
   const root = { repeat: 4, children: [{ id: "decoder.0", repeat: 4, children: [{ weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] }] };
   const rows = computeNodeCosts(root, {}, { batch: 1, sequence: 1 });
-  assert.equal(rows[2].macs, 16);
+  assert.equal(rows[2].compute_macs, 16);
   assert.equal(rows[2].multiplier, 4);
 });
 
@@ -199,7 +199,7 @@ test("V3 用户可调 visionTokens：vision 域随 tokens 线性变化，文本�
   const options = { batch: 1, sequence: 8, phase: "prefill" };
   const small = computeNodeCosts(root, config, { ...options, visionTokens: 512 });
   const large = computeNodeCosts(root, config, { ...options, visionTokens: 2048 });
-  const byId = (rows, id) => rows.find((row) => row.node.id === id).macs;
+  const byId = (rows, id) => rows.find((row) => row.node.id === id).compute_macs;
   // vision 域叶子：macs = 4*2*tokens，512→4096，2048→16384（线性 4×）
   assert.equal(byId(small, "vision_tower.blocks.0.attn.proj"), 4096);
   assert.equal(byId(large, "vision_tower.blocks.0.attn.proj"), 16384);

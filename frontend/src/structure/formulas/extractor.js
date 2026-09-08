@@ -658,7 +658,15 @@ export function countsForNode(node, env = {}) {
     case "moe_add":
       return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement });
     case "dsv4_hash_route":
-      return hashRouteCounts({ tokens, topk: config?.expertsPerToken || 0, tableRows: 0, bytesPerElement });
+      // M11-P2：tid2eid 路由表 [vocab, num_experts_per_tok] 是真实参数
+      // （V4-Flash 权重 index 实证：129280×6 ≈ 775,680 条目/层，此前传
+      // tableRows:0 → weights 低估）。int32 索引按 bytesPerElement 计。
+      return hashRouteCounts({
+        tokens,
+        topk: config?.expertsPerToken || 0,
+        tableRows: (config?.vocabSize || 0) * (config?.expertsPerToken || 0),
+        bytesPerElement,
+      });
     default: {
       // 复合节点：调注册表的组合 counts（§3.1 唯一注册点），ctx 按规格构建。
       // 精度为初版（n 流参数用 normalized 近似），恒等式（T4）校准后复核。

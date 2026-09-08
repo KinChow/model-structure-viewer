@@ -11,7 +11,7 @@ export function bytesPerDtype(dtype, fallback = 2) {
   return BYTES_PER_DTYPE[String(dtype || "").toUpperCase()] ?? fallback;
 }
 
-export function product(shape) {
+function product(shape) {
   if (!Array.isArray(shape) || shape.length === 0) return 0;
   return shape.reduce((total, value) => total * (Number.isFinite(value) && value >= 0 ? value : 0), 1);
 }
@@ -120,7 +120,7 @@ export function kvBytesPerToken(config, kvBytes = 2) {
   return 2 * layers * heads * headDim * kvBytes;
 }
 
-export function activationPeakBytes({ activationPeak = 1.5 * 1024 ** 3 } = {}) {
+function activationPeakBytes({ activationPeak = 1.5 * 1024 ** 3 } = {}) {
   return activationPeak;
 }
 
@@ -135,4 +135,3 @@ export function memoryBreakdown({ weightBytes = 0, config, batch = 1, tokens = 1
     commBufferBytes: commBuffer, totalBytes: total };
 }
 
-export { BYTES_PER_DTYPE };

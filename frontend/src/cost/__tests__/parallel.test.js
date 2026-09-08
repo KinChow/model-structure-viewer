@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, projectNodePlan, projectPdFit, projectPlan, stageForLayer, stateBytesPerCard, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, projectNodePlan, projectPdFit, projectPlan, stateBytesPerCard, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
@@ -48,8 +48,6 @@ test("节点 roofline 成本按 TP、EP 或复制规则投影到单卡", () => {
 });
 
 test("PP 层归属和逐 stage 投影返回结构", () => {
-  assert.equal(stageForLayer(0, 8, 2), 0);
-  assert.equal(stageForLayer(7, 8, 2), 1);
   const result = projectPlan({ weightBytes: 800, kvBytes: 160, config: { kvHeads: 8 }, plan: { tp: 2, pp: 2, dp: 1 } });
   assert.equal(result.ok, true);
   assert.equal(result.stages.length, 2);

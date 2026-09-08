@@ -30,12 +30,6 @@ export function nodeMacs(node, config, options = {}) {
   return counts ? counts.matrix : null;
 }
 
-function computeMacsForNode(node, config, options = {}) {
-  // 父节点只作为成本汇总，实际公式归属叶子；父子同时计费会重复计算层成本。
-  if (node?.children?.length) return 0;
-  return nodeMacs(node, config, options);
-}
-
 function macsSource(node, counts) {
   if (node?.children?.length) return "aggregate";
   if (!counts) return "unknown";
@@ -61,7 +55,7 @@ export function computeNodeCosts(root, config, options = {}) {
         actOut: scale(counts.bytes.actOut),
       },
     };
-    rows.push({ path, node, multiplier, macs: compute, compute_macs: compute,
+    rows.push({ path, node, multiplier, compute_macs: compute,
       macs_source: macsSource(node, counts),
       actions,
       weightBytes: nodeWeightBytes(node) * multiplier,

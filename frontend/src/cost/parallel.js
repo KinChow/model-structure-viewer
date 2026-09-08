@@ -4,6 +4,7 @@
 import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeightBytes } from "./memory.js";
 import { childRepeatMultiplier, graphNodeToNode, walkStructure } from "./traverse.js";
 import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+import { LAYER_INDEX_RE } from "../structure/formulas/extractor.js";
 const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 function positiveInteger(value) {
@@ -79,16 +80,26 @@ function isRoutedExpertPath(path) {
 }
 
 /** 按模块类别计算权重在单卡上的 TP/EP 投影；PP 只负责 stage 归属。 */
+// 单卡投影规则表（顺序敏感，首条命中生效）。来源：llm-analysis TP/EP 投影
+// 语义——① 路由专家 EP>1 按 EP 切；② norm 复制；③ 词表并行关闭时
+// embed/lm_head 复制；④ 其余 TP>1 按 TP 切；⑤ 默认复制。新增规则加表项。
+const WEIGHT_PROJECTION_RULES = [
+  { axis: "ep", when: (path, ctx) => isRoutedExpertPath(path) && ctx.ep > 1, divisor: (ctx) => ctx.ep },
+  { axis: "replicated", when: (path) => /(^|\.)[^.]*norm[^.]*($|\.)/.test(path), divisor: () => 1 },
+  { axis: "replicated", when: (path, ctx) => /(embed|lm_head|output)/.test(path) && !ctx.vocabParallel, divisor: () => 1 },
+  { axis: "tp", when: (path, ctx) => ctx.tp > 1, divisor: (ctx) => ctx.tp },
+  { axis: "replicated", when: () => true, divisor: () => 1 },
+];
+
 export function weightBytesPerCard(totalBytes, node, plan = {}) {
   const path = modulePath(node);
-  const tp = plan.tp ?? plan.TP ?? 1;
-  const ep = plan.ep ?? plan.EP ?? 1;
-  const vocabParallel = plan.vocabParallel ?? plan.vocab_parallel ?? true;
-  if (isRoutedExpertPath(path) && ep > 1) return { bytes: totalBytes / ep, divisor: ep, axis: "ep" };
-  if (/(^|\.)[^.]*norm[^.]*($|\.)/.test(path)) return { bytes: totalBytes, divisor: 1, axis: "replicated" };
-  if (/(embed|lm_head|output)/.test(path) && !vocabParallel) return { bytes: totalBytes, divisor: 1, axis: "replicated" };
-  if (tp > 1) return { bytes: totalBytes / tp, divisor: tp, axis: "tp" };
-  return { bytes: totalBytes, divisor: 1, axis: "replicated" };
+  const ctx = {
+    tp: plan.tp ?? plan.TP ?? 1,
+    ep: plan.ep ?? plan.EP ?? 1,
+    vocabParallel: plan.vocabParallel ?? plan.vocab_parallel ?? true,
+  };
+  const rule = WEIGHT_PROJECTION_RULES.find((candidate) => candidate.when(path, ctx));
+  return { bytes: totalBytes / rule.divisor(ctx), divisor: rule.divisor(ctx), axis: rule.axis };
 }
 
 /**
@@ -137,12 +148,8 @@ export function expertWeightRange(totalBytes, experts, ep = 1) {
   };
 }
 
-/** 将层索引映射到 PP stage；首尾 stage 可额外承载 embedding/lm_head。 */
-export function stageForLayer(layerIndex, layers, pp = 1) {
-  if (!positiveInteger(pp) || !positiveInteger(layers) || layerIndex < 0 || layerIndex >= layers) return null;
-  return Math.min(pp - 1, Math.floor(layerIndex * pp / layers));
-}
-
+// 层 span 提取复用 extractor 的共享正则（M11-P2-7 收敛）；
+// stageForLayer 旧原语已被 stageLayerBounds 内联取代（生产零调用，M11-P2 删除）。
 function stageLayerBounds(stage, layers, pp) {
   return { start: Math.floor(stage * layers / pp), end: Math.floor((stage + 1) * layers / pp) - 1 };
 }
@@ -154,13 +161,13 @@ function layerSpanForNode(node) {
     return { start, end };
   }
   const path = String(node?.id || "");
-  const match = path.match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
+  const match = path.match(LAYER_INDEX_RE);
   if (match && !/(^|\.)experts(\.|$)/.test(path) && Number.isFinite(node?.repeat) && node.repeat > 1) {
     const start = Number(match[1]);
     return { start, end: start + node.repeat - 1 };
   }
   if (!/(^|\.)experts(\.|$)/.test(path) && Number.isFinite(node?.repeat) && node.repeat > 1 && node?.children?.length === 1) {
-    const childMatch = String(node.children[0]?.id || "").match(/(?:^|\.)(?:layers|decoder)\.(\d+)(?:\.|$)/);
+    const childMatch = String(node.children[0]?.id || "").match(LAYER_INDEX_RE);
     if (childMatch) {
       const start = Number(childMatch[1]);
       return { start, end: start + node.repeat - 1 };

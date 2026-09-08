@@ -373,7 +373,7 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
   assert.deepEqual(attention.children.map((node) => node.name), [
     "QKV projection",
     "beta projection",
-    "forget/decay gate projection",
+    "decay low-rank projection",
     "qkv causal short convolution",
     "KDA recurrent state",
     "gated RMSNorm",

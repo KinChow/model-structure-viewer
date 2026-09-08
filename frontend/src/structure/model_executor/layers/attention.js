@@ -16,7 +16,11 @@ const ATTENTION_COMPONENTS = [
         return [["qkv_projection", "qkvz_split"], ["qkvz_split", "short_conv"], ["beta_projection", "state_update"], ["decay_projection", "state_update"], ["short_conv", "state_update"], ["state_update", "output_gate_norm"], ["output_gate_norm", "out_proj"]];
       }
       if (modelType === "kimi_k3" || modelType === "glm5_next") {
-        return [["qkv_projection", "short_conv"], ["beta_projection", "state_update"], ["decay_projection", "state_update"], ["short_conv", "state_update"], ["state_update", "output_gate_norm"], ["output_gate_norm", "out_proj"]];
+        // kimi_k3：decay 走低秩 f_a（在融合内）+ f_b（独立叶），边指向 f_b
+        const kdaEdges = [["qkv_projection", "short_conv"], ["beta_projection", "state_update"], ["short_conv", "state_update"], ["state_update", "output_gate_norm"], ["output_gate_norm", "out_proj"]];
+        return modelType === "kimi_k3"
+          ? [...kdaEdges.slice(0, 2), ["f_b_proj", "state_update"], ...kdaEdges.slice(2)]
+          : kdaEdges;
       }
       return undefined;
     },

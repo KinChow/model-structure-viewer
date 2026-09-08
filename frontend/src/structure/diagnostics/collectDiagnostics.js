@@ -1,3 +1,5 @@
+import { SUPPORTED_MODEL_ARCHITECTURES } from "../model_executor/models/index.js";
+
 function countOperatorSpecs(spec) {
   if (!spec) return 0;
   const own = spec.kind === "operator" ? 1 : 0;
@@ -21,9 +23,11 @@ export function collectDiagnostics({ network, normalized, resolved }) {
     });
   }
   if (resolved.canonicalArchitecture === "generic-config") {
+    // vLLM _raise_for_unsupported 模式：不支持即枚举支持项，让用户知道下一步。
     unsupported.push({
       code: "generic-config",
-      message: "Config does not expose enough fields to build a model network",
+      message: `Config does not expose enough fields to build a model network. `
+        + `Supported architectures: ${SUPPORTED_MODEL_ARCHITECTURES.join(", ")}`,
     });
   }
 

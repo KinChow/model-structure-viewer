@@ -6,11 +6,3 @@ export function buildGenericDecoderNetwork(resolved, normalized) {
   return textDecoderNetwork(resolved, normalized, { attentionKind: "gqa", defaultLayerKind: "dense" });
 }
 
-export function buildGenericConfigNetwork(resolved, normalized) {
-  return networkSpec(
-    "model",
-    resolved.architecture || normalized.modelType || "Configuration",
-    resolved.canonicalArchitecture,
-    [],
-  );
-}

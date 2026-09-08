@@ -262,10 +262,9 @@ weight 无逻辑形状），沿用旧链的诚实语义。
 
 已登记的恒等式残差（R1 逐项对账审计，2026-09-08）：
 
-- **counts 侧 kv_b 宽度**：extractor 用 `attentionKey=[kvHeads, headDim]`（192），
-  MLA 真值 kv_b 输出宽 = qk_nope + v_head_dim（128+128=256）；R1 上 −4.194M/层 ×61
-  = −255.9M/token，Kimi 同类（kv_b [64,192]→[64,256]）。修复点在 `model_executor/dims.js`
-  MLA 分支（对照 `ops/index.js:673` DSA 变体的正确写法），与 W3a/W3b dims 收口同批。
+- ~~counts 侧 kv_b 宽度~~ ✅ 已修（2026-09-08，M8-V1 批次）：MLA 模板 kv_b 输出
+  改为 `[-1,-1,kvHeads, qkNope+vHeadDim]`（对照 DSA 变体写法）；R1 恒等式
+  0.9914→0.9983、Kimi 0.9950→0.9990。
 - ~~测试期望侧 score 项~~ ✅ 已修（2026-09-08）：期望侧每层写成了
   `2·2·heads·T²·D`（双计），真值 = scores + context 各 `heads·T·S·D`，合计
   `2·heads·T²·D`。修复后目录模型整体收紧 ~0.5-1.7%，V4-Flash 进入默认容差。

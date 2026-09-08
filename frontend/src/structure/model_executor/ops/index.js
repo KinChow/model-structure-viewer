@@ -299,7 +299,9 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
     split_sizes: [normalized.kvLoraRank, normalized.qkRopeHeadDim],
   }, { input: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)], output: [-1, -1, normalized.kvLoraRank] }));
   specs.push(operatorSpec(`${prefix}.kv_a_norm`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`), { input: [-1, -1, normalized.kvLoraRank], output: [-1, -1, normalized.kvLoraRank] }));
-  specs.push(operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `${shapes.attentionKey}, ${shapes.attentionValue}`), { input: [-1, -1, normalized.kvLoraRank], output: dims.attentionKey }));
+  // kv_b 真值输出宽 = qk_nope + v_head_dim（128+128=256），非 headDim（nope+rope=192）
+  // ——R1 逐项对账审计登记残差（details/cost_counts.md），2026-09-08 修复。
+  specs.push(operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `[batch, sequence, kv heads=${normalized.kvHeads ?? "unknown"}, kv expansion=${(normalized.qkNopeHeadDim || 0) + (normalized.valueHeadDim || normalized.headDim || 0)}]`), { input: [-1, -1, normalized.kvLoraRank], output: [-1, -1, normalized.kvHeads, (normalized.qkNopeHeadDim || 0) + (normalized.valueHeadDim || normalized.headDim || 0)] }));
   specs.push(...scaledDotProductTail(prefix, shapes, dims, {
     rope: {
       query_shape: shapes.attentionQuery,

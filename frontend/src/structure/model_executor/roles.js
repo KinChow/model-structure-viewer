@@ -21,6 +21,9 @@ const PARAM_CAPABLE_OPS = new Set([
   "dsv4_hash_route",
   "linear_attention",
   "causal_conv1d",
+  // vision（M8-V1）：position embedding 与 merger conv 均为含参模块
+  "vision_position",
+  "vision_merge",
 ]);
 
 // id 末段 → role。仅含 checkpoint 侧真实存在的参数模块。
@@ -35,6 +38,7 @@ export const SUFFIX_ROLES = {
   qkv_gate_proj: "attn_qkv",
   qkv_index_proj: "attn_qkv",
   qkv_projection: "attn_qkv",
+  qkv: "attn_qkv",
   q_a_proj: "attn_q_a",
   q_b_proj: "attn_q_b",
   kv_a_proj: "attn_kv_a",
@@ -57,6 +61,15 @@ export const SUFFIX_ROLES = {
   // kimi_k3 latent MoE 的共享压缩/扩展投影（llama.cpp 无对应，扩展词表）
   routed_expert_down_proj: "ffn_latent_down",
   routed_expert_up_proj: "ffn_latent_up",
+  // vision（M8-V1）：llama.cpp mm.* 风格；qkv_proj/out_proj/gate_proj 等通用后缀
+  // 复用既有 role（绑定键含 domain=vision，与文本侧天然隔离）
+  patch_embed: "vision_patch_embd",
+  position: "vision_position",
+  fc1: "vision_ffn_up",
+  fc2: "vision_ffn_down",
+  input_norm: "vision_attn_norm",
+  post_norm: "vision_block_norm",
+  patch_merge: "vision_patch_merge",
   // norm / embed / lm_head 模块后缀（checkpoint 与模板双侧同名）
   input_layernorm: "attn_norm",
   post_attention_layernorm: "ffn_norm",

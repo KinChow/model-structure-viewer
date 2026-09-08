@@ -133,3 +133,27 @@ test("§4.6 可逆校验：每个绑定都满足 真值后缀 ∈ role 的逆像
     assert.ok(legal.includes(suffix), `${node.canonical_id}(${node.role}) 绑到了非法后缀 ${suffix}，合法：${legal}`);
   }
 });
+
+test("W3-B vision：vision 后缀词表绑定（CLIP/Qwen 双命名）", () => {
+  const template = graphFromSpecs([
+    { id: "vision_tower.patch_embed", role: "vision_patch_embd" },
+    { id: "vision_tower.0.qkv_proj", role: "attn_qkv" },
+    { id: "vision_tower.0.fc1", role: "vision_ffn_up" },
+    { id: "vision_tower.0.fc2", role: "vision_ffn_down" },
+    { id: "vision_tower.merger.fc1", role: "vision_ffn_up" },
+  ]);
+  // checkpoint 侧：Qwen 系（visual.*）与 CLIP 系（vision_tower.*）两种前缀
+  const truth = truthGraphFrom([
+    "model.visual.patch_embed.weight",
+    "model.visual.blocks.0.attn.qkv.weight",
+    "model.visual.blocks.0.mlp.fc1.weight",
+    "model.visual.blocks.0.mlp.fc2.weight",
+    "model.visual.merger.fc1.weight",
+  ]);
+  const { graph, diagnostics } = bindTruthToGraph(template, truth, { modelType: "qwen3_5" });
+  assert.deepEqual(diagnostics.graph_ambiguous_truth_matches, []);
+  const bound = graph.nodes.filter((node) => node.value_source === "checkpoint");
+  assert.equal(bound.length, 5, "vision 叶子全绑定");
+  const fc1 = bound.find((node) => node.canonical_id === "vision_tower.0.fc1");
+  assert.equal(fc1.tensor_names[0], "model.visual.blocks.0.mlp.fc1.weight");
+});

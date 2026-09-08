@@ -455,7 +455,11 @@ function shapesForHidden(normalized) {
 }
 
 export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
-  if (["deepseek_v32", "glm_moe_dsa"].includes(normalized.modelType)) {
+  // 2026-09-08 证据改判：glm5_next（GLM-5.3-Flash）主注意力是 MLA + DSA
+  // indexer（modeling_glm5_next.py:739-741 "DeepSeek Sparse Attention (DSA)
+  // indexer with k-pool compression"、:1473 mask 名 deepseek_sparse_attention），
+  // 此前误入逐头 QSA 模板。差异：index_kpool=4 池化、qk_rope_head_dim=0。
+  if (["deepseek_v32", "glm_moe_dsa", "glm5_next"].includes(normalized.modelType)) {
     return dsaAttentionOperatorSpecs(prefix, normalized, layerIndex);
   }
   const { shapes, dims } = shapesAndDims(normalized);

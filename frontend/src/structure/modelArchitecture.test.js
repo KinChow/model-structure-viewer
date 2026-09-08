@@ -308,7 +308,7 @@ test("multi-input MLP and MoE operators expose complete shape flows", () => {
   assert.ok(combine.attributes.output_shape);
 });
 
-test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () => {
+test("maps GLM-5.3-Flash KDA, DSA, and mHC to the published layer layout", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-5.3-Flash/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
   assert.equal(normalized.headDim, 256);
@@ -348,7 +348,8 @@ test("maps GLM-5.3-Flash KDA, QSA, and mHC to the published layer layout", () =>
   assert.equal(glmProjection.attributes.fused_projection_width, 24896);
 
   const qsaLayer = decoder.children.find((node) => node.attributes.range === "3..3");
-  assert.equal(qsaLayer.children.find((node) => node.type === "attention").attributes.attention_kind, "qsa");
+  // 2026-09-08 证据改判：GLM-5.3-Flash 主注意力是 MLA + DSA（非逐头 QSA）
+  assert.equal(qsaLayer.children.find((node) => node.type === "attention").attributes.attention_kind, "dsa_sparse_mla");
   const lastLayer = decoder.children.at(-1);
   assert.equal(lastLayer.children.at(-2).name, "mHC final post");
   assert.equal(lastLayer.children.at(-1).name, "mHC contract");

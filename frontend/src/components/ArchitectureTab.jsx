@@ -9,6 +9,7 @@ import ManualChipForm from "./ManualChipForm.jsx";
 import { getChipCoverage } from "../cost/chips/coverage.js";
 import { DEFAULT_COMPARE_PLAN, DEFAULT_PLAN } from "../cost/defaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
+import { etaDisclosureModel } from "../cost/ui.js";
 
 function downloadSvg(structure) {
   const legacySvg = document.querySelector(".diagram-svg");
@@ -245,6 +246,8 @@ function ArchitectureTab({
     chipComparison: "芯片对比",
     planComparison: "方案对比",
   };
+  // M11-P1-3：η 披露——vector/SFU 路固定 1.0，滑块不作用于它（见 ui.js 注释）
+  const etaNote = etaDisclosureModel({ english });
   const diagramProps = {
     structure,
     zoom,
@@ -312,6 +315,7 @@ function ArchitectureTab({
           <label className="lens-control">{ui.flops}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.flops} onChange={(event) => changeEfficiency({ ...efficiency, flops: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)) })} /></label>
           <label className="lens-control">{ui.hbm}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.hbm} onChange={(event) => changeEfficiency({ ...efficiency, hbm: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)) })} /></label>
           <label className="lens-control">{ui.comm}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.intra_node_comm} onChange={(event) => changeEfficiency({ ...efficiency, intra_node_comm: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)) })} /></label>
+          <span className="lens-eta-note" title={etaNote.detail}>{etaNote.short}</span>
           {!compactControls && <ManualChipForm language={language} onAdd={(entry) => { onAddChip?.(entry); changeChip(entry.id); }} />}
           </div>}
           {compactControls && <>
@@ -341,7 +345,9 @@ function ArchitectureTab({
         </button>
         <div id="formula-index-items" className="formula-strip-links" hidden={!formulaOpen}>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>
       </div>}
-      {!compactControls && chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{coverage.missing.join(english ? ", " : "、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{coverageWarningText(warning, english)}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{compareCoverage.missing.join(english ? ", " : "、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{coverageWarningText(warning, english)}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}</>}</div>}
+      {/* M11-P1-1：coverage 行移出 compactControls 条件——compact 态此前永不渲染，
+          芯片缺项与"跨节点偏乐观"警告全部丢失（DetailWorkspace 恒传 compactControls）。 */}
+      {chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{coverage.missing.join(english ? ", " : "、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{coverageWarningText(warning, english)}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{compareCoverage.missing.join(english ? ", " : "、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{coverageWarningText(warning, english)}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}</>}</div>}
       {structure && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}
       {structure && compareLensResult && !compareLensResult.ok && <div className="cost-plan-error">对比方案无效：{compareLensResult.errors.join("；")}</div>}
       {compareScenario && compareLensResult?.ok && <div className={`lens-flips${flips.length === 0 ? " empty" : ""}`}>{flips.length > 0 ? <>{english ? "Bound flips: " : "瓶颈类型翻转："}{flips.length} {english ? "nodes" : "个节点"}（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join(english ? ", " : "、")}{flips.length > 4 ? "…" : ""}）</> : (english ? "No bound flips under the current conditions" : "当前条件下没有瓶颈类型翻转")}</div>}

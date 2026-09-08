@@ -95,7 +95,10 @@ function MsvNode({ data, selected }) {
         {node.node?.attributes?.range && <span className="diagram-range">{node.node.attributes.range}</span>}
         {node.node?.attributes?.formula_id && <span className="diagram-formula">{node.node.attributes.formula_id}</span>}
         {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {english ? (node.node.children.length === 1 ? "child" : "children") : "个子模块"}</span>}
-        {lensEnabled && (activeLenses.has("compute") || activeLenses.has("memory")) && bound && bound !== "unknown" && <span className="diagram-bound">{bound}</span>}
+        {/* M11-P1-7：bound=unknown 显式呈现（虚线灰徽标），不再以"不渲染"冒充未开 Lens */}
+        {lensEnabled && (activeLenses.has("compute") || activeLenses.has("memory")) && bound && (bound !== "unknown"
+          ? <span className="diagram-bound">{bound}</span>
+          : <span className="diagram-bound diagram-bound-unknown" title={english ? "bound unclassified: missing inputs or rates" : "瓶颈未分类：输入或费率缺失"}>{english ? "bound?" : "瓶颈?"}</span>)}
       </div>
       {!isOpenGroup && node.metaLines.length > 0 && <ul className="rf-node-meta">{node.metaLines.map((line) => <li key={line} title={line}>{line}</li>)}</ul>}
       {!isOpenGroup && lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map(({ id, text }) => <span key={id} className={`diagram-lens-value lens-${id}`}>{text}</span>)}</div>}

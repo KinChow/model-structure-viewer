@@ -436,9 +436,10 @@ export function countsForNode(node, env = {}) {
       //   退 F2 MQA 行（kvHeads=1，config 实发 num_key_value_heads=1），读宽
       //   headDim/valueDim；压缩态写回由 compressor（mla_kv_compress 的
       //   F1 actOut）计费 → 不加 kvWrite。
-      // - qsa（逐头 GQA/MHA 模板：qwen4_exp / glm5_next / kimi 预留）：K/V
-      //   按实际 KV 头数读；paged cache 写回是模板内未计费的拷贝 → 计
-      //   kvWrite（与 minimax_sparse_attention 同口径）。
+      // - qsa（逐头 GQA/MHA 模板：qwen4_exp，Qwen4ExpTextQSAIndexer 实证）：
+      //   K/V 按实际 KV 头数读；paged cache 写回是模板内未计费的拷贝 → 计
+      //   kvWrite（与 minimax_sparse_attention 同口径）。glm5_next 曾列于此
+      //   2026-09-08 证据改判为 DSA（见 qsaAttentionOperatorSpecs）。
       // scores/probs 按 A2 写+读各一次（稀疏模板无独立 softmax 叶，4·scores
       // 记此）；top-k 索引由 qsa_indexer 的 topk actOut 写、此处读
       // （tokens·selected，int32 按 2B 计）。取证：/tmp/m11-formulas/qsa.md

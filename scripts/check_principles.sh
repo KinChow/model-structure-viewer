@@ -87,4 +87,20 @@ console.log('§3.1b 运行时接线: ' + Object.keys(FORMULAS).length + ' 条可
 ") || FAIL=1
 [ -n "$REACH_CHECK" ] && echo "$REACH_CHECK"
 
+# ---------- §3.1d 公式来源标注（M11-P2-4，principles §3.5 / MAINTENANCE 3c） ----------
+# 三级体系（一等 aten 锚点 / 二等 modeling 对照 / 三等分解声明）逐条落到
+# formulas/index.js 的 `// ref:` 注释。计数随注册表条目数走：ref 行数 ≥ 条目数。
+FORMULAS_FILE=frontend/src/structure/formulas/index.js
+REF_COUNT=$(grep -c "ref:" "$FORMULAS_FILE" || true)
+ENTRY_COUNT=$(node --input-type=module -e "
+import { FORMULAS } from './$FORMULAS_FILE';
+console.log(Object.keys(FORMULAS).length);
+")
+if [ "$REF_COUNT" -lt "$ENTRY_COUNT" ]; then
+  echo "✗ §3.1d 违反：来源标注不足——ref: 注释 ${REF_COUNT} 行 < 注册表 ${ENTRY_COUNT} 条（principles §3.5：无来源注释不予合入）。"
+  FAIL=1
+else
+  echo "§3.1d 来源标注: ${REF_COUNT} / ${ENTRY_COUNT} 条（≥ 条目数）"
+fi
+
 exit $FAIL

@@ -54,10 +54,12 @@ const ATTENTION_COMPONENTS = [
     ops: (id, normalized, layerIndex) => qsaAttentionOperatorSpecs(id, normalized, layerIndex),
     edges: (normalized) => {
       const modelType = normalized.modelType;
-      if (["deepseek_v32", "glm_moe_dsa"].includes(modelType)) {
+      // 2026-09-08 证据改判：glm5_next（GLM-5.3-Flash）ops 已走 dsaAttentionOperatorSpecs，
+      // edges 同步到 dsa 边列表（与 ops 必须取自同一表项语义，见文件头注释）。
+      if (["deepseek_v32", "glm_moe_dsa", "glm5_next"].includes(modelType)) {
         return [["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"], ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"], ["kv_b_proj", "rope"], ["q_a_norm", "q_proj"], ["q_proj", "indexer"], ["wk_weights_proj", "k_norm"], ["k_norm", "indexer"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
       }
-      if (["glm5_next", "qwen4_exp"].includes(modelType)) {
+      if (["qwen4_exp"].includes(modelType)) {
         return [["qkv_proj", "q_norm"], ["qkv_proj", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "out_proj"]];
       }
       return undefined;
@@ -98,6 +100,13 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const component = matchAttentionComponent(attentionKind, normalized.modelType);
+  // M11-P0-8 方案 A：模块级 attention_kind 反映真实算子变体。DSA 家族的调度
+  // kind 是 "qsa"（plan.js 命名），但模板按 modelType 分派到
+  // dsaAttentionOperatorSpecs（叶 attention_kind = dsa_sparse_mla）——
+  // 模块标注与叶/公式口径对齐，否则"qsa"会谎报逐头选择算法。
+  const moduleKind = attentionKind === "qsa" && ["deepseek_v32", "glm_moe_dsa", "glm5_next"].includes(normalized.modelType)
+    ? "dsa_sparse_mla"
+    : attentionKind;
   const displayName = component.name
     ? component.name(attentionKind)
     : `${attentionKind.toUpperCase()} Attention`;
@@ -109,7 +118,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     "attention",
     {
       class: `${attentionKind.toUpperCase()}Attention`,
-      attention_kind: attentionKind,
+      attention_kind: moduleKind,
       model_variant: normalized.modelType,
       hidden_size: normalized.hiddenSize,
       num_attention_heads: normalized.attentionHeads,

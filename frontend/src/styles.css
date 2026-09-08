@@ -117,6 +117,9 @@ textarea {
 .cost-assumptions { margin-top: 9px; color: #778797; font-size: 11px; }
 .cost-plan-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 10px; color: #405365; font-size: 12px; }
 .cost-plan-controls label { color: #607184; }.cost-plan-controls input, .cost-plan-controls select { margin-left: 4px; width: 48px; padding: 4px 5px; border: 1px solid #bdcbd8; border-radius: 4px; background: #fff; }
+.lens-eta-note { margin-left: 8px; color: #6f8098; font-size: 12px; cursor: help; }
+.cost-eta-note { margin-left: 8px; color: #6f8098; font-size: 12px; cursor: help; }
+.cost-macs-sources b, .cost-value-source b { color: #9fb3cc; font-weight: 600; }
 .cost-plan-error { margin-top: 8px; color: #a22d2d; font-size: 12px; }.cost-stages { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
 .cost-stages span { padding: 5px 8px; border: 1px solid #dce5ed; border-radius: 4px; color: #526678; font-size: 11px; background: #f8fafc; }.cost-stages b { color: #1e4f72; margin-right: 5px; }
 .pd-toggle { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; color: #405365; font-size: 12px; }.pd-toggle input { accent-color: #3178b7; }
@@ -203,6 +206,7 @@ textarea {
 .bound-compute .diagram-bound { background: #f8e4c5; color: #8b5613; }
 .bound-memory .diagram-bound { background: #d9edf8; color: #1e6488; }
 .bound-comm .diagram-bound { background: #f4d8dc; color: #8b2938; }
+.diagram-bound-unknown { background: transparent; color: #8a94a3; border: 1px dashed #8a94a3; }
 .diagram-node.comparison-stable { opacity: 0.3; }
 rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .diagram-node.related { stroke: #7fa9c8; stroke-width: 2px; }

@@ -613,6 +613,11 @@ verify:models 59/59、pytest 148、e2e 9 passed + 1 skipped。
    对每个内置模型断言：bound 分类时五路时间全部非 null，或 missing 显式列出；
    actions 必须来自 counts 通道而非 legacy 分支。
    （用户裁决：P0-1 暴露出需要完善测试，全链路测试。）
+   **2026-09-08 联网调研定稿**：断言方式照抄 Playwright 官方惯例（data-testid +
+   状态断言，全文文本匹配只用于"测的就是文案"）——扩展本仓库 W6 已有的
+   `data-evidence` 契约先例，新增 `data-bound` 属性；第六 oracle 参数化照抄
+   transformers 测试套件迭代 MODEL_MAPPING 逐条目一测的模式（node --test
+   用 59 模型循环，失败信息带模型名）。
 2. **generic-config 必崩路径修复（先联网调研）**
    `models/generic.js:1` 只 import `textDecoderNetwork`，`:10` 调用未导入的
    `networkSpec`；`buildStructureFromConfig({model_type:'mystery',...})` 实测抛
@@ -622,6 +627,13 @@ verify:models 59/59、pytest 148、e2e 9 passed + 1 skipped。
    开工前联网调研 transformers / llama.cpp / vLLM 对不支持架构的处理模式
    （报错 / 降级 / 空结构+告警），按调研结论定兜底行为，补该路径测试。
    （用户裁决：P0-2 联网补充信息。）
+   **2026-09-08 联网调研定稿**：vLLM `_raise_for_unsupported` 与 transformers
+   同一模式——报错即枚举全部支持项（"Model architectures ['X'] are not
+   supported for now. Supported architectures: [...]"），且区分"不支持"与
+   "解析失败"两类，**均不做兜底组网**。落点改为：删除 generic.js 的假兜底
+   `buildGenericConfigNetwork`，`MODEL_BUILDERS` 查找 miss 时抛枚举式结构化
+   错误 → collectDiagnostics 转 unsupported 诊断 → UI banner 展示（P0-3）。
+   "遇到没见过的模型"链路 = 注册表查找 → 枚举报错 → 诊断 → banner，四段全通。
 3. **unsupported 前端告警**
    `diagnostics.unsupported`（generic-config）与 `diagnostics.warnings`
    （architecture-inferred / missing-layer-count，collectDiagnostics.js:12-28）
@@ -655,6 +667,18 @@ verify:models 59/59、pytest 148、e2e 9 passed + 1 skipped。
    ctxBuilder 走注册表（实测 31+11=42、零重叠）。31 条的注册表 counts 引用
    是被护栏认证过的死代码。改为"运行时终止于 counts.js"，或显式登记
    31 条手搓例外清单（短期）；长期方向 = 手搓分支逐条搬入 counts.js。
+
+### 成熟方案对照（2026-09-08 联网调研，零自研，用户裁决"先查方案再给计划"）
+
+| 条目 | 成熟方案出处 | 照抄哪部分 | 本仓库落点 |
+|---|---|---|---|
+| P0-1 e2e + 第六 oracle | Playwright 官方惯例（data-testid + 状态断言；文本匹配只用于"测的就是文案"）+ transformers 测试套件逐条目参数化 | `data-bound` 属性契约（扩展自家 `data-evidence` 先例）；59 模型循环逐条断言 | ReactFlowStructureDiagram.jsx / NodeDetailPanel.jsx / CostSummary.jsx 挂 `data-bound`；viewer.spec.js 语义化；新测试文件全链路 |
+| P0-2 不支持架构 | vLLM `registry.py _raise_for_unsupported` + transformers AutoModel 报错 | **报错即枚举支持项**，区分"不支持"与"解析失败"，不做兜底组网 | 删 `buildGenericConfigNetwork` 假兜底；MODEL_BUILDERS miss 抛枚举式错误 |
+| P0-4/P0-5 counts 通道 | MIT Accelergy（MICRO'52 论文 + ISPASS'20 教程） | **action counts 是估算器唯一接口**——访存动作（GLB access/buffer read）与计算动作（MAC compute）同处一个 counts 命名空间，无第二本账；ERT 只做 action→成本映射 | 两入口改传 counts 通道删 legacy 分支；matmul bytes 启用既有 F2；memory.js 降薄适配 |
+| P0-6 键名对齐 | 契约测试分类学（provider/consumer-driven/bi-directional） | **consumer-driven**：消费者声明所需字段，用生产者真实输出验证；否决 ajv/Pact（单仓库固定生产消费对，过重） | 接缝测试 import graphTruth 真实出口喂 diagnosticsModel；禁手捏 fixture（ui.test.js:30 手捏形状正是断缝根因） |
+| P0-7 护栏判据 | registry completeness 参数化测试（transformers/vLLM 惯例） | 迭代注册表逐条执行断言，失败点名条目；豁免必须显式登记（vLLM "登记即存在"精神） | 护栏迭代 42 条 FORMULAS 逐条执行 counts()；手搓条目显式登记 `runtime:"extractor-switch"` |
+
+否决记录：LLM 语义断言（用不确定物守护诚实性，方向错误）；ajv/JSON Schema 接缝校验（场景不匹配）。
 
 ### P1 诚实性信号补齐（7 条，可交 agent 并行，改动集中在 components/ + cost/ui.js）
 

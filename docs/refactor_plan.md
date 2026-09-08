@@ -56,8 +56,9 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M7** 诚实性上界面 | W6 | ✅（2026-09-08）：诊断面板（gaps/ambiguous/未适配 banner）+ evidence 数据契约与三轴样式（e2e 断言）+ 五类瓶颈时间展开 + value_source 徽标 | §2.2 UI 侧、§4.2、§4.4 |
 | **M8** vision 完成 | V1 ✅（词表+绑定+kv_b 修复）/ V2（恒等式域拆分，进行中）/ V3（visualTokens 用户输入+成本链验证） | V2：38 vision 模型 ratio 收敛；V3：loads.visionTokens 输入 |
 | **M9** 维护基线 | ✅ | §10 三态快照 + MAINTENANCE.md（docs/MAINTENANCE.md） |
-| **M11** 冗余清扫 + 并行/通信层对齐 | B 档全量：死代码系统扫描（导出引用矩阵）；comm.js 删路径正则兜底只认 communication_role；AllToAll 补 dp>1 条件（vLLM 口径，行为变化需知晓）；nodeCostPerCard 补 vector/sfu 投影（W5-2 闭环）；weightBytesPerCard 切分规则表化；layerSpanForNode 收敛至共享正则 | 零未引用导出；PP/DP/EP 切分矩阵测试；每公式有 source |
-| **M12** 并行策略功能扩展（后期） | C 档：KV keep-ratio 压缩档位、overlap 参数化、per-stage 通信五路 roofline——越过"纯理论估算"边界的行为变化，开工前单独对齐 | 单独对齐后定 |
+| **M11** 诚实性收口（2026-09-08 四路审计后重定义，原名"冗余清扫 + 并行/通信层对齐"） | P0 正确性与地基 7 条 + P1 诚实性信号补齐 7 条 + P2 清洁与文档 8 条，详见下方 M11 专节。改名理由：四路审计（结构/成本/UI+后端/文档）证明主要欠账不是冗余代码，而是"算不出来就说算不出来"的承诺在最后一公里被吞 | M11 专节验收标准五条 |
+| **M11.5** 结构边界调整（M11 后单独一波，2026-09-08 裁决移出） | plan.js 迁 `config/`（cost/{derivedWeights,memory,parallel}.js、formulas/extractor.js、ops/index.js 三层 5 文件消费实锤，它只从 config 派生却住在 model_executor/）；formulas↔model_executor 目录环解耦（`ops/index.js:1` → formulas，`extractor.js:29-32` → model_executor，目录级双向） | 动 import 拓扑牵连基线哈希，必须整体可回退，不与 P0 混做 |
+| **M12** 并行策略功能扩展（后期） | C 档：KV keep-ratio 压缩档位、overlap 参数化、per-stage 通信五路 roofline——越过"纯理论估算"边界的行为变化，开工前单独对齐；**2026-09-08 移入三项**（原 M11 条目）：AllToAll 补 dp>1 条件（vLLM 口径，唯一有行为变化的条目）；interNode/PD 跨机通信时间（三张公开卡全无 `inter_node` 规格，需补芯片数据 + 接 roofline，`pdKvTransferBytes` 现只给字节量不进 roofline）；后端对账链路（`verification/compare_structure.py` 27 行仅自测调用，无任何真实前后端对账测试；后端 oracle 定位表述与对账方案届时一并单独对齐） | 单独对齐后定 |
 | **M10** 小项收尾 | 旁路 C（手工卡 field_sources 等 5 项）；昇腾条目（sfu_rate_source:"vector" 落地）；qwen35_full 改名撤销；§2.5 保持登记 | 旁路 C：field_sources 齐全 |
 
 ---
@@ -81,7 +82,8 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M7** | ✅（W6-1/2） | 诊断面板（gaps/ambiguous/未适配 banner）+ 边三轴 evidence 契约（e2e 断言）+ 五类瓶颈 + value_source 徽标 |
 | **M8** | ✅ V1 ✅ / V2 ✅（全模型恒等式断言覆盖，REGISTERED 登记结构缺口容差）/ V3 ✅（visualTokens 用户输入） | vision 词表与绑定、恒等式域拆分、qkv_hidden_size 修复、kimi_k3 KDA 去重计数、MLA g_proj、GLM hc/indexer 登记；详见 details/identity_calibration.md 案例 |
 | **M9** | ✅ | §10 三态快照 + MAINTENANCE.md（五重 oracle + 变更纪律） |
-| **M11** | ⬜ | 冗余清扫（导出引用矩阵）+ 并行/通信层对齐（B 档全量）+ 42 条目来源补齐 |
+| **M11** | ⬜ | 诚实性收口（2026-09-08 四路审计后重定义）：P0 断链修复（e2e 反向断言→语义断言+全链路测试、generic-config 必崩路径、actions 断链、counts.bytes 接入访存侧、真值歧义键名对齐、护栏 §3.1 改运行时判据）+ unsupported 前端告警 + P1 信号补齐 + P2 清洁与文档现状化（含 42 条 // ref: 来源补齐）；详见 M11 专节 |
+| **M11.5** | ⬜（M11 后） | plan.js 迁 config/ + formulas↔model_executor 目录环解耦（2026-09-08 裁决：M11 已重，单独一波） |
 | **M10** | ⬜ | 旁路 C（5 项）、昇腾条目（sfu→vector 插槽）、qwen35_full 改名撤销、§2.5 持有 |
 | **M12** | ⬜（后期） | 并行策略功能扩展（C 档：KV keep-ratio、overlap、per-stage 通信）——开工前单独对齐 |
 
@@ -94,6 +96,11 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 - **不变**：第 1/2/4/5 项照做；ERT×counts 分离与芯片数量无关的论证仍成立；
 - **新增验收**：D2 遗产——cost 改动不得触碰边基线（ops-edge.golden.json）；
   identity 恒等式 2% 容差不回退。
+
+### 旁路里程碑（2026-09-08 修复散行渲染，内容未改）
+
+| 里程碑 | 档位 | 完成判据 | 收口原则 |
+|---|---|---|---|
 | **旁路 B** 后端定位归位 | B | `msv verify` 出三类差异列表；跳源码且显示 transformers 版本 | §5.1–§5.4、§6.1–§6.3 |
 | **旁路 C** 芯片参数补账 | C | 手工卡有 `field_sources`；单位异常有警告；文案与实现一致 | §7 |
 | **旁路 D** 后端内部清理 | D | 后端无平行修复机制；无 `assert` 做入参校验 | §6.1 SRP 侧 |
@@ -583,7 +590,137 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 
 ---
 
-## 原则收口对照
+## M11 诚实性收口（2026-09-08 四路审计后修订，用户裁决定稿）
+
+审计方式：四路并行只读审计（结构层 / 成本层 / UI+后端 / 文档对齐），全程零代码改动；
+关键断言均经主循环复核（generic-config 崩溃用 node 探针复现，键名不匹配与
+compactControls 死分支 grep 实证）。五重 oracle 实跑全绿：护栏 exit 0、单测 248/248、
+verify:models 59/59、pytest 148、e2e 9 passed + 1 skipped。
+
+**审计主结论（比单个 bug 更重要）**：三处独立发现同构——护栏 §3.1 验证的是"注册表条目
+挂了 counts 函数"而非运行时路径（31/42 条空转）；`roleBinding.test.js` 与 `ui.test.js`
+各自测键名两侧而不测接缝（歧义面板生产死亡）；`roofline.test.js` 直接构造入参测函数而
+不走 UI 入口（五路退化三路无人发现）。**每一处都是"两端都测了，中间没测"。**
+ sixth oracle 与护栏判据修订因此进 P0 而非 P2——它们是防止同类问题再生的两条。
+
+### P0 正确性与地基（7 条，顺序有依赖，主循环做）
+
+1. **e2e 反向断言修正 + 全链路测试（第六 oracle）**
+   `frontend/e2e/viewer.spec.js:79,108` 的 `not.toMatch(/unknown/i)` 是文本断言，
+   字面含义"界面不许出现 unknown 字样"——它奖励隐藏不确定性、惩罚诚实展示。
+   改为语义断言（如"内置模型 bound 不得为 unknown"）。并新增第六 oracle：
+   全链路测试——从 UI 入口（CostSummary 模型级 / lens 节点级）到 roofline，
+   对每个内置模型断言：bound 分类时五路时间全部非 null，或 missing 显式列出；
+   actions 必须来自 counts 通道而非 legacy 分支。
+   （用户裁决：P0-1 暴露出需要完善测试，全链路测试。）
+2. **generic-config 必崩路径修复（先联网调研）**
+   `models/generic.js:1` 只 import `textDecoderNetwork`，`:10` 调用未导入的
+   `networkSpec`；`buildStructureFromConfig({model_type:'mystery',...})` 实测抛
+   `ReferenceError`。这条"config 字段不足无法组网"的兜底出口设计好、有诊断
+   （collectDiagnostics.js:23-28）、有文档（modules.md:109）、却必然崩溃——
+   59 个内置模型都有 `num_hidden_layers`，248 个测试测不到。
+   开工前联网调研 transformers / llama.cpp / vLLM 对不支持架构的处理模式
+   （报错 / 降级 / 空结构+告警），按调研结论定兜底行为，补该路径测试。
+   （用户裁决：P0-2 联网补充信息。）
+3. **unsupported 前端告警**
+   `diagnostics.unsupported`（generic-config）与 `diagnostics.warnings`
+   （architecture-inferred / missing-layer-count，collectDiagnostics.js:12-28）
+   目前零 UI 消费者：不支持的模型静默画出一张完整假图，只显示含义完全不同的
+   "未加载 checkpoint 真值"。接入 DiagnosticsPanel：不支持 = 显式告警。
+   （用户裁决：unsupported 是有用的，不支持需要前端告警。）
+4. **actions 断链接通**
+   `CostSummary.jsx:117-122` 与 `diagram/lens.js:35-40` 均未传 actions，
+   `roofline.js:12-25` legacy 分支把 vector/sfu 伪造为精确零 → 五路退化三路，
+   bound 只在 matrix/memory/comm 间产生。修法：两个调用点接 counts 通道，
+   删 legacy `?? 0` 分支。原 M11 条目"nodeCostPerCard 补 vector/sfu 投影"
+   由本条吸收（nodeCostPerCard 经 lens 透传，同一断链同一修）。
+5. **counts.bytes 接入访存侧（用户裁决：接进去）**
+   事实链：extractor.js 的 `matmul` 手搓分支（:353-358）bytes 恒 0，
+   注册表上 `attentionCounts`（F2，含 KV-cache 写回流量模型）从未运行；
+   counts.bytes 经 aggregate.js:29 汇成 `cost.actions` 后全链路无消费者
+   （ui.js 从不读它）——访存侧实际由 memory.js 的 activationTensorBytes 供数。
+   修法：访存侧统一走 counts 通道，修复 matmul bytes=0（启用 F2），
+   `memory.js:20-42` tensorElements 降级为对 extractor 的薄适配
+   （其 4D/5D 特例如属必要则搬入 extractor，不得丢失）。
+   访存数值变化需全模型基线复核并记录行为变化。
+6. **真值歧义键名对齐**
+   `graphTruth.js:238` 出口发 `ambiguous_truth_matches`，`cost/ui.js:57` 读
+   `graph_ambiguous_truth_matches`（内部键 `:112`）→ DiagnosticsPanel 的
+   "真值绑定歧义——绑定已放弃"面板生产永不触发，歧义节点（graphTruth.js:88
+   `return node` 丢弃真值）无任何提示。对齐键名 + 补接缝测试（两侧键名的
+   现有测试均各自通过，接缝零覆盖——教训记入 MAINTENANCE）。
+7. **护栏 §3.1 改运行时判据**
+   `scripts/check_principles.sh:59-61` 只查"FORMULAS 每条挂了 counts 函数"，
+   运行时 extractor.js 双分派：31 case 手搓 switch（提前 return）+ 11 条
+   ctxBuilder 走注册表（实测 31+11=42、零重叠）。31 条的注册表 counts 引用
+   是被护栏认证过的死代码。改为"运行时终止于 counts.js"，或显式登记
+   31 条手搓例外清单（短期）；长期方向 = 手搓分支逐条搬入 counts.js。
+
+### P1 诚实性信号补齐（7 条，可交 agent 并行，改动集中在 components/ + cost/ui.js）
+
+1. chip coverage 可见性：`DetailWorkspace.jsx:158` 恒传 `compactControls`，
+   `ArchitectureTab.jsx:344` 的覆盖率行永不渲染——芯片缺项与
+   "缺少 inter_node.bandwidth，跨节点偏乐观"警告全部丢失。
+2. `roofline.missing` 展示（roofline.js:45-56,90 产出，零读取）：
+   unknown 已显示但"缺哪一项"不可见——最可惜的一块。
+3. `eta.vector ?? 1` / `eta.sfu ?? 1`（rates.js:31,34）默认 100% 效率未披露；
+   DEFAULT_EFFICIENCY（efficiency.js:4-9）无这两键。
+4. `macsSource` + `value_source` 扩到 Cost Lens 与汇总条
+   （= M7 范围项 5 欠账，refactor_plan.md 原 :465 W6 第 5 项）。
+5. `checkpoint_truth_error`（toStructureNode.js:117 写入真实异常文本）与
+   config/checkpoint endpoint 展示——HF 失败静默切 ModelScope
+   （loadModelArtifacts.js:112-125）用户不知情。
+6. `projectPlan.ok=false` errors 展示（现在只是 stage 行不渲染）。
+7. 节点级 `bound=unknown` 与"未开 Lens"视觉可区分
+   （ReactFlowStructureDiagram.jsx:98 / NodeDetailPanel.jsx:56 现以不渲染表达未知）。
+
+### P2 清洁与文档（8 条，可交 agent 并行）
+
+1. 真死代码删除（实测清单，替代原"导出引用矩阵"）：
+   memory.js `product`(:14) / `BYTES_PER_DTYPE`(:138) / `activationPeakBytes`(:123)；
+   chips/index.js barrel（零引用）；compute.js `computeMacsForNode`(:33-37，零调用)；
+   compute.js `macs`(:64，与 compute_macs 同值重复)。
+2. 多余 export 收窄（只删关键字，函数活跃）：comm.js 3 个、parallel.js 4 个。
+3. **新纪律（用户裁决）**：看起来冗余的代码可能是未完成系统接入
+   （本案：counts.bytes 算完无消费者、31 条手搓绕开注册表）——
+   **补全接入优先于删除**；删除仅适用于确认无意图、无消费者的代码，
+   且区分"真死函数"与"多余 export"。写入 MAINTENANCE.md 变更纪律。
+4. 42 条 `// ref:` 来源标注 + 护栏第四项：当前 ref: 计数 0
+   （grep 实证 formulas/ 与 cost/ 全部为 0），principles.md:178-184 已写成
+   生效硬门槛——补护栏使门槛成真，或改口径（倾向前者，与 §8.1 棘轮同构）。
+5. comm.js 删路径正则兜底（已验证 4 个 communication_role 与模板声明完全对齐，
+   兜底为死路径）。
+6. weightBytesPerCard 切分规则表化。
+7. layerSpanForNode 收敛至共享正则。
+8. 文档现状化（四路审计的文档修订清单）：MAINTENANCE 数字修正
+   （246→248、`../.venv`→`.venv`、全跑 1 分钟→3.2 分钟、已修 kv_b 仍列残差、
+   Qwen3.8 残差符号已反转）；modules.md 死路径（cost/skeleton.js、
+   cost/mergeSemantics.js 不存在）与已删 6 条公式清理、§7 缺 3 条 vision 公式；
+   graph_sources.md legacy semantic matcher 表述删除、私人绝对路径删除；
+   恒等式数字刷新（K3 1.29→1.0434、K2.5 0.9989→0.9949、M3/DSV4-Vision/
+   DSV4-Pro 三条补记录）；cost_counts.md 两条 generic-only 算子标注
+   （linear_attention / linear_attention_gate 目录 59 模型永不触发）；
+   M8 的 REGISTERED 9 项容差在 MAINTENANCE 注明（现"2% 容差"表述误导）；
+   W4.5 ✅ 与"canonicalModulePath 未删"的自相矛盾裁决（:307 遗留登记为准）；
+   M7 范围项 5 待 P1-4 落地后改为完整 ✅。
+
+### 验收标准（修订，替代原"零未引用导出；PP/DP/EP 切分矩阵测试；每公式有 source"）
+
+1. 真死函数零残留；多余导出收窄为零（两句分开判，禁止混同）。
+2. 每条公式运行时可追溯：终止于 counts.js，或显式登记手搓例外（护栏 §3.1 新判据）。
+3. 42 条有 `// ref:` 且护栏第四项守着（grep 计数 ≥42）。
+4. 第六 oracle 全绿：59 模型全链路（UI 入口→roofline）bound 分类，
+   五路时间非 null 或 missing 显式；e2e 反向断言已语义化。
+5. PP/DP/EP 切分矩阵测试（保留原条）。
+
+### 并行分工
+
+A 路（agent）P2 来源标注 + 文档现状化 ｜ B 路（agent）P1 七条信号补齐 ｜
+C 路（主循环）P0 七条。A 只动 formulas/ 注释与 docs/，B 只动 components/ 与
+cost/ui.js，C 动 roofline.js / extractor.js / generic.js / graphTruth.js /
+check_principles.sh / e2e/——三者文件不交集。
+
+
 
 | 波次 | 收口的原则 |
 |---|---|
@@ -597,10 +734,12 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 | W4.5 | §4.3（层 2 映射表 + 禁止运行时猜测）、§4.4、§4.5、§4.6 |
 | W5 | §3.2、§3.3、§3.4 |
 | W6 | §2.2（UI 区分）、§4.2、§4.4（UI 展示侧） |
+| M11 | §3.1（counts 运行时接线 + 护栏判据）、§3.3（诚实性上界面补全）、§7（// ref: 来源标注） |
 | B | §5.1–§5.4、§6.1、§6.2、§6.3 |
 | C | §7（自定义参数侧） |
 | D | §6.1（SRP 侧）、错误处理一致性 |
 | E | §6（UI 分层） |
+| M11.5 / M12 | 未排期——M11.5 结构边界调整（plan.js 迁移 + formulas 目录环）、M12 移入项（AllToAll dp>1 / interNode 与 PD 跨机 / 后端对账链路）、后端 oracle 定位表述 |
 | 未排期 | §2.5 残差边、§6.4 来源解析归并、§7 国产芯片条目、§8.1 基线下调（待 W3a+W3b+W4.5 完成后重新测量）、attentionKind 家族品牌 id 改名（`qwen35_full` → 组件名；会改变输出 attributes，需单独拍板） |
 
 每波完成后，从 [`principles.md`](principles.md) §10 例外登记中删除对应条目。

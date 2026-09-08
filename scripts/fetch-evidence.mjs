@@ -16,7 +16,7 @@ if (!orgId) {
 }
 const HF = (file) => `https://huggingface.co/${orgId}/resolve/main/${file}`;
 const MIRROR = (file) => `https://hf-mirror.com/${orgId}/resolve/main/${file}`;
-const outDir = path.resolve("evidence", orgId);
+const outDir = path.resolve("models", orgId); // HF hub 惯例：模型相关文件同仓（M8-V2 修正）
 fs.mkdirSync(outDir, { recursive: true });
 
 async function download(file, dest) {

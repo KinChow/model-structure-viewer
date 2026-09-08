@@ -37,10 +37,11 @@
    `field_sources`；无 sfu 规格的架构（昇腾）用 `sfu_rate_source: "vector"`
    语义映射；
 3b. **新家族接入（证据三源齐备）**：先 `node scripts/fetch-evidence.mjs
-   <org>/<id> --probe <modeling 文件名列表> <index.json>` 取证入库
-   `evidence/<org>/<id>/`（L1 config / L2 modeling 源码 / L3 index 摘要；
-   index 原件 gitignore），并在 manifest.json 登记来源 URL。公式级校准
-   按/details/identity_calibration.md 的域拆分账本方法执行；
+   <org>/<id> --probe <modeling 文件名列表> <index.json>` 取证至
+   `models/<org>/<id>/`（HF hub 单模型仓库惯例：config/modeling 源码/
+   index 摘要与 config.json 同仓；index 原件 gitignore），并在
+   evidence-manifest.json 登记来源 URL。公式级校准按
+   /details/identity_calibration.md 的域拆分账本方法执行；
 3c. **公式来源标注**：新算子进 `formulas/` 必须带来源注释——一等
    （aten 锚点）/二等（modeling 源码对照，引用 details/models/ 证据）/
    三等（分解声明），并写明单位换算（FLOPs↔MACs 2× 等），样式照

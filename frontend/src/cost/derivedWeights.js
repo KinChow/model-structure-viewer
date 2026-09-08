@@ -217,18 +217,21 @@ function genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim })
 // GLM-5.3-Flash uses six-way fused qkvbfg_a plus separate f_b/g_b projections,
 // three depthwise causal convolutions, A_log/dt_bias, gated RMSNorm and o_proj.
 function glm5NextLinearAttentionParameters(config) {
+  // 来源：modeling_glm5_next.py Glm5NextTextLinearAttention（details/models/glm5-next/）
+  // q/k/v 各 hidden×qkv_dim；b_proj hidden×heads；**gate 为 low-rank**
+  // （g_a hidden→head_dim + g_b head_dim→qkv_dim，非 full-rank）；o_norm head_dim；
+  // o_proj qkv_dim×hidden；dt_bias qkv_dim；q/k/v 短卷积 3×qkv_dim×kernel。
   const hidden = config.hiddenSize || 0;
   const heads = config.linearKeyHeads || config.attentionHeads || 0;
   const headDim = config.linearKeyDim || config.headDim || 0;
-  const projection = heads * headDim;
+  const qkvDim = headDim * heads;
   const convKernel = config.linearConvKernelSize || 0;
-  return hidden * (3 * projection + heads + 2 * headDim)
-    + 2 * headDim * projection
-    + 3 * projection * convKernel
-    + projection
-    + heads
-    + headDim
-    + projection * hidden;
+  return hidden * 3 * qkvDim
+    + hidden * heads
+    + hidden * headDim + headDim * qkvDim
+    + qkvDim * hidden
+    + qkvDim
+    + 3 * qkvDim * convKernel;
 }
 
 function kimiK3LinearAttentionParameters(config) {

@@ -43,13 +43,25 @@ function textExpectedSide(normalized, T, plan) {
   const kOverE = normalized.experts && normalized.expertsPerToken ? normalized.expertsPerToken / normalized.experts : 1;
   const nEff = total - visionTerm - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0) - routedN + routedN * kOverE;
   const schedule = plan.attentionSchedule || [];
+  const kh = normalized.linearKeyHeads || normalized.attentionHeads || 0;
+  const kd = normalized.linearKeyDim || normalized.headDim || 0;
+  const vh = normalized.linearValueHeads || normalized.attentionHeads || kh;
+  const vd = normalized.linearValueDim || normalized.headDim || kh;
   let scoreMatmulParams = 0;
+  let stateMatmulParams = 0;
   for (let i = 0; i < (normalized.layers || 0); i++) {
     const kind = schedule[i] || "gqa";
-    if (kind === "linear") continue;
+    if (kind === "linear") {
+      // KDA/线性注意力递推状态 matmul（F7b，无对应权重元素）：delta 模式
+      // 3·vh·vd·kd/token；generic 为 kh·vh·kd·vd/token
+      stateMatmulParams += T * (plan.linearAttentionMode === "generic"
+        ? kh * vh * kd * vd
+        : 3 * vh * vd * kd);
+      continue;
+    }
     scoreMatmulParams += 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0);
   }
-  return { textMatrix: nEff * T + scoreMatmulParams, nEff };
+  return { textMatrix: nEff * T + scoreMatmulParams + stateMatmulParams, nEff };
 }
 
 function visionExpectedSide(normalized, V) {

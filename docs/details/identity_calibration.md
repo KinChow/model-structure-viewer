@@ -148,6 +148,22 @@ GLM 的 `model.safetensors.index.json`（8.4MB，76108 张量）已本地解析
 （结构+派生）；② KDA 层 conv/decay/gate 构成对齐（g_a/g_b 已修）；
 ③ 层号核实。全部登记，随 M11 并行层对齐或独立小波处理。
 
+### 案例二追加二：GLM 分片头实锤（2026-09-08，62 分片 header 全取）
+
+1. **46 层实锤**（层号 0-45 连续无空洞）——config 45 陈旧，模板层号以
+   index 为准待修；
+2. **hc 超连接实锤**：非每层张量，是**全局张量**（model.language_model.
+   hc_*）：hc_attn_fn/hc_ffn_fn 各 [24, 16384]（1.77e7×2）、base 各 [24]
+   （1080×2）、scale 各 [3]（135×2）——合计 ≈35.4M 参数；24 = 融合边界
+   数（待源码确认），16384 = 2×hidden（双流？待源码确认）。结构图完全
+   未建模，预期侧缺口 35.4M（占总参数 ~1%）；
+3. **KDA conv 无差异**：q/k/v 三独立 conv [8192, 1, 4] ✓ 与我们
+   3·qkv_dim·kernel 一致；
+4. **DSA indexer 实锤**：wq_b [75.5M]、wk [6.29M]、weights_proj
+   [1.57M] ≈ **83.4M/DSA 层** × 12 层 ≈ 1B 参数——预期侧
+   dsaAttentionParameters 需核对是否含 indexer 权重（GLM 9.6% 缺口的
+   重要嫌疑，1B/总参数方向与量级吻合）。
+
 ## M8-V2 案例三（进行中）：Kimi K3/K2.5 vision 塔逐层对账（源码已核实）
 
 一手源码已入库（HF hub 单模型仓库惯例，与 config.json 同仓）：

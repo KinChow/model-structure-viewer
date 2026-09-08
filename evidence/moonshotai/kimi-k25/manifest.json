@@ -1,0 +1,19 @@
+{
+ "model": "moonshotai/Kimi-K2.5",
+ "note": "M8-V2 vision 塔证据",
+ "fetched": "2026-09-08",
+ "fetcher": "agent curl (HF 直连/mirror)",
+ "files": [
+  {
+   "file": "k25_config.json",
+   "level": "L1-config",
+   "source": "HF raw"
+  },
+  {
+   "file": "modeling_kimi_k25.py",
+   "level": "L2-modeling",
+   "source": "HF raw",
+   "note": "vision 塔（patchmerger V1）"
+  }
+ ]
+}

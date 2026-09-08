@@ -1,0 +1,56 @@
+{
+ "model": "moonshotai/Kimi-K3",
+ "note": "M8-V2 恒等式校准证据",
+ "fetched": "2026-09-08",
+ "fetcher": "agent curl (HF 直连/mirror)",
+ "files": [
+  {
+   "file": "k3_config.json",
+   "level": "L1-config",
+   "source": "https://huggingface.co/moonshotai/Kimi-K3/resolve/main/config.json",
+   "note": "与 models/moonshotai/Kimi-K3/config.json 同源"
+  },
+  {
+   "file": "configuration_kimi_k3.py",
+   "level": "L2-modeling-config",
+   "source": "HF raw",
+   "note": "字段缺省值与语义"
+  },
+  {
+   "file": "modeling_kimi_linear.py",
+   "level": "L2-modeling",
+   "source": "https://huggingface.co/moonshotai/Kimi-K3/raw/main/modeling_kimi_linear.py",
+   "note": "文本解码器真身（KDA 69+MLA 24 层）"
+  },
+  {
+   "file": "modeling_kimi_k3.py",
+   "level": "L2-modeling",
+   "source": "HF raw",
+   "note": "vision 塔 + ForConditionalGeneration 外壳"
+  },
+  {
+   "file": "kimi_k3_README.md",
+   "level": "L3-official",
+   "source": "HF model card",
+   "note": "total 2.8T / active 104B 官方锚点"
+  },
+  {
+   "file": "kimi-linear-analysis.md",
+   "level": "L3-analysis",
+   "source": "agent 取证报告",
+   "note": "权重构成逐项（带行号）"
+  },
+  {
+   "file": "index.json",
+   "level": "L3-index",
+   "source": "https://hf-mirror.com/moonshotai/Kimi-K3/resolve/main/model.safetensors.index.json",
+   "note": "59.7MB 原件，gitignore；派生摘要 index-summary.json"
+  },
+  {
+   "file": "index-summary.json",
+   "level": "L3-derived",
+   "source": "由 index.json 派生",
+   "note": "93 层逐层张量模式"
+  }
+ ]
+}

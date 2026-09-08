@@ -666,6 +666,75 @@ verify:models 59/59、pytest 148、e2e 9 passed + 1 skipped。
    **登记剩余**：qsa/minimax_sparse/dsv4 稀疏注意力族 bytes、KDA conv 历史
    小项、counts.weights 与 what-if 权重的统一（M11.5）；memory.js
    tensorElements 保留为 residency 展示供数（VRAM 指标），不再进 roofline。
+   （后续进展见下方"算子层缺陷与 bytes 补齐"——登记项大部分已被消化。）
+
+### 算子层缺陷与 bytes 补齐（2026-09-08 用户质疑驱动，方案 A 裁决）
+
+用户质疑"这些 attention 是不同的，怀疑算子开始就有问题"——三处实证成立，
+这是继四路审计后第二次由用户直觉定位到 oracle 盲区（五重 oracle 守护
+"树和总量"，不守护"每个算子的小项"；小项错误在 2% 容差里隐形，bytes
+在 P0-4 前无消费者）。
+
+**缺陷 1（结构性）：`qsa_attention` 一个 operator_id 装三种算法。**
+探针实测 16 模型 × 三种 `attention_kind`，extractor 的 case 公式不按
+kind 分支，一份公式伺候访存量纲不同的算法：
+
+| attention_kind | 模型 | 算法 | 读取的 KV |
+|---|---|---|---|
+| `qsa` | 4（Qwen3.8-Flash-Next×2、GLM-5.3-Flash×2） | QSA 稀疏选择 | 完整 K/V 选 budget=2048 |
+| `dsa_sparse_mla` | 7（DSV3.2、GLM-5/5.1/5.2/5.2-FP8/5.3） | DSA indexer | 选中 token 的 KV |
+| `dsv4_sparse_mla` | 5（V4 全系） | C4 压缩稀疏 | 压缩 4× 的 KV（量纲差 4 倍） |
+
+`ops/index.js:41` 注释自认"真语义不同的变体（dsa、dsv4、qsa）不并入本
+helper"，但 id 与公式层未贯彻。**方案 A（用户裁决）**：case 内按
+attention_kind 三分支各配 bytes 公式，矩阵公式不动（恒等式已校准），
+不动 operator id（方案 B 拆 id 留 M11.5 评估）。
+
+**缺陷 2（证据缺口）：Qwen3.8-Flash-Next、GLM-5.3-Flash 的稀疏模板无
+源码证据。** 两模型 config 无任何 indexer 字段（探针 `{}`），模板的
+selected_tokens=2048 来自 normalize 推导；本地无 modeling。GLM-5.3-Flash
+走 QSA 而 GLM-5.3 走 DSA，是产品事实还是建模臆断待源码裁决。待办：
+fetch-evidence 取证（ModelScope 可达）；取证失败则该两家族 bytes 公式
+保持 PENDING 登记并降级声明。
+
+**缺陷 3（矩阵侧，已修）：`mla_kv_compress` 对 V4 的 macs 错 16-32×。**
+ctxBuilder 用 `kvLoraRank+qkRopeHeadDim` 拼 out 维，V4 无 kvLoraRank →
+out=64，实际应为 1024/2048（模板 output_shape 本来就对，counts 侧没用它）。
+探针：compressor 实际 1.07G vs 应为 17.2G。**修复**：out 维以节点自身
+`staticWidth(output_shape)` 为权威、config 组合仅作回退；非 V4 模型数值
+零变化（R1/V3.1/Qwen 全系 ratio 不动）。收益：V4-Flash 恒等式
+0.9828→0.9933、V4-Pro→0.9951。
+
+**已落地（2026-09-08）**：
+- minimax_sparse_attention bytes（F2 口径：Q 读 + 选中 KV 读 + scores/probs
+  中间量 + O 写 + KV cache 写回——sparse 为融合算子故 cache 写回在本叶，
+  dense 侧由 k/v_proj linear actOut 计费，两侧账目自洽）。证据：HF 仓库
+  无 modeling（API tree 核实），采用 transformers 库随附实现作二等来源，
+  已入库 models/MiniMaxAI/MiniMax-M3/ + evidence-manifest.json。
+- KDA/linear state 补 conv 历史（stateUpdateCounts 与 memory.js
+  linearStateElementsPerLayer 同源同式）。
+- mla_kv_compress ctx 修复（缺陷 3）。
+- embedding gather（bytes 完整性棘轮实测抓出：embedding 是无 operatorId
+  的结构节点，被"非算子零向量"规则计为零流量；extractor 加 type 分支，
+  gather 无 MACs，matrix 恒 0）。
+- §3.1c bytes 完整性棘轮（bytesCompleteness.test.js）：59 模型全 leaf
+  扫描，全零访存分量必须显式登记（VIEW_OPS view 语义豁免 +
+  PENDING_UNMODELED 未建模清单，落地后清空）。
+
+**待落地（方案 A 执行清单）**：
+- qsa_attention case 按 kind 三分支 bytes：dsv4 报告已到
+  （/tmp/m11-formulas/dsv4.md，V4 modeling 全网 404 已降级声明 +
+  权重 index 实证；swa actIn=(T·H·D+W·D+2·scores)·b 等）；qsa/dsa 取证
+  在途/待补；落地后清空 PENDING_UNMODELED。
+- dsv4_hash_route 的 tid2eid 路由表是真实参数（≈775,680 条目），
+  hashRouteCounts 现传 tableRows:0 → weights 低估，另立小项接表行数。
+- cost_counts.md 42 条目补 bytes 公式说明（并 P2 文档批）。
+- 压缩层 hybrid 滑窗读（dsv4 报告线索）待查。
+- 共享 bytes 助手抽取：attention bytes 公式已是第三次手抄
+  （counts.js/matmul/sparse），防抄写漂移，随方案 A 落地顺带评估。
+- A2 口径声明：scores/probs 中间量（4×）按理论上限计，flash kernel 下
+  不存在——保持理论口径（工具定位即理论估算），如需 kernel 级口径
+  另行对齐。
 6. **真值歧义键名对齐**
    `graphTruth.js:238` 出口发 `ambiguous_truth_matches`，`cost/ui.js:57` 读
    `graph_ambiguous_truth_matches`（内部键 `:112`）→ DiagnosticsPanel 的

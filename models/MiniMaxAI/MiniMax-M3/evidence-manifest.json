@@ -1,0 +1,22 @@
+{
+ "model": "MiniMaxAI/MiniMax-M3",
+ "note": "M11 bytes 补齐取证：HF 仓库无 modeling 文件（API tree 核实，auto_map 仅注册 AutoConfig），采用 transformers 库随附实现作二等来源",
+ "fetched": "2026-09-08",
+ "fetcher": "agent web-fetch（transformers 库随附 modeling_minimax_m3_vl.py）",
+ "files": [
+  {
+   "file": "modeling_minimax_m3_vl.py",
+   "level": "L2-modeling",
+   "source": "transformers 库随附实现（HF 仓库无 modeling，降级口径）",
+   "note": "稀疏分块注意力 KV 写回在 attention 内部（:451）；选块 per query token、per KV 组（index_heads=kv_heads=4）；sha256 前 16 位 2ee877254cc05438",
+   "location": "models/MiniMaxAI/MiniMax-M3/modeling_minimax_m3_vl.py"
+  },
+  {
+   "file": "configuration_minimax_m3_vl.py",
+   "level": "L2-modeling-config",
+   "source": "transformers 库随附实现",
+   "note": "sparse_* 字段缺省值",
+   "location": "models/MiniMaxAI/MiniMax-M3/configuration_minimax_m3_vl.py"
+  }
+ ]
+}

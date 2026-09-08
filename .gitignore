@@ -27,3 +27,4 @@ models/**/*.pt
 models/**/*.onnx
 # L3 index 原件不入库（体积大、可由 manifest.json 的 source URL 重下）
 models/**/index.json
+models/**/model.safetensors.index.json

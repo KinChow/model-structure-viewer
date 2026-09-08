@@ -1,0 +1,15 @@
+{
+ "model": "deepseek-ai/DeepSeek-V4-Flash",
+ "note": "M11 bytes 补齐取证：V4 modeling 在 HF/hf-mirror/ModelScope 均 404（agent 实测），降级口径 = config + 组网模板 + 权重 index 实证",
+ "fetched": "2026-09-08",
+ "fetcher": "agent（fetch-evidence 走 ModelScope）",
+ "files": [
+  {
+   "file": "model.safetensors.index.json",
+   "level": "L3-index",
+   "source": "ModelScope mirror",
+   "note": "原件 5.2MB 按 MAINTENANCE 3b 不入库（.gitignore models/**/model.safetensors.index.json），本机留存于 models/deepseek-ai/DeepSeek-V4-Flash/；关键实证：swa 层 K/V 共享 latent 每 token 512（无 V 扩展投影）、compressor 输出 2·headDim、ffn.gate.tid2eid 路由表 ≈775,680 条目",
+   "location": "models/deepseek-ai/DeepSeek-V4-Flash/model.safetensors.index.json（本机）"
+  }
+ ]
+}

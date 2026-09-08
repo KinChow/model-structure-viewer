@@ -286,12 +286,17 @@ function linearStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefi
   return batch * (phase === "decode" ? 1 : sequence) * stateUpdate;
 }
 
-/** M11-P0-5：KDA/线性注意力 state 的一阶访存——每次 forward 读+写一遍递归
- * 状态（状态驻留 HBM，chunk 内不逐 token 重读；conv 历史小项暂不计，登记于
- * M11 专节）。状态形状来源：vLLM MambaStateShapeCalculator.kda_state_shape。 */
+/** M11-P0-5：KDA/线性注意力 state 的一阶访存——每次 forward 读+写一遍完整
+ * 递归状态（递归矩阵 + conv 环形历史，与 cost/memory.js
+ * linearStateElementsPerLayer 同源同式；形状来源：vLLM
+ * MambaStateShapeCalculator.kda_state_shape）。状态驻留 HBM，chunk 内不逐
+ * token 重读。 */
 function stateUpdateCounts(config, options, bytesPerElement) {
-  const { valueHeads, keyDim, valueDim } = linearAttentionDimensions(config);
-  const stateBytes = valueHeads * valueDim * keyDim * bytesPerElement;
+  const { keyHeads, valueHeads, keyDim, valueDim } = linearAttentionDimensions(config);
+  const kernel = Math.max(0, (config?.linearConvKernelSize || 1) - 1);
+  const convElements = keyHeads * keyDim * 2 + valueHeads * valueDim;
+  const recurrentElements = valueHeads * valueDim * keyDim;
+  const stateBytes = (convElements * kernel + recurrentElements) * bytesPerElement;
   return {
     matrix: linearStateUpdateMacs(config, options),
     vector: 0,
@@ -330,6 +335,19 @@ export function countsForNode(node, env = {}) {
     else if (kind === "dsv4") matrix = legacyDeepseekV4AttentionMacs(config, { ...legacyOptions, layerIndex: layerIndexOf(node?.id || path) ?? 0 });
     else matrix = attentionCoreMacs(config, legacyOptions);
     return { matrix, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+  }
+
+  // M11 bytes 补齐：embedding gather 是真实访存（每 token 读一行权重、写一行
+  // hidden），但它是无 operatorId 的结构节点，此前被"非算子零向量"规则计为
+  // 零流量（bytes 完整性棘轮实测抓出）。gather 无 MACs，matrix 恒 0。
+  if (type === "embedding") {
+    const hidden = staticWidth(node?.output_shape) || config?.hiddenSize || 0;
+    return {
+      matrix: 0,
+      vector: 0,
+      sfu: 0,
+      bytes: { weights: 0, actIn: tokens * hidden * bytesPerElement, actOut: tokens * hidden * bytesPerElement },
+    };
   }
 
   // 旧 isLinear 等价：无 operatorId 但 weight_shapes 含 ≥2 维形状的节点按 linear 计
@@ -414,9 +432,32 @@ export function countsForNode(node, env = {}) {
       const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
       const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
       const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
+      void keyTokens;
       const selectedTokens = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
       const size = config?.sparseBlockSize || 1;
-      return { matrix: tokens * heads * selectedTokens * size * (headDim + valueDim), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      const selected = selectedTokens * size;
+      // M11 bytes 补齐（F2 口径，与 dense 分解链的 scores/softmax/context
+      // 三节点合计同构）：Q 读 + 选中 KV 读 + scores/probs 中间量读写 +
+      // O 写 + KV cache 写回（M3 稀疏注意力为融合算子，cache 写回在
+      // attention 内部，dense 侧由 k/v_proj linear 的 actOut 计费）。
+      // 依据：modeling_minimax_m3_vl.py（transformers 库版，HF 仓库无
+      // modeling，取证件存 models/MiniMaxAI/MiniMax-M3/）+ config sparse_*；
+      // 选块 per query token、per KV 组（index_heads=kv_heads）。
+      const kvHeads = config?.kvHeads || heads;
+      return {
+        matrix: tokens * heads * selectedTokens * size * (headDim + valueDim),
+        vector: 0,
+        sfu: 0,
+        bytes: {
+          weights: 0,
+          actIn: (heads * tokens * headDim
+            + kvHeads * selected * (headDim + valueDim)
+            + 2 * heads * tokens * selected) * bytesPerElement,
+          actOut: (2 * heads * tokens * selected
+            + heads * tokens * valueDim
+            + kvHeads * tokens * (headDim + valueDim)) * bytesPerElement,
+        },
+      };
     }
     case "dsv4_swa_attention":
     case "dsv4_compressed_attention": {
@@ -543,7 +584,18 @@ export function countsForNode(node, env = {}) {
           norm: { tokens, hidden: config?.qLoraRank || 0, bytesPerElement },
         }),
         mla_kv_compress: () => ({
-          proj: { logicalShape: [(config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0), H], tokens, bytesPerElement },
+          // out 维以节点自身 output_shape 为权威——模板已按家族声明
+          // （MLA latent = kvLoraRank+qkRopeHeadDim；DSV4 压缩 = 2·headDim·k）。
+          // config 组合仅作无形状回退。修复 V4 ctx 失配：V4 无 kvLoraRank，
+          // 旧式得 out=64，探针实测 compressor macs 差 16-32×（2026-09-08）。
+          proj: {
+            logicalShape: [
+              staticWidth(node?.output_shape) || (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0),
+              H,
+            ],
+            tokens,
+            bytesPerElement,
+          },
         }),
         qsa_indexer: () => ({
           score: { heads: config?.indexerNHeads || 0, queryTokens: tokens, keyTokens: options.sequence ?? 1, headDim: config?.indexerHeadDim || 0, valueDim: config?.indexerHeadDim || 0, bytesPerElement },

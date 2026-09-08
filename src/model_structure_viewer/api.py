@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .errors import ViewerError
+from .errors import ConfigError, ViewerError
 from .exporters import export_structure
 from .resolve.local_cache import LocalModelCache
 from .resolve.endpoints import endpoint_revision, endpoint_url
@@ -103,7 +103,10 @@ def local_config(
         cache = LocalModelCache(s.model_root)
         resolved = cache.resolve_config_path(config_path, detail_level="compressed")
     elif source == "builtin":
-        assert model_id is not None
+        if model_id is None:
+            # Explicit raise, not assert: asserts vanish under `python -O`, and a
+            # None model_id would then surface as a 500 instead of a client 400.
+            raise ConfigError("model_id is required")
         resolved = ModelSourceResolver(s).resolve(
             source="builtin",
             model_id=model_id,
@@ -111,7 +114,8 @@ def local_config(
         )
     else:
         cache = LocalModelCache(s.model_root)
-        assert model_id is not None
+        if model_id is None:
+            raise ConfigError("model_id is required")
         resolved = cache.resolve_local_model(model_id, detail_level="compressed")
     return {
         "model_id": model_id,

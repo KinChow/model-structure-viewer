@@ -1,3 +1,22 @@
+"""Repair strategy: backfill missing MiniMax config fields. ALIVE.
+
+Trigger condition (verified end-to-end with the bundled MiniMax-M2.7 fixture
+under transformers 5.16.1, ``repair_strategy=minimax_config_adapter`` /
+``config_normalizer=minimax_m2_config_normalizer`` / ``repair_status=success``):
+MiniMax-M2.7 ``config.json`` carries ``rope_theta`` but no ``rope_parameters``,
+while transformers' ``modeling_minimax_m2`` reads
+``config.rope_parameters["rope_type"]`` at init -> ``AttributeError: ... has no
+attribute 'rope_parameters'`` -> classifier maps it to ``CONFIG_FIELD_MISSING``
+-> this strategy matches MiniMax contexts whose error mentions
+``rope_parameters`` (derived from ``rope_theta``) or ``temporal_patch_size``
+(copied from the nested vision config up to the root).
+
+Consumer chain: service.py + verification/transformers_verify.py ->
+structure/builder.py -> recovery._recover_with_repair -> repair.runner.try_repair
+-> repair.registry (STRATEGIES wired in repair/strategies/__init__.py).
+Do not remove while bundled MiniMax configs can reach transformers' builtin
+modeling code without these fields.
+"""
 from __future__ import annotations
 
 from typing import Any

@@ -1,3 +1,24 @@
+"""Repair strategy: shim the removed ``is_torch_fx_available`` symbol. ALIVE.
+
+Trigger condition (verified end-to-end with the bundled DeepSeek-V3.1 fixture
+under transformers 5.16.1, ``repair_status=success``): remote
+``modeling_deepseek.py`` starts with ``from transformers.utils.import_utils
+import is_torch_fx_available``, but modern transformers no longer exports that
+symbol, so the import fails with ``cannot import name 'is_torch_fx_available'``
+-> classifier maps it to ``REMOTE_IMPORT_COMPAT`` -> this strategy matches any
+DeepSeek-bearing context (model_type / architectures / ``auto_map`` referencing
+``modeling_deepseek`` / a local ``modeling_deepseek.py``) and injects a no-op
+shim for the introspection retry.
+
+Bundled models that hit this import: deepseek-ai/DeepSeek-R1, DeepSeek-V3.1,
+moonshotai Kimi-K2-Base / K2-Instruct / K2-Instruct-0905 / K2-Thinking / K2.5 /
+K2.6 (K2.7-Code vendors its own fallback and does not need the shim).
+
+Consumer chain: service.py + verification/transformers_verify.py ->
+structure/builder.py -> recovery._recover_with_repair -> repair.runner.try_repair
+-> repair.registry (STRATEGIES wired in repair/strategies/__init__.py).
+Do not remove while any bundled model ships a pre-5.x ``modeling_deepseek.py``.
+"""
 from __future__ import annotations
 
 from contextlib import contextmanager

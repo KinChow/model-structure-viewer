@@ -201,13 +201,21 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       implementation: implementation.beta_projection,
       activation: "sigmoid_in_kda_kernel",
     }, { input: dims.hidden, output: betaDims }),
-    operatorSpec(`${prefix}.decay_projection`, "forget/decay gate projection", "linear", {
+    // M8-V2（源码 modeling_kimi_linear.py）：kimi_k3 的 decay 走低秩
+    // f_a（在融合 qkvgfab 内）+ f_b（独立 head_dim→projection_size）——
+    // 独立全宽 decay 叶会与融合内 f_a 重复计数（88M vs 真值 2.5M/层）。
+    ...(modelKind !== "kimi_k3" ? [operatorSpec(`${prefix}.decay_projection`, "forget/decay gate projection", "linear", {
       ...shapeFlow(shapes.hidden, gateShape),
       semantic_role: "forget_gate_logits",
       implementation: implementation.decay_projection,
       gate_lower_bound: normalized.linearLowerBound,
       projection_size: valueHeads,
-    }, { input: dims.hidden, output: qwen ? betaDims : [-1, -1, keyHeads, keyDim] }),
+    }, { input: dims.hidden, output: qwen ? betaDims : [-1, -1, keyHeads, keyDim] })] : []),
+    ...(modelKind === "kimi_k3" ? [operatorSpec(`${prefix}.f_b_proj`, "decay low-rank projection", "linear", {
+      ...shapeFlow(`[batch, sequence, head dimension=${keyDim}]`, qkvShape),
+      semantic_role: "forget_gate_low_rank_restore",
+      implementation: "f_b_proj",
+    }, { input: [-1, -1, keyDim], output: [-1, -1, keyProjection] })] : []),
     operatorSpec(`${prefix}.short_conv`, "qkv causal short convolution", "causal_conv1d", {
       ...shapeFlow(convShape, convShape),
       semantic_role: "q_k_v_short_convolution",
@@ -231,18 +239,20 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       decay_parameters: ["A_log", "dt_bias"],
       state_shape: stateShape,
     }, { input: qkvConvDims, output: outputDims }),
+    // M8-V2：kimi_k3 的 gated norm / o_proj 输入 = state 输出宽（projection），
+    // 非融合聚合宽（源码：o_norm(128 逐头门控) → o_proj 12288→hidden）
     operatorSpec(`${prefix}.output_gate_norm`, "gated RMSNorm", "gated_rmsnorm", {
       ...shapeFlow(qkvShape, gateShape),
       semantic_role: "gated_output_normalization",
       implementation: implementation.output_gate,
       gate_shape: gateShape,
       activation: normalized.outputGateType || "sigmoid",
-    }, { input: outputDims, output: outputDims }),
+    }, { input: modelKind === "kimi_k3" ? [-1, -1, keyProjection] : outputDims, output: modelKind === "kimi_k3" ? [-1, -1, keyProjection] : outputDims }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", {
       ...shapeFlow(gateShape, shapes.hidden),
       semantic_role: "attention_output_projection",
       communication_role: "tp_attention_output",
-    }, { input: outputDims, output: dims.hidden }),
+    }, { input: modelKind === "kimi_k3" ? [-1, -1, keyProjection] : outputDims, output: dims.hidden }),
   ];
   return specs;
 }

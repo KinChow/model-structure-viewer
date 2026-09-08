@@ -42,3 +42,18 @@ test("diagnosticsModel：template+truth 无 banner；mergeSemantics 旧键兼容
   const legacy = diagnosticsModel({ strategy: "template+truth", template_gaps: ["g1", "g2"] });
   assert.equal(legacy.gapCount, 2);
 });
+
+test("diagnosticsModel：unsupported 与 warnings 透传（M11-P0-3）", () => {
+  const model = diagnosticsModel({
+    strategy: "skeleton-truth",
+    unsupported: [{ code: "generic-config", message: "Supported architectures: gqa-decoder" }],
+    warnings: [{ code: "architecture-inferred", message: "Architecture resolved by field-inference" }],
+  }, { english: false });
+  assert.equal(model.unsupportedCount, 1);
+  assert.match(model.unsupported[0].message, /gqa-decoder/);
+  assert.equal(model.warningCount, 1);
+  assert.equal(model.warnings[0].code, "architecture-inferred");
+  const empty = diagnosticsModel({ strategy: "no-truth" });
+  assert.equal(empty.unsupportedCount, 0);
+  assert.equal(empty.warningCount, 0);
+});

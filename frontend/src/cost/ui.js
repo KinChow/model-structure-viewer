@@ -49,7 +49,8 @@ export function costSummaryModel(cost = {}, roofline = null, { english = false }
 
 /**
  * @param {{strategy?: string, graph_truth_gaps?: string[], graph_ambiguous_truth_matches?: object[],
- *          template_gaps?: string[]}|null|undefined} diagnostics
+ *          template_gaps?: string[], unsupported?: {code: string, message: string}[],
+ *          warnings?: {code: string, message: string}[]}|null|undefined} diagnostics
  * @param {{english?: boolean}} options
  */
 export function diagnosticsModel(diagnostics, { english = false } = {}) {
@@ -57,6 +58,10 @@ export function diagnosticsModel(diagnostics, { english = false } = {}) {
   const ambiguous = diagnostics?.graph_ambiguous_truth_matches ?? [];
   const strategy = diagnostics?.strategy || "no-truth";
   const adapted = strategy === "template+truth";
+  // M11-P0-3：collectDiagnostics 产出的模板级信号此前零消费者——不支持的
+  // 模型静默画出假图。§3.3：unsupported 必须显式告警。
+  const unsupported = diagnostics?.unsupported ?? [];
+  const warnings = diagnostics?.warnings ?? [];
   return {
     strategy,
     // §4.5：skeleton-truth = 未适配结构，图来自 checkpoint 骨架，无语义绑定
@@ -72,5 +77,9 @@ export function diagnosticsModel(diagnostics, { english = false } = {}) {
     gapCount: gaps.length,
     ambiguous,
     ambiguousCount: ambiguous.length,
+    unsupported,
+    unsupportedCount: unsupported.length,
+    warnings,
+    warningCount: warnings.length,
   };
 }

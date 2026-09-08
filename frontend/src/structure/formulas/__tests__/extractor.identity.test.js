@@ -24,7 +24,19 @@ const T = 128;
 // 残差归因：V4-Flash ≈-1.7%（dsa 期望侧近似 S=T，counts 侧按 indexerBudget）；
 // GLM-5/Qwen3.8 ≈+0.5% 正向残差未完全归因（登记于 cost_counts.md）。
 const TOLERANCE = 0.02;
-const REGISTERED = {};
+const REGISTERED = {
+  // M8-V2 登记残差：hc 超连接 / DSA indexer / 全局组件未建模（结构缺口
+  // 见 identity_calibration.md 案例二追加二），非公式错误
+  "moonshotai/Kimi-K3": 0.05,
+  "zai-org/GLM-5.3-Flash": 0.10,
+  "zai-org/GLM-5.3-Flash-BF16": 0.10,
+  "MiniMaxAI/MiniMax-M3": 0.03,
+  "MiniMaxAI/MiniMax-M3-MXFP8": 0.03,
+  "moonshotai/Kimi-K2.5": 0.006,
+  "moonshotai/Kimi-K2.6": 0.006,
+  "moonshotai/Kimi-K2.7-Code": 0.006,
+  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.02,
+};
 
 // T4 期望侧构建器（M8-V2 抽取共享）：文本域 = 非视觉参数 × T + 打分式层注意力 matmul；
 // 视觉域 = 视觉参数 × 视觉 token 数 + 视觉块注意力 matmul。
@@ -125,10 +137,8 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
   }
   console.error(`unknown 叶子总数: ${unknownTotal}`);
   assert.ok(rows.length >= 50, "模型覆盖不足（应含 vision 域）");
-  // M8-V2 校准中：文本域模型断言容差；vision 域模型先报告（known：Kimi vision
-  // config 未被 derivedVisionParameters 识别致期望侧 7× 低估、KDA 系文本侧
-  // 期望公式未校准）——归因后逐批转入断言。
-  const bad = rows.filter((r) => !r.isVision && (r.ratio == null || Math.abs(r.ratio - 1) > (REGISTERED[r.model] ?? TOLERANCE)));
+  // M8-V2 收官：全部模型断言（vision 行用 REGISTERED 覆盖已知结构缺口）
+  const bad = rows.filter((r) => r.ratio == null || Math.abs(r.ratio - 1) > (REGISTERED[r.model] ?? TOLERANCE));
   if (bad.length > 0) console.error("超容差:\n" + bad.map((r) => `${r.model}: ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)}`).join("\n"));
   assert.deepEqual(bad.map((r) => r.model), [], "恒等式超差须先归因：要么修 counts/derived，要么登记为建模边界并写入 REGISTERED");
 });

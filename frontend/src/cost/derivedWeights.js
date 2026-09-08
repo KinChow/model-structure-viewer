@@ -78,6 +78,9 @@ export function derivedWeightParameters(config = {}) {
   const lmHead = config.tieWordEmbeddings ? 0 : embedding;
   const outputResidual = config.attnResBlockSize ? 2 * hidden : 0;
   const finalHyperConnection = config.hyperConnectionCount ? hyperConnectionFinalParameters(config) : 0;
+  // M8-V2 登记：GLM-5.3-Flash 的 hc 超连接（全局 ~35.4M）与 DSA indexer
+  // （83.4M/DSA 层）未建模——两侧同缺不影响 ratio，影响绝对值（结构缺口
+  // 见 details/identity_calibration.md 案例二追加二，M11 落地）
   return embedding + decoder + hidden + lmHead + outputResidual + finalHyperConnection + derivedVisionParameters(config);
 }
 

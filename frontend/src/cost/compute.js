@@ -75,6 +75,22 @@ function addNullable(left, right) {
   return left + right;
 }
 
+/** 子树动作向量汇总：任一分量未知 → 整体未知（与 addNullable 同纪律）。 */
+function addActions(left, right) {
+  if (left == null) return right;
+  if (right == null) return left;
+  return {
+    matrix: addNullable(left.matrix, right.matrix),
+    vector: addNullable(left.vector, right.vector),
+    sfu: addNullable(left.sfu, right.sfu),
+    bytes: {
+      weights: addNullable(left.bytes?.weights, right.bytes?.weights),
+      actIn: addNullable(left.bytes?.actIn, right.bytes?.actIn),
+      actOut: addNullable(left.bytes?.actOut, right.bytes?.actOut),
+    },
+  };
+}
+
 /**
  * 为节点 Lens 计算包含自身的子树汇总。汇总值与 compute_macs 分离，
  * 后者仍表示执行叶子的成本并用于模型总量，避免父卡展示子树成本时重复计费。
@@ -84,6 +100,9 @@ export function aggregateNodeCosts(rows = []) {
     ...row,
     aggregate_macs: row.compute_macs,
     aggregate_weightBytes: row.weightBytes || 0,
+    // M11-P0-4：子树 actions 汇总——父节点（actions=null）从子节点累加，
+    // 使 lens 的父卡也能拿到 vector/sfu 计数（此前只有叶子有 actions）。
+    aggregate_actions: row.actions ?? null,
   }]));
   const depth = (path) => path.split(".").length;
   for (const row of [...rows].sort((left, right) => depth(right.path) - depth(left.path))) {
@@ -93,6 +112,7 @@ export function aggregateNodeCosts(rows = []) {
     const current = aggregates.get(row.path);
     parent.aggregate_macs = addNullable(parent.aggregate_macs, current.aggregate_macs);
     parent.aggregate_weightBytes += current.aggregate_weightBytes;
+    parent.aggregate_actions = addActions(parent.aggregate_actions, current.aggregate_actions);
   }
   return rows.map((row) => aggregates.get(row.path));
 }

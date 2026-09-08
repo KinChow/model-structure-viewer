@@ -35,6 +35,9 @@ export function buildNodeLens(structure, chip, {
     const perCardCost = nodeCostPerCard({
       macs: row.aggregate_macs,
       weightBytes: row.aggregate_weightBytes,
+      // M11-P0-4：counts 通道——子树动作向量随行携带（叶子直产、父节点汇总），
+      // 访存侧 actIn/actOut 暂仍走 memory.js（P0-5 统一进 counts.bytes）。
+      actions: row.aggregate_actions,
       actInBytes: activationTensorBytes(row.node.input_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
       actOutBytes: activationTensorBytes(row.node.output_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
     }, row.node, checked.plan);
@@ -44,6 +47,7 @@ export function buildNodeLens(structure, chip, {
       checked.plan,
       { batch, tokens, bytesPerElement },
     ) * row.multiplier;
+    if (perCardCost.actions) perCardCost.actions.commBytes = perCardCost.commBytes;
     const roofline = classifyRoofline(perCardCost, chip, { dtype, efficiency });
     return [row.path, {
       ...roofline,
@@ -53,7 +57,8 @@ export function buildNodeLens(structure, chip, {
         flops: Number.isFinite(perCardCost.macs) ? perCardCost.macs * 2 : null,
         flopsPerToken: Number.isFinite(perCardCost.macs) && forwardTokens > 0 ? (perCardCost.macs * 2) / forwardTokens : null,
         macsSource: row.macs_source,
-        computeSeconds: roofline.times.compute,
+        // M11-P0-4：W5-2 更名后 times.compute 键已不存在，此行长期渲染 "-"
+        computeSeconds: roofline.times.matrix,
         memorySeconds: roofline.times.memory,
         communicationSeconds: roofline.times.comm,
         vramBytes: (perCardCost.weightBytes || 0) + (perCardCost.actInBytes || 0) + (perCardCost.actOutBytes || 0),

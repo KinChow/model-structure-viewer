@@ -115,10 +115,14 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const projected = useMemo(() => cost && machine ? projectPlan({ graph: structure.graph, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, stateBytes: cost.memory.stateBytes, config, plan }) : null, [cost, machine, structure, config, plan]);
   const communication = useMemo(() => cost ? planCommunicationBytes({ graph: structure.graph, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence) }) : null, [cost, structure, config, plan, load, phase]);
   const roofline = useMemo(() => cost && machine ? classifyRoofline({
-    macs: cost.totalMacs,
-    weightBytes: cost.memory.weightBytes,
-    actInBytes: peakCost?.memory.activationBytes || 0,
-    commBytes: communication?.totalBytes || 0,
+    // M11-P0-4：接 counts 通道——vector/sfu 来自 aggregate.actions（此前经
+    // legacy ?? 0 伪造精确零，五路退化三路）。weights/actIn 暂仍以 memory
+    // 侧为权威（what-if 覆盖生效），P0-5 统一进 counts.bytes。
+    actions: cost.actions && {
+      ...cost.actions,
+      bytes: { ...cost.actions.bytes, weights: cost.memory.weightBytes, actIn: peakCost?.memory.activationBytes || 0, actOut: 0 },
+      commBytes: communication?.totalBytes || 0,
+    },
   }, machine, { dtype: "bf16", efficiency }) : null, [cost, machine, peakCost, communication, efficiency]);
   const pd = useMemo(() => mode === "pd" && phaseCosts.prefill && machine ? pdKvTransferBytes({ totalKvBytes: phaseCosts.prefill.memory.kvBytes, totalStateBytes: phaseCosts.prefill.memory.stateBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine }) : null, [mode, phaseCosts, machine, config, plans]);
   const pdFit = useMemo(() => mode === "pd" && phaseCosts.prefill && phaseCosts.decode && machine ? projectPdFit({ graph: structure.graph, weightBytes: phaseCosts.prefill.memory.weightBytes, prefillKvBytes: phaseCosts.prefill.memory.kvBytes, decodeKvBytes: phaseCosts.decode.memory.kvBytes, prefillStateBytes: phaseCosts.prefill.memory.stateBytes, decodeStateBytes: phaseCosts.decode.memory.stateBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine, activationBytes: peakCost?.memory.activationBytes || 0, runtimeBytes: cost.memory.runtimeBytes, commBufferBytes: cost.memory.commBufferBytes }) : null, [mode, phaseCosts, cost, machine, structure, config, plans, peakCost]);

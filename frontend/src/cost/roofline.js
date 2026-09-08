@@ -8,19 +8,34 @@ function positive(value) {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
-/** 兼容旧入参形状（cost.macs/weightBytes…）与 action 向量两种形态。 */
+/** 兼容旧入参形状（cost.macs/weightBytes…）与 action 向量两种形态。
+ * M11-P0-4：旧形状的 vector/sfu 未知即 null（unknown），不再伪造 0——
+ * §3.3：已知零是精确陈述，未知不得冒充零。 */
 function normalizeActions(cost = {}) {
-  if (cost.actions) return cost.actions;
+  if (cost.actions) {
+    const a = cost.actions;
+    return {
+      matrix: a.matrix ?? null,
+      vector: a.vector ?? null,
+      sfu: a.sfu ?? null,
+      bytes: {
+        weights: a.bytes?.weights ?? null,
+        actIn: a.bytes?.actIn ?? null,
+        actOut: a.bytes?.actOut ?? null,
+      },
+      commBytes: a.commBytes ?? null,
+    };
+  }
   return {
     matrix: cost.macs ?? null,
-    vector: cost.vector ?? 0,
-    sfu: cost.sfu ?? 0,
+    vector: null,
+    sfu: null,
     bytes: {
-      weights: cost.weightBytes ?? 0,
-      actIn: cost.actInBytes ?? 0,
-      actOut: cost.actOutBytes ?? 0,
+      weights: cost.weightBytes ?? null,
+      actIn: cost.actInBytes ?? null,
+      actOut: cost.actOutBytes ?? null,
     },
-    commBytes: cost.commBytes ?? 0,
+    commBytes: cost.commBytes ?? null,
   };
 }
 
@@ -38,7 +53,11 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
   const actions = normalizeActions(cost);
   const rates = chipRates(chip, { dtype, efficiency: options.efficiency });
 
-  const bytesMoved = (actions.bytes?.weights || 0) + (actions.bytes?.actIn || 0) + (actions.bytes?.actOut || 0);
+  // M11-P0-4：任一字节分量未知 → bytesMoved 未知（null），不得把未知当 0 计入访存。
+  const b = actions.bytes || {};
+  const bytesMoved = b.weights == null || b.actIn == null || b.actOut == null
+    ? null
+    : b.weights + b.actIn + b.actOut;
   const commBytes = actions.commBytes || cost.commBytes || 0;
   const link = options.interNode ? rates.interNodeBytesPerSecond : rates.intraNodeBytesPerSecond;
 

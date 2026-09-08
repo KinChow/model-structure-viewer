@@ -100,8 +100,22 @@ export function weightBytesPerCard(totalBytes, node, plan = {}) {
 export function nodeCostPerCard(cost = {}, node, plan = {}) {
   const projection = weightBytesPerCard(cost.weightBytes || 0, node, plan);
   const divide = (value) => value == null ? value : value / projection.divisor;
+  // M11-P0-4：动作向量与标量同轴投影——vector/sfu/bytes 与 macs 一样按切分
+  // 维度除到每卡；分量未知保持 null（不伪造零）。
+  const actions = cost.actions ? {
+    matrix: divide(cost.actions.matrix),
+    vector: divide(cost.actions.vector),
+    sfu: divide(cost.actions.sfu),
+    bytes: {
+      weights: divide(cost.actions.bytes?.weights),
+      actIn: divide(cost.actions.bytes?.actIn),
+      actOut: divide(cost.actions.bytes?.actOut),
+    },
+    commBytes: cost.actions.commBytes ?? null,
+  } : undefined;
   return {
     ...cost,
+    ...(actions ? { actions } : {}),
     macs: divide(cost.macs),
     weightBytes: projection.bytes,
     actInBytes: divide(cost.actInBytes),

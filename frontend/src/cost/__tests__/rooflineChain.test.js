@@ -41,7 +41,7 @@ test("all built-in models classify a roofline bound through the aggregate chain"
       resolved,
     }));
 
-    // CostSummary.jsx 聚合调用形状（prefill、batch=1、sequence=512）
+    // CostSummary.jsx 聚合调用形状（M11-P0-4 起为 actions 通道）
     const cost = aggregateCost({ graph: structure.graph, config: normalized, phase: "prefill", batch: 1, sequence: 512 });
     assert.equal(cost.computeComplete, true, `${entry.model_id}: ${cost.unknownComputePaths.join(", ")}`);
     assert.ok(cost.actions, `${entry.model_id}: aggregate actions missing`);
@@ -49,15 +49,21 @@ test("all built-in models classify a roofline bound through the aggregate chain"
     const plan = deriveBuildPlan(normalized.raw ?? normalized);
     const communication = planCommunicationBytes({ graph: structure.graph, config: normalized, plan, batch: 1, tokens: 512 });
     const roofline = classifyRoofline({
-      macs: cost.totalMacs,
-      weightBytes: cost.memory.weightBytes,
-      actInBytes: cost.memory.activationBytes || 0,
-      commBytes: communication?.totalBytes || 0,
+      actions: {
+        ...cost.actions,
+        bytes: { ...cost.actions.bytes, weights: cost.memory.weightBytes, actIn: cost.memory.activationBytes || 0, actOut: 0 },
+        commBytes: communication?.totalBytes || 0,
+      },
     }, MACHINE, { dtype: "bf16", efficiency: {} });
 
     assert.ok(roofline.bound && roofline.bound !== "unknown", `${entry.model_id}: bound unclassified (missing: ${roofline.missing.join(", ")})`);
     assert.ok(roofline.times.matrix != null, `${entry.model_id}: matrix time missing`);
+    // v2（P0-4）：五路必须全部可得——vector/sfu 计数来自 counts 通道，
+    // 计数为零时时间是精确零，不得再出现 legacy 伪造前的 null
+    assert.ok(roofline.times.vector != null, `${entry.model_id}: vector time missing`);
+    assert.ok(roofline.times.sfu != null, `${entry.model_id}: sfu time missing`);
     assert.ok(roofline.times.memory != null, `${entry.model_id}: memory time missing`);
+    assert.ok(roofline.times.comm != null, `${entry.model_id}: comm time missing`);
     bounds[roofline.bound] = (bounds[roofline.bound] || 0) + 1;
   }
   // bound 分布记录在断言消息里，方便人工审阅（矩阵/访存/通信的分布变化）

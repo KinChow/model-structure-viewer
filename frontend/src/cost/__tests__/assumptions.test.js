@@ -10,7 +10,10 @@ test("KV bytes 和常数项使用用户可调假设", () => {
 });
 
 test("roofline 使用用户提供的效率因子", () => {
-  const result = classifyRoofline({ macs: 10, weightBytes: 10 }, { peak_flops: { bf16: 100 }, memory_bandwidth: 10 }, { efficiency: { flops: 0.5, hbm: 0.5 } });
+  // M11-P0-4：迁移到 actions 形状
+  const result = classifyRoofline({
+    actions: { matrix: 10, vector: 0, sfu: 0, bytes: { weights: 10, actIn: 0, actOut: 0 } },
+  }, { peak_flops: { bf16: 100 }, memory_bandwidth: 10 }, { efficiency: { flops: 0.5, hbm: 0.5 } });
   assert.equal(result.times.matrix, 0.4); // W5-2：五路 max 命名
   assert.equal(result.times.memory, 2);
 });

@@ -51,7 +51,11 @@ test("all built-in models classify a roofline bound through the aggregate chain"
     const roofline = classifyRoofline({
       actions: {
         ...cost.actions,
-        bytes: { ...cost.actions.bytes, weights: cost.memory.weightBytes, actIn: cost.memory.activationBytes || 0, actOut: 0 },
+        bytes: {
+          weights: cost.memory.weightBytes,
+          actIn: cost.actions.actIn,
+          actOut: cost.actions.actOut,
+        },
         commBytes: communication?.totalBytes || 0,
       },
     }, MACHINE, { dtype: "bf16", efficiency: {} });

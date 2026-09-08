@@ -285,6 +285,20 @@ function linearStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefi
     : 3 * valueHeads * valueDim * keyDim;
   return batch * (phase === "decode" ? 1 : sequence) * stateUpdate;
 }
+
+/** M11-P0-5：KDA/线性注意力 state 的一阶访存——每次 forward 读+写一遍递归
+ * 状态（状态驻留 HBM，chunk 内不逐 token 重读；conv 历史小项暂不计，登记于
+ * M11 专节）。状态形状来源：vLLM MambaStateShapeCalculator.kda_state_shape。 */
+function stateUpdateCounts(config, options, bytesPerElement) {
+  const { valueHeads, keyDim, valueDim } = linearAttentionDimensions(config);
+  const stateBytes = valueHeads * valueDim * keyDim * bytesPerElement;
+  return {
+    matrix: linearStateUpdateMacs(config, options),
+    vector: 0,
+    sfu: 0,
+    bytes: { weights: 0, actIn: stateBytes, actOut: stateBytes },
+  };
+}
 // ---------- 旧链镜像结束 ----------
 
 /**
@@ -330,7 +344,16 @@ export function countsForNode(node, env = {}) {
     case "linear": {
       // 与旧 isLinear 的 embed 排除等价：以结构化路径判断（node.name 不参与，§3.2）。
       // TODO(W3): builder 为 embed 投影声明结构化标记后移除路径判断。
-      if (/(^|\.)(patch_)?embed/.test(String(node?.id || path))) return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      if (/(^|\.)(patch_)?embed/.test(String(node?.id || path))) {
+        // M11-P0-5：embedding gather——每 token 读一行权重、写一行 hidden
+        const hidden = staticWidth(node?.output_shape) || config?.hiddenSize || 0;
+        return {
+          matrix: 0,
+          vector: 0,
+          sfu: 0,
+          bytes: { weights: 0, actIn: tokens * hidden * bytesPerElement, actOut: tokens * hidden * bytesPerElement },
+        };
+      }
       const expertFraction = expertFractionFor(node?.id || path, config);
       const logical = linearLogicalShape(node) || derivedLinearShape(node);
       if (!logical) return null;
@@ -351,10 +374,30 @@ export function countsForNode(node, env = {}) {
         : patterns.scores.some((pattern) => shapeMatchesPattern(output, pattern)) ? "scores"
         : null;
       if (part === "scores") {
-        return { matrix: queryTokens * heads * keyTokens * headDim, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+        // M11-P0-5：一阶访存——读 Q、K，写 scores（此前恒 0，F2 KV 流量从未生效）
+        return {
+          matrix: queryTokens * heads * keyTokens * headDim,
+          vector: 0,
+          sfu: 0,
+          bytes: {
+            weights: 0,
+            actIn: (queryTokens * heads * headDim + keyTokens * heads * headDim) * bytesPerElement,
+            actOut: queryTokens * heads * keyTokens * bytesPerElement,
+          },
+        };
       }
       if (part === "context") {
-        return { matrix: queryTokens * heads * keyTokens * valueDim, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+        // 读 scores、V，写 context 输出
+        return {
+          matrix: queryTokens * heads * keyTokens * valueDim,
+          vector: 0,
+          sfu: 0,
+          bytes: {
+            weights: 0,
+            actIn: (queryTokens * heads * keyTokens + keyTokens * heads * valueDim) * bytesPerElement,
+            actOut: queryTokens * heads * valueDim * bytesPerElement,
+          },
+        };
       }
       return null;
     }
@@ -414,6 +457,7 @@ export function countsForNode(node, env = {}) {
     case "mla_kv_split":
     case "qwen_qkvz_split":
     case "attention_qkv_split":
+      // view 语义（strided view 无拷贝）：不产生独立流量，显式登记为零而非漏算。
       return rearrangeCounts();
     case "swiglu": {
       // 旧链：仅 expert 路径的 swiglu 计矩阵（gate/up/down GEMM 语义融合）；
@@ -427,12 +471,28 @@ export function countsForNode(node, env = {}) {
       // k 个专家 → 正确计数 = T·k·3·EH·EI。旧链的 ·(k/E) 少乘 E（已知双链 bug）。
       // 若未来出现 per-expert 展开树（祖先 repeat=E），应改回 k/E 并依赖 walker 乘 E。
       const topk = config?.expertsPerToken || 1;
-      return { matrix: tokens * 3 * expertHidden * expertIntermediate * topk, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      // M11-P0-5：routed 分支 = GEMM（gate/up/down 融合）+ 逐元素激活两段。
+      // 矩阵维持 T·k·3·EH·EI 公式；激活段（vector/sfu/bytes）走 F5 共享实现
+      // 补齐流量（此前 bytes 恒 0）。tokens·k 与 per-expert 激活同构。
+      const activation = swigluCounts({ tokens: tokens * topk, intermediate: expertIntermediate, bytesPerElement });
+      return {
+        matrix: tokens * 3 * expertHidden * expertIntermediate * topk,
+        vector: activation.vector,
+        sfu: activation.sfu,
+        bytes: activation.bytes,
+      };
     }
     case "causal_conv1d": {
       const { keyProjection, valueProjection } = linearAttentionDimensions(config);
       const kernel = config?.linearConvKernelSize || 0;
-      return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      // M11-P0-5：一阶访存——读输入窗口宽度、写同宽输出
+      const width = 2 * keyProjection + valueProjection;
+      return {
+        matrix: tokens * width * kernel,
+        vector: 0,
+        sfu: 0,
+        bytes: { weights: 0, actIn: tokens * width * bytesPerElement, actOut: tokens * width * bytesPerElement },
+      };
     }
     case "linear_attention": {
       // 叶级 state/conv 用路径区分（旧链用显示名；W3 换结构化标记）。
@@ -440,15 +500,21 @@ export function countsForNode(node, env = {}) {
       if (/short_conv|conv/.test(idPath)) {
         const { keyProjection, valueProjection } = linearAttentionDimensions(config);
         const kernel = config?.linearConvKernelSize || 0;
-        return { matrix: tokens * (2 * keyProjection + valueProjection) * kernel, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+        const width = 2 * keyProjection + valueProjection;
+        return {
+          matrix: tokens * width * kernel,
+          vector: 0,
+          sfu: 0,
+          bytes: { weights: 0, actIn: tokens * width * bytesPerElement, actOut: tokens * width * bytesPerElement },
+        };
       }
       if (/state|recurrent/.test(idPath)) {
-        return { matrix: linearStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+        return stateUpdateCounts(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }, bytesPerElement);
       }
       return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "gated_delta_attention":
-      return { matrix: linearStateUpdateMacs(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      return stateUpdateCounts(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }, bytesPerElement);
     case "topk":
       return topkCounts({ tokens, experts: config?.experts || 0, topk: config?.expertsPerToken || 0, bytesPerElement, normTopkProb: config?.normTopkProb ?? true });
     case "moe_dispatch":

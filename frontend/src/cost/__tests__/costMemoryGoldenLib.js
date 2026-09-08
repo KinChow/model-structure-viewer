@@ -33,12 +33,16 @@ export function computeModelChain(rawConfig, modelId) {
   const cost = aggregateCost({ graph: structure.graph, config: normalized, phase: "prefill", batch: 1, sequence: 512 });
   const plan = deriveBuildPlan(normalized.raw ?? normalized);
   const communication = planCommunicationBytes({ graph: structure.graph, config: normalized, plan, batch: 1, tokens: 512 });
-  // M11-P0-4：与 CostSummary 同步迁到 actions 通道（counts 提供 vector/sfu，
-  // weights/actIn 暂以 memory 侧为权威，actOut 与旧行为持平记 0）
+  // M11-P0-4/P0-5：与 CostSummary 同步——actions 通道 + counts.bytes 流量
+  // （weights 仍以 memory 侧为权威保 what-if 语义）
   const roofline = classifyRoofline({
     actions: {
       ...cost.actions,
-      bytes: { ...cost.actions.bytes, weights: cost.memory.weightBytes, actIn: cost.memory.activationBytes || 0, actOut: 0 },
+      bytes: {
+        weights: cost.memory.weightBytes,
+        actIn: cost.actions.actIn,
+        actOut: cost.actions.actOut,
+      },
       commBytes: communication?.totalBytes || 0,
     },
   }, PUBLIC_CHIPS[0], { dtype: "bf16", efficiency: {} });

@@ -655,6 +655,17 @@ verify:models 59/59、pytest 148、e2e 9 passed + 1 skipped。
    `memory.js:20-42` tensorElements 降级为对 extractor 的薄适配
    （其 4D/5D 特例如属必要则搬入 extractor，不得丢失）。
    访存数值变化需全模型基线复核并记录行为变化。
+   **2026-09-08 落地**：公式侧修复 matmul scores/context（一阶 Q/K/S/V 流量）、
+   KDA/linear state（forward 级读+写递归状态，形状照 vLLM kda_state_shape）、
+   causal_conv1d/short_conv（窗口宽读+写）、embedding gather（每 token 读一行
+   写一行）、routed swiglu 激活段（复用 F5，44 个 MoE 模型 vector/sfu 补齐）；
+   split 家族显式声明 view 语义零流量（非漏算）。消费侧：CostSummary 与 lens
+   的访存侧切到 counts.bytes（weights 仍以 memory 侧为权威保 what-if）。
+   基线 diff 审阅：仅 actIn/actOut（59）/vector/sfu（44=MoE 数）/bytesMoved/
+   times.memory 变化，零 bound 翻转，memory.js 侧零变化。
+   **登记剩余**：qsa/minimax_sparse/dsv4 稀疏注意力族 bytes、KDA conv 历史
+   小项、counts.weights 与 what-if 权重的统一（M11.5）；memory.js
+   tensorElements 保留为 residency 展示供数（VRAM 指标），不再进 roofline。
 6. **真值歧义键名对齐**
    `graphTruth.js:238` 出口发 `ambiguous_truth_matches`，`cost/ui.js:57` 读
    `graph_ambiguous_truth_matches`（内部键 `:112`）→ DiagnosticsPanel 的

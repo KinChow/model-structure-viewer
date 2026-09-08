@@ -98,10 +98,20 @@ M8-V1 修复，账本预测的量值与修复后实测一致。
   = latent 宽，**不是** expert intermediate（那是 3072）。
 
 **当前差距**：counts 130B vs 官方 active 104B（counts 多 ~26B）；
-expected 97.6B（少 ~6.4B）。归因方向：counts 侧优先（多计量大）——
-重点排查 69 KDA 层的 KDA 叶子计数与 MLA 层 24 层的 MLA 计数在
-93 层混合调度下的乘子；再用 index.json（59MB，每张量精确 shape，
-agent 已定位）做第三重印证。expected 侧缺 ~6.4B 待对账。
+expected 97.6B（少 ~6.4B）。
+
+**index.json 已下载解析**（59.7MB，total_size 1.561T ✓ 与 2.8T 官方口径
+在量化平均下吻合）。首轮发现：**全部 93 层都有 KDA 张量**
+（b_proj/g_proj/f_b_proj 等 ×93），其中 **24 层另有 MLA 张量**
+（q_a_proj/kv_b_proj）——"69 KDA + 24 MLA"的清单语义需要重审：
+可能是"统一 KDA 注意力 + 24 层叠加 MLA 组件"的混合结构，而非二选一。
+这是 counts 侧 26B 多计的头号嫌疑（我们的模板按二选一建模，
+24 个 MLA 层的 KDA 部分可能被漏算或 MLA 层被双算——逐张量对账定案）。
+
+**待办（M8-V2 收尾，方法已就绪）**：按 index 逐层做
+`每层张量清单 × shape` 精确权重表 → 与 counts/T 按叶对照 →
+差异张量定位到模板叶子 → 修模板或期望侧 → 账本闭合（目标：
+counts 参数当量 ≈ 104B active + state/score 项）。
 
 **注意**：此 HF 源码为推理专用实现（MoE forward 有 Training not
 supported 断言），参数量公式可用，勿当训练图逐算子真值。

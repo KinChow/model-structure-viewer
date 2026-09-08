@@ -79,7 +79,7 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M5** | ✅ | B2：ambiguous=0（fixture 级）+ 可逆校验 |
 | **M6** | ✅（W5-1/2） | 主链查表 + ERT 分离 + 五路 max；routed swiglu k 语义修正（校准结论） |
 | **M7** | ✅（W6-1/2） | 诊断面板（gaps/ambiguous/未适配 banner）+ 边三轴 evidence 契约（e2e 断言）+ 五类瓶颈 + value_source 徽标 |
-| **M8** | 🔄 V1 ✅ / V2 🔄（锚点已立，K3/GLM 层型语义重审收尾）/ V3 ⬜（visualTokens 用户输入） | vision 词表与绑定、恒等式域拆分、qkv_hidden_size 修复；详见 details/identity_calibration.md 案例 |
+| **M8** | ✅ V1 ✅ / V2 ✅（全模型恒等式断言覆盖，REGISTERED 登记结构缺口容差）/ V3 ✅（visualTokens 用户输入） | vision 词表与绑定、恒等式域拆分、qkv_hidden_size 修复、kimi_k3 KDA 去重计数、MLA g_proj、GLM hc/indexer 登记；详见 details/identity_calibration.md 案例 |
 | **M9** | ✅ | §10 三态快照 + MAINTENANCE.md（五重 oracle + 变更纪律） |
 | **M11** | ⬜ | 冗余清扫（导出引用矩阵）+ 并行/通信层对齐（B 档全量）+ 42 条目来源补齐 |
 | **M10** | ⬜ | 旁路 C（5 项）、昇腾条目（sfu→vector 插槽）、qwen35_full 改名撤销、§2.5 持有 |

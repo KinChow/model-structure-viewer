@@ -279,3 +279,14 @@ weight 无逻辑形状），沿用旧链的诚实语义。
   两侧对账 + 外部真值是主流做法。
 - **验收**：identity 通过（容差仅限已登记建模边界）✅；差分：旧链>0 节点全等 ✅；
   §10 的 §3.1 条目清账 → counts 侧已全量动作向量，剩余是 `compute.js` 旧分派链（W5 删除）。
+
+
+## M8-V2 恒等式登记（2026-09-08，进行中）
+
+- vision 恒等式 v2 结构就位（双 token 域拆分，38 模型进入 ratio 表）；
+  K2.5 系经 channels 守卫修复进入容差（0.9989）。
+- 待归因（vision 行报告制）：K3 1.29 / GLM-5.3-Flash 1.10 ——KDA 文本侧。
+  已排除：乘子 4×（layer0 multiplier=1）、state_update 公式（F7b 4.72e6/token
+  与探针吻合）。下一步：K3 官方 active 参数对账（expected nText 97.6B vs
+  counts 130B，K3 官方 active ≈32B——两侧均偏离官方，需先立外部锚点）。
+  探针方法：域拆分账本（text/vision 分域 matrix 与 expected 求比）。

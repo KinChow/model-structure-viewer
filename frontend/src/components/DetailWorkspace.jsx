@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import frontendPackage from "../../package.json";
 import SummaryChips from "./SummaryChips";
 import StructureSearchBox from "./StructureSearchBox";
@@ -12,6 +12,7 @@ import { structureStatus } from "../diagnostics";
 import { normalizeConfig } from "../structure/config/normalize.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { COMPARISON_MODE } from "../diagram/compare.js";
+import { buildNodeLens } from "../diagram/lens.js";
 import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { graphChildren, graphNodeAt, graphViewNode } from "../structure/graph/selectors.js";
@@ -83,7 +84,6 @@ export default function DetailWorkspace({
   onThemeChange,
   onBack,
   onSettings,
-  selectedNode,
   selectedNodePath,
   onSelectNode,
   onCloseNode,
@@ -93,12 +93,10 @@ export default function DetailWorkspace({
   matchedPaths,
   expandedGroups,
   zoom,
-  onZoomChange,
   fitNonce,
   onFit,
   chips,
   onAddChip,
-  allCollapsiblePaths,
   onToggleLayerPath,
   onExpandAllLayers,
   onCollapseAllLayers,
@@ -121,10 +119,24 @@ export default function DetailWorkspace({
   const [compareChipId, setCompareChipId] = useState(chips?.[1]?.id || chips?.[0]?.id || "");
   const [comparePlan, setComparePlan] = useState(DEFAULT_COMPARE_PLAN);
   const [efficiency, setEfficiency] = useState(DEFAULT_EFFICIENCY);
-  const [nodeLens, setNodeLens] = useState({});
   const [costFitStatus, setCostFitStatus] = useState(null);
+  // M10-E：nodeLens 派生上移——原先是 ArchitectureTab useMemo 计算后经 onNodeLensChange effect 回写本组件 state 的双份状态，
+  // 现由输入 state 的归属方（本组件）直接派生，NodeDetailPanel 与 ArchitectureTab 共享同一份结果。
+  const lensPhase = activePhase ?? "prefill";
+  const lensChip = chips.find((entry) => entry.id === (activeMachineId ?? "")) || chips[0];
+  const lensPlan = activePlans?.[lensPhase] || DEFAULT_PLAN;
+  const lensLoad = activeLoads?.[lensPhase] || { batch: 1, sequence: 2048 };
+  const nodeLensResult = useMemo(
+    () => buildNodeLens(structure, lensChip, { phase: lensPhase, batch: lensLoad.batch, sequence: lensLoad.sequence, plan: lensPlan, efficiency: efficiency || DEFAULT_EFFICIENCY }),
+    [structure, lensChip, lensPhase, lensLoad, lensPlan, efficiency],
+  );
+  const nodeLens = nodeLensResult.nodes;
   const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement", fit: "fit", notFit: "not fit", unknown: "unknown" } : { export: "导出", raw: "原始配置", cost: "成本与部署", fit: "已适配", notFit: "不适配", unknown: "未知" };
   const rawJson = structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : "";
+  // M10-E：selectedNode 改为本地派生（原先 App 派生后与 selectedNodePath 成对透传，语义重复）。
+  const selectedNode = selectedNodePath && structure?.graph
+    ? { node: structure.graph.nodes ? graphViewNode(structure.graph, selectedNodePath) : null, path: selectedNodePath }
+    : null;
   const selectedData = selectedNode?.node || selectedNode;
   const selectedPath = selectedNodePath || selectedNode?.path || null;
   const parameterTotal = parameterTotalForStructure(structure);
@@ -155,7 +167,15 @@ export default function DetailWorkspace({
       <section className="detail-layout">
         <div className="detail-main">
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} language={language} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
-          <ArchitectureTab structure={structure} zoom={zoom} onZoomChange={onZoomChange} fitNonce={fitNonce} onFit={onFit} selectedPath={selectedPath} matchedPaths={matchedPaths} expandedGroups={expandedGroups} searchActive={Boolean(searchTerm.trim())} hitCount={matchedPaths.size} onSelectNode={onSelectNode} onToggleGroup={onToggleLayerPath} onExpandAllGroups={onExpandAllLayers} onCollapseAllGroups={onCollapseAllLayers} chips={chips} onAddChip={onAddChip} language={language} activeLenses={activeLenses} activePhase={activePhase} onPhaseChange={changeActivePhase} activeMode={activeMode} activePlans={activePlans} onPlanChange={setActivePlans} activeNodes={activeNodes} gpusPerNode={activeGpusPerNode} activeMachineId={activeMachineId} onMachineChange={setActiveMachineId} activeLoads={activeLoads} onNodeLensChange={setNodeLens} comparisonMode={comparisonMode} onComparisonModeChange={setComparisonMode} compareChipId={compareChipId} onCompareChipIdChange={setCompareChipId} comparePlan={comparePlan} onComparePlanChange={setComparePlan} efficiency={efficiency} onEfficiencyChange={setEfficiency} compactControls />
+          <ArchitectureTab
+            structure={structure}
+            language={language}
+            chips={chips}
+            onAddChip={onAddChip}
+            compactControls
+            diagram={{ zoom, fitNonce, onFit, selectedPath, matchedPaths, expandedGroups, searchActive: Boolean(searchTerm.trim()), onSelectNode, onToggleGroup: onToggleLayerPath, onExpandAllGroups: onExpandAllLayers, onCollapseAllGroups: onCollapseAllLayers }}
+            cost={{ activeLenses, activePhase, onPhaseChange: changeActivePhase, activeMode, activePlans, onPlanChange: setActivePlans, activeNodes, gpusPerNode: activeGpusPerNode, activeMachineId, onMachineChange: setActiveMachineId, activeLoads, nodeLensResult, comparisonMode, onComparisonModeChange: setComparisonMode, compareChipId, onCompareChipIdChange: setCompareChipId, comparePlan, onComparePlanChange: setComparePlan, efficiency, onEfficiencyChange: setEfficiency }}
+          />
           <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen} aria-controls="detail-cost-panel"><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? deploymentSummary : `Centralized · ${deploymentSummary}`}</span>{fitLabel && <span className={`detail-fit-status ${fitClass}`}>{fitLabel}</span>}<span>{costOpen ? "−" : "+"}</span></button></div>
           <div id="detail-cost-panel" className={`detail-cost-panel${costOpen ? "" : " is-collapsed"}`} aria-hidden={!costOpen}><CostSummary structure={structure} chips={chips} onAddChip={onAddChip} language={language} onFitStatusChange={setCostFitStatus} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={changeActivePhase} mode={activeMode} onModeChange={changeActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} comparisonMode={comparisonMode} onComparisonModeChange={setComparisonMode} compareChipId={compareChipId} onCompareChipIdChange={setCompareChipId} comparePlan={comparePlan} onComparePlanChange={setComparePlan} efficiency={efficiency} onEfficiencyChange={setEfficiency} /></div>
           {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}

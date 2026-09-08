@@ -451,6 +451,12 @@ export function countsForNode(node, env = {}) {
       const kWidth = latentRead ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
       const vWidth = latentRead ? (config?.kvLoraRank || 0) : valueDim;
       const kvWrite = latentRead ? 0 : kvHeads * tokens * (headDim + valueDim);
+      // M11 滑窗补记：dsv4_sparse_mla（C4，ratio=4）层与 compressed 层同款
+      // 混合读——滑窗 [t-128,t] 全层覆盖（memory.js 容量口径已含），逐头
+      // qsa/qwen4_exp 无此窗口。
+      const dsv4Window = kind === "dsv4_sparse_mla"
+        ? kvHeads * Math.min(options.sequence || 1, config?.slidingWindow || 128) * headDim
+        : 0;
       return {
         matrix: tokens * heads * selected * (headDim + valueDim),
         vector: 0,
@@ -460,8 +466,9 @@ export function countsForNode(node, env = {}) {
           actIn: (tokens * heads * headDim
             + kvHeads * selected * (kWidth + vWidth)
             + tokens * selected
+            + dsv4Window
             + 2 * scores) * bytesPerElement,
-          actOut: (2 * scores + context + kvWrite) * bytesPerElement,
+          actOut: (2 * scores + context + kvWrite + dsv4Window) * bytesPerElement,
         },
       };
     }
@@ -549,14 +556,18 @@ export function countsForNode(node, env = {}) {
         ? Math.min(sequence, config?.slidingWindow || sequence)
         : Math.ceil(sequence / Math.max(ratio, 1));
       const scores = heads * queryTokens * keyTokens;
+      // M11 滑窗补记（vLLM c128a = 压缩历史 + 原始滑窗 [t-128,t] 混合读，
+      // /tmp/m11-formulas/dsv4-sliding-window.md 裁决①）：compressed 层还读
+      // 一份未压缩滑窗 KV；新 token 的窗口写入与 swa 层同口径。
+      const windowTokens = Math.min(sequence, config?.slidingWindow || 128);
       return {
         matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }),
         vector: 0,
         sfu: 0,
         bytes: {
           weights: 0,
-          actIn: (heads * queryTokens * headDim + 2 * kvHeads * keyTokens * headDim + 2 * scores) * bytesPerElement,
-          actOut: (2 * scores + heads * queryTokens * valueDim) * bytesPerElement,
+          actIn: (heads * queryTokens * headDim + 2 * kvHeads * keyTokens * headDim + kvHeads * windowTokens * headDim + 2 * scores) * bytesPerElement,
+          actOut: (2 * scores + heads * queryTokens * valueDim + kvHeads * queryTokens * headDim) * bytesPerElement,
         },
       };
     }

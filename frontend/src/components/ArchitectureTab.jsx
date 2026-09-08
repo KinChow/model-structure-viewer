@@ -77,44 +77,50 @@ function DiagramPane({ label, syncId, ...diagramProps }) {
 
 function ArchitectureTab({
   structure,
-  zoom,
-  onZoomChange,
-  fitNonce,
-  onFit,
-  selectedPath,
-  matchedPaths,
-  expandedGroups,
-  searchActive,
-  hitCount,
-  onSelectNode,
-  onToggleGroup,
-  onExpandAllGroups,
-  onCollapseAllGroups,
-  activeLenses = new Set(["vram"]),
-  activePhase,
-  onPhaseChange,
-  activeMode = "centralized",
-  activePlans,
-  onPlanChange,
-  activeNodes,
-  gpusPerNode = 1,
-  activeMachineId,
-  onMachineChange,
-  activeLoads,
-  onNodeLensChange,
-  comparisonMode: controlledComparisonMode,
-  onComparisonModeChange,
-  compareChipId: controlledCompareChipId,
-  onCompareChipIdChange,
-  comparePlan: controlledComparePlan,
-  onComparePlanChange,
-  efficiency: controlledEfficiency,
-  onEfficiencyChange,
+  language = "zh",
   chips = PUBLIC_CHIPS,
   onAddChip,
-  language = "zh",
   compactControls = false,
+  // M10-E：props 收敛——diagram 聚合画布/分组联动透传，cost 聚合部署与对比分析的状态及 setter。
+  diagram = {},
+  cost = {},
 }) {
+  const {
+    zoom,
+    fitNonce,
+    onFit,
+    selectedPath,
+    matchedPaths,
+    expandedGroups,
+    searchActive,
+    onSelectNode,
+    onToggleGroup,
+    onExpandAllGroups,
+    onCollapseAllGroups,
+  } = diagram;
+  const {
+    activeLenses = new Set(["vram"]),
+    activePhase,
+    onPhaseChange,
+    activeMode = "centralized",
+    activePlans,
+    onPlanChange,
+    activeNodes,
+    gpusPerNode = 1,
+    activeMachineId,
+    onMachineChange,
+    activeLoads,
+    nodeLensResult,
+    comparisonMode: controlledComparisonMode,
+    onComparisonModeChange,
+    compareChipId: controlledCompareChipId,
+    onCompareChipIdChange,
+    comparePlan: controlledComparePlan,
+    onComparePlanChange,
+    efficiency: controlledEfficiency,
+    onEfficiencyChange,
+  } = cost;
+  const hitCount = matchedPaths?.size;
   const english = language === "en";
   const phase = activePhase ?? "prefill";
   const chipId = activeMachineId ?? "";
@@ -163,23 +169,9 @@ function ArchitectureTab({
     () => compareScenario?.chip ? getChipCoverage(compareScenario.chip, "bf16") : null,
     [compareScenario],
   );
-  const nodeLensResult = useMemo(
-    () => buildNodeLens(structure, chip, { phase, batch: load.batch, sequence: load.sequence, plan: primaryScenario.plan, efficiency }),
-    [structure, chip, phase, load, primaryScenario, efficiency],
-  );
-  const compareLensResult = useMemo(
-    () => compareScenario
-      ? buildNodeLens(structure, compareScenario.chip, {
-        phase,
-        batch: load.batch,
-        sequence: load.sequence,
-        plan: compareScenario.plan,
-        efficiency,
-      })
-      : null,
-    [structure, compareScenario, phase, load.batch, load.sequence, efficiency],
-  );
-  const nodeLens = nodeLensResult.nodes;
+  // M10-E：基准 lens 派生上移至 DetailWorkspace（与其输入 state 同址），经 cost.nodeLensResult 传入，
+  // 消除原先「useMemo 计算 → effect 回写父组件 state」的双份状态。
+  const nodeLens = nodeLensResult?.nodes;
   const compareNodeLens = compareLensResult?.nodes || {};
   const flips = useMemo(
     () => compareLensResult?.ok ? boundFlips(nodeLens, compareNodeLens) : [],
@@ -265,9 +257,6 @@ function ArchitectureTab({
     scrollSync: { group: compareScrollGroup.current },
     language,
   };
-  useEffect(() => {
-    onNodeLensChange?.(nodeLens);
-  }, [nodeLens, onNodeLensChange]);
   return (
     <section className={`diagram-panel${canvasFocus ? " canvas-focus" : ""}`}>
       <div className="panel-toolbar">
@@ -348,7 +337,7 @@ function ArchitectureTab({
       {/* M11-P1-1：coverage 行移出 compactControls 条件——compact 态此前永不渲染，
           芯片缺项与"跨节点偏乐观"警告全部丢失（DetailWorkspace 恒传 compactControls）。 */}
       {chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{coverage.missing.join(english ? ", " : "、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{coverageWarningText(warning, english)}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{compareCoverage.missing.join(english ? ", " : "、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{coverageWarningText(warning, english)}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}</>}</div>}
-      {structure && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}
+      {structure && nodeLensResult && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}
       {structure && compareLensResult && !compareLensResult.ok && <div className="cost-plan-error">对比方案无效：{compareLensResult.errors.join("；")}</div>}
       {compareScenario && compareLensResult?.ok && <div className={`lens-flips${flips.length === 0 ? " empty" : ""}`}>{flips.length > 0 ? <>{english ? "Bound flips: " : "瓶颈类型翻转："}{flips.length} {english ? "nodes" : "个节点"}（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join(english ? ", " : "、")}{flips.length > 4 ? "…" : ""}）</> : (english ? "No bound flips under the current conditions" : "当前条件下没有瓶颈类型翻转")}</div>}
       {structure ? (compareScenario && compareLensResult?.ok ? <div className="diagram-compare">

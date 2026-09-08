@@ -130,11 +130,6 @@ function App() {
     });
   }, [matchedPaths, searchActive, structure]);
 
-  const selectedNode = useMemo(
-    () => (selectedNodePath && structure?.graph ? { node: findNodeByPath(structure.graph, selectedNodePath), path: selectedNodePath } : null),
-    [structure, selectedNodePath]
-  );
-
   function handleSelectNode(path) {
     setSelectedNodePath(path);
     setDrawerOpen(false);
@@ -297,7 +292,6 @@ function App() {
             onThemeChange={handleThemeChange}
             onBack={() => window.location.reload()}
             onSettings={handleOpenDrawer}
-            selectedNode={selectedNode}
             selectedNodePath={selectedNodePath}
             onSelectNode={handleSelectNode}
             onCloseNode={() => setSelectedNodePath(null)}
@@ -307,12 +301,10 @@ function App() {
             matchedPaths={matchedPaths}
             expandedGroups={layersExpandedPaths}
             zoom={zoom}
-            onZoomChange={setZoom}
             fitNonce={fitNonce}
             onFit={() => { setZoom(1); setFitNonce((value) => value + 1); }}
             chips={chips}
             onAddChip={handleAddChip}
-            allCollapsiblePaths={allCollapsiblePaths}
             onToggleLayerPath={handleToggleLayerPath}
             onExpandAllLayers={handleExpandAllLayers}
             onCollapseAllLayers={handleCollapseAllLayers}

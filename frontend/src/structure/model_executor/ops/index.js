@@ -322,9 +322,15 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
       formula: "S = Q K^T / sqrt(d_rope)",
       attention_kind: "mla",
     },
-    context: { attention_kind: "mla" },    preOutput: normalized.mlaUseOutputGate
-      ? [operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext })]
-      : [],
+    context: { attention_kind: "mla" },    preOutput: [
+      ...(normalized.mlaUseOutputGate
+        ? [operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext })]
+        : []),
+      // M8-V2：kimi_k3 MLA 的 full-rank 输出门（index.json 实锤 88.1M/层）
+      ...(normalized.modelType === "kimi_k3"
+        ? [operatorSpec(`${prefix}.mla_gate`, "MLA full-rank output gate", "linear", { ...shapeFlow(shapes.hidden, shapes.attentionQuery), semantic_role: "attention_output_gate" }, { input: dims.hidden, output: dims.attentionQuery })]
+        : []),
+    ],
   }));
   return specs;
 }

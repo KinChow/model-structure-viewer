@@ -53,6 +53,12 @@ export function derivedWeightParameters(config = {}) {
         + hidden * (config.kvLoraRank + ropeDim)
         + config.kvLoraRank * (heads * nopeDim + vDim * (config.kvHeads || heads))
         + hidden * heads * vDim; // o_proj（2026-09-07 补：原分支遗漏）
+      // M8-V2（modeling_kimi_linear.py KimiMLAAttention）：kimi_k3 的 MLA 层
+      // 带 full-rank 输出门 g_proj hidden×projection_size（index.json 实锤
+      // 全 93 层含 g_proj 88.1M）——DeepSeek MLA 无此项
+      if (config.modelType === "kimi_k3") {
+        attentionParameters += hidden * heads * (nopeDim + ropeDim);
+      }
     }
     const mhcParameters = config.multiHyperConnection ? mhcLayerParameters(config) : 0;
     const hcParameters = config.hyperConnectionCount ? hyperConnectionLayerParameters(config) : 0;

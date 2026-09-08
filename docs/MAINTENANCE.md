@@ -36,6 +36,15 @@
 3. **新芯片**：条目进 `chips/public.js` 或本地 `chips.local.json`，必须带
    `field_sources`；无 sfu 规格的架构（昇腾）用 `sfu_rate_source: "vector"`
    语义映射；
+3b. **新家族接入（证据三源齐备）**：先 `node scripts/fetch-evidence.mjs
+   <org>/<id> --probe <modeling 文件名列表> <index.json>` 取证入库
+   `evidence/<org>/<id>/`（L1 config / L2 modeling 源码 / L3 index 摘要；
+   index 原件 gitignore），并在 manifest.json 登记来源 URL。公式级校准
+   按/details/identity_calibration.md 的域拆分账本方法执行；
+3c. **公式来源标注**：新算子进 `formulas/` 必须带来源注释——一等
+   （aten 锚点）/二等（modeling 源码对照，引用 details/models/ 证据）/
+   三等（分解声明），并写明单位换算（FLOPs↔MACs 2× 等），样式照
+   counts.js F1 注释；
 4. **哈希基线 diff 审阅**：有意变更 → 重生成 → diff 中只允许出现该变更
    声称的字段类型，任何其他差异 = 回归；
 5. **恒等式超差**：先归因（counts/期望侧/建模边界三选一），建模边界写入

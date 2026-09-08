@@ -84,6 +84,32 @@ M8-V1 修复，账本预测的量值与修复后实测一致。
 （routed 分组 `num_expert_group`、KDA 混合比例、attnRes 语义）
 立锚，再归因。禁止在锚点缺位时"修"任何一侧。
 
+## M8-V2 案例三（进行中）：Kimi K3/K2.5 vision 塔逐层对账（源码已核实）
+
+一手源码已入库：`details/models/kimi-k3/{modeling_kimi_k3,configuration_kimi_k3}.py`、
+`kimi-k25/`、`glm5-next/`（modeling_glm5_next.py，glm5_next 文本层待解析）。
+
+**K3 vision 塔真值**（MoonViT3dEncoder，27 层，源码核实）：
+- 每层：norm0/norm1（各 1024）、wqkv = Linear(1024 → **4608**)（qkv_hidden_size
+  1536×3）、wo = Linear(**1536** → 1024)、MLP2 [1024, 4096, 1024]（fc0/fc1 无 gate）；
+- 头：12 头 × qkv_head_dim 128（qkv_hidden_size/heads）；
+- tower 尾：final RMSNorm(1024)；patch embed：3×14² → 1024；
+- merger（patchmergerv2）：Linear(4096→4096) + GELU + Linear(4096→**7168**)
+  （in = mm_hidden_size 1024 × merge_kernel 2×2）+ post RMSNorm(7168)；
+- 合计 ≈ 443M（与 counts 反推 3.9-4.75e8 吻合）。
+
+**模板 gap（已定位待修，M8-V2 收尾）**：
+1. `qkv_proj` 模板 1024→3072，源码 1024→**4608**——normalize 缺
+   `visionQkvHiddenSize`（qkv_hidden_size 字段），vision.js 用 3×hidden 近似；
+2. `out_proj` 模板输入出现 `12 × 85.33` 坏维度（1024/12 的推导残渣）——
+   应为 qkv_hidden_size 1536；
+3. 修复顺序：normalize 加 `visionQkvHiddenSize` → vision.js 用它算 qkv/out
+   宽度 → derivedVisionParameters 加 Kimi 分支（上表公式）→ 域账本重跑。
+
+**K2.5 塔真值**（patchmerger V1、qkv 未指定 → 3×hidden）：wqkv 1152→3456、
+wo 1152→1152、MLP2 [1152, 4304, 1152]、merger Linear(4608→4608)+
+Linear(4608→7168)（带 bias）+ pre_norm。合计 ≈ 465M。
+
 ## 与其他文档的关系
 
 - 恒等式公式与容差：`extractor.identity.test.js` 头注释

@@ -21,10 +21,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 // view 语义（无拷贝）：显式豁免清单。新增豁免必须在此登记并写明理由。
 const VIEW_OPS = new Set(["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split"]);
 
-// 未建模登记（照 identity REGISTERED 惯例）：方案 A 裁决后按 attention_kind
-// 三分支补齐（qsa / dsa_sparse_mla / dsv4_sparse_mla），落地后必须清空本清单。
-// 跟踪：refactor_plan.md M11 专节"算子层缺陷与 bytes 补齐"。
-const PENDING_UNMODELED = new Set(["qsa_attention", "dsv4_swa_attention", "dsv4_compressed_attention"]);
+// 未建模登记（照 identity REGISTERED 惯例）：新算子接入时允许临时登记，
+// 必须写明跟踪位置并尽快补齐。2026-09-08 方案 A 落地后此前登记的
+// qsa_attention / dsv4_swa / dsv4_compressed 已全部补齐清空。
+const PENDING_UNMODELED = new Set([]);
 
 test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁免除外）", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));

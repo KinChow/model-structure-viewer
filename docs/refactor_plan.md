@@ -722,16 +722,30 @@ out=64，实际应为 1024/2048（模板 output_shape 本来就对，counts 侧�
   PENDING_UNMODELED 未建模清单，落地后清空）。
 
 **待落地（方案 A 执行清单）**：
-- qsa_attention case 按 kind 三分支 bytes：dsv4 报告已到
-  （/tmp/m11-formulas/dsv4.md，V4 modeling 全网 404 已降级声明 +
-  权重 index 实证；swa actIn=(T·H·D+W·D+2·scores)·b 等）；qsa/dsa 取证
-  在途/待补；落地后清空 PENDING_UNMODELED。
+- ~~qsa_attention case 按 kind 三分支 bytes~~ **✅（2026-09-08）**：qsa 报告
+  （/tmp/m11-formulas/qsa.md）落地——前提修正：Kimi-K2.5/K2.6/K2.7 不产生
+  qsa_attention（纯 MLA），实际 16 模型 = Qwen3.8-Flash-Next×2(qsa) +
+  DSV3.2 + GLM-5 系×8(dsa_sparse_mla) + V4×5(dsv4_sparse_mla)；公式按
+  kind 分派读宽/共享度（MLA latent 族 kvHeads=1、读宽 kv_lora+rope；DSV4
+  MQA kvHeads=1；逐头 QSA 按 GQA kvHeads），kvWrite 仅逐头变体（latent
+  变体的 cache 写已由 kv_a_proj/compressor 计费）。matrix 零漂移
+  （恒等式 5/5，ratio 与上轮一致）。
+- ~~dsv4_swa/compressed bytes~~ **✅（2026-09-08）**：dsv4 报告
+  （/tmp/m11-formulas/dsv4.md）落地——swa 缓存每 token 一份 headDim 宽
+  KV latent（K/V 共享，权重表无 V 扩展投影实证）、compressed 读压缩缓存
+  2·headDim 且无 kvWrite（归 compressor 叶）；swa/compressed 拆成独立
+  case。基线 diff 审阅：actIn/actOut/bytesMoved/times.memory 恰好 16
+  模型，零 bound 翻转。**PENDING_UNMODELED 已清空**，§3.1c 棘轮全绿。
 - dsv4_hash_route 的 tid2eid 路由表是真实参数（≈775,680 条目），
   hashRouteCounts 现传 tableRows:0 → weights 低估，另立小项接表行数。
 - cost_counts.md 42 条目补 bytes 公式说明（并 P2 文档批）。
 - 压缩层 hybrid 滑窗读（dsv4 报告线索）待查。
+- 证据缺口仍在（不阻塞公式，阻塞口径裁决）：Qwen3.8-Flash-Next /
+  GLM-5.3-Flash 稀疏模板无 modeling 源码；GLM-5.3-Flash(QSA) vs
+  GLM-5.3(DSA) 待源码裁决——取证到后若算法有出入，按缺陷 1 同模式
+  修公式即可（棘轮 + 基线已就位）。
 - 共享 bytes 助手抽取：attention bytes 公式已是第三次手抄
-  （counts.js/matmul/sparse），防抄写漂移，随方案 A 落地顺带评估。
+  （counts.js/matmul/sparse），防抄写漂移，M11.5 评估。
 - A2 口径声明：scores/probs 中间量（4×）按理论上限计，flash kernel 下
   不存在——保持理论口径（工具定位即理论估算），如需 kernel 级口径
   另行对齐。

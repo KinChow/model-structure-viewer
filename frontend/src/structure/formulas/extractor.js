@@ -425,7 +425,44 @@ export function countsForNode(node, env = {}) {
       const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
       const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
       const selected = Math.min(keyTokens, config?.indexerBudget || keyTokens);
-      return { matrix: tokens * heads * selected * (headDim + valueDim), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      // M11-P0-8（方案 A）：F2 整体访存（cost_counts.md F2 融合注意力行：
+      // S=indexerBudget、kvHeads 按变体矩阵）。三种 attention_kind 共用本
+      // case，读宽/共享度分派：
+      // - dsa_sparse_mla（deepseek_v32 / glm_moe_dsa）：MLA latent 共享
+      //   （kvHeads=1，K 读宽 kv_lora+rope、V 读宽 kv_lora，FlashMLA-sparse
+      //   吸收式核的真实读宽）；新 token 的 latent cache 写回已由 kv_a_proj
+      //   （linear actOut）计费 → 不加 kvWrite（防双计）。
+      // - dsv4_sparse_mla（deepseek_v4 ratio=4）：config 无 kv_lora_rank →
+      //   退 F2 MQA 行（kvHeads=1，config 实发 num_key_value_heads=1），读宽
+      //   headDim/valueDim；压缩态写回由 compressor（mla_kv_compress 的
+      //   F1 actOut）计费 → 不加 kvWrite。
+      // - qsa（逐头 GQA/MHA 模板：qwen4_exp / glm5_next / kimi 预留）：K/V
+      //   按实际 KV 头数读；paged cache 写回是模板内未计费的拷贝 → 计
+      //   kvWrite（与 minimax_sparse_attention 同口径）。
+      // scores/probs 按 A2 写+读各一次（稀疏模板无独立 softmax 叶，4·scores
+      // 记此）；top-k 索引由 qsa_indexer 的 topk actOut 写、此处读
+      // （tokens·selected，int32 按 2B 计）。取证：/tmp/m11-formulas/qsa.md
+      //（16 模型探针明细 + 双计对账）。
+      const scores = tokens * heads * selected;
+      const context = tokens * heads * valueDim;
+      const latentRead = kind !== "qsa" && (config?.kvLoraRank || 0) > 0;
+      const kvHeads = latentRead ? 1 : config?.kvHeads || heads;
+      const kWidth = latentRead ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
+      const vWidth = latentRead ? (config?.kvLoraRank || 0) : valueDim;
+      const kvWrite = latentRead ? 0 : kvHeads * tokens * (headDim + valueDim);
+      return {
+        matrix: tokens * heads * selected * (headDim + valueDim),
+        vector: 0,
+        sfu: 0,
+        bytes: {
+          weights: 0,
+          actIn: (tokens * heads * headDim
+            + kvHeads * selected * (kWidth + vWidth)
+            + tokens * selected
+            + 2 * scores) * bytesPerElement,
+          actOut: (2 * scores + context + kvWrite) * bytesPerElement,
+        },
+      };
     }
     case "minimax_sparse_attention": {
       const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
@@ -459,12 +496,68 @@ export function countsForNode(node, env = {}) {
         },
       };
     }
-    case "dsv4_swa_attention":
-    case "dsv4_compressed_attention": {
-      const layerIndex = layerIndexOf(node?.id || path) ?? 0;
+    case "dsv4_swa_attention": {
+      // M11 bytes 补齐：F2 一阶访存——MQA（num_key_value_heads=1）+ 滑窗。
+      // matrix 维持 legacyDeepseekV4AttentionMacs 镜像（含 decode available=1
+      // 的 legacy 行为，本波不动）。swa 缓存每 token 一份 headDim 宽的 KV
+      // latent（K/V 共享，依据 memory.js dsv4 分支 + 权重表无 V 扩展投影），
+      // 故 KV 读/写宽 = D 而非 2D。取证：/tmp/m11-formulas/dsv4.md
+      // （V4 modeling 全网 404，config + 权重 index 实证，降级声明在案）。
       const batch = options.batch ?? 1;
       const sequence = options.sequence ?? 1;
-      return { matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }), vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      const layerIndex = layerIndexOf(node?.id || path) ?? 0;
+      const ratio = config?.compressRatios?.[layerIndex] ?? 0;
+      const heads = config?.attentionHeads || 0;
+      const headDim = config?.headDim || 0;
+      const valueDim = config?.valueHeadDim || headDim;
+      const kvHeads = config?.kvHeads || 1;
+      const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+      // 与 matrix 的 visible 同口径（decode 的 sequence 即上下文长度）
+      const keyTokens = ratio === 0
+        ? Math.min(sequence, config?.slidingWindow || sequence)
+        : Math.ceil(sequence / Math.max(ratio, 1));
+      const scores = heads * queryTokens * keyTokens;
+      return {
+        matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }),
+        vector: 0,
+        sfu: 0,
+        bytes: {
+          weights: 0,
+          // Q 读 + KV 窗口 latent 读（一份）+ scores/probs 读写（2·scores，A2）
+          actIn: (heads * queryTokens * headDim + kvHeads * keyTokens * headDim + 2 * scores) * bytesPerElement,
+          // scores/probs（2·scores）+ context 写 + 新 token KV 写回 cache（T·kvH·D）
+          actOut: (2 * scores + heads * queryTokens * valueDim + kvHeads * queryTokens * headDim) * bytesPerElement,
+        },
+      };
+    }
+    case "dsv4_compressed_attention": {
+      // M11 bytes 补齐：同上，但读取对象是压缩缓存（每压缩位 K/V 态各
+      // headDim，共 2·headDim，依据 ops 模板 compressor 输出 2·headDim +
+      // memory.js (2·headDim)/ratio 摊销）。压缩态的写入由 compressor 叶
+      // （mla_kv_compress）计费 → 本叶无 kvWrite，防双计。
+      const batch = options.batch ?? 1;
+      const sequence = options.sequence ?? 1;
+      const layerIndex = layerIndexOf(node?.id || path) ?? 0;
+      const ratio = config?.compressRatios?.[layerIndex] ?? 0;
+      const heads = config?.attentionHeads || 0;
+      const headDim = config?.headDim || 0;
+      const valueDim = config?.valueHeadDim || headDim;
+      const kvHeads = config?.kvHeads || 1;
+      const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+      const keyTokens = ratio === 0
+        ? Math.min(sequence, config?.slidingWindow || sequence)
+        : Math.ceil(sequence / Math.max(ratio, 1));
+      const scores = heads * queryTokens * keyTokens;
+      return {
+        matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }),
+        vector: 0,
+        sfu: 0,
+        bytes: {
+          weights: 0,
+          actIn: (heads * queryTokens * headDim + 2 * kvHeads * keyTokens * headDim + 2 * scores) * bytesPerElement,
+          actOut: (2 * scores + heads * queryTokens * valueDim) * bytesPerElement,
+        },
+      };
     }
     case "softmax": {
       const dims = attentionShapePatterns(config);

@@ -55,7 +55,11 @@ export function costSummaryModel(cost = {}, roofline = null, { english = false }
  */
 export function diagnosticsModel(diagnostics, { english = false } = {}) {
   const gaps = diagnostics?.graph_truth_gaps ?? diagnostics?.template_gaps ?? [];
-  const ambiguous = diagnostics?.graph_ambiguous_truth_matches ?? [];
+  // M11-P0-6：生产出口（enrichGraphWithTruth）发 ambiguous_truth_matches，
+  // 内部键 graph_ 前缀仅 bindTruthToGraph 内部使用——两个键都收，生产键优先。
+  const ambiguous = diagnostics?.ambiguous_truth_matches
+    ?? diagnostics?.graph_ambiguous_truth_matches
+    ?? [];
   const strategy = diagnostics?.strategy || "no-truth";
   const adapted = strategy === "template+truth";
   // M11-P0-3：collectDiagnostics 产出的模板级信号此前零消费者——不支持的

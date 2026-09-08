@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../../../structure/buildStructure.js";
 import { normalizeConfig } from "../../../structure/config/normalize.js";
 import { countsForNode } from "../../../structure/formulas/extractor.js";
-import { derivedWeightParameters } from "../../../cost/derivedWeights.js";
+import { derivedWeightParameters, derivedVisionParameters } from "../../../cost/derivedWeights.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
 import { deriveBuildPlan } from "../../model_executor/plan.js";
 
@@ -25,6 +25,43 @@ const T = 128;
 // GLM-5/Qwen3.8 ≈+0.5% 正向残差未完全归因（登记于 cost_counts.md）。
 const TOLERANCE = 0.02;
 const REGISTERED = {};
+
+// T4 期望侧构建器（M8-V2 抽取共享）：文本域 = 非视觉参数 × T + 打分式层注意力 matmul；
+// 视觉域 = 视觉参数 × 视觉 token 数 + 视觉块注意力 matmul。
+function textExpectedSide(normalized, T, plan) {
+  const hidden = normalized.hiddenSize || 0;
+  const normsTerm = normalized.hyperConnectionCount ? 0 : (2 * (normalized.layers || 0) + 1) * hidden;
+  const embeddingTerm = (normalized.vocabSize || 0) * hidden;
+  const total = derivedWeightParameters(normalized);
+  const visionTerm = derivedVisionParameters(normalized);
+  const layerSched = plan.layerSchedule || Array.from({ length: normalized.layers || 0 }, () => (normalized.experts ? "moe" : "dense"));
+  const moeLayerCount = layerSched.filter((kind) => kind === "moe").length;
+  const routedHidden = normalized.routedExpertHiddenSize || hidden;
+  const moeIntermediate = normalized.moeIntermediateSize || normalized.intermediateSize || 0;
+  let routedN = moeLayerCount * (normalized.experts || 0) * 3 * routedHidden * moeIntermediate;
+  if (routedHidden !== hidden) routedN += moeLayerCount * 2 * hidden * routedHidden;
+  const kOverE = normalized.experts && normalized.expertsPerToken ? normalized.expertsPerToken / normalized.experts : 1;
+  const nEff = total - visionTerm - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0) - routedN + routedN * kOverE;
+  const schedule = plan.attentionSchedule || [];
+  let scoreMatmulParams = 0;
+  for (let i = 0; i < (normalized.layers || 0); i++) {
+    const kind = schedule[i] || "gqa";
+    if (kind === "linear") continue;
+    scoreMatmulParams += 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0);
+  }
+  return { textMatrix: nEff * T + scoreMatmulParams, nEff };
+}
+
+function visionExpectedSide(normalized, V) {
+  const visionParams = derivedVisionParameters(normalized);
+  const blocks = normalized.visionLayers || 0;
+  const heads = normalized.visionAttentionHeads || 0;
+  const dim = normalized.visionHeadDim || 0;
+  // 视觉块注意力 scores+context：2·heads·V·S·D（视觉自注意力 S=V）
+  const scoreMatmulParams = blocks * 2 * heads * V * V * dim;
+  return visionParams * V + scoreMatmulParams;
+}
+
 test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建模边界）", async () => {
   const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models/catalog.json"), "utf8"));
   const rows = [];
@@ -33,8 +70,9 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
   for (const entry of catalog.models) {
     const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const normalized = normalizeConfig(config);
-    if (normalized.hasVision) continue; // 多模态双 token 域，恒等式 v2 再覆盖
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "identity-test" });
+    const plan = deriveBuildPlan(normalized.raw ?? normalized);
+    const V = normalized.visionTokens || 0;
 
     let totalMatrix = 0;
     let unknown = 0;
@@ -47,9 +85,13 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
         for (const child of children) stack.push({ node: child, multiplier: childMultiplier });
         continue;
       }
+      // 双 token 域（M8-V2）：vision 域叶子用视觉 token 数，文本域用 sequence
+      const inVision = String(node?.id || "").includes("vision");
       const fresh = countsForNode(node, {
         config: normalized,
-        options: { batch: 1, sequence: T, phase: "prefill" },
+        options: inVision
+          ? { batch: 1, sequence: V, phase: "prefill", vision: true, visionTokens: V }
+          : { batch: 1, sequence: T, phase: "prefill" },
         path: node?.id || "",
         bytesPerElement: 2,
       });
@@ -59,44 +101,22 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
     }
     unknownTotal += unknown;
 
-    const hidden = normalized.hiddenSize || 0;
-    // derived 每层计 2·hidden 的 norm 权重，末尾再 +hidden（final norm）；
-    // hyper-connection 模型的 norm 权重并入 mixer，不单列
-    const normsTerm = normalized.hyperConnectionCount ? 0 : (2 * (normalized.layers || 0) + 1) * hidden;
-    const embeddingTerm = (normalized.vocabSize || 0) * hidden;
-    const total = derivedWeightParameters(normalized);
-    // MoE：derived 的 routed 参数是全部专家；每 token 只激活 k/E →
-    // 期望侧同口径缩放（镜像 derived 的 routed 公式：E·3·routedHidden·moeI + latent 投影）。
-    const plan = deriveBuildPlan(normalized.raw ?? normalized);
-    const layerSched = plan.layerSchedule || Array.from({ length: normalized.layers || 0 }, () => (normalized.experts ? "moe" : "dense"));
-    const moeLayerCount = layerSched.filter((kind) => kind === "moe").length;
-    const routedHidden = normalized.routedExpertHiddenSize || hidden;
-    const moeIntermediate = normalized.moeIntermediateSize || normalized.intermediateSize || 0;
-    let routedN = moeLayerCount * (normalized.experts || 0) * 3 * routedHidden * moeIntermediate;
-    if (routedHidden !== hidden) routedN += moeLayerCount * 2 * hidden * routedHidden;
-    const kOverE = normalized.experts && normalized.expertsPerToken ? normalized.expertsPerToken / normalized.experts : 1;
-    const nEff = total - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0) - routedN + routedN * kOverE;
-    // 无权重注意力 matmul（Q·K^T 与 P·V）：参数量不含、但是真实矩阵 MACs。
-    // 打分式层每层 2·heads·T·S·D（prefill 近似 S=T）；linear 层走 F7b 无此项。
-    const schedule = plan.attentionSchedule || [];
-    let scoreMatmulParams = 0;
-    for (let i = 0; i < (normalized.layers || 0); i++) {
-      const kind = schedule[i] || "gqa";
-      if (kind === "linear") continue;
-      // scores(QK^T) + context(PV) 各 heads·T·S·D，每层合计 2·heads·T·S·D（曾误写 2·2 双计）
-      scoreMatmulParams += 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0);
-    }
-    const expected = nEff * T + scoreMatmulParams;
+    const { textMatrix } = textExpectedSide(normalized, T, plan);
+    const visionMatrix = normalized.hasVision && V > 0 ? visionExpectedSide(normalized, V) : 0;
+    const expected = textMatrix + visionMatrix;
     const ratio = expected > 0 ? totalMatrix / expected : null;
-    rows.push({ model: entry.model_id, totalMatrix, nEff, expected, ratio, unknown, moe: Boolean(normalized.experts) });
+    rows.push({ model: entry.model_id, totalMatrix, expected, ratio, unknown, moe: Boolean(normalized.experts), isVision: normalized.hasVision });
   }
 
   for (const r of rows) {
-    console.error(`${r.model.padEnd(38)} ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)} matrix=${r.totalMatrix.toExponential(3)} nEff=${r.nEff.toExponential(3)} unknown=${r.unknown}`);
+    console.error(`${r.model.padEnd(38)} ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)} matrix=${r.totalMatrix.toExponential(3)} unknown=${r.unknown}`);
   }
   console.error(`unknown 叶子总数: ${unknownTotal}`);
-  assert.ok(rows.length >= 20, "非视觉模型数不足");
-  const bad = rows.filter((r) => r.ratio == null || Math.abs(r.ratio - 1) > (REGISTERED[r.model] ?? TOLERANCE));
+  assert.ok(rows.length >= 50, "模型覆盖不足（应含 vision 域）");
+  // M8-V2 校准中：文本域模型断言容差；vision 域模型先报告（known：Kimi vision
+  // config 未被 derivedVisionParameters 识别致期望侧 7× 低估、KDA 系文本侧
+  // 期望公式未校准）——归因后逐批转入断言。
+  const bad = rows.filter((r) => !r.isVision && (r.ratio == null || Math.abs(r.ratio - 1) > (REGISTERED[r.model] ?? TOLERANCE)));
   if (bad.length > 0) console.error("超容差:\n" + bad.map((r) => `${r.model}: ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)}`).join("\n"));
   assert.deepEqual(bad.map((r) => r.model), [], "恒等式超差须先归因：要么修 counts/derived，要么登记为建模边界并写入 REGISTERED");
 });

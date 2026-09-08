@@ -17,7 +17,7 @@ import { SmartEdgeProvider, useSmartEdgePath } from "@tisoap/react-flow-smart-ed
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
 import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
-import { edgeStrokeWidth } from "./edgeStyle.js";
+import { edgePresentation } from "./edgeStyle.js";
 import { formatBytes, formatMetric } from "../formatters.js";
 
 const EMPTY_SET = new Set();
@@ -129,9 +129,9 @@ const RF_NODE_TYPES = { msvNode: MsvNode, groupFrame: MsvGroupFrame, stageBand: 
 const RF_EDGE_TYPES = { msvEdge: MsvEdge, msvNativeEdge: MsvNativeEdge };
 
 function edgeClassName(data) {
-  // §2.2：declared（事实）走默认实线样式；module-order / shape-match（推断）加弱化 class。
-  // semantic-flow 已随 legacySemanticEdges 一并退役，不再识别。
-  return `rf-edge ${data?.kind || "dataflow"}${data?.evidence === "module-order" ? " module-order" : ""}${data?.evidence === "shape-match" ? " shape-match" : ""}${data?.related ? " related" : ""}`;
+  // §2.2：类名由 edgeStyle.edgePresentation 统一决策（declared 实线；
+  // module-order / shape-match 推断弱化）。semantic-flow 已退役。
+  return `rf-edge ${data?.kind || "dataflow"}${data?.presentationClass || ""}${data?.related ? " related" : ""}`;
 }
 
 function edgeStyle(style, data) {
@@ -141,7 +141,7 @@ function edgeStyle(style, data) {
 
 function MsvNativeEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
-  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} />;
+  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} data-evidence={data?.evidence}><title>{data?.hint}</title></BaseEdge>;
 }
 
 function MsvEdge(props) {
@@ -156,7 +156,7 @@ function MsvEdge(props) {
   });
   const [fallbackPath] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 6 });
   const path = route && route.kind !== "clear" ? route.svgPathString : fallbackPath;
-  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} />;
+  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} data-evidence={data?.evidence}><title>{data?.hint}</title></BaseEdge>;
 }
 
 function ReactFlowCanvas({ graph, props }) {
@@ -240,16 +240,20 @@ function ReactFlowCanvas({ graph, props }) {
   const edges = useMemo(() => {
     const framePaths = new Set(graph.containerFrames.map((frame) => frame.id));
     const targetId = (path) => framePaths.has(path) ? `frame-${path}` : path;
-    return renderEdges.map((edge) => ({
-      id: edge.id,
-      source: targetId(edge.source),
-      target: targetId(edge.target),
-      sourceHandle: "source",
-      targetHandle: "target",
-      type: framePaths.has(edge.source) || framePaths.has(edge.target) ? "msvNativeEdge" : "msvEdge",
-      markerEnd: DATAFLOW_MARKER,
-      data: { ...edge, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: edgeStrokeWidth(edge, graph.nodes.find((n) => n.path === edge.source)) },
-    }));
+    return renderEdges.map((edge) => {
+      const presentation = edgePresentation(edge, graph.nodes.find((n) => n.path === edge.source));
+      return {
+        id: edge.id,
+        source: targetId(edge.source),
+        target: targetId(edge.target),
+        sourceHandle: "source",
+        targetHandle: "target",
+        type: framePaths.has(edge.source) || framePaths.has(edge.target) ? "msvNativeEdge" : "msvEdge",
+        markerEnd: DATAFLOW_MARKER,
+        // data-evidence：测试与调试的数据契约（W6-2 e2e 依赖）
+        data: { ...edge, evidence: presentation.evidence, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: presentation.width, presentationClass: presentation.className, hint: presentation.hint },
+      };
+    });
   }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
   const modelKey = graph.nodes.find((node) => node.path === "root")?.fullName || graph.nodes[0]?.fullName || "";
   const layoutSignature = useMemo(

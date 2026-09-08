@@ -34,6 +34,11 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(1);
   await expect(page.locator(".react-flow__minimap")).toBeVisible();
 
+  // W6-2（§2.2）：evidence 数据契约上 DOM。折叠态下只有顶层 module-order 序列边，
+  // 展开内层模块后 declared 声明边出现——两类类名互异。
+  await expect.poll(async () => page.locator('path[data-evidence="module-order"]').count()).toBeGreaterThan(0);
+  await expect.poll(async () => page.locator(".react-flow__edge title").count()).toBeGreaterThan(0);
+
   await page.locator(".detail-cost-toggle > button").click();
   await expect(page.getByText("Total VRAM", { exact: false })).toBeVisible();
   await expect(page.getByText("MACs / forward", { exact: false })).toBeVisible();
@@ -116,6 +121,12 @@ test("父节点详情提供子模块和 Shape", async ({ page }) => {
   await page.locator(".rf-node-content").filter({ hasText: "Decoder layer group" }).first().getByRole("button", { name: "展开", exact: true }).click();
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(edgesAfterDecoder);
   await page.locator(".rf-node-content").filter({ hasText: "GQA Attention" }).first().getByRole("button", { name: "展开", exact: true }).click();
+
+  // 展开到算子层后，builder 声明的 dataflow 边（declared）在场且与推断边类名互异
+  await expect.poll(async () => page.locator('path[data-evidence="declared"]').count()).toBeGreaterThan(0);
+  const declaredClass = await page.locator('path[data-evidence="declared"]').first().getAttribute("class");
+  const orderClass = await page.locator('path[data-evidence="module-order"]').first().getAttribute("class");
+  expect(declaredClass).not.toEqual(orderClass);
 
   const operator = page.locator(".rf-node-content").filter({ hasText: "QKV projection" }).first();
   await operator.click();

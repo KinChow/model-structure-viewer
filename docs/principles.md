@@ -547,24 +547,36 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 确需偏离本文档时，在 `implementation_plan.md` 中登记：**违反哪条、为什么、
 何时收口、收口的判据**。未登记的偏离视为缺陷。
 
-已登记的存量偏离（2026-09-07 复核）：
+已登记偏离的三态快照（2026-09-08，W0-W6 收官复核）：
 
-- §2.1/§2.2：`decoderLayer.js`、`decoderStack.js`、网络层未声明 `dataflow_edges`，
-  依赖 `module-order` 兜底；UI 尚未区分 evidence。
-- §2.5：残差以并列节点表达，尚未有跨层级边。
-- §3.2/§3.3：`cost/compute.js` 旧分派链仍带两处显示名正则，且未实现与 0 不可区分；
-  新链（`formulas/` counts 注册表，42 条目全量动作向量）已符合 §3.1，旧链随 W5 删除后本条清账。
-- §3.4：ERT 与 action counts 尚未分离。
-- §4.3：无 canonical 角色表；checkpoint 对应靠 `mergeSemantics.js:56-75` 的路径归一化**相等匹配**
-  推测，冲突时 `continue` 静默放弃绑定；数值仍有部分来自 config 推导。
-- §4.7：`normalize.js` 混合字段归一与方案解读，含全部家族分支；方案类字段
-  （attentionSchedule / layerSchedule / linearAttentionMode / normMode 等）被组网与 cost
-  跨层消费（W3b 收口）。
-- §3.1（counts 覆盖）：embedding gather 与残差加法无算子节点，其流量不可见
-  （结构级缺口，随 W6/W7 决策；详见 `details/cost_counts.md`）。
-- §4.5：未适配模型走 generic 兜底会画出看起来完整的结构图，未标注"未适配"。
-- §4.6：无映射表，因此无可逆校验。
-- §5.x：`source_ref` 尚未实现（`source_fields` 语义不同，当前存的是 attribute keys）。
-- §6.2/§6.3：后端仍产出完整 IR；`/api/verify` 只返回 pass/fail 且无 UI 入口。
-- §6.4：前后端各有一套来源解析策略。
-- §8.1/§8.2：11 个文件硬编码家族名；`attention.js` 存在嵌套三元链。
+**已清账**（原偏离已修复，验收见各波提交）：
+- ~~§2.1/§2.2（声明）~~：decoderLayer/decoderStack/网络层 `sequence: true` 显式声明 +
+  执法测试；evidence 三值全非空且 UI 三轴展示（W3-D2/W6-2）。
+- ~~§3.1（counts 注册表）~~：42 条目全量动作向量，主链查表（W5-1）。
+- ~~§3.2/§3.3（旧链）~~：compute.js 旧分派链删除，显示名全禁（护栏 §3.2），
+  未实现算子返回 null 与 0 可区分（W5-1/W5-2）。
+- ~~§3.4~~：ERT × counts 分离完成，chips/rates.js 费率表 + 五路 max（W5-2）。
+- ~~§4.3 层 1/层 2~~：roles.js 词表 + archs/ 映射表 + 可逆校验测试（W3-B）。
+- ~~§4.6~~：可逆校验测试常驻（roleBinding.test.js）。
+- ~~§4.7~~：normalizeConfig 纯字段归一，方案决定权在 plan.js（W3-C；
+  家族知识 5 住址收口为带债项，见 refactor_plan.md）。
+- ~~§4.5~~：未适配模型 DiagnosticsPanel banner 显式标注（W6-1）。
+- ~~§8.1/§8.2（attention.js 三元链）~~：组件表取代；家族名 14/16（W5 后）。
+
+**仍偏离（已知不完美，继续持有）**：
+- §2.5：残差以并列节点表达，无跨层级捷径边。业界（ONNX/torch.fx）用 back-edge；
+  本工具成本模型不含残差流量，属展示层增强——持有，不入里程碑。
+- §3.1（counts 覆盖）：embedding gather 与残差加法无算子节点，流量不可见
+  （结构级缺口；详见 `details/cost_counts.md`）。
+- §5.x：`source_ref` 未实现（旁路 B 收窄版范围）。
+- §6.2/§6.3/§6.4：后端保留为验证 oracle（2026-09-08 裁决），/api/verify
+  强化与 source_ref 采集对齐后再评估；前后端来源解析策略仍两套。
+- §8.1：14/16 文件含家族名——compute.js/extractor 镜像已随 W5 退出，
+  剩余随配方表接管 plan.js 后进一步下降（带债项触发点见 refactor_plan.md）。
+- 恒等式残差：counts 侧 kv_b 宽度（R1 −255.9M/token）、GLM-5/Qwen3.8 +0.5%
+  正向残差——登记于 `details/cost_counts.md`，kv_b 随 M8-V1 dims 批次修。
+- vision 域：真值绑定走路径兜底、恒等式未覆盖（M8-V1/V2 清账中）。
+
+**带债项**（触发点见 refactor_plan.md）：
+- 家族知识 5 住址收口（触发：接新模型家族）。
+- plan.js 移 config/ 与 normalize 共享解析原语（随上项）。

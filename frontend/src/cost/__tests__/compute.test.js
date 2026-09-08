@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { aggregateNodeCosts, computeNodeCosts, nodeMacs } from "../compute.js";
+import { normalizeConfig } from "../../structure/config/normalize.js";
 import { aggregateCost } from "../aggregate.js";
 
 test("packed qweight is unknown without logical shape metadata", () => {
@@ -183,4 +184,26 @@ test("父节点和范围子节点同时有 repeat 时只计算一次范围倍数
   const rows = computeNodeCosts(root, {}, { batch: 1, sequence: 1 });
   assert.equal(rows[2].macs, 16);
   assert.equal(rows[2].multiplier, 4);
+});
+
+test("V3 用户可调 visionTokens：vision 域随 tokens 线性变化，文本域不变", () => {
+  const config = normalizeConfig({
+    text_config: { hidden_size: 4, num_attention_heads: 2 },
+    vision_config: { hidden_size: 4, num_attention_heads: 2, num_position_embeddings: 4096, spatial_merge_size: 2 },
+  });
+  assert.equal(config.visionTokens, 1024); // normalize 推导兜底值
+  const root = { children: [
+    { id: "vision_tower.blocks.0.attn.proj", type: "operator", attributes: { operator_id: "linear", modality: "vision" }, weight_shapes: { weight: [4, 2] }, children: [] },
+    { id: "model.layers.0.mlp.gate_proj", type: "operator", attributes: { operator_id: "linear" }, weight_shapes: { weight: [4, 2] }, children: [] },
+  ] };
+  const options = { batch: 1, sequence: 8, phase: "prefill" };
+  const small = computeNodeCosts(root, config, { ...options, visionTokens: 512 });
+  const large = computeNodeCosts(root, config, { ...options, visionTokens: 2048 });
+  const byId = (rows, id) => rows.find((row) => row.node.id === id).macs;
+  // vision 域叶子：macs = 4*2*tokens，512→4096，2048→16384（线性 4×）
+  assert.equal(byId(small, "vision_tower.blocks.0.attn.proj"), 4096);
+  assert.equal(byId(large, "vision_tower.blocks.0.attn.proj"), 16384);
+  // 文本域叶子只随 sequence，不受 visionTokens 影响
+  assert.equal(byId(small, "model.layers.0.mlp.gate_proj"), 64);
+  assert.equal(byId(large, "model.layers.0.mlp.gate_proj"), 64);
 });

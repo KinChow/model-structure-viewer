@@ -6,11 +6,18 @@ import { nodeWeightBytes } from "./memory.js";
 import { walkStructure } from "./traverse.js";
 function countsFor(node, config, options = {}) {
   const vision = node?.attributes?.modality === "vision";
+  // V3：用户可调视觉 token 数优先，config 推导值兜底；不传时与旧链路逐字节一致。
+  const visionTokens = (options.visionTokens ?? config?.visionTokens) || 1;
   const executionOptions = vision
-    ? { ...options, vision: true, visionTokens: config?.visionTokens || 1 }
+    ? { ...options, vision: true, visionTokens }
     : options;
+  // extractor 公式（tokensFor/keyTokens）当前从 config 读 visionTokens，
+  // 用户显式输入时需以覆盖后的 config 传入才能生效；未输入时 config 原样透传。
+  const effectiveConfig = vision && options.visionTokens != null && config
+    ? { ...config, visionTokens: options.visionTokens }
+    : config;
   return countsForNode(node, {
-    config,
+    config: effectiveConfig,
     options: executionOptions,
     path: node?.id || "",
     bytesPerElement: 2,

@@ -3,7 +3,7 @@ import { computeNodeCosts } from "./compute.js";
 import { derivedWeightBytes, derivedWeightParameters } from "./derivedWeights.js";
 import { walkStructure } from "./traverse.js";
 
-export function aggregateCost({ root, graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill",
+export function aggregateCost({ root, graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
   kvBytes = 2, activationPeak, runtimeConst, commBuffer, weightBytesPerParameter } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;
   const nodeWeights = sumNodeWeights(root, graph);
@@ -17,7 +17,7 @@ export function aggregateCost({ root, graph, config, parameterCount, batch = 1, 
   const weightBytes = hasWeightOverride ? parameterTotal * weightBytesPerParameter : naturalWeightBytes;
   const memory = memoryBreakdown({ weightBytes, config, batch, tokens: sequence, kvBytes,
     activationPeak, runtimeConst, commBuffer });
-  const nodes = computeNodeCosts(root, config, { batch, sequence, phase, graph });
+  const nodes = computeNodeCosts(root, config, { batch, sequence, phase, graph, visionTokens: visionTokens ?? undefined });
   const unknownComputePaths = nodes
     .filter((row) => row.compute_macs == null)
     .map((row) => row.path);

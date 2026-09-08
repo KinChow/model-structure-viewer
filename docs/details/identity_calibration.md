@@ -106,6 +106,33 @@ agent 已定位）做第三重印证。expected 侧缺 ~6.4B 待对账。
 **注意**：此 HF 源码为推理专用实现（MoE forward 有 Training not
 supported 断言），参数量公式可用，勿当训练图逐算子真值。
 
+### 案例二追加：GLM-5.3-Flash 权重清单对账（2026-09-08，index.json 逐张量）
+
+GLM 的 `model.safetensors.index.json`（8.4MB，76108 张量）已本地解析
+（`/tmp/m8v2/glm-flash-index.json`），四发现：
+
+1. **46 层 vs config 45 层**：index 中 input_layernorm/o_proj 各 ×46
+   （层号 0..45），本地 glm-flash-config.json 写 45——需核实是 config
+   陈旧还是存在额外层；
+2. **hyper-connection 未建模**：每层有 `hc_attn_base/fn/scale`、
+   `hc_ffn_base/fn/scale` ×45——GLM-5.3-Flash 用 HC（超连接），我们的
+   normalize 只认 `hc_count`/`mhc` 字段，GLM 的 hc_* 张量既不在结构图
+   里也不在参数推导里（预期侧缺口）；
+3. **KDA 层真实权重构成**（34 层）：q/k/v **三个独立投影**（非 fused
+   qkvz）、b_proj、**f_a/f_b 低秩 decay**、**g_a/g_b 低秩 gate**、
+   **k/q/v 三个独立 conv1d**（非单 conv）、o_norm、dt_bias、A_log——
+   derived 的 glm5Next 公式已按 g_a/g_b 重写，但 conv 结构（3 个独立
+   conv）与 A_log 未覆盖；
+4. **DSA 层 12 个**（非 11）：indexer 子模块含 kpool_compress/ape/
+   weights_proj 等张量，我们的 qsa 模板需对照。
+
+另：MoE 43 层（3 dense ✓ 与 first_k_dense_replace=3 吻合）、experts
+带 weight_scale_inv（FP8 量化分组尺度）。
+
+**结论**：GLM-5.3-Flash 的恒等式闭合依赖：① hyper-connection 组件
+（结构+派生）；② KDA 层 conv/decay/gate 构成对齐（g_a/g_b 已修）；
+③ 层号核实。全部登记，随 M11 并行层对齐或独立小波处理。
+
 ## M8-V2 案例三（进行中）：Kimi K3/K2.5 vision 塔逐层对账（源码已核实）
 
 一手源码已入库：`details/models/kimi-k3/{modeling_kimi_k3,configuration_kimi_k3}.py`、

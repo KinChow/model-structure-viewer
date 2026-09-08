@@ -169,6 +169,18 @@ function ArchitectureTab({
     () => compareScenario?.chip ? getChipCoverage(compareScenario.chip, "bf16") : null,
     [compareScenario],
   );
+  const compareLensResult = useMemo(
+    () => compareScenario
+      ? buildNodeLens(structure, compareScenario.chip, {
+        phase,
+        batch: load.batch,
+        sequence: load.sequence,
+        plan: compareScenario.plan,
+        efficiency,
+      })
+      : null,
+    [structure, compareScenario, phase, load.batch, load.sequence, efficiency],
+  );
   // M10-E：基准 lens 派生上移至 DetailWorkspace（与其输入 state 同址），经 cost.nodeLensResult 传入，
   // 消除原先「useMemo 计算 → effect 回写父组件 state」的双份状态。
   const nodeLens = nodeLensResult?.nodes;

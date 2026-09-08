@@ -450,7 +450,9 @@ export function countsForNode(node, env = {}) {
       const kvHeads = latentRead ? 1 : config?.kvHeads || heads;
       const kWidth = latentRead ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
       const vWidth = latentRead ? (config?.kvLoraRank || 0) : valueDim;
-      const kvWrite = latentRead ? 0 : kvHeads * tokens * (headDim + valueDim);
+      const kvWrite = latentRead || kind === "dsv4_sparse_mla"
+        ? 0  // C4 压缩态写入归 compressor 叶、窗口写入已单列（fc99269），防三重计费
+        : kvHeads * tokens * (headDim + valueDim);
       // M11 滑窗补记：dsv4_sparse_mla（C4，ratio=4）层与 compressed 层同款
       // 混合读——滑窗 [t-128,t] 全层覆盖（memory.js 容量口径已含），逐头
       // qsa/qwen4_exp 无此窗口。
@@ -664,9 +666,9 @@ export function countsForNode(node, env = {}) {
     case "topk":
       return topkCounts({ tokens, experts: config?.experts || 0, topk: config?.expertsPerToken || 0, bytesPerElement, normTopkProb: config?.normTopkProb ?? true });
     case "moe_dispatch":
-      return moeDispatchCounts({ tokens, hidden: config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
+      return moeDispatchCounts({ tokens, hidden: staticWidth(node?.input_shape) || config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
     case "moe_combine":
-      return moeCombineCounts({ tokens, hidden: config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
+      return moeCombineCounts({ tokens, hidden: staticWidth(node?.input_shape) || config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
     case "moe_add":
       return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement });
     case "dsv4_hash_route":

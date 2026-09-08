@@ -72,7 +72,7 @@ config + model/source metadata + checkpointTruth
 checkpoint truth 的获取和结构骨架分成两件事：
 
 1. `cost/weights.js` 优先调用 `@huggingface/hub` 的 `parseSafetensorsMetadata` 计算参数量和 dtype 分布，失败时使用 `safetensorsReader.js` 读取 header。
-2. `cost/skeleton.js` 根据 tensor name 建 trie，得到含参模块树；`cost/mergeSemantics.js` 再把它和模板语义对齐。
+2. `structure/truth/skeleton.js` 根据 tensor name 建 trie，得到含参模块树；`structure/truth/graphTruth.js（mergeSemantics 已于 W3-D 删除）` 再把它和模板语义对齐。
 
 因此模板不是含参模块的唯一来源：模板负责无参算子、执行顺序、语义标签和公式；truth 负责 tensor、shape、dtype 和参数量。
 

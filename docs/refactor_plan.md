@@ -82,8 +82,8 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M7** | ✅（W6-1/2） | 诊断面板（gaps/ambiguous/未适配 banner）+ 边三轴 evidence 契约（e2e 断言）+ 五类瓶颈 + value_source 徽标 |
 | **M8** | ✅ V1 ✅ / V2 ✅（全模型恒等式断言覆盖，REGISTERED 登记结构缺口容差）/ V3 ✅（visualTokens 用户输入） | vision 词表与绑定、恒等式域拆分、qkv_hidden_size 修复、kimi_k3 KDA 去重计数、MLA g_proj、GLM hc/indexer 登记；详见 details/identity_calibration.md 案例 |
 | **M9** | ✅ | §10 三态快照 + MAINTENANCE.md（五重 oracle + 变更纪律） |
-| **M11** | ◐（P0 ✅ 2026-09-08） | 诚实性收口：**P0 七条全绿**——e2e 语义断言+第六 oracle、generic-config 枚举报错、unsupported 前端告警、actions 断链接通、counts.bytes 接入访存侧、真值歧义键名对齐、护栏 §3.1b 运行时判据；P1 信号补齐 ⬜、P2 清洁与文档现状化 ⬜；详见 M11 专节 |
-| **M11.5** | ⬜（M11 后） | plan.js 迁 config/ + formulas↔model_executor 目录环解耦（2026-09-08 裁决：M11 已重，单独一波） |
+| **M11** | ✅（2026-09-08 收官） | 诚实性收口：P0 七条 ✅、P1 七条 ✅、P2 八条（7 ✅ + 1 项探针推翻取消）+ 附加：算子层三缺陷修复（qsa kind 三分支/compressor ctx/GLM-Flash 证据改判 qsa→dsa）、bytes 全量补齐（§3.1c 棘轮 PENDING 清空）、§3.1b/§3.1d 护栏、内存侧基线、第六 oracle、GLM-Flash 恒等式 1.0964→1.0909、V4 0.9828→0.9933；单测 261、e2e 语义断言；详见 M11 专节落地核销 |
+| **M11.5** | ⬜（M11 后） | plan.js 迁 config/ + formulas↔model_executor 目录环解耦 + 共享 bytes 助手抽取（2026-09-08 裁决：M11 已重，单独一波） |
 | **M10** | ⬜ | 旁路 C（5 项）、昇腾条目（sfu→vector 插槽）、qwen35_full 改名撤销、§2.5 持有 |
 | **M12** | ⬜（后期） | 并行策略功能扩展（C 档：KV keep-ratio、overlap、per-stage 通信）——开工前单独对齐 |
 
@@ -840,6 +840,34 @@ A 路（agent）P2 来源标注 + 文档现状化 ｜ B 路（agent）P1 七条�
 C 路（主循环）P0 七条。A 只动 formulas/ 注释与 docs/，B 只动 components/ 与
 cost/ui.js，C 动 roofline.js / extractor.js / generic.js / graphTruth.js /
 check_principles.sh / e2e/——三者文件不交集。
+
+### 落地核销（2026-09-08 收官）
+
+**验收五条实况**：
+1. ✅ 真死函数零残留（computeMacsForNode/stageForLayer/chips barrel/重复
+   macs 字段删除；memory.js 三符号取消 export）；多余导出收窄按实测收缩
+   ——测试直接引用的细粒度导出保留（重写测试收益为负），零消费者 3 个收窄。
+2. ✅ 运行时可追溯：§3.1b 42 条可达（手搓 31/ctxBuilder 11/豁免 0）。
+3. ✅ // ref: 42/42（§3.1d 护栏第四项生效，A 路任务 1）。
+4. ✅ 第六 oracle 全绿（59 模型全链路五路时间可得）；e2e 反向断言语义化
+   （data-bound 契约）。
+5. ✅ PP/DP/EP 切分矩阵测试（原有保留）。
+
+**P1 七条实况**：全部 ✅（P1-1 coverage 可见性/P1-2 roofline.missing/
+P1-3 η 披露/P1-4 macsSource+value_source/P1-5 truth_error+endpoint/
+P1-6 projectPlan errors+无效语义修正/P1-7 unknown 徽标）。其中 P1-6 顺带
+修正语义 bug：无效 plan 此前谎报"显存不足"。
+
+**P2 八条实况**：1/3/4/6/7/8 ✅；2 收缩（理由如上）；5 **✗ 探针推翻**
+（兜底为活路径，50 节点实证，删除取消——审计结论纠错已记录）。
+附加完成：hash_route tableRows、bytes 完整性棘轮（§3.1c）、算子层三缺陷
+（kind 三分支/compressor ctx/GLM-Flash 改判）。
+
+**遗留（不阻塞收官，全部登记）**：
+- cost_counts.md 42 条逐条 bytes 公式明细（口径总述已加，逐条待 P2 续）
+- 压缩层 hybrid 滑窗读线索、共享 bytes 助手抽取（M11.5 评估）
+- Kimi-K3 k3-index.json 违反 3b 入库（清理待办）
+- 模块级 attention_kind 改判波及的 e2e 断言口径（如有）随下次 e2e 观察
 
 
 

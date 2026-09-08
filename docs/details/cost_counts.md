@@ -268,7 +268,8 @@ weight 无逻辑形状），沿用旧链的诚实语义。
 - ~~测试期望侧 score 项~~ ✅ 已修（2026-09-08）：期望侧每层写成了
   `2·2·heads·T²·D`（双计），真值 = scores + context 各 `heads·T·S·D`，合计
   `2·heads·T²·D`。修复后目录模型整体收紧 ~0.5-1.7%，V4-Flash 进入默认容差。
-- **未归因正向残差 ≈+0.5%**：GLM-5/5.1（1.0050）、Qwen3.8（1.0047）counts 侧略高于
+- **未归因正向残差 ≈+0.3%~+0.5%**：GLM-5/5.1（1.0050）、GLM-5.2/5.3（1.0030）counts 侧略高于
+  官方锚点；Qwen3.8 现为 0.9997（符号已反转，2026-09-08 实测，无正残差）。
   期望侧，方向与 kv_b 缺口相反，不随该修复消失；量级无害，登记待归因。
 - 设计备忘：若残差再扩大，可考虑"期望侧改为同一 IR 的叶子权重清单 × 1 MAC"——
   代价是恒等式从独立 oracle 退化为对账自检（会漏两侧同错的系统性误解）。
@@ -286,8 +287,9 @@ weight 无逻辑形状），沿用旧链的诚实语义。
 > 校准方法（域拆分账本、四样东西、已排除假设纪律）见 `identity_calibration.md`。
 
 - vision 恒等式 v2 结构就位（双 token 域拆分，38 模型进入 ratio 表）；
-  K2.5 系经 channels 守卫修复进入容差（0.9989）。
-- 待归因（vision 行报告制）：K3 1.29 / GLM-5.3-Flash 1.10 ——KDA 文本侧。
+  K2.5 系经 channels 守卫修复进入容差（0.9949，2026-09-08 实测）。
+- REGISTERED 结构缺口容差内：K3 1.0434 / GLM-5.3-Flash 1.0909（dsa 分解改判后）——
+  KDA/hc/indexer 未建模项，见 identity_calibration.md 案例二。
   已排除：乘子 4×（layer0 multiplier=1）、state_update 公式（F7b 4.72e6/token
   与探针吻合）。下一步：K3 官方 active 参数对账（expected nText 97.6B vs
   counts 130B，K3 官方 active ≈32B——两侧均偏离官方，需先立外部锚点）。

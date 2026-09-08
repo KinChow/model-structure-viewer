@@ -64,7 +64,9 @@
 
 ## 已知登记残差（不阻塞，详见 principles.md §10 与 details/cost_counts.md）
 
-- kv_b 宽度（MLA，counts 侧 −255.9M/token，M8-V1 批次修）
-- GLM-5 / Qwen3.8 恒等式 +0.5% 正向残差未归因
-- embedding gather / 残差加法流量不可见（结构级缺口）
-- vision 域绑定与恒等式（M8 清账中）
+- GLM-5/5.1/5.2/5.3 +0.3%~+0.5% 正向残差未归因（Qwen3.8 已反转至 0.9997，
+  2026-09-08 实测）
+- embedding gather / 残差加法流量不可见（结构级缺口；embedding gather 流量
+  已于 M11 计入 counts.bytes，参数量口径仍为结构级缺口）
+- 恒等式容差：全局 2%，REGISTERED 9 项结构缺口例外（0.6%~10%，见
+  extractor.identity.test.js 与 identity_calibration.md 案例）

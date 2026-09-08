@@ -4,6 +4,7 @@ import SummaryChips from "./SummaryChips";
 import StructureSearchBox from "./StructureSearchBox";
 import ArchitectureTab from "./ArchitectureTab";
 import CostSummary from "./CostSummary";
+import DiagnosticsPanel from "./DiagnosticsPanel";
 import ExportTab from "./ExportTab";
 import RawConfigTab from "./RawConfigTab";
 import NodeDetailPanel from "./NodeDetailPanel";
@@ -150,6 +151,7 @@ export default function DetailWorkspace({
     <main className={`detail-page theme-${theme}`}>
       <DetailHeader structure={structure} sourceLabel={sourceLabel} language={language} onLanguageChange={onLanguageChange} onThemeChange={onThemeChange} theme={theme} onBack={onBack} onSettings={onSettings} />
       <section className="detail-summary"><SummaryChips structure={structure} sourceLabel={sourceLabel} language={language} /></section>
+      <DiagnosticsPanel structure={structure} language={language} />
       <section className="detail-layout">
         <div className="detail-main">
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} language={language} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>

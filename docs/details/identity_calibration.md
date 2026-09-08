@@ -97,8 +97,13 @@ M8-V1 修复，账本预测的量值与修复后实测一致。
   = AttnRes 存档周期（layer_idx%12==0）；`routed_expert_hidden_size=3584`
   = latent 宽，**不是** expert intermediate（那是 3072）。
 
-**当前差距**：counts 130B vs 官方 active 104B（counts 多 ~26B）；
-expected 97.6B（少 ~6.4B）。
+**当前差距**（2026-09-08 KDA 模板修复后）：counts 106.5B/token vs 官方
+active 104B（**残差 2.4%**）。两处 counts 侧错误已修复：① 独立全宽
+decay 叶与融合内 f_a 重复计数；② output_gate_norm/out_proj 数值输入
+误用融合宽 49376（源码 o_norm 逐头门控后 o_proj 输入 = 12288）。
+剩余 2.4% 疑点：24 个 MLA 层计数（K3 MLA 需 q_lora_rank 等 config
+值核对）、shared expert 6144 语义。GLM-5.3-Flash（1.0964）依赖案例二
+追加的四发现落地（hc 超连接等）。
 
 **index.json 已下载解析**（59.7MB，total_size 1.561T ✓ 与 2.8T 官方口径
 在量化平均下吻合）。首轮发现：**全部 93 层都有 KDA 张量**

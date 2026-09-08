@@ -1,0 +1,23 @@
+{
+ "model": "Qwen/Qwen3.8-Flash-Next",
+ "note": "M11 缺陷 2 取证：HF 仓库无任何 .py 文件（API tree 核实，2026-09-08），采用 transformers 库随附 qwen4_exp 实现作二等来源（MiniMax-M3 同口径降级）",
+ "fetched": "2026-09-08",
+ "fetcher": "node scripts/fetch-evidence.mjs --probe（config.json，与已提交版本字节一致）；modeling 为 agent curl raw.githubusercontent.com/transformers main（sha256 前 16 位 2e36ee6a1bc4f43f）",
+ "hf_tree": "https://huggingface.co/api/models/Qwen/Qwen3.8-Flash-Next/tree/main：131 个 safetensors 分片 + config/tokenizer/README 等，无 modeling_*/configuration_*.py；model.safetensors.index.json 按纪律未下载",
+ "files": [
+  {
+   "file": "config.json",
+   "level": "L1-config",
+   "source": "HF resolve/main（fetch-evidence.mjs 重下，与 9/6 已提交版本 diff 为空）",
+   "note": "text_config.indexer_budget=2048（:21）+ indexer_compress_ratio=4/indexer_head_dim=128/indexer_kv_heads=1/indexer_n_heads=4（:22-25）；GQA 24 头/kv 2 头/head_dim 256（:17,:100,:104）；layer_types 12×full_attention + 36×linear_attention（:27-76）。M11 缺陷 2 所称『config 无 indexer 字段』不成立",
+   "location": "models/Qwen/Qwen3.8-Flash-Next/config.json"
+  },
+  {
+   "file": "modeling_qwen4_exp.py",
+   "level": "L2-modeling",
+   "source": "transformers 库 src/transformers/models/qwen4_exp/（modular 自动生成，Qwen Team + HF 版权 2026）；HF 仓库无 modeling，降级口径",
+   "note": "QSA 为产品事实：Qwen4ExpTextQSAIndexer(:671)『Select QSA token indices from compressed key blocks』，block_topk=budget//compress_ratio=512(:682)，块 mean pooling(:739-742)→relu 打分(:750-753)→topk 512 块(:755)→展开 2048 token+尾 3(:757-762)→加性 mask(:764-777)；主注意力 GQA 非 MLA(:817-843)，indexer mask 叠 causal mask(:853-858)后全 KV 张量上跑(:884-893)",
+   "location": "models/Qwen/Qwen3.8-Flash-Next/modeling_qwen4_exp.py"
+  }
+ ]
+}

@@ -1,0 +1,23 @@
+{
+ "model": "zai-org/GLM-5.3-Flash",
+ "note": "M11 缺陷 2 取证：HF 仓库无任何 .py 文件（API tree 核实，2026-09-08），采用 transformers 库 glm5_next 实现作二等来源（MiniMax-M3 同口径降级）。源码自述为 DSA indexer，模板现行走 qsa 属建模误标",
+ "fetched": "2026-09-08",
+ "fetcher": "node scripts/fetch-evidence.mjs --probe（config.json，与已提交版本字节一致）；modeling 为 cp 自仓库 docs/details/models/glm5-next/（transformers 库实现，先前进证入库，sha256 前 16 位 5a885692edc74056）",
+ "hf_tree": "https://huggingface.co/api/models/zai-org/GLM-5.3-Flash/tree/main：62 个 safetensors 分片 + config/tokenizer/README 等，无 modeling_*/configuration_*.py；model.safetensors.index.json 按纪律未下载",
+ "files": [
+  {
+   "file": "config.json",
+   "level": "L1-config",
+   "source": "HF resolve/main（fetch-evidence.mjs 重下，与 9/6 已提交版本 diff 为空）",
+   "note": "text_config.index_topk=2048 + index_kpool=4/index_kpool_compress=true/index_kpool_always_select_tail=true/index_n_heads=32/index_head_dim=128/indexer_types=full×45（DSA 命名族，无任何 qwen 式 indexer_budget 字段）；MLA：kv_lora_rank=512/q_lora_rank=1536/qk_nope_head_dim=256/qk_rope_head_dim=0/v_head_dim=256/64 头/45 层。M11 缺陷 2 所称『config 无 indexer 字段』不成立（键名是 index_* 而非 indexer_*）",
+   "location": "models/zai-org/GLM-5.3-Flash/config.json"
+  },
+  {
+   "file": "modeling_glm5_next.py",
+   "level": "L2-modeling",
+   "source": "transformers 库 src/transformers/models/glm5_next/（modular 自动生成，HF 版权 2026）；HF 仓库无 modeling，降级口径",
+   "note": "Glm5NextTextIndexer(:739) 自述『DeepSeek Sparse Attention (DSA) indexer with k-pool compression for GLM-5.3-Flash』(:741)：select_k=index_topk//index_kpool=512 池(:850)→topk(:855)→展开回 token(:861-863)→尾 +3(:870-872)→int32 indices(:880)；主注意力 Glm5NextTextAttention(:1067) 为 MLA（q_a/kv_a_with_mqa/kv_b_proj :1100-1121），topk_indices 经 build_attention_mask_from_topk(:1196-1200,:1221) 成稀疏 mask；模型级 mask 名 deepseek_sparse_attention(:1473,:2417)",
+   "location": "models/zai-org/GLM-5.3-Flash/modeling_glm5_next.py"
+  }
+ ]
+}

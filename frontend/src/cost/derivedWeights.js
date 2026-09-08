@@ -77,6 +77,31 @@ export function derivedWeightParameters(config = {}) {
 
 export function derivedVisionParameters(config) {
   const plan = deriveBuildPlan(config?.raw ?? config);
+  // M8-V2：Kimi 系（MoonViT3dEncoder）分支——qkv 宽独立（qkv_hidden_size）、
+  // MLP2 两层无 gate、patchmerger 投影（源码：details/models/kimi-k3/）。
+  // 每层 = wqkv hidden·3qkv + wo qkv·hidden + MLP2 2·hidden·mlpDim + norms 2·hidden。
+  const qkvHidden = config.visionQkvHiddenSize || 0;
+  const projectorType = config.visionProjectorType || "";
+  if (qkvHidden || projectorType.includes("patchmerger")) {
+    const layers = config.visionLayers || 0;
+    const hidden = config.visionHiddenSize || 0;
+    const heads = config.visionAttentionHeads || 0;
+    const qkvHidden = config.visionQkvHiddenSize || hidden; // 未指定 → wqkv 3×hidden
+    const mlpDim = config.visionIntermediateSize || 0;
+    const patch = config.visionPatchSize || 0;
+    const temporalPatch = config.visionTemporalPatchSize || 1;
+    const channels = config.visionChannels || 3;
+    if (!layers || !hidden || !heads || !qkvHidden || !mlpDim || !patch) return 0;
+    const perLayer = hidden * 3 * qkvHidden + qkvHidden * hidden + 2 * hidden * mlpDim + 2 * hidden;
+    const patchEmbedding = channels * temporalPatch * patch * patch * hidden;
+    const mergeKernel = config.visionMergeKernelSize || 4; // merge_kernel_size (2,2) 的积
+    const mergerIn = hidden * mergeKernel; // mm_hidden_size × merge_kernel²
+    const textOutput = config.visionOutputSize || 7168;
+    const merger = mergerIn * mergerIn + mergerIn * textOutput; // patchmerger(V1/V2) 两层 Linear
+    const finalNorm = hidden;
+    const postNorm = textOutput;
+    return patchEmbedding + layers * perLayer + finalNorm + merger + postNorm;
+  }
   const layers = config.visionLayers || 0;
   const hidden = config.visionHiddenSize || 0;
   const heads = config.visionAttentionHeads || 0;

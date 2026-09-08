@@ -6,7 +6,9 @@ import { deriveBuildPlan } from "../plan.js";
 export function visionDimensions(normalized) {
   const hidden = normalized.visionHiddenSize || 0;
   const heads = normalized.visionAttentionHeads || 0;
-  const headDim = normalized.visionHeadDim || (heads ? hidden / heads : 0);
+  // M8-V2：Kimi 系 qkv 宽独立于 hidden（qkv_hidden_size=1536，wqkv 输出 3×1536=4608）
+  const qkvHiddenSize = normalized.visionQkvHiddenSize || hidden;
+  const headDim = normalized.visionHeadDim || (heads ? qkvHiddenSize / heads : 0);
   const intermediate = normalized.visionIntermediateSize || 0;
   const channels = normalized.visionChannels || 3;
   const patch = normalized.visionPatchSize || 0;
@@ -17,10 +19,10 @@ export function visionDimensions(normalized) {
   const mergedTokens = -1;
   const mergeSize = normalized.visionMergeSize || 1;
   return {
-    hidden, heads, headDim, intermediate, channels, patch, temporalPatch, tokens,
+    hidden, heads, headDim, intermediate, channels, patch, temporalPatch, tokens, qkvHiddenSize,
     visual: [-1, tokens, hidden],
     patchInput: [-1, tokens, channels, temporalPatch * patch * patch],
-    qkv: [-1, tokens, 3 * heads * headDim],
+    qkv: [-1, tokens, 3 * qkvHiddenSize],
     q: [-1, tokens, heads, headDim],
     scores: [-1, heads, tokens, tokens],
     context: [-1, tokens, heads, headDim],
@@ -35,7 +37,7 @@ export function visionDimensions(normalized) {
 function visionLayerModule(id, normalized) {
   const d = visionDimensions(normalized);
   const visual = `[batch, visual tokens, vision hidden size=${d.hidden}]`;
-  const qkv = `[batch, visual tokens, fused qkv=${3 * d.heads * d.headDim}]`;
+  const qkv = `[batch, visual tokens, fused qkv=${3 * d.qkvHiddenSize}]`;
   const q = `[batch, visual tokens, vision heads=${d.heads}, head dimension=${d.headDim}]`;
   const scores = `[batch, vision heads=${d.heads}, query visual tokens, key visual tokens]`;
   const context = `[batch, visual tokens, vision heads=${d.heads}, head dimension=${d.headDim}]`;

@@ -210,9 +210,13 @@ export function normalizeConfig(config) {
       ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"]) ?? firstNumber(visionConfig, ["vt_hidden_size", "mm_hidden_size"]) ?? firstNumber(visionConfig, HIDDEN_KEYS)
       : undefined,
     visionAttentionHeads: visionConfig ? firstNumber(visionConfig, ["num_heads", "num_attention_heads", "vt_num_attention_heads"]) : undefined,
+    // M8-V2：Kimi 系 vision 塔的 qkv 宽独立于 hidden（qkv_hidden_size=1536 vs
+    // vt_hidden_size=1024），注意力头维 = qkv_hidden_size/heads，不能用 hidden/heads。
+    visionQkvHiddenSize: visionConfig ? firstNumber(visionConfig, ["qkv_hidden_size"]) : undefined,
+    visionProjectorType: visionConfig?.mm_projector_type || visionConfig?.projector_type || undefined,
     visionHeadDim: visionConfig
       ? firstNumber(visionConfig, ["head_dim", "attention_head_dim"])
-        ?? derivedHeadDim(firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]), firstNumber(visionConfig, ["num_heads", "num_attention_heads", "vt_num_attention_heads"]))
+        ?? derivedHeadDim(firstNumber(visionConfig, ["qkv_hidden_size"]) ?? firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]), firstNumber(visionConfig, ["num_heads", "num_attention_heads", "vt_num_attention_heads"]))
       : undefined,
     visionIntermediateSize: visionConfig ? firstNumber(visionConfig, ["intermediate_size", "vt_intermediate_size"]) : undefined,
     visionPatchSize: visionConfig ? firstNumber(visionConfig, ["patch_size"]) : undefined,

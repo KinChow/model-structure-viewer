@@ -7,10 +7,10 @@
 
 | # | 命令（cwd） | 守护什么 | 基线 |
 |---|---|---|---|
-| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性 | §8.1 ≤14/16 |
-| 2 | `cd frontend && npm test` | 246 例单测：恒等式 2% 容差、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定 | 全绿 |
+| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b 运行时接线（M11-P0-7：手搓 case / ctxBuilder / 显式豁免三选一） | §8.1 ≤14/16 |
+| 2 | `cd frontend && npm test` | 256 例单测：恒等式 2% 容差、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路（rooflineChain）、内存侧基线（cost-memory-actions）、真值接缝（truthDiagnosticsSeam） | 全绿 |
 | 3 | `cd frontend && npm run verify:models` | 59 内置模型结构可构建 | `"failed": 0` |
-| 4 | `../.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照 | 148 passed |
+| 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照 | 148 passed |
 | 5 | `cd frontend && npm run test:e2e` | 浏览器端：图渲染、边 evidence 契约、成本交互 | 9 passed |
 
 哈希基线文件（有意变更时重生成并人工审阅 diff，流程见各测试头注释）：

@@ -82,7 +82,7 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M7** | ✅（W6-1/2） | 诊断面板（gaps/ambiguous/未适配 banner）+ 边三轴 evidence 契约（e2e 断言）+ 五类瓶颈 + value_source 徽标 |
 | **M8** | ✅ V1 ✅ / V2 ✅（全模型恒等式断言覆盖，REGISTERED 登记结构缺口容差）/ V3 ✅（visualTokens 用户输入） | vision 词表与绑定、恒等式域拆分、qkv_hidden_size 修复、kimi_k3 KDA 去重计数、MLA g_proj、GLM hc/indexer 登记；详见 details/identity_calibration.md 案例 |
 | **M9** | ✅ | §10 三态快照 + MAINTENANCE.md（五重 oracle + 变更纪律） |
-| **M11** | ⬜ | 诚实性收口（2026-09-08 四路审计后重定义）：P0 断链修复（e2e 反向断言→语义断言+全链路测试、generic-config 必崩路径、actions 断链、counts.bytes 接入访存侧、真值歧义键名对齐、护栏 §3.1 改运行时判据）+ unsupported 前端告警 + P1 信号补齐 + P2 清洁与文档现状化（含 42 条 // ref: 来源补齐）；详见 M11 专节 |
+| **M11** | ◐（P0 ✅ 2026-09-08） | 诚实性收口：**P0 七条全绿**——e2e 语义断言+第六 oracle、generic-config 枚举报错、unsupported 前端告警、actions 断链接通、counts.bytes 接入访存侧、真值歧义键名对齐、护栏 §3.1b 运行时判据；P1 信号补齐 ⬜、P2 清洁与文档现状化 ⬜；详见 M11 专节 |
 | **M11.5** | ⬜（M11 后） | plan.js 迁 config/ + formulas↔model_executor 目录环解耦（2026-09-08 裁决：M11 已重，单独一波） |
 | **M10** | ⬜ | 旁路 C（5 项）、昇腾条目（sfu→vector 插槽）、qwen35_full 改名撤销、§2.5 持有 |
 | **M12** | ⬜（后期） | 并行策略功能扩展（C 档：KV keep-ratio、overlap、per-stage 通信）——开工前单独对齐 |

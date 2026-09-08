@@ -1,5 +1,12 @@
 // 芯片规格字段覆盖判定。
 // 来源：evolution_design.md §5.4(c) 的“按字段降级”规则；不使用估算值补齐缺失字段。
+import { PUBLIC_CHIPS } from "./public.js";
+
+// 单位量级健全性对照（旁路 C）：手工条目的带宽/算力若与所有公开卡同字段偏差超过 10 倍
+// （如 GB 写成 Gb、TFLOPS 写成 GFLOPS），提示"单位可能错误"——只警告不拒绝（§3.6：倍数级错误会改变结论）。
+// PUBLIC_CHIPS 只在函数内运行时读取，模块加载期不解引用，与 public.js 的相互引用两种加载顺序均安全。
+const UNIT_SANITY_FACTOR = 10;
+const MANUAL_CHIP_SOURCE = "manual-session";
 
 const CONFIDENCE_VALUES = new Set(["official", "vendor-marketing", "community", "local"]);
 const REQUIRED_INTERCONNECT = ["intra_node.bandwidth"];
@@ -12,13 +19,38 @@ function getPath(object, path) {
   return path.split(".").reduce((value, key) => value?.[key], object);
 }
 
+/** 值与参照集里每一条都相差超过 10 倍才算离群（只要还在任一公开卡的 10 倍内就视为同量级）。 */
+function deviatesOverTenfold(value, references) {
+  return references.length > 0
+    && references.every((reference) => value > reference * UNIT_SANITY_FACTOR || value < reference / UNIT_SANITY_FACTOR);
+}
+
+/** 手工条目的带宽/算力度量级对照；非手工条目不做对照。 */
+function unitAnomalyWarnings(chip) {
+  const warnings = [];
+  if (chip?.source !== MANUAL_CHIP_SOURCE) return warnings;
+  if (hasPositiveNumber(chip.memory_bandwidth)
+    && deviatesOverTenfold(chip.memory_bandwidth, PUBLIC_CHIPS.map((entry) => entry.memory_bandwidth).filter(hasPositiveNumber))) {
+    warnings.push("单位可能错误：memory_bandwidth 与所有公开芯片偏差超过 10 倍，请确认单位（如 GB/s 写成 TB/s、Gb 写成 GB） / Unit may be wrong: memory_bandwidth deviates over 10x from every public chip, check the unit (GB/s vs TB/s, Gb vs GB)");
+  }
+  for (const [dtype, value] of Object.entries(chip.peak_flops || {})) {
+    const references = PUBLIC_CHIPS.map((entry) => entry.peak_flops?.[dtype]).filter(hasPositiveNumber);
+    if (hasPositiveNumber(value) && deviatesOverTenfold(value, references)) {
+      warnings.push(`单位可能错误：peak_flops.${dtype} 与所有公开芯片偏差超过 10 倍，请确认单位（如 TFLOPS 写成 GFLOPS） / Unit may be wrong: peak_flops.${dtype} deviates over 10x from every public chip, check the unit (TFLOPS vs GFLOPS)`);
+    }
+  }
+  return warnings;
+}
+
 export function missingFields(chip, dtype = "bf16") {
   const missing = [];
   if (!hasPositiveNumber(chip?.memory_bytes)) missing.push("memory_bytes");
   if (!hasPositiveNumber(chip?.memory_bandwidth)) missing.push("memory_bandwidth");
   if (!hasPositiveNumber(chip?.peak_flops?.[dtype])) missing.push(`peak_flops.${dtype}`);
   if (!hasPositiveNumber(chip?.vector_flops)) missing.push("vector_flops");
-  if (!hasPositiveNumber(chip?.sfu_ops)) missing.push("sfu_ops");
+  // sfu_ops 缺失但声明了 sfu→vector 语义映射（如昇腾）且向量吞吐在场时，sfu 速率经映射可判，不算缺项。
+  const sfuMapped = chip?.sfu_rate_source === "vector" && hasPositiveNumber(chip?.vector_flops);
+  if (!hasPositiveNumber(chip?.sfu_ops) && !sfuMapped) missing.push("sfu_ops");
   for (const path of REQUIRED_INTERCONNECT) {
     if (!hasPositiveNumber(getPath(chip?.interconnect, path))) missing.push(`interconnect.${path}`);
   }
@@ -50,6 +82,7 @@ export function getChipCoverage(chip, dtype = "bf16") {
   if (chip?.confidence != null && !CONFIDENCE_VALUES.has(chip.confidence)) {
     warnings.push(`未知 confidence：${chip.confidence}`);
   }
+  warnings.push(...unitAnomalyWarnings(chip));
 
   return {
     chipId: chip?.id || null,

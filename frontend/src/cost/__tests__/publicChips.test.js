@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PUBLIC_CHIPS, validatePublicChipCatalog } from "../chips/public.js";
+import { CONFIDENCE_VALUES } from "../chips/coverage.js";
+import { chipRates } from "../chips/rates.js";
 
 test("公开芯片目录每条都有来源且 id 唯一", () => {
   assert.deepEqual(validatePublicChipCatalog(), []);
   assert.equal(new Set(PUBLIC_CHIPS.map((chip) => chip.id)).size, PUBLIC_CHIPS.length);
   for (const chip of PUBLIC_CHIPS) {
     assert.match(chip.source, /^https:\/\//);
-    assert.equal(chip.confidence, "official");
+    assert.ok(CONFIDENCE_VALUES.has(chip.confidence));
     assert.ok(chip.peak_flops.fp32 > 0);
+    // §7：每个规格子树都有字段级来源
+    for (const key of ["memory_bytes", "memory_bandwidth", "peak_flops", "interconnect"]) {
+      assert.match(chip.field_sources?.[key] || "", /^https:\/\//);
+    }
   }
 });
 
@@ -37,4 +43,30 @@ test("L40S 使用官方未启用稀疏性的 BF16 与双向 PCIe 数据", () => 
   assert.equal(l40s.peak_flops.bf16, 362.05e12);
   assert.equal(l40s.interconnect.intra_node.bandwidth, 64e9);
   assert.ok(l40s.notes.some((note) => note.includes("双向带宽")));
+});
+
+test("昇腾 910B4 按保守口径入库，无独立 SFU 时声明 sfu→vector 语义映射", () => {
+  const chip = PUBLIC_CHIPS.find((entry) => entry.id === "huawei-ascend-910b4");
+  assert.ok(chip, "910B4 条目存在");
+  assert.equal(chip.vendor, "Huawei");
+  assert.equal(chip.memory_bytes, 32e9);
+  assert.equal(chip.memory_bandwidth, 800e9);
+  assert.equal(chip.peak_flops.bf16, 280e12);
+  assert.equal(chip.peak_flops.fp16, 280e12);
+  assert.equal(chip.peak_flops.int8, 560e12);
+  assert.equal(chip.vector_flops, 9.2e12);
+  assert.equal(chip.interconnect.intra_node.bandwidth, 392e9);
+  assert.equal(chip.sfu_ops, undefined);
+  assert.equal(chip.sfu_rate_source, "vector");
+  assert.equal(chip.confidence, "community");
+  assert.ok(chip.notes.some((note) => note.includes("官方口径有调整史")));
+  // 完整 field_sources：每个规格子树都有可追溯来源
+  for (const key of ["memory_bytes", "memory_bandwidth", "peak_flops", "interconnect", "vector_flops"]) {
+    assert.match(chip.field_sources[key], /^https:\/\//);
+  }
+  // sfu 速率经向量单元语义映射可得（rates.js 预留插槽生效）
+  const rates = chipRates(chip, { dtype: "bf16" });
+  assert.ok(rates.sfuPerSecond > 0);
+  assert.equal(rates.sfuPerSecond, rates.vectorPerSecond);
+  assert.ok(!rates.missing.includes("sfu_ops"));
 });

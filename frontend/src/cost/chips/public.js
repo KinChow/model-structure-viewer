@@ -3,9 +3,15 @@ import { validateChipEntry } from "./coverage.js";
 const NVIDIA_A100_SOURCE = "https://www.nvidia.com/en-us/data-center/a100/";
 const NVIDIA_H100_SOURCE = "https://www.nvidia.com/en-us/data-center/h100/";
 const NVIDIA_L40S_SOURCE = "https://www.nvidia.com/en-us/data-center/l40s/";
+// 昇腾 910B4 来源：单元数/显存带宽出自实测论文，HCCS 互联出自华为官方文档，算力/容量取第三方一致口径。
+const ASCEND_910B4_SOURCE = "https://arxiv.org/abs/2505.15112";
+const ASCEND_910B4_SPECS_SOURCE = "https://blog.ailemon.net/2025/05/24/huawei-ascend-npu-params-for-ai";
+const ASCEND_910B4_MEMORY_SOURCE = "https://cset.georgetown.edu/publication/pushing-the-limits-huaweis-ai-chip-tests-u-s-export-controls/";
+const ASCEND_HCCS_SOURCE = "https://support.huawei.com/enterprise/zh/doc/EDOC1100317202/f3dba488";
+const ASCEND_VECTOR_SOURCE = "https://arxiv.org/abs/2607.20120";
 
 // 公开芯片规格表。所有容量和带宽均使用十进制 SI 单位，与厂商规格页保持一致。
-// 来源：NVIDIA 官方产品规格页；不包含未经公开资料核实的字段。
+// 来源：厂商官方产品规格页或公开实测文献；不包含未经公开资料核实的字段。
 export const PUBLIC_CHIPS = [
   {
     id: "nvidia-a100-80gb-sxm",
@@ -101,6 +107,44 @@ export const PUBLIC_CHIPS = [
     },
     confidence: "official",
     notes: ["BF16/FP16/FP8/INT8 采用官方未启用稀疏性的数值；PCIe 为官方双向带宽。"],
+  },
+  {
+    // 官方口径有调整史，取保守值：华为未公开 910B4 完整数据表，算力/容量取第三方一致口径
+    // （FP16 280 TFLOPS、INT8 560 TOPS、32GB HBM2e），confidence 记 community 而非 official。
+    // 达芬奇架构 Cube+Vector 双单元、无独立 SFU——超越函数在向量单元执行，故不写 sfu_ops，
+    // 改用 sfu_rate_source: "vector" 语义映射（rates.js 已支持；语义映射非估算，§3.7）。
+    id: "huawei-ascend-910b4",
+    vendor: "Huawei",
+    name: "Ascend 910B4",
+    memory_bytes: 32e9,
+    memory_bandwidth: 800e9,
+    peak_flops: {
+      fp32: 9.2e12,
+      bf16: 280e12,
+      fp16: 280e12,
+      int8: 560e12,
+    },
+    // 向量单元 FP32 吞吐：arXiv 2607.20120 对 910B 系实测值；该文未区分 B 子型号，按保守原则未上调。
+    vector_flops: 9.2e12,
+    sfu_rate_source: "vector",
+
+    interconnect: {
+      intra_node: { kind: "HCCS", bandwidth: 392e9 },
+    },
+    source: ASCEND_910B4_SOURCE,
+    field_sources: {
+      memory_bytes: ASCEND_910B4_MEMORY_SOURCE,
+      memory_bandwidth: ASCEND_910B4_SOURCE,
+      peak_flops: ASCEND_910B4_SPECS_SOURCE,
+      interconnect: ASCEND_HCCS_SOURCE,
+      vector_flops: ASCEND_VECTOR_SOURCE,
+    },
+    confidence: "community",
+    notes: [
+      "官方口径有调整史，取保守值：20 Cube + 40 Vector（向量与立方单元 2:1）与 800GB/s 显存带宽出自 arXiv 2505.15112 实测平台描述；FP16/INT8/容量取第三方一致口径且未取上限值。",
+      "BF16 与 FP16 共用 Cube、吞吐相同（达芬奇 Cube 对两种 16-bit 浮点同速率）；FP32 在向量单元执行，取 arXiv 2607.20120 对 910B 系实测 9.2 TFLOPS。",
+      "无独立 SFU：超越函数在向量单元执行，sfu 速率按 sfu_rate_source:\"vector\" 语义映射到向量单元费率（语义映射非估算）。HCCS 392GB/s 为每处理器 7 条链路聚合理论带宽（华为官方文档）。",
+    ],
   },
 ];
 

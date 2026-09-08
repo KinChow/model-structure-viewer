@@ -62,4 +62,29 @@ console.log('§3.1 公式注册表: ' + Object.keys(FORMULAS).length + ' 条全�
 ") || FAIL=1
 [ -n "$COUNTS_CHECK" ] && echo "$COUNTS_CHECK"
 
+# ---------- §3.1b 运行时接线判据（M11-P0-7，registry completeness） ----------
+# M11 四路审计：护栏原判据只查"注册表挂了 counts 函数"，而 extractor 有
+# 手搓 switch（31 条提前 return）——注册表上 31 个 counts 引用是被护栏
+# 认证过的死代码。新判据：每条目必须可从 extractor 分派到达——手搓
+# case、ctxBuilder 键、或显式豁免清单（豁免必须在此登记，禁止沉默）。
+REACH_CHECK=$(node --input-type=module -e "
+import fs from 'node:fs';
+import { FORMULAS } from './frontend/src/structure/formulas/index.js';
+const src = fs.readFileSync('./frontend/src/structure/formulas/extractor.js', 'utf8');
+const switchCases = new Set([...src.matchAll(/case \"([a-z0-9_]+)\":/g)].map((m) => m[1]));
+const cbStart = src.indexOf('ctxBuilders');
+const cbBlock = cbStart === -1 ? '' : src.slice(cbStart, src.indexOf('\n}', cbStart));
+const ctxKeys = new Set([...cbBlock.matchAll(/([a-z0-9_]+):\s*\(/g)].map((m) => m[1]));
+const RUNTIME_EXCEPTIONS = new Set([]);
+const unreachable = Object.keys(FORMULAS).filter((k) => !switchCases.has(k) && !ctxKeys.has(k) && !RUNTIME_EXCEPTIONS.has(k));
+if (unreachable.length) {
+  console.log('✗ §3.1b 违反：以下条目运行时不可达（无手搓 case、无 ctxBuilder、无豁免登记）：' + unreachable.join(', '));
+  process.exit(1);
+}
+const viaSwitch = Object.keys(FORMULAS).filter((k) => switchCases.has(k)).length;
+const viaCtx = Object.keys(FORMULAS).filter((k) => !switchCases.has(k) && ctxKeys.has(k)).length;
+console.log('§3.1b 运行时接线: ' + Object.keys(FORMULAS).length + ' 条可达（手搓 ' + viaSwitch + ' / ctxBuilder ' + viaCtx + ' / 豁免 ' + RUNTIME_EXCEPTIONS.size + '）');
+") || FAIL=1
+[ -n "$REACH_CHECK" ] && echo "$REACH_CHECK"
+
 exit $FAIL

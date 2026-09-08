@@ -76,13 +76,35 @@ expect  text=…  vision=…
 教训：账本闭合后每一项都有名字；当时闭合不了 kv_b 项，登记后
 M8-V1 修复，账本预测的量值与修复后实测一致。
 
-## 案例二（进行中）：K3 双侧偏离
+## 案例二（进行中）：K3 双侧偏离——锚点已立（2026-09-08）
 
-域账本：text 域比 1.30、vision 域经 channels 修复后待重测；
-**外部锚点缺失**——expected 侧 97.6B、counts 侧 130B，
-官方 active ≈32B：两侧均偏离官方，先读 K3 modeling 源码
-（routed 分组 `num_expert_group`、KDA 混合比例、attnRes 语义）
-立锚，再归因。禁止在锚点缺位时"修"任何一侧。
+**外部锚点（官方模型卡，confidence 高）**：total **2.8T**、active **104B**。
+源码已入库：`details/models/kimi-k3/modeling_kimi_linear.py`（文本解码器真身）。
+
+**已澄清事实**（agent 取证，含行号）：
+- 层型混合：**69 KDA + 24 MLA**（每 4 层 3 KDA + 1 MLA，末层 93 为 MLA；
+  `kda_layers`/`full_attn_layers` 显式 1-based 清单，非正则）；
+- 仅 layer0 dense MLP（intermediate 33792），其余 MoE；
+- latent MoE：`routed_expert_down_proj(7168→3584)` → 896 experts
+  （w1/w3: 3584→**3072**，w2: 3072→3584）→ RMSNorm(3584) →
+  `routed_expert_up_proj(3584→7168)`；shared ×2（intermediate 6144）；
+  router 896×7168 sigmoid top-16；
+- KDA 层权重：q/k/v 各 7168→12288 + conv 4；decay 低秩
+  f_a(7168→128)→f_b(128→12288)；full-rank gate g_proj 7168→12288
+  （use_full_rank_gate=true）；b_proj 7168→96；z FusedRMSNormGated(128)
+  逐头门控；o_proj 12288→7168；
+- 字段语义：`num_expert_group=1` = 关闭分组路由；`attn_res_block_size=12`
+  = AttnRes 存档周期（layer_idx%12==0）；`routed_expert_hidden_size=3584`
+  = latent 宽，**不是** expert intermediate（那是 3072）。
+
+**当前差距**：counts 130B vs 官方 active 104B（counts 多 ~26B）；
+expected 97.6B（少 ~6.4B）。归因方向：counts 侧优先（多计量大）——
+重点排查 69 KDA 层的 KDA 叶子计数与 MLA 层 24 层的 MLA 计数在
+93 层混合调度下的乘子；再用 index.json（59MB，每张量精确 shape，
+agent 已定位）做第三重印证。expected 侧缺 ~6.4B 待对账。
+
+**注意**：此 HF 源码为推理专用实现（MoE forward 有 Training not
+supported 断言），参数量公式可用，勿当训练图逐算子真值。
 
 ## M8-V2 案例三（进行中）：Kimi K3/K2.5 vision 塔逐层对账（源码已核实）
 

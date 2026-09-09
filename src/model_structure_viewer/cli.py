@@ -59,6 +59,11 @@ def main(argv: list[str] | None = None) -> int:
     verify_parser.add_argument("--revision", default="main")
     verify_parser.add_argument("--cache-policy", choices=["prefer-local", "refresh", "offline"], default="prefer-local")
     verify_parser.add_argument("--format", choices=["json", "text"], default="json")
+    verify_parser.add_argument(
+        "--graph",
+        default=None,
+        help="Path to a JSON file with the frontend Graph (msv_graph) for reconciliation.",
+    )
     verify_parser.set_defaults(func=cmd_verify)
 
     serve_parser = subparsers.add_parser("serve", help="Start the FastAPI server.")
@@ -126,6 +131,12 @@ def cmd_verify(args: argparse.Namespace, settings: AppSettings) -> int:
             config_json = json.load(handle)
     if args.config and source == "auto" and not args.model:
         source = "local"
+    # --graph 把前端 Graph JSON 原样作为 msv_graph 上行（整体 {"nodes": [...]}
+    # 或裸节点列表都收，见 verification/compare_structure.py _msv_nodes）。
+    msv_graph = None
+    if args.graph:
+        with open(args.graph, "r", encoding="utf-8") as handle:
+            msv_graph = json.load(handle)
     payload = VerifyRequest(
         source=source,
         model_id=args.model,
@@ -133,6 +144,7 @@ def cmd_verify(args: argparse.Namespace, settings: AppSettings) -> int:
         config_json=config_json,
         revision=args.revision,
         cache_policy=args.cache_policy,
+        msv_graph=msv_graph,
     )
     result = verify_structure_response(payload, settings)
     if args.format == "text":

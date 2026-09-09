@@ -1,0 +1,30 @@
+{
+  "contract": "canonical_path",
+  "model": "Qwen/Qwen3.5-0.8B",
+  "comment": [
+    "前后端共享样例、不共享代码（§6.4 契约精神）。",
+    "本文件是对账路径规范化（verification/compare_structure.py canonical_reconciliation_path）",
+    "的契约样例：backend 侧来自 transformers meta introspect 折叠图节点的 canonical_id",
+    "（introspect 的原始 module path），frontend 侧来自前端模板 Graph 节点的 canonical_id。",
+    "两侧路径 resolver 各自独立实现；样例锁定『同一路径对规范化后必须同键』。",
+    "样例来源：Qwen/Qwen3.5-0.8B（多模态 + 混合线性注意力，覆盖 wrapper 剥离 /",
+    "首段别名 / 实例索引与折叠伪段三类规则）。",
+    "前端 canonical 词汇或后端折叠行为变化时，先更新样例、双方各自改实现，",
+    "对样单测即契约谈判桌。已知不桥接的命名分歧（如后端 linear_attn ↔ 前端",
+    "self_attn、norm1 ↔ input_norm）故意不入样例——它们应作为对账 diff 的真实信号浮出，",
+    "而不是被规范化规则静默吞掉。"
+  ],
+  "pairs": [
+    {"backend": "root.language_model.embed_tokens", "frontend": "embed_tokens", "note": "language_model 包装剥离"},
+    {"backend": "root.language_model.layers.3", "frontend": "decoder.3", "note": "layers→decoder 首段别名 + 实例索引折叠"},
+    {"backend": "root.language_model.layers.3.self_attn", "frontend": "decoder.3.self_attn", "note": "同名子树"},
+    {"backend": "root.language_model.layers.3.self_attn.o_proj", "frontend": "decoder.3.self_attn.o_proj", "note": "算子级叶子"},
+    {"backend": "root.language_model.layers.3.input_layernorm", "frontend": "decoder.3.input_layernorm", "note": "层内 norm"},
+    {"backend": "root.language_model.layers.3.mlp", "frontend": "decoder.3.mlp", "note": "mlp 容器"},
+    {"backend": "root.language_model.layers.0.mlp.gate_proj", "frontend": "decoder.0.mlp.gate_proj", "note": "线性注意力层(0)的 mlp 叶子"},
+    {"backend": "root.language_model.norm", "frontend": "norm", "note": "顶层 final norm"},
+    {"backend": "root.visual.patch_embed", "frontend": "vision_tower.patch_embed", "note": "visual→vision_tower 别名"},
+    {"backend": "root.visual.merger", "frontend": "vision_tower.merger", "note": "视觉 merger"},
+    {"backend": "root.language_model.layers.0.group0.pattern0", "frontend": "decoder", "note": "后端折叠伪段(groupN/patternN) ↔ 前端模板栈节点"}
+  ]
+}

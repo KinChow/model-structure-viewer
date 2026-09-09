@@ -292,3 +292,88 @@ def test_verify_api_returns_transformers_validation(monkeypatch):
     assert payload["ok"] is True
     assert payload["status"] == "passed"
     assert payload["strategy"] == "transformers-meta"
+
+
+def _fake_verify_worker(captured):
+    """Worker 替身：回放带 evidence 的成功结果，记录 msv_graph 上行。"""
+
+    def worker(config, **kwargs):
+        captured["msv_graph"] = kwargs.get("msv_graph")
+        return {
+            "ok": True,
+            "status": "passed",
+            "strategy": "transformers-meta",
+            "model_id": "Org/Demo",
+            "source": {"kind": "test"},
+            "summary": {"strategy": "meta-introspect"},
+            "diagnostics": {},
+            "evidence": {
+                "modules": [
+                    {
+                        "path": "root.model.norm",
+                        "class": "RMSNorm",
+                        "params": 8,
+                        "weight_shapes": {"weight": [8]},
+                        "dtype": "BF16",
+                        "value_source": "introspect",
+                        "repeat": None,
+                    }
+                ],
+                "diff": {"only_transformers": [], "only_msv": [], "mismatches": []},
+                "summary": {"constructed": True, "structurally_consistent": True, "module_count": 1},
+            },
+        }
+
+    return worker
+
+
+def test_verify_api_forwards_msv_graph_and_returns_evidence(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(service, "_run_transformers_verify_worker", _fake_verify_worker(captured))
+    msv_graph = {
+        "nodes": [
+            {
+                "id": "root.0",
+                "canonical_id": "norm",
+                "type": "normalization",
+                "attributes": {"class": "RMSNorm"},
+            }
+        ]
+    }
+
+    response = client.post(
+        "/api/verify",
+        json={
+            "source": "config",
+            "model_id": "Org/Demo",
+            "config_json": {"model_type": "demo", "architectures": ["DemoModel"]},
+            "msv_graph": msv_graph,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert captured["msv_graph"] == msv_graph
+    assert payload["evidence"]["summary"]["structurally_consistent"] is True
+    assert payload["evidence"]["modules"][0]["path"] == "root.model.norm"
+    assert payload["evidence"]["diff"]["note"] is None
+
+
+def test_verify_api_without_msv_graph_reports_unreconciled(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(service, "_run_transformers_verify_worker", _fake_verify_worker(captured))
+
+    response = client.post(
+        "/api/verify",
+        json={
+            "source": "config",
+            "model_id": "Org/Demo",
+            "config_json": {"model_type": "demo", "architectures": ["DemoModel"]},
+        },
+    )
+
+    assert response.status_code == 200
+    # 上行缺省 → worker 收到 None；evidence 契约仍完整（diff 空 + 注明未对账
+    # 的形态由 verification 层单测覆盖，这里只锁 API 接线）。
+    assert captured["msv_graph"] is None
+    assert response.json()["evidence"]["summary"]["constructed"] is True

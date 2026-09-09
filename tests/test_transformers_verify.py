@@ -1,5 +1,11 @@
 from model_structure_viewer import service
-from model_structure_viewer.schemas import ModelStructure, StructureNode, VerifyRequest
+from model_structure_viewer.schemas import (
+    ModelStructure,
+    StructureGraph,
+    StructureGraphNode,
+    StructureNode,
+    VerifyRequest,
+)
 from model_structure_viewer.settings import AppSettings
 from model_structure_viewer.verification.transformers_verify import verify_transformers_structure
 
@@ -10,6 +16,41 @@ def _structure():
         source={"strategy": "meta-introspect", "backbone_class": "DemoModel"},
         root=StructureNode(id="root", name="DemoModel", type="module"),
     )
+
+
+def _graph_structure():
+    """带折叠图的结构：root / model / layers(ModuleList, repeat=4) / q_proj / norm。
+
+    norm 节点刻意不带 params/weight_shapes/dtype/value_source，验证 evidence
+    的 None 保全（不伪造数值）。
+    """
+    nodes = [
+        StructureGraphNode(id="root", canonical_id="root", type="module", attributes={"class": "DemoModel"}),
+        StructureGraphNode(
+            id="root.model", canonical_id="root.model", parent_id="root", type="module",
+            attributes={"class": "DemoTextModel"},
+        ),
+        StructureGraphNode(
+            id="root.model.layers", canonical_id="root.model.layers", parent_id="root.model",
+            type="module-list", attributes={"class": "ModuleList"},
+        ),
+        StructureGraphNode(
+            id="root.model.layers.0", canonical_id="root.model.layers.0", parent_id="root.model.layers",
+            type="layer-group", repeat=4, attributes={"class": "DemoDecoderLayer"},
+        ),
+        StructureGraphNode(
+            id="root.model.layers.0.self_attn.q_proj",
+            canonical_id="root.model.layers.0.self_attn.q_proj",
+            parent_id="root.model.layers.0", type="linear", params=4096,
+            weight_shapes={"weight": [64, 64]}, dtype="BF16", value_source="introspect",
+            attributes={"class": "Linear"},
+        ),
+        StructureGraphNode(
+            id="root.model.norm", canonical_id="root.model.norm", parent_id="root.model",
+            type="normalization", attributes={"class": "DemoRMSNorm"},
+        ),
+    ]
+    return ModelStructure(summary={"strategy": "meta-introspect"}, source={}, graph=StructureGraph(nodes=nodes))
 
 
 def test_verify_transformers_structure_passes_meta_introspection(monkeypatch):
@@ -206,3 +247,161 @@ def test_verify_response_uses_strict_worker_result(monkeypatch):
     assert result.status == "failed"
     assert result.strategy == "transformers-meta"
     assert result.diagnostics["failure_kind"] == "model_init_failed"
+
+
+def test_verify_transformers_structure_carries_per_module_evidence(monkeypatch):
+    monkeypatch.setattr(
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
+        lambda config, **kwargs: _graph_structure(),
+    )
+
+    result = verify_transformers_structure(
+        {"model_type": "demo", "architectures": ["DemoModel"]},
+        source={"kind": "test", "model_id": "Org/Demo"},
+    )
+
+    assert result.ok is True
+    assert result.evidence is not None
+    evidence = result.evidence
+    # 整树 summary 语义不变，两态结论落在 evidence.summary
+    assert evidence.summary == {"constructed": True, "structurally_consistent": None, "module_count": 6}
+    assert evidence.diff.note == "msv_graph not provided"
+    assert evidence.diff.only_transformers == []
+    assert evidence.diff.only_msv == []
+    assert evidence.diff.mismatches == []
+
+    modules = {module["path"]: module for module in evidence.modules}
+    q_proj = modules["root.model.layers.0.self_attn.q_proj"]
+    assert q_proj == {
+        "path": "root.model.layers.0.self_attn.q_proj",
+        "class": "Linear",
+        "params": 4096,
+        "weight_shapes": {"weight": [64, 64]},
+        "dtype": "BF16",
+        "value_source": "introspect",
+        "repeat": None,
+    }
+    # 形状类字段无值保持 None（不伪造数值），折叠节点保留 repeat
+    norm = modules["root.model.norm"]
+    assert norm["params"] is None
+    assert norm["weight_shapes"] is None
+    assert norm["dtype"] is None
+    assert norm["value_source"] is None
+    assert modules["root.model.layers.0"]["repeat"] == 4
+
+
+def test_verify_transformers_structure_reconciliation_consistent(monkeypatch):
+    monkeypatch.setattr(
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
+        lambda config, **kwargs: _graph_structure(),
+    )
+    msv_graph = {
+        "nodes": [
+            # 前端模板栈节点：无 class 标签（class 检查 None 不参与）
+            {"id": "root.2", "canonical_id": "decoder", "type": "decoder"},
+            {"id": "root.2.0", "canonical_id": "decoder.0.self_attn.q_proj", "type": "operator",
+             "attributes": {"class": "Linear"}, "weight_shapes": {"weight": [64, 64]}},
+            # 后缀容忍：RMSNorm ⊂ DemoRMSNorm
+            {"id": "root.3", "canonical_id": "norm", "type": "normalization", "attributes": {"class": "RMSNorm"}},
+        ]
+    }
+
+    result = verify_transformers_structure(
+        {"model_type": "demo", "architectures": ["DemoModel"]},
+        source={"kind": "test", "model_id": "Org/Demo"},
+        msv_graph=msv_graph,
+    )
+
+    assert result.ok is True
+    assert result.status == "passed"
+    assert result.evidence.diff.note is None
+    assert result.evidence.diff.only_transformers == []
+    assert result.evidence.diff.only_msv == []
+    assert result.evidence.diff.mismatches == []
+    assert result.evidence.summary["structurally_consistent"] is True
+
+
+def test_verify_transformers_structure_constructed_but_structurally_inconsistent(monkeypatch):
+    """Task 7.6 合成用例：meta 构造通过但结构不一致——status 保持 passed，
+    两态结论落在 evidence.summary.structurally_consistent=False。"""
+    monkeypatch.setattr(
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
+        lambda config, **kwargs: _graph_structure(),
+    )
+    msv_graph = {
+        "nodes": [
+            # 前端多了后端没有的模块
+            {"id": "root.4", "canonical_id": "lm_head", "type": "output", "attributes": {"class": "Linear"}},
+            # path 命中但 weight_shapes 正维分歧
+            {"id": "root.5", "canonical_id": "decoder.0.self_attn.q_proj", "type": "operator",
+             "attributes": {"class": "Linear"}, "weight_shapes": {"weight": [64, 128]}},
+        ]
+    }
+
+    result = verify_transformers_structure(
+        {"model_type": "demo", "architectures": ["DemoModel"]},
+        source={"kind": "test", "model_id": "Org/Demo"},
+        msv_graph=msv_graph,
+    )
+
+    assert result.ok is True
+    assert result.status == "passed"
+    assert result.evidence.diff.only_msv == ["lm_head"]
+    assert [
+        (entry.path, entry.kind, entry.transformers, entry.msv)
+        for entry in result.evidence.diff.mismatches
+    ] == [("decoder.self_attn.q_proj", "shape", {"weight": [64, 64]}, {"weight": [64, 128]})]
+    assert result.evidence.summary["structurally_consistent"] is False
+
+
+def test_verify_transformers_structure_failure_has_no_evidence(monkeypatch):
+    def fail_meta(config, **kwargs):
+        from model_structure_viewer.errors import IntrospectionError
+
+        raise IntrospectionError("AutoModel.from_config failed: unsupported")
+
+    monkeypatch.setattr(
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
+        fail_meta,
+    )
+
+    result = verify_transformers_structure(
+        {"model_type": "demo", "architectures": ["DemoModel"]},
+        source={"kind": "test", "model_id": "Org/Demo"},
+        msv_graph={"nodes": [{"id": "root.0", "canonical_id": "norm"}]},
+    )
+
+    assert result.ok is False
+    assert result.status == "failed"
+    assert result.evidence is None
+
+
+def test_verify_service_passes_msv_graph_through_to_verification(monkeypatch):
+    """service → worker（直连模式）→ verify_transformers_structure 全链接线。"""
+    monkeypatch.setenv("MSV_DISABLE_STRUCTURE_WORKER", "1")
+    monkeypatch.setattr(
+        "model_structure_viewer.structure.recovery.build_from_meta_model",
+        lambda config, **kwargs: _graph_structure(),
+    )
+    msv_graph = {
+        "nodes": [
+            {"id": "root.0", "canonical_id": "decoder", "type": "decoder"},
+            {"id": "root.1", "canonical_id": "decoder.0.self_attn.q_proj", "type": "operator",
+             "attributes": {"class": "Linear"}, "weight_shapes": {"weight": [64, 64]}},
+            {"id": "root.2", "canonical_id": "norm", "type": "normalization", "attributes": {"class": "RMSNorm"}},
+        ]
+    }
+
+    result = service.verify_structure_response(
+        VerifyRequest(
+            source="config",
+            model_id="Org/Demo",
+            config_json={"model_type": "demo", "architectures": ["DemoModel"]},
+            msv_graph=msv_graph,
+        ),
+        AppSettings(offline=True),
+    )
+
+    assert result.ok is True
+    assert result.evidence.summary["structurally_consistent"] is True
+    assert result.evidence.summary["module_count"] == 6

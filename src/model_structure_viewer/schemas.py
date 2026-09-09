@@ -105,7 +105,36 @@ class StructureRequest(BaseModel):
 
 
 class VerifyRequest(StructureRequest):
-    pass
+    # 对账上行载荷（P7/步骤 6）：前端 Graph（{"nodes": [...]} 整体或裸节点列表）。
+    # 缺省时 /api/verify 仍返回 evidence.modules，diff 三分类为空并注明未对账。
+    msv_graph: list[dict[str, Any]] | dict[str, Any] | None = None
+
+
+class VerifyEvidenceMismatch(BaseModel):
+    # kind: "class"（torch 类名 ↔ 前端模板标签分歧）| "shape"（weight_shapes 正维语义分歧）
+    path: str
+    kind: Literal["class", "shape"]
+    transformers: Any = None
+    msv: Any = None
+
+
+class VerifyEvidenceDiff(BaseModel):
+    # 路径键为 canonical_reconciliation_path 折叠后的种类键（非原始实例路径）。
+    only_transformers: list[str] = Field(default_factory=list)
+    only_msv: list[str] = Field(default_factory=list)
+    mismatches: list[VerifyEvidenceMismatch] = Field(default_factory=list)
+    # msv_graph 缺省时置 "msv_graph not provided"，三分类为空不等于对账通过。
+    note: str | None = None
+
+
+class VerifyEvidence(BaseModel):
+    # modules: per-module 证据 {path, class, params, weight_shapes, dtype, value_source, repeat}；
+    # 形状类字段无值保持 None（不伪造数值，introspect.py:179-204 的原样搬运）。
+    modules: list[dict[str, Any]] = Field(default_factory=list)
+    diff: VerifyEvidenceDiff = Field(default_factory=VerifyEvidenceDiff)
+    # summary 承载对账结论两态：constructed（meta 构造通过）与
+    # structurally_consistent（diff 干净；未对账时 None 而非 False）。
+    summary: dict[str, Any] = Field(default_factory=dict)
 
 
 class VerifyResponse(BaseModel):
@@ -117,6 +146,9 @@ class VerifyResponse(BaseModel):
     summary: dict[str, Any] = Field(default_factory=dict)
     diagnostics: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
+    # 对账结论只进新增字段，status 的 passed/failed/skipped 契约不变
+    # （构造通过 ≠ 结构一致，两态分立，tasks.md Task 7.2）。
+    evidence: VerifyEvidence | None = None
 
 
 class ExportRequest(BaseModel):

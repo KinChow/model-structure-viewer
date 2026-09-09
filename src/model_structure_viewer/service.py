@@ -64,6 +64,7 @@ def verify_structure_response(
         source=resolved.source,
         local_dir=resolved.local_dir,
         timeout_seconds=_worker_timeout_seconds(),
+        msv_graph=payload.msv_graph,
     )
     return VerifyResponse.model_validate(worker_result)
 
@@ -256,11 +257,17 @@ def _run_transformers_verify_worker(
     source: dict[str, Any],
     local_dir: Path | None,
     timeout_seconds: float,
+    msv_graph: Any = None,
 ) -> dict[str, Any]:
     if parse_bool(os.environ.get("MSV_DISABLE_STRUCTURE_WORKER", "0")):
         try:
             with _suppress_third_party_output():
-                return verify_transformers_structure(config, source=source, local_dir=local_dir).model_dump(mode="json")
+                return verify_transformers_structure(
+                    config,
+                    source=source,
+                    local_dir=local_dir,
+                    msv_graph=msv_graph,
+                ).model_dump(mode="json")
         except Exception as exc:  # noqa: BLE001 - keep direct mode contract equal to subprocess mode
             return {
                 "ok": False,
@@ -275,7 +282,12 @@ def _run_transformers_verify_worker(
 
     execution = _run_worker_process(
         "msv-verify-worker-",
-        {"config": config, "source": source, "local_dir": str(local_dir) if local_dir is not None else None},
+        {
+            "config": config,
+            "source": source,
+            "local_dir": str(local_dir) if local_dir is not None else None,
+            "msv_graph": msv_graph,
+        },
         _verify_worker_entrypoint,
         timeout_seconds,
     )
@@ -366,6 +378,7 @@ def _verify_worker_entrypoint(input_path: Path, output_path: Path) -> None:
                 payload["config"],
                 source=payload["source"],
                 local_dir=payload.get("local_dir"),
+                msv_graph=payload.get("msv_graph"),
             ).model_dump(mode="json")
     except Exception as exc:  # noqa: BLE001 - third-party model code can raise anything
         result = {

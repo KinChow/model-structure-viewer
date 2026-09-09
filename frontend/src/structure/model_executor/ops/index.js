@@ -31,6 +31,49 @@ export function operatorSpec(id, name, operatorId, attributes = {}, numericShape
   };
 }
 
+// ---------------------------------------------------------------------------
+// N2-4 W-A（docs/details/sharding_matrix.md 层 1）：weightMatrices 权重声明。
+//
+// 根因是「每个权重矩阵的 [out, in, 数量, 精度, 分片亲和]」没有单一住址——散在
+// counts 闭式公式、nodeWeightBytes 的 weight_shapes、quantBytes 路径匹配、
+// parallel.js 路径正则四处互不一致的载体里。层 1 把它种进叶子 attributes：
+//
+//   weightMatrices: [{ class, out, in, count, matrices }, ...]
+//
+//   - 每组 = 共享同一量化处理与分片亲和的矩阵集合；class ∈ tp | ep | vocab |
+//     replicated（与 parallel.js 的分片轴对应；dtype 不进声明——未量化参数走
+//     paramDtypes，量化字节由层 2 消费者按 quant 方案计算）；
+//   - count × matrices × out × in = 该组全部元素，与叶 counts.bytes.weights
+//     逐位可对账（锚 1，modelIdentities.test.js；权重字节恒等式已锚定叶
+//     counts，因此声明写错立即红）；
+//   - out/in 从与 numericShapes 同源的 dims 取正维宽度，声明与形状不会漂移；
+//   - 无声明的叶子走 parallel.js 规则表回退（行为逐位不变），声明逐步覆盖。
+// ---------------------------------------------------------------------------
+
+/** dims 数组的正维宽度（-1/null = 自由/未知维，不参与乘积；与 extractor 的 staticWidth 同口径）。 */
+function dimWidth(d) {
+  return Array.isArray(d)
+    ? d.filter((value) => Number.isFinite(value) && value > 0).reduce((total, value) => total * value, 1)
+    : 0;
+}
+
+/** 一组权重矩阵声明。count/matrices 缺省为 1（单矩阵组，attention/dense 的线性叶）。 */
+export function weightMatrixDecl(klass, { out, in: inDim, count = 1, matrices = 1 }) {
+  return { class: klass, out, in: inDim, count, matrices };
+}
+
+/**
+ * MoE 路由专家叶的声明：gate/up/down 三矩阵全在叶内（对标 vLLM FusedMoE 打包
+ * w13/w2——模块自描述权重），ep 亲和（÷moe_ep，不均衡区间见 expertWeightRange）。
+ * EH 的取值链与 extractor 的 fused_moe_mlp case 同源（latent_size →
+ * routedExpertHiddenSize → hiddenSize；K3 潜空间为 latent）。
+ */
+export function routedExpertWeightMatrices(normalized) {
+  const expertHidden = normalized.routedExpertHiddenSize || normalized.hiddenSize;
+  const expertIntermediate = normalized.moeIntermediateSize || normalized.intermediateSize;
+  return [weightMatrixDecl("ep", { out: expertIntermediate, in: expertHidden, count: normalized.experts, matrices: 3 })];
+}
+
 // 打分式注意力的公共尾链：rope → scores → softmax → context → o_proj。
 // 五处调用（GQA / qwen35Full / MLA / minimaxCommon dense / minimaxM2）的节点结构
 // 与数值 shape 完全一致，差异全部落在 attributes：
@@ -59,16 +102,31 @@ function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary positio
       ...context,
     }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
     ...preOutput,
-    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
+      ...shapeFlow(shapes.attentionContext, shapes.hidden),
+      communication_role: "tp_attention_output",
+      // N2-4 层 1：RowParallel 输出投影，tp 亲和。声明与 numericShapes 同源
+      //（dims 取宽），五处 tail 调用（GQA/qwen35Full/MLA/minimax dense/minimaxM2）自动跟随。
+      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.hidden), in: dimWidth(dims.attentionContext) })],
+    }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
 
 export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
   return [
-    operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.k_proj`, "k projection", "linear", shapeFlow(shapes.hidden, shapes.attentionKey), { input: dims.hidden, output: dims.attentionKey }),
-    operatorSpec(`${prefix}.v_proj`, "v projection", "linear", shapeFlow(shapes.hidden, shapes.attentionValue), { input: dims.hidden, output: dims.attentionValue }),
+    operatorSpec(`${prefix}.q_proj`, "q projection", "linear", {
+      ...shapeFlow(shapes.hidden, shapes.attentionQuery),
+      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.attentionQuery), in: dimWidth(dims.hidden) })],
+    }, { input: dims.hidden, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.k_proj`, "k projection", "linear", {
+      ...shapeFlow(shapes.hidden, shapes.attentionKey),
+      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.attentionKey), in: dimWidth(dims.hidden) })],
+    }, { input: dims.hidden, output: dims.attentionKey }),
+    operatorSpec(`${prefix}.v_proj`, "v projection", "linear", {
+      ...shapeFlow(shapes.hidden, shapes.attentionValue),
+      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.attentionValue), in: dimWidth(dims.hidden) })],
+    }, { input: dims.hidden, output: dims.attentionValue }),
     ...scaledDotProductTail(prefix, shapes, dims, {
       rope: {
         query_shape: shapes.attentionQuery,
@@ -794,9 +852,18 @@ export function residualAddSpec(id, normalized, label) {
 
 export function mlpOperatorSpecs(prefix, normalized, roleScope = undefined) {
   const { shapes, dims } = shapesAndDims(normalized);
+  // N2-4 层 1：dense MLP 三投影的权重声明（tp 亲和）。shared expert 复用本函数
+  //（roleScope 只改 role 不改形状），声明随之覆盖——对标 vLLM shared_experts 的
+  // ColumnParallelLinear/RowParallelLinear，÷tp 不 ÷ep。
   return [
-    operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.gate_proj`, "linear", roleScope)),
-    operatorSpec(`${prefix}.up_proj`, "up projection", "linear", shapeFlow(shapes.hidden, shapes.intermediate), { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.up_proj`, "linear", roleScope)),
+    operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", {
+      ...shapeFlow(shapes.hidden, shapes.intermediate),
+      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.intermediate), in: dimWidth(dims.hidden) })],
+    }, { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.gate_proj`, "linear", roleScope)),
+    operatorSpec(`${prefix}.up_proj`, "up projection", "linear", {
+      ...shapeFlow(shapes.hidden, shapes.intermediate),
+      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.intermediate), in: dimWidth(dims.hidden) })],
+    }, { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.up_proj`, "linear", roleScope)),
     operatorSpec(`${prefix}.swiglu`, "SwiGLU activation", "swiglu", {
       ...shapeFlow(`${shapes.intermediate}, ${shapes.intermediate}`, shapes.intermediate),
       gate_shape: shapes.intermediate,
@@ -806,7 +873,11 @@ export function mlpOperatorSpecs(prefix, normalized, roleScope = undefined) {
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,
     }, { input: dims.intermediate, output: dims.intermediate }),
-    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", { ...shapeFlow(shapes.intermediate, shapes.hidden), communication_role: "tp_mlp_output" }, { input: dims.intermediate, output: dims.hidden }, resolveOperatorRole(`${prefix}.down_proj`, "linear", roleScope)),
+    operatorSpec(`${prefix}.down_proj`, "down projection", "linear", {
+      ...shapeFlow(shapes.intermediate, shapes.hidden),
+      communication_role: "tp_mlp_output",
+      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.hidden), in: dimWidth(dims.intermediate) })],
+    }, { input: dims.intermediate, output: dims.hidden }, resolveOperatorRole(`${prefix}.down_proj`, "linear", roleScope)),
   ];
 }
 
@@ -832,13 +903,16 @@ export function moeOperatorSpecs(prefix, normalized) {
       expert_ids_shape: shapes.topExperts,
       communication_role: "ep_dispatch",
     }, { input: dims.hidden, output: dims.expertInput }),
-    operatorSpec(`${prefix}.expert_mlp`, "expert MLP", "swiglu", {
+    operatorSpec(`${prefix}.expert_mlp`, "expert MLP", "fused_moe_mlp", {
       ...shapeFlow(shapes.expertInput, shapes.expertInput),
       intermediate_shape: shapes.moeIntermediate,
       activation: normalized.modelType === "minimax_m3_vl" ? "swigluoai_uninterleave" : undefined,
       swiglu_alpha: normalized.swigluAlpha,
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,
+      // N2-4 W-A：专家 gate/up/down 三矩阵在叶内声明（ep 组）。此前该叶与纯激活
+      // 共用 swiglu id、权重对量化/投影/容量不可见——正是 N2-4 的枚举缺口。
+      weightMatrices: routedExpertWeightMatrices(normalized),
     }, { input: dims.expertInput, output: dims.expertInput }),
     operatorSpec(`${prefix}.combine`, "expert combine", "moe_combine", {
       ...shapeFlow(`${shapes.expertInput}, ${shapes.topExperts}`, shapes.hidden),
@@ -882,11 +956,12 @@ export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false
       implementation: ["vLLM.FusedMoE", "SGLang fused_moe"],
       communication_role: "ep_dispatch",
     }, { input: dims.hidden, output: dims.expertInput }),
-    operatorSpec(`${prefix}.expert_mlp`, "expert SwiGLU", "swiglu", {
+    operatorSpec(`${prefix}.expert_mlp`, "expert SwiGLU", "fused_moe_mlp", {
       ...shapeFlow(shapes.expertInput, shapes.expertInput),
       intermediate_shape: shapes.moeIntermediate,
       swiglu_limit: normalized.swigluLimit,
       implementation: ["vLLM.DeepseekV4MegaMoEExperts", "SGLang fused_moe"],
+      weightMatrices: routedExpertWeightMatrices(normalized),
     }, { input: dims.expertInput, output: dims.expertInput }),
     operatorSpec(`${prefix}.combine`, "expert combine", "moe_combine", {
       ...shapeFlow(`${shapes.expertInput}, ${shapes.topExperts}`, shapes.hidden),
@@ -922,10 +997,11 @@ export function kimiK3MoeOperatorSpecs(prefix, normalized) {
       expert_ids_shape: shapes.topExperts,
       communication_role: "ep_dispatch",
     }, { input: latentDims, output: latentDims }),
-    operatorSpec(`${prefix}.expert_mlp`, "latent expert MLP", "swiglu", {
+    operatorSpec(`${prefix}.expert_mlp`, "latent expert MLP", "fused_moe_mlp", {
       ...shapeFlow(latentShape, latentShape),
       intermediate_shape: shapes.moeIntermediate,
       latent_size: latent,
+      weightMatrices: routedExpertWeightMatrices(normalized),
     }, { input: latentDims, output: latentDims }),
     operatorSpec(`${prefix}.combine`, "expert combine", "moe_combine", {
       ...shapeFlow(`${latentShape}, ${shapes.topExperts}`, latentShape),

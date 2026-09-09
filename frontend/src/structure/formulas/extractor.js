@@ -27,6 +27,7 @@ import {
   rearrangeCounts,
   scoredPairs,
   sinkhornCounts,
+  fusedMoeMlpCounts,
 } from "./counts.js";
 import { paramBytes } from "./paramDtypes.js";
 import { formulaForOperator } from "./index.js";
@@ -758,44 +759,27 @@ export function countsForNode(node, env = {}) {
     case "attention_qkv_split":
       // view 语义（strided view 无拷贝）：不产生独立流量，显式登记为零而非漏算。
       return rearrangeCounts();
-    case "swiglu": {
-      // 旧链：仅 expert 路径的 swiglu 计矩阵（gate/up/down GEMM 语义融合）；
-      // 结构化判据用路径（专家目录），W3 换 attributes 标记。
-      const idPath = String(node?.id || path);
-      const routed = ROUTED_EXPERT_RE.test(idPath);
-      if (!routed) return swigluCounts({ tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement });
+    case "swiglu":
+      // 纯激活（SiluAndMul）。N2-4 W-A：携带专家 GEMM 的路由专家叶已拆出独立
+      // id `fused_moe_mlp`（对标 vLLM FusedMoE），本条只服务 dense/vision 的
+      // 门控激活，矩阵恒 0。
+      return swigluCounts({ tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement });
+    case "fused_moe_mlp": {
+      // N2-4 W-A：MoE 路由专家融合叶（gate/up/down GEMM + SwiGLU 激活），分派
+      // 只看 operator_id（W3 的「换 attributes 标记」到此落地——路径正则
+      // ROUTED_EXPERT_RE 只剩 expertFractionFor 与 parallel.js 的无声明回退在用）。
+      // EH 取 latent_size（K3 潜空间）→ routedExpertHiddenSize → hiddenSize，
+      // 与 builder 侧 routedExpertWeightMatrices 的声明同源（锚 1 逐叶对账）。
       const expertHidden = node?.attributes?.latent_size || config?.routedExpertHiddenSize || config?.hiddenSize || 0;
       const expertIntermediate = config?.moeIntermediateSize || config?.intermediateSize || 0;
-      // 压缩的 routed FFN 叶（expert_mlp，无 per-expert repeat）：每 token 激活
-      // k 个专家 → 正确计数 = T·k·3·EH·EI。旧链的 ·(k/E) 少乘 E（已知双链 bug）。
-      // 若未来出现 per-expert 展开树（祖先 repeat=E），应改回 k/E 并依赖 walker 乘 E。
-      const topk = config?.expertsPerToken || 1;
-      // M11-P0-5：routed 分支 = GEMM（gate/up/down 融合）+ 逐元素激活两段。
-      // 矩阵维持 T·k·3·EH·EI 公式；激活段（vector/sfu/bytes）走 F5 共享实现
-      // 补齐流量（此前 bytes 恒 0）。tokens·k 与 per-expert 激活同构。
-      const activation = swigluCounts({ tokens: tokens * topk, intermediate: expertIntermediate, bytesPerElement });
-      // W3-④MoE 专家权重流量。此前 bytes.weights 恒 0 —— routed 专家的
-      // gate/up/down 三段 GEMM 权重完全没进访存侧，而这正是 MoE decode 的
-      // 第一瓶颈项（44/59 模型）。独立证据：bound 期望断言里 swiglu 两相位
-      // 都被误判为 matrix-bound（15 个结构类）。
-      // 被触达的专家数 = min(k·T, E)：
-      //   - prefill 大 T（k·T >= E）→ 全部 E 份权重都要读一遍
-      //   - decode T=1 → 只读 k 份
-      // 形式上与相位无关，相位差异由 tokens 自然涌现（这是「T=1 自然涌现」
-      // 真正成立的情形）。每专家 3 段 GEMM，各 EH x EI。
-      const experts = config?.experts || 0;
-      const touchedExperts = experts > 0 ? Math.min(topk * tokens, experts) : topk;
-      const expertWeightBytes = 3 * touchedExperts * expertHidden * expertIntermediate * bytesPerElement;
-      return {
-        matrix: tokens * 3 * expertHidden * expertIntermediate * topk,
-        vector: activation.vector,
-        sfu: activation.sfu,
-        bytes: {
-          weights: expertWeightBytes,
-          actIn: activation.bytes.actIn,
-          actOut: activation.bytes.actOut,
-        },
-      };
+      return fusedMoeMlpCounts({
+        tokens,
+        topk: config?.expertsPerToken || 1,
+        experts: config?.experts || 0,
+        expertHidden,
+        expertIntermediate,
+        bytesPerElement,
+      });
     }
     case "causal_conv1d": {
       const { keyProjection, valueProjection } = linearAttentionDimensions(config);

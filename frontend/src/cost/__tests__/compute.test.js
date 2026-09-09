@@ -106,18 +106,20 @@ test("参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度�
 });
 
 test("模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs", () => {
+  // N2-4 W-A：路由专家融合叶改独立 id fused_moe_mlp（对标 vLLM FusedMoE），
+  // 计数语义与拆分前逐位相同（T·k·3·EH·EI）。
   const standard = {
     id: "decoder.0.moe.expert_mlp",
     type: "operator",
     name: "expert MLP",
-    attributes: { operator_id: "swiglu" },
+    attributes: { operator_id: "fused_moe_mlp" },
     children: [],
   };
   const latent = {
     id: "decoder.0.moe.expert_mlp",
     type: "operator",
     name: "latent expert MLP",
-    attributes: { operator_id: "swiglu", latent_size: 2 },
+    attributes: { operator_id: "fused_moe_mlp", latent_size: 2 },
     children: [],
   };
   const config = { hiddenSize: 4, intermediateSize: 6, experts: 8, expertsPerToken: 2 };

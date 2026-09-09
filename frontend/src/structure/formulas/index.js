@@ -10,6 +10,7 @@ import {
   linearCounts, attentionCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts,
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
+  fusedMoeMlpCounts,
 } from "./counts.js";
 import { sparseIndexerCounts } from "./modules.js";
 
@@ -170,6 +171,19 @@ export const FORMULAS = {
     inputs: ["expert_outputs", "expert_weights"],
     outputs: ["y"],
     counts: moeCombineCounts,
+  },
+  fused_moe_mlp: {
+    title: "Fused MoE Expert MLP",
+    // ref: 一等 aten::mm ×3（gate/up/down GEMM）+ F5（silu + mul）；A7 融合按
+    //      语义分解计数。对标 vLLM FusedMoE（model_executor/layers/fused_moe/
+    //      打包 w13/w2，模块自描述权重）与 SGLang fused_moe 专家内核。
+    //      N2-4 W-A：此前该语义与纯激活共用 swiglu id（身份过载；QSA/DSA/MSA
+    //      同例不共用条目——算子身份按算法出处区分）。
+    formula: "y = (SiLU(x W_gate^T) ⊙ (x W_up^T)) W_down^T",
+    explanation: "MoE 路由专家的融合前馈：gate/up/down 三段 GEMM 与 SwiGLU 激活在一个叶内计数；被触达专家数 = min(k·T, E)，相位差异由 tokens 自然涌现。",
+    inputs: ["x", "W_gate", "W_up", "W_down"],
+    outputs: ["y"],
+    counts: fusedMoeMlpCounts,
   },
   residual_add: {
     title: "Residual Add",

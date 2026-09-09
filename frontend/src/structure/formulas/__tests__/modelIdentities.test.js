@@ -271,6 +271,51 @@ test("W1 报表：权重字节恒等式 + bound 期望", () => {
   );
 });
 
+// ---------------------------------------------------------------------------
+// N2-4 锚 1（docs/details/sharding_matrix.md §五）：weightMatrices 声明单源。
+//
+// 声明元素数 × 2B == 叶 counts.bytes.weights，逐叶断言（全模型目录）。
+// 权重字节恒等式（上方 W1 测试）已锚定叶 counts，因此声明写错立即红。
+// 工作点取 prefill T=S=2048：routed 专家的 bytes.weights 按触达数
+// min(k·T, E) 计，k·T=16384 覆盖目录全部模型的专家数 → 触达数 == E，
+// 声明（全量 E 份）才与叶 counts 可比；线性/归一化叶的 weights 与 T 无关，
+// 工作点只影响 MoE 叶。
+// ---------------------------------------------------------------------------
+test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容差 0）", () => {
+  const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
+  const offenders = [];
+  let declaredLeaves = 0;
+
+  for (const entry of catalog.models) {
+    const raw = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
+    const { normalized, structure } = buildStructure(raw, entry.model_id);
+    walkLeaves(structure.root, (node) => {
+      const declaration = node?.attributes?.weightMatrices;
+      if (!Array.isArray(declaration) || declaration.length === 0) return;
+      declaredLeaves += 1;
+      const actions = countsForNode(node, {
+        config: normalized,
+        options: { batch: 1, sequence: 2048, phase: "prefill" },
+        path: node?.id || "",
+        bytesPerElement: B,
+      });
+      const declaredElements = declaration.reduce(
+        (sum, group) => sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in,
+        0,
+      );
+      // multiplier 与声明无关（声明描述单实例），与 identity 测试同口径两侧同乘可消去。
+      if (!actions || declaredElements * B !== actions.bytes.weights) {
+        offenders.push(`${entry.model_id} ${node?.id} declared=${declaredElements}·${B}B vs counts=${actions?.bytes?.weights ?? "null"}`);
+      }
+    });
+  }
+
+  console.error(`\n=== N2-4 锚 1：weightMatrices 声明叶 ${declaredLeaves} 个，违例 ${offenders.length} 个 ===`);
+  if (offenders.length > 0) for (const line of offenders.slice(0, 20)) console.error(`  ${line}`);
+  assert.ok(declaredLeaves > 0, "没有任何 weightMatrices 声明叶：ops 的声明助手未接线");
+  assert.deepEqual(offenders, [], "声明元素数×2B 与叶 counts.bytes.weights 不等：声明或公式有一侧错了，先查同源性（routedExpertWeightMatrices 与 extractor 的 EH/EH 取值链）");
+});
+
 // 注意力族算子：KV 恒等式的参与者。W2 拆 id 后同步更新（旧的
 // qsa_attention / qsa_indexer 已不存在，留着会让这三行统计成 0）。
 // 主注意力（读 KV cache 的那些叶）。W5：**indexer 不在内** —— 它读的是自己那份

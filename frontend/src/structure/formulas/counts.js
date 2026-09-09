@@ -270,6 +270,32 @@ export function moeCombineCounts({ tokens, hidden, topk, bytesPerElement }) {
 }
 
 /**
+ * MoE 路由专家的融合前馈（fused_moe_mlp 叶）：gate/up/down 三段 GEMM 与 SwiGLU
+ * 激活在一个叶内计数 —— 对标 vLLM FusedMoE（model_executor/layers/fused_moe/
+ * 打包 w13/w2）与 SGLang fused_moe 的专家内核。N2-4 W-A 前该语义挂在纯激活的
+ * swiglu id 下（身份过载；QSA/DSA/MSA 同例不共用条目）。
+ * matrix = T·k·3·EH·EI；权重读被触达的专家数 = min(k·T, E)：
+ *   - prefill 大 T（k·T >= E）→ 全部 E 份权重都要读一遍
+ *   - decode T=1 → 只读 k 份
+ * 形式上与相位无关，相位差异由 tokens 自然涌现（这是「T=1 自然涌现」
+ * 真正成立的情形）。每专家 3 段 GEMM，各 EH x EI。激活段走 F5 共享实现。
+ */
+export function fusedMoeMlpCounts({ tokens, topk, experts, expertHidden, expertIntermediate, bytesPerElement }) {
+  const activation = swigluCounts({ tokens: tokens * topk, intermediate: expertIntermediate, bytesPerElement });
+  const touchedExperts = experts > 0 ? Math.min(topk * tokens, experts) : topk;
+  return {
+    matrix: tokens * 3 * expertHidden * expertIntermediate * topk,
+    vector: activation.vector,
+    sfu: activation.sfu,
+    bytes: {
+      weights: 3 * touchedExperts * expertHidden * expertIntermediate * bytesPerElement,
+      actIn: activation.bytes.actIn,
+      actOut: activation.bytes.actOut,
+    },
+  };
+}
+
+/**
  * 逐元素加。与 add 原子逐位同构（scratch 证明 120/120 组全字段 Object.is 相等；
  * 护栏 __tests__/countsAtomsConsistency.test.js 固化为永久法则）→ 直接委托，
  * 公式单处化，防抄写漂移（M11.5 子项 3）。

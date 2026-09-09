@@ -2,12 +2,12 @@
 // 期望值独立于实现手算而来；发现不一致时先查数学，不得改期望值迁就实现。
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formulaForOperator } from "../index.js";
+import { formulaForOperator, FORMULAS } from "../index.js";
 import {
   linearCounts, attentionCounts, rmsnormCounts, gateCounts, swigluCounts,
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts,
   moeDispatchCounts, moeCombineCounts, addCounts, hashRouteCounts,
-  rearrangeCounts, softmaxCounts, scoredPairs, causalDensity,
+  rearrangeCounts, softmaxCounts, scoredPairs, causalDensity, fusedMoeMlpCounts,
 } from "../counts.js";
 
 const B = 2; // bf16 每元素 2 字节
@@ -235,18 +235,38 @@ test("F2 分相位：prefill 因果三角、decode 全长", () => {
   assert.equal(dec.matrix, 64);
 });
 
-test("注册表完整性：47 个条目全部终止于 counts（无白名单，§3.1）", () => {
+test("fused_moe_mlp：触达专家数 min(k·T, E) 的相位语义", () => {
+  // N2-4 W-A：从 extractor 的 routed swiglu 内联逻辑升为 counts 共享实现，
+  // 手算期望锁死语义。prefill T=8（k·T=16 ≥ E=8）→ 全部 8 份专家权重读一遍；
+  // decode T=1 → 只读 k=2 份。矩阵 MACs 恒按 T·k 计（每 token 激活 k 个专家）。
+  const base = { topk: 2, experts: 8, expertHidden: 4, expertIntermediate: 6, bytesPerElement: B };
+  const pre = fusedMoeMlpCounts({ ...base, tokens: 8 });
+  const dec = fusedMoeMlpCounts({ ...base, tokens: 1 });
+  assert.equal(pre.matrix, 8 * 3 * 4 * 6 * 2);
+  assert.equal(pre.bytes.weights, 3 * 8 * 4 * 6 * B); // min(2·8, 8) = 8
+  assert.equal(dec.matrix, 1 * 3 * 4 * 6 * 2);
+  assert.equal(dec.bytes.weights, 3 * 2 * 4 * 6 * B); // min(2·1, 8) = 2
+  // 激活段与 per-expert swiglu 同构：tokens·k 个宽 EI 的激活
+  assert.equal(pre.vector, 2 * 8 * 2 * 6);
+  assert.equal(dec.bytes.actIn, 2 * 1 * 2 * 6 * B);
+});
+
+test("注册表完整性：49 个条目全部终止于 counts（无白名单，§3.1）", () => {
   // W2：单一 qsa_indexer / qsa_attention 拆成四 indexer + 三 sparse attention
   // （算法出处不同不共用条目，见 formulas/index.js 各条 ref）。
-  const live = ["linear","matmul","softmax","split","causal_conv1d","rope","vision_position","vision_merge","vision_activation","rmsnorm","gemma_rmsnorm","swiglu","topk","moe_dispatch","moe_combine","moe_add","linear_attention","linear_attention_gate","gated_delta_attention","gated_rmsnorm","mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","mla_kv_split","mla_output_gate","attention_residual","hyper_connection","ple","shared_expert_gate","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","qsa_sparse_attention","dsa_sparse_mla","dsv4_sparse_mla","qwen_qkvz_split","attention_qkv_split","attention_output_gate","minimax_sparse_indexer","minimax_sparse_attention","dsv4_hash_route","dsv4_swa_attention","dsv4_compressed_attention"];
+  // N2-4 W-A：携带专家 GEMM 的路由专家叶从 swiglu 拆出独立条目 fused_moe_mlp。
+  // 清单必须与 FORMULAS 键集逐键一致（W4 的 residual_add 曾漏登记，此处补齐）。
+  const live = ["linear","matmul","softmax","split","causal_conv1d","rope","vision_position","vision_merge","vision_activation","rmsnorm","gemma_rmsnorm","swiglu","fused_moe_mlp","topk","moe_dispatch","moe_combine","moe_add","residual_add","linear_attention","linear_attention_gate","gated_delta_attention","gated_rmsnorm","mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","mla_kv_split","mla_output_gate","attention_residual","hyper_connection","ple","shared_expert_gate","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","qsa_sparse_attention","dsa_sparse_mla","dsv4_sparse_mla","qwen_qkvz_split","attention_qkv_split","attention_output_gate","minimax_sparse_indexer","minimax_sparse_attention","dsv4_hash_route","dsv4_swa_attention","dsv4_compressed_attention"];
   // 复合节点的 ctx 是嵌套结构，数值由各自的复合用例覆盖（如 mla_query_compress）
   const composites = new Set(["mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","attention_residual","hyper_connection","ple","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","minimax_sparse_indexer"]);
+  // 防漂移（双向）：本清单与 FORMULAS 键集逐键一致，新增条目必须同步登记。
+  assert.deepEqual(Object.keys(FORMULAS).sort(), [...live].sort(), "清单与 FORMULAS 键集不一致：新增/删除条目须同步本清单");
   for (const key of live) {
     const entry = formulaForOperator(key);
     assert.ok(entry, `条目缺失: ${key}`);
     assert.equal(typeof entry.counts, "function", `counts 未接线: ${key}`);
     if (composites.has(key)) continue;
-    const sample = entry.counts({ elements: 1, tokens: 1, hidden: 1, bytesPerElement: 1, width: 1, intermediate: 1, experts: 1, topk: 1, keyDim: 1, valueDim: 1, keyTokens: 1, headDim: 1, heads: 1, queryTokens: 1, valueDim2: 1, ropeDims: 1, channels: 1, kernel: 1, tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false, gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false, copy: false });
+    const sample = entry.counts({ elements: 1, tokens: 1, hidden: 1, bytesPerElement: 1, width: 1, intermediate: 1, experts: 1, topk: 1, expertHidden: 1, expertIntermediate: 1, keyDim: 1, valueDim: 1, keyTokens: 1, headDim: 1, heads: 1, queryTokens: 1, valueDim2: 1, ropeDims: 1, channels: 1, kernel: 1, tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false, gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false, copy: false });
     assert.ok(Number.isFinite(sample.matrix), `matrix 非有限: ${key}`);
     assert.ok(Number.isFinite(sample.bytes.actIn), `bytes 非有限: ${key}`);
   }

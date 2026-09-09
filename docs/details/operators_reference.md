@@ -1598,11 +1598,18 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       generic）、mHC 的 fn/base/scale（大矩阵 hc_*_fn 经 linearCounts 的
       `weightBytesPerElement`），其余参数跟随 torch_dtype。checkpoint 证据在场时
       以 truth/skeleton 的逐 tensor weight_dtypes 为准（即 safetensors 头部机制）。
-- [ ] **量化容量缺口：swiglu 携带的专家 GEMM 未进量化枚举**（2026-09-09
+- [~] **量化容量缺口：swiglu 携带的专家 GEMM 未进量化枚举**（2026-09-09
       N2-3 显形；**探针实测爆炸半径远超初判**：不止 M2.7/M3——全部 25 个
       量化 MoE 模型的路由专家权重都挂在 swiglu 叶，V4-Pro 1.55e12 /
       Qwen3.8-2.4T 2.37e12 / Kimi-K2 系 1.02e12 参数未进枚举，均按 bf16
       计 → 量化 MoE 模型容量普遍 ≈2× 偏高，专家块是主导项）。
+      **W-A 已落地（2026-09-09，`05fccf6` 之后）**：专家融合叶拆独立 id
+      `fused_moe_mlp`（counts 逐位迁移，registry 49 条）+ weightMatrices
+      声明层 1（专家叶 ep 组 + attention/dense linear 叶 tp 组，统一助手
+      weightMatrixDecl）；锚 1（声明元素数 ×2B == 叶 counts.bytes.weights）
+      全目录 5233 个声明叶容差 0 全绿；golden 经 HEAD worktree 对审，
+      diff 仅 weightMatrices / operator_id / formula / source_fields 四类。
+      W-B（消费者接线）/ W-C（覆盖推进 + 销案）待做。
       机制：MoE 模板的专家 GEMM（gate/up/down 三矩阵 [moeI, EH]）融合在
       swiglu 叶的 counts 里（3·E·EH·EI），`QUANTIZABLE_OPS` 枚举只认 linear
       族叶 → 该块留在 bf16 桶。
@@ -1679,18 +1686,19 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 > `matrix|vector|sfu|bytes` 列的 ✓/0 表示该分量在任一相位是否非零（0 = 精确零，principles §3.3）。
 > `来源` = principles §3.5 的三级体系（一 aten 锚点 / 二 modeling 对照 / 三 分解声明）。
 
-## 总览表（生成物：47 个算子 / 59 个模型）
+## 总览表（生成物：48 个算子 / 59 个模型）
 
 | 算子 | matrix | vector | sfu | bytes | 来源 | 触发模型 | 节点 | 实例 | 出现槽位 |
 |---|---|---|---|---|---|---|---|---|---|
 | `linear` | ✓ | ✓ | 0 | ✓ | 一 | 59/59 | 10237 | 28643 | attn_residual · indexer · lm_head · merger 等 12 |
 | `residual_add` | 0 | ✓ | 0 | ✓ | 一 | 59/59 | 2670 | 6604 | decoder · layer · text_decoder |
 | `rope` | 0 | ✓ | 0 | ✓ | 三 | 59/59 | 1157 | 2393 | self_attn |
-| `swiglu` | ✓ | ✓ | ✓ | ✓ | 一 | 59/59 | 2245 | 5774 | merger · mlp · moe · shared_experts 等 5 |
 | `embedding` | 0 | 0 | 0 | ✓ | — | 57/59 | 57 | 57 | root |
 | `rmsnorm` | 0 | ✓ | ✓ | ✓ | 三 | 57/59 | 2027 | 8637 | attn_residual · enorm · hnorm · indexer 等 14 |
+| `swiglu` | 0 | ✓ | ✓ | ✓ | 一 | 56/59 | 1283 | 3194 | merger · mlp · shared_experts · vision_tower |
 | `matmul` | ✓ | 0 | 0 | ✓ | 一 | 48/59 | 944 | 4162 | self_attn · vision_tower |
 | `softmax` | 0 | ✓ | ✓ | ✓ | 一 | 48/59 | 472 | 2081 | self_attn · vision_tower |
+| `fused_moe_mlp` | ✓ | ✓ | ✓ | ✓ | 一 | 44/59 | 962 | 2580 | moe |
 | `moe_combine` | 0 | ✓ | 0 | ✓ | 三 | 44/59 | 962 | 2580 | moe |
 | `moe_dispatch` | 0 | 0 | 0 | ✓ | 一 | 44/59 | 962 | 2580 | moe |
 | `topk` | 0 | ✓ | ✓ | ✓ | 一 | 44/59 | 947 | 2565 | moe |
@@ -1737,7 +1745,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
-| `swiglu` | 8.513e+13 | 37.99% | 5.752e+13 | 95.92% |
+| `fused_moe_mlp` | 8.513e+13 | 37.99% | 5.751e+13 | 95.90% |
 | `linear` | 1.327e+14 | 59.21% | 1.976e+12 | 3.29% |
 | `matmul` | 2.815e+12 | 1.26% | 8.339e+10 | 0.14% |
 | `mla_query_compress` | 1.665e+12 | 0.74% | 2.844e+10 | 0.05% |
@@ -1761,7 +1769,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|
 | `linear` | 1.666e+13 | 73.21% | 1.895e+12 | 52.61% |
 | `matmul` | 5.347e+12 | 23.50% | 1.526e+11 | 4.24% |
-| `swiglu` | 6.651e+11 | 2.92% | 1.331e+12 | 36.95% |
+| `fused_moe_mlp` | 6.651e+11 | 2.92% | 1.330e+12 | 36.93% |
 | `softmax` | 0.000e+0 | 0.00% | 1.341e+11 | 3.72% |
 | `mla_query_compress` | 1.301e+10 | 0.06% | 2.603e+10 | 0.72% |
 | `dsa_sparse_mla` | 3.146e+10 | 0.14% | 1.969e+9 | 0.05% |
@@ -1779,8 +1787,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 ## 注册表 ↔ 触发面对账（生成物）
 
-- 注册表条目：**48**
-- 实际被触发：**47**（含结构节点 `embedding`）
+- 注册表条目：**49**
+- 实际被触发：**48**（含结构节点 `embedding`）
 - 零触发条目：**2** —— `linear_attention` · `linear_attention_gate`
 
 ## 双向表 A（生成物）· 算子 → 结构槽位
@@ -1792,11 +1800,12 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `linear` | `decoder.self_attn`(4134) · `decoder.moe.shared_experts`(2613) · `decoder.mlp`(1068) · `decoder.moe`(1006) · `decoder.self_attn.indexer`(606) · `vision_tower`(192) · `mtp.layer.self_attn`(125) · `mtp.layer.moe.shared_experts`(99) · `decoder.attn_residual`(94) · `vision_tower.merger`(66) · `lm_head`(59) · `mtp`(51) · `mtp.layer.mlp`(45) · `mtp.layer.moe`(31) · `mtp.layer.self_attn.indexer`(14) · `projector`(11) · `text_decoder.self_attn`(8) · `text_decoder.mlp`(6) · `text_decoder.moe.shared_experts`(6) · `text_decoder.moe`(2) · `output_attn_residual`(1) |
 | `residual_add` | `decoder`(2560) · `mtp.layer`(102) · `text_decoder`(8) |
 | `rope` | `decoder.self_attn`(1095) · `mtp.layer.self_attn`(56) · `text_decoder.self_attn`(6) |
-| `swiglu` | `decoder.moe`(924) · `decoder.moe.shared_experts`(871) · `decoder.mlp`(356) · `mtp.layer.moe`(36) · `mtp.layer.moe.shared_experts`(33) · `mtp.layer.mlp`(15) · `text_decoder.mlp`(2) · `text_decoder.moe`(2) · `text_decoder.moe.shared_experts`(2) · `vision_tower`(2) · `vision_tower.merger`(2) |
 | `embedding` | `root`(57) |
 | `rmsnorm` | `decoder.self_attn`(988) · `decoder.input_layernorm`(226) · `decoder.post_attention_layernorm`(226) · `decoder.self_attn.indexer`(180) · `decoder.attn_residual`(94) · `vision_tower`(76) · `decoder.moe`(46) · `mtp.layer.self_attn`(36) · `vision_tower.merger`(33) · `norm`(28) · `mtp.enorm`(20) · `mtp.hnorm`(20) · `mtp.shared_head_norm`(20) · `mtp.layer.input_layernorm`(11) · `mtp.layer.post_attention_layernorm`(11) · `mtp.layer.self_attn.indexer`(7) · `projector`(4) · `output_attn_residual`(1) |
+| `swiglu` | `decoder.moe.shared_experts`(871) · `decoder.mlp`(356) · `mtp.layer.moe.shared_experts`(33) · `mtp.layer.mlp`(15) · `text_decoder.mlp`(2) · `text_decoder.moe.shared_experts`(2) · `vision_tower`(2) · `vision_tower.merger`(2) |
 | `matmul` | `decoder.self_attn`(798) · `vision_tower`(76) · `mtp.layer.self_attn`(66) · `text_decoder.self_attn`(4) |
 | `softmax` | `decoder.self_attn`(399) · `vision_tower`(38) · `mtp.layer.self_attn`(33) · `text_decoder.self_attn`(2) |
+| `fused_moe_mlp` | `decoder.moe`(924) · `mtp.layer.moe`(36) · `text_decoder.moe`(2) |
 | `moe_combine` | `decoder.moe`(924) · `mtp.layer.moe`(36) · `text_decoder.moe`(2) |
 | `moe_dispatch` | `decoder.moe`(924) · `mtp.layer.moe`(36) · `text_decoder.moe`(2) |
 | `topk` | `decoder.moe`(914) · `mtp.layer.moe`(31) · `text_decoder.moe`(2) |
@@ -1845,11 +1854,11 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|
 | `decoder.self_attn` | `linear` → `attention_qkv_split` → `rmsnorm` → `rope` → `matmul` → `softmax` → `qwen_qkvz_split` → `causal_conv1d` → `gated_delta_attention` → `gated_rmsnorm` → `split` → `gemma_rmsnorm` → `attention_output_gate` → `qsa_indexer` → `qsa_sparse_attention` → `mla_query_compress` → `mla_kv_compress` → `mla_kv_split` → `dsa_indexer` → `dsa_sparse_mla` → `dsv4_swa_attention` → `dsv4_indexer` → `dsv4_sparse_mla` → `dsv4_compressed_attention` → `mla_output_gate` → `dsa_kpool_indexer` |
 | `mtp.layer.self_attn` | `linear` → `attention_qkv_split` → `rmsnorm` → `rope` → `matmul` → `softmax` → `split` → `gemma_rmsnorm` → `minimax_sparse_indexer` → `minimax_sparse_attention` → `attention_output_gate` → `qsa_indexer` → `qsa_sparse_attention` → `mla_query_compress` → `mla_kv_compress` → `mla_kv_split` → `dsa_indexer` → `dsa_sparse_mla` → `dsv4_swa_attention` → `dsv4_compressed_attention` → `causal_conv1d` → `gated_delta_attention` → `gated_rmsnorm` |
-| `decoder.moe` | `linear` → `topk` → `moe_dispatch` → `swiglu` → `moe_combine` → `moe_add` → `dsv4_hash_route` → `rmsnorm` |
+| `decoder.moe` | `linear` → `topk` → `moe_dispatch` → `fused_moe_mlp` → `moe_combine` → `moe_add` → `dsv4_hash_route` → `rmsnorm` |
 | `text_decoder.self_attn` | `linear` → `split` → `gemma_rmsnorm` → `rope` → `matmul` → `softmax` → `minimax_sparse_indexer` → `minimax_sparse_attention` |
 | `vision_tower` | `linear` → `vision_position` → `rmsnorm` → `attention_qkv_split` → `matmul` → `softmax` → `vision_activation` → `swiglu` |
-| `mtp.layer.moe` | `linear` → `topk` → `moe_dispatch` → `swiglu` → `moe_combine` → `moe_add` → `dsv4_hash_route` |
-| `text_decoder.moe` | `linear` → `topk` → `moe_dispatch` → `swiglu` → `moe_combine` → `moe_add` |
+| `mtp.layer.moe` | `linear` → `topk` → `moe_dispatch` → `fused_moe_mlp` → `moe_combine` → `moe_add` → `dsv4_hash_route` |
+| `text_decoder.moe` | `linear` → `topk` → `moe_dispatch` → `fused_moe_mlp` → `moe_combine` → `moe_add` |
 | `vision_tower.merger` | `vision_merge` → `rmsnorm` → `linear` → `vision_activation` → `swiglu` |
 | `decoder.attn_residual` | `attention_residual` → `rmsnorm` → `linear` |
 | `projector` | `linear` → `rmsnorm` → `vision_activation` |
@@ -1966,8 +1975,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 155/412 | 4.226e+12 | 0 | 0 | 4.764e+9 | 2.863e+9 | 4.115e+9 | 359.87 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 155/412 | 2.574e+11 | 0 | 0 | 4.764e+9 | 2.550e+8 | 3.239e+8 | 48.17 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | prefill | 42/80 | 2.062e+12 | 7.550e+8 | 7.550e+8 | 6.442e+10 | 1.510e+9 | 7.550e+8 | 30.91 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | decode | 42/80 | 1.007e+9 | 3.686e+5 | 3.686e+5 | 2.013e+9 | 7.373e+5 | 3.686e+5 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `fused_moe_mlp` | prefill | 21/40 | 2.062e+12 | 6.711e+8 | 6.711e+8 | 6.442e+10 | 1.342e+9 | 6.711e+8 | 31.03 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 21/40 | 1.007e+9 | 3.277e+5 | 3.277e+5 | 2.013e+9 | 6.554e+5 | 3.277e+5 | 0.50 | memory | — | — | — |
 | `matmul` | prefill | 24/74 | 1.822e+11 | 0 | 0 | 0 | 1.132e+9 | 1.019e+9 | 84.72 | matrix | — | — | — |
 | `matmul` | decode | 24/74 | 2.097e+10 | 0 | 0 | 0 | 4.794e+8 | 3.239e+8 | 26.11 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 10/30 | 9.664e+10 | 5.033e+8 | 9.216e+4 | 7.680e+3 | 1.054e+9 | 1.054e+9 | 45.85 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -1994,6 +2003,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `vision_activation` | decode | 2/28 | 0 | 1.392e+8 | 1.392e+8 | 0 | 2.784e+8 | 1.392e+8 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | prefill | 11/10 | 0 | 8.389e+7 | 1.678e+8 | 0 | 1.678e+8 | 1.678e+8 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | decode | 11/10 | 0 | 4.096e+4 | 8.192e+4 | 0 | 8.192e+4 | 8.192e+4 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 21/40 | 0 | 8.389e+7 | 8.389e+7 | 0 | 1.678e+8 | 8.389e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `swiglu` | decode | 21/40 | 0 | 4.096e+4 | 4.096e+4 | 0 | 8.192e+4 | 4.096e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | prefill | 11/10 | 0 | 7.078e+7 | 0 | 0 | 9.437e+7 | 4.719e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 11/10 | 0 | 3.456e+4 | 0 | 0 | 4.608e+4 | 2.304e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rmsnorm` | prefill | 3/55 | 0 | 1.539e+8 | 3.168e+4 | 1.336e+5 | 7.697e+7 | 7.697e+7 | 0.00 | memory | 计算✓ 字节✓ | 3.357e+7 | 0 |
@@ -2017,8 +2028,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 5/153 | 4.639e+13 | 5.813e+9 | 5.813e+9 | 1.450e+12 | 1.163e+10 | 5.813e+9 | 31.62 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
-| `swiglu` | decode | 5/153 | 2.265e+10 | 2.839e+6 | 2.839e+6 | 4.530e+10 | 5.677e+6 | 2.839e+6 | 0.50 | memory | 计算✓ 字节✓ | 4.915e+4 | 0 |
+| `fused_moe_mlp` | prefill | 2/75 | 4.639e+13 | 5.033e+9 | 5.033e+9 | 1.450e+12 | 1.007e+10 | 5.033e+9 | 31.67 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 2/75 | 2.265e+10 | 2.458e+6 | 2.458e+6 | 4.530e+10 | 4.915e+6 | 2.458e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 28/700 | 3.466e+13 | 0 | 0 | 3.385e+10 | 1.529e+10 | 2.195e+10 | 487.57 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 28/700 | 1.693e+10 | 0 | 0 | 3.385e+10 | 7.465e+6 | 1.072e+7 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `dsa_sparse_mla` | prefill | 3/78 | 3.352e+12 | 0 | 0 | 0 | 4.404e+10 | 4.713e+10 | 36.76 | memory | — | — | — |
@@ -2041,6 +2052,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_add` | decode | 2/75 | 0 | 4.608e+5 | 0 | 0 | 1.843e+6 | 9.216e+5 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | prefill | 2/75 | 0 | 0 | 0 | 0 | 1.887e+9 | 1.510e+10 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 2/75 | 0 | 0 | 0 | 0 | 9.216e+5 | 7.373e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 3/78 | 0 | 7.801e+8 | 7.801e+8 | 0 | 1.560e+9 | 7.801e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
+| `swiglu` | decode | 3/78 | 0 | 3.809e+5 | 3.809e+5 | 0 | 7.619e+5 | 3.809e+5 | 0.00 | memory | 计算✓ 字节✓ | 4.915e+4 | 0 |
 | `topk` | prefill | 2/75 | 0 | 4.040e+7 | 1.229e+6 | 0 | 7.864e+7 | 4.915e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 2/75 | 0 | 1.973e+4 | 6.000e+2 | 0 | 3.840e+4 | 2.400e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.517e+7 | 2.517e+7 | 0.00 | memory | — | — | — |
@@ -2052,8 +2065,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 3/121 | 4.329e+13 | 4.605e+9 | 4.605e+9 | 2.029e+12 | 9.211e+9 | 4.605e+9 | 21.19 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
-| `swiglu` | decode | 3/121 | 2.114e+10 | 2.249e+6 | 2.249e+6 | 4.228e+10 | 4.497e+6 | 2.249e+6 | 0.50 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
+| `fused_moe_mlp` | prefill | 1/60 | 4.329e+13 | 4.027e+9 | 4.027e+9 | 2.029e+12 | 8.053e+9 | 4.027e+9 | 21.21 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 1/60 | 2.114e+10 | 1.966e+6 | 1.966e+6 | 4.228e+10 | 3.932e+6 | 1.966e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 14/427 | 1.971e+13 | 0 | 0 | 1.925e+10 | 8.510e+9 | 1.267e+10 | 487.52 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 14/427 | 9.623e+9 | 0 | 0 | 1.925e+10 | 4.155e+6 | 6.186e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 4/122 | 2.621e+12 | 0 | 0 | 0 | 1.960e+10 | 1.843e+10 | 68.93 | memory | — | — | — |
@@ -2076,6 +2089,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_add` | decode | 1/60 | 0 | 4.301e+5 | 0 | 0 | 1.720e+6 | 8.602e+5 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | prefill | 1/60 | 0 | 0 | 0 | 0 | 1.762e+9 | 1.409e+10 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 1/60 | 0 | 0 | 0 | 0 | 8.602e+5 | 6.881e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 2/61 | 0 | 5.788e+8 | 5.788e+8 | 0 | 1.158e+9 | 5.788e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
+| `swiglu` | decode | 2/61 | 0 | 2.826e+5 | 2.826e+5 | 0 | 5.652e+5 | 2.826e+5 | 0.00 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
 | `topk` | prefill | 1/60 | 0 | 4.805e+7 | 9.830e+5 | 0 | 9.437e+7 | 3.932e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 1/60 | 0 | 2.346e+4 | 4.800e+2 | 0 | 4.608e+4 | 1.920e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.936e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
@@ -2089,8 +2104,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 547/546 | 1.745e+14 | 0 | 0 | 1.704e+11 | 2.979e+10 | 2.773e+10 | 765.56 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 547/546 | 8.521e+10 | 0 | 0 | 1.704e+11 | 1.455e+7 | 1.354e+7 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | prefill | 122/122 | 4.952e+13 | 5.373e+9 | 5.373e+9 | 3.095e+12 | 1.075e+10 | 5.373e+9 | 15.92 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | decode | 122/122 | 2.418e+10 | 2.623e+6 | 2.623e+6 | 4.836e+10 | 5.247e+6 | 2.623e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `fused_moe_mlp` | prefill | 61/61 | 4.952e+13 | 4.605e+9 | 4.605e+9 | 3.095e+12 | 9.211e+9 | 4.605e+9 | 15.93 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 61/61 | 2.418e+10 | 2.249e+6 | 2.249e+6 | 4.836e+10 | 4.497e+6 | 2.249e+6 | 0.50 | memory | — | — | — |
 | `dsv4_sparse_mla` | prefill | 30/30 | 2.064e+12 | 0 | 0 | 0 | 1.631e+10 | 1.612e+10 | 63.64 | memory | — | — | — |
 | `dsv4_sparse_mla` | decode | 30/30 | 4.027e+9 | 0 | 0 | 0 | 8.657e+7 | 2.359e+7 | 36.55 | memory | — | — | — |
 | `mla_kv_compress` | prefill | 61/61 | 1.368e+12 | 0 | 0 | 1.336e+9 | 1.791e+9 | 3.817e+8 | 389.89 | matrix | — | — | — |
@@ -2115,6 +2130,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_dispatch` | decode | 61/61 | 0 | 0 | 0 | 0 | 8.745e+5 | 5.247e+6 | 0.00 | memory | — | — | — |
 | `mhc_post` | prefill | 1/1 | 1.409e+9 | 1.468e+7 | 0 | 0 | 1.762e+8 | 2.946e+7 | 6.85 | memory | — | — | — |
 | `mhc_post` | decode | 1/1 | 6.881e+5 | 7.168e+3 | 0 | 0 | 8.602e+4 | 1.438e+4 | 6.85 | memory | — | — | — |
+| `swiglu` | prefill | 61/61 | 0 | 7.676e+8 | 7.676e+8 | 0 | 1.535e+9 | 7.676e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `swiglu` | decode | 61/61 | 0 | 3.748e+5 | 3.748e+5 | 0 | 7.496e+5 | 3.748e+5 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rmsnorm` | prefill | 126/123 | 0 | 1.082e+9 | 2.519e+5 | 2.642e+5 | 5.411e+8 | 5.411e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.175e+8 | 0 |
 | `rmsnorm` | decode | 126/123 | 0 | 5.283e+5 | 1.230e+2 | 2.642e+5 | 2.642e+5 | 2.642e+5 | 0.00 | memory | 计算✓ 字节✓ | 5.735e+4 | 0 |
 | `topk` | prefill | 58/58 | 0 | 4.621e+7 | 7.127e+5 | 0 | 9.123e+7 | 2.851e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
@@ -2132,8 +2149,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 3/121 | 4.329e+13 | 4.605e+9 | 4.605e+9 | 2.029e+12 | 9.211e+9 | 4.605e+9 | 21.19 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
-| `swiglu` | decode | 3/121 | 2.114e+10 | 2.249e+6 | 2.249e+6 | 4.228e+10 | 4.497e+6 | 2.249e+6 | 0.50 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
+| `fused_moe_mlp` | prefill | 1/60 | 4.329e+13 | 4.027e+9 | 4.027e+9 | 2.029e+12 | 8.053e+9 | 4.027e+9 | 21.21 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 1/60 | 2.114e+10 | 1.966e+6 | 1.966e+6 | 4.228e+10 | 3.932e+6 | 1.966e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 21/538 | 2.019e+13 | 1.206e+7 | 0 | 2.018e+10 | 8.959e+9 | 1.325e+10 | 476.19 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 21/538 | 4.868e+11 | 1.206e+7 | 0 | 2.018e+10 | 4.533e+8 | 5.892e+8 | 22.94 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 6/176 | 2.654e+12 | 0 | 0 | 0 | 2.024e+10 | 1.895e+10 | 67.72 | memory | — | — | — |
@@ -2156,6 +2173,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_add` | decode | 1/60 | 0 | 4.301e+5 | 0 | 0 | 1.720e+6 | 8.602e+5 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | prefill | 1/60 | 0 | 0 | 0 | 0 | 1.762e+9 | 1.409e+10 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 1/60 | 0 | 0 | 0 | 0 | 8.602e+5 | 6.881e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 2/61 | 0 | 5.788e+8 | 5.788e+8 | 0 | 1.158e+9 | 5.788e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
+| `swiglu` | decode | 2/61 | 0 | 2.826e+5 | 2.826e+5 | 0 | 5.652e+5 | 2.826e+5 | 0.00 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
 | `vision_activation` | prefill | 2/28 | 0 | 2.474e+8 | 2.474e+8 | 0 | 4.949e+8 | 2.474e+8 | 0.00 | memory | — | — | — |
 | `vision_activation` | decode | 2/28 | 0 | 2.474e+8 | 2.474e+8 | 0 | 4.949e+8 | 2.474e+8 | 0.00 | memory | — | — | — |
 | `topk` | prefill | 1/60 | 0 | 4.805e+7 | 9.830e+5 | 0 | 9.437e+7 | 3.932e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
@@ -2173,8 +2192,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 5/119 | 4.185e+13 | 4.605e+9 | 4.605e+9 | 1.308e+12 | 9.211e+9 | 4.605e+9 | 31.67 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
-| `swiglu` | decode | 5/119 | 2.043e+10 | 2.249e+6 | 2.249e+6 | 4.087e+10 | 4.497e+6 | 2.249e+6 | 0.50 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
+| `fused_moe_mlp` | prefill | 2/58 | 4.185e+13 | 3.892e+9 | 3.892e+9 | 1.308e+12 | 7.785e+9 | 3.892e+9 | 31.72 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 2/58 | 2.043e+10 | 1.901e+6 | 1.901e+6 | 4.087e+10 | 3.801e+6 | 1.901e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 22/425 | 3.127e+13 | 0 | 0 | 3.053e+10 | 1.063e+10 | 1.993e+10 | 511.78 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 22/425 | 1.527e+10 | 0 | 0 | 3.053e+10 | 5.192e+6 | 9.730e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 6/122 | 5.242e+12 | 0 | 0 | 0 | 3.905e+10 | 3.686e+10 | 69.06 | memory | — | — | — |
@@ -2197,6 +2216,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_add` | decode | 2/58 | 0 | 4.157e+5 | 0 | 0 | 1.663e+6 | 8.315e+5 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | prefill | 2/58 | 0 | 0 | 0 | 0 | 1.703e+9 | 1.362e+10 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 2/58 | 0 | 0 | 0 | 0 | 8.315e+5 | 6.652e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 3/61 | 0 | 7.130e+8 | 7.130e+8 | 0 | 1.426e+9 | 7.130e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
+| `swiglu` | decode | 3/61 | 0 | 3.482e+5 | 3.482e+5 | 0 | 6.963e+5 | 3.482e+5 | 0.00 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
 | `topk` | prefill | 2/58 | 0 | 3.124e+7 | 9.503e+5 | 0 | 6.082e+7 | 3.801e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 2/58 | 0 | 1.525e+4 | 4.640e+2 | 0 | 2.970e+4 | 1.856e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.936e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
@@ -2208,8 +2229,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 49/112 | 1.732e+13 | 3.377e+9 | 3.377e+9 | 6.088e+11 | 6.755e+9 | 3.377e+9 | 27.98 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
-| `swiglu` | decode | 49/112 | 8.456e+9 | 5.720e+7 | 5.720e+7 | 1.691e+10 | 1.144e+8 | 5.720e+7 | 0.49 | memory | 计算✓ 字节✓ | 4.915e+4 | 0 |
+| `fused_moe_mlp` | prefill | 23/42 | 1.732e+13 | 2.819e+9 | 2.819e+9 | 6.088e+11 | 5.637e+9 | 2.819e+9 | 28.05 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 23/42 | 8.456e+9 | 1.376e+6 | 1.376e+6 | 1.691e+10 | 2.753e+6 | 1.376e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 214/494 | 1.683e+13 | 0 | 0 | 1.739e+10 | 5.679e+9 | 1.153e+10 | 486.34 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 214/494 | 1.480e+11 | 0 | 0 | 1.739e+10 | 1.155e+8 | 1.843e+8 | 8.37 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `dsa_sparse_mla` | prefill | 11/11 | 7.563e+11 | 0 | 0 | 0 | 6.762e+9 | 6.647e+9 | 56.40 | memory | — | — | — |
@@ -2240,6 +2261,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `matmul` | decode | 2/48 | 3.221e+9 | 0 | 0 | 0 | 8.808e+7 | 6.291e+7 | 21.33 | memory | — | — | — |
 | `moe_add` | prefill | 23/42 | 0 | 3.523e+8 | 0 | 0 | 1.409e+9 | 7.046e+8 | 0.00 | memory | — | — | — |
 | `moe_add` | decode | 23/42 | 0 | 1.720e+5 | 0 | 0 | 6.881e+5 | 3.441e+5 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 26/70 | 0 | 5.589e+8 | 5.589e+8 | 0 | 1.118e+9 | 5.589e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
+| `swiglu` | decode | 26/70 | 0 | 5.582e+7 | 5.582e+7 | 0 | 1.116e+8 | 5.582e+7 | 0.00 | memory | 计算✓ 字节✓ | 4.915e+4 | 0 |
 | `mhc_post` | prefill | 1/1 | 8.053e+8 | 8.389e+6 | 0 | 0 | 1.007e+8 | 1.688e+7 | 6.85 | memory | — | — | — |
 | `mhc_post` | decode | 1/1 | 3.932e+5 | 4.096e+3 | 0 | 0 | 4.915e+4 | 8.240e+3 | 6.85 | memory | — | — | — |
 | `moe_dispatch` | prefill | 23/42 | 0 | 0 | 0 | 0 | 7.046e+8 | 5.637e+9 | 0.00 | memory | — | — | — |
@@ -2269,8 +2292,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 25/488 | 2.647e+13 | 0 | 0 | 2.390e+10 | 1.175e+10 | 1.169e+10 | 559.21 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 25/488 | 3.317e+12 | 0 | 0 | 2.390e+10 | 2.996e+9 | 3.903e+9 | 107.71 | matrix | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | prefill | 5/117 | 2.644e+13 | 3.624e+9 | 3.624e+9 | 8.262e+11 | 7.248e+9 | 3.624e+9 | 31.58 | memory | 计算✓ 字节✓ | 2.517e+7 | 0 |
-| `swiglu` | decode | 5/117 | 1.291e+10 | 1.769e+6 | 1.769e+6 | 2.582e+10 | 3.539e+6 | 1.769e+6 | 0.50 | memory | 计算✓ 字节✓ | 1.229e+4 | 0 |
+| `fused_moe_mlp` | prefill | 2/57 | 2.644e+13 | 2.869e+9 | 2.869e+9 | 8.262e+11 | 5.738e+9 | 2.869e+9 | 31.67 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 2/57 | 1.291e+10 | 1.401e+6 | 1.401e+6 | 2.582e+10 | 2.802e+6 | 1.401e+6 | 0.50 | memory | — | — | — |
 | `minimax_sparse_attention` | prefill | 2/57 | 1.959e+12 | 0 | 0 | 0 | 3.277e+10 | 3.277e+10 | 29.90 | memory | — | — | — |
 | `minimax_sparse_attention` | decode | 2/57 | 2.032e+9 | 0 | 0 | 0 | 2.867e+8 | 3.280e+7 | 6.36 | memory | — | — | — |
 | `matmul` | prefill | 4/70 | 1.204e+12 | 0 | 0 | 0 | 1.596e+10 | 1.509e+10 | 38.78 | memory | — | — | — |
@@ -2291,6 +2314,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `vision_activation` | decode | 1/32 | 0 | 1.699e+9 | 1.699e+9 | 0 | 3.397e+9 | 1.699e+9 | 0.00 | memory | — | — | — |
 | `moe_add` | prefill | 2/57 | 0 | 7.172e+8 | 0 | 0 | 2.869e+9 | 1.434e+9 | 0.00 | memory | — | — | — |
 | `moe_add` | decode | 2/57 | 0 | 3.502e+5 | 0 | 0 | 1.401e+6 | 7.004e+5 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 3/60 | 0 | 7.550e+8 | 7.550e+8 | 0 | 1.510e+9 | 7.550e+8 | 0.00 | memory | 计算✓ 字节✓ | 2.517e+7 | 0 |
+| `swiglu` | decode | 3/60 | 0 | 3.686e+5 | 3.686e+5 | 0 | 7.373e+5 | 3.686e+5 | 0.00 | memory | 计算✓ 字节✓ | 1.229e+4 | 0 |
 | `moe_dispatch` | prefill | 2/57 | 0 | 0 | 0 | 0 | 1.434e+9 | 5.738e+9 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 2/57 | 0 | 0 | 0 | 0 | 7.004e+5 | 2.802e+6 | 0.00 | memory | — | — | — |
 | `rmsnorm` | prefill | 2/64 | 0 | 1.698e+9 | 3.318e+5 | 1.638e+5 | 8.493e+8 | 8.493e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
@@ -2310,8 +2335,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 330/691 | 9.613e+13 | 0 | 0 | 9.388e+10 | 2.396e+10 | 2.270e+10 | 684.05 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 330/691 | 4.694e+10 | 0 | 0 | 9.388e+10 | 1.170e+7 | 1.108e+7 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | prefill | 94/184 | 9.483e+13 | 8.489e+9 | 8.489e+9 | 4.742e+12 | 1.698e+10 | 8.489e+9 | 19.89 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | decode | 94/184 | 4.631e+10 | 4.145e+6 | 4.145e+6 | 9.261e+10 | 8.290e+6 | 4.145e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `fused_moe_mlp` | prefill | 47/92 | 9.483e+13 | 7.718e+9 | 7.718e+9 | 4.742e+12 | 1.544e+10 | 7.718e+9 | 19.90 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 47/92 | 4.631e+10 | 3.768e+6 | 3.768e+6 | 9.261e+10 | 7.537e+6 | 3.768e+6 | 0.50 | memory | — | — | — |
 | `matmul` | prefill | 48/46 | 1.581e+12 | 0 | 0 | 0 | 7.913e+9 | 7.721e+9 | 101.15 | matrix | — | — | — |
 | `matmul` | decode | 48/46 | 3.087e+9 | 0 | 0 | 0 | 3.987e+8 | 1.281e+7 | 7.50 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 23/69 | 8.891e+11 | 4.631e+9 | 8.479e+5 | 7.066e+4 | 9.532e+9 | 9.532e+9 | 46.63 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2336,6 +2361,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `shared_expert_gate` | decode | 47/92 | 0 | 7.537e+5 | 1.507e+6 | 0 | 1.507e+6 | 1.507e+6 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | prefill | 24/23 | 0 | 7.718e+8 | 1.544e+9 | 0 | 1.544e+9 | 1.544e+9 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | decode | 24/23 | 0 | 3.768e+5 | 7.537e+5 | 0 | 7.537e+5 | 7.537e+5 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 47/92 | 0 | 7.718e+8 | 7.718e+8 | 0 | 1.544e+9 | 7.718e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `swiglu` | decode | 47/92 | 0 | 3.768e+5 | 3.768e+5 | 0 | 7.537e+5 | 3.768e+5 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | prefill | 24/23 | 0 | 6.150e+8 | 0 | 0 | 8.200e+8 | 4.100e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 24/23 | 0 | 3.003e+5 | 0 | 0 | 4.004e+5 | 2.002e+5 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `topk` | prefill | 47/92 | 0 | 9.816e+7 | 1.884e+6 | 0 | 1.929e+8 | 7.537e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
@@ -2353,8 +2380,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 118/328 | 6.795e+12 | 0 | 0 | 7.277e+9 | 3.234e+9 | 4.726e+9 | 445.97 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 118/328 | 2.600e+11 | 0 | 0 | 7.277e+9 | 2.552e+8 | 3.248e+8 | 33.09 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | prefill | 27/48 | 4.832e+12 | 1.258e+9 | 1.258e+9 | 2.416e+11 | 2.517e+9 | 1.258e+9 | 19.69 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | decode | 27/48 | 2.359e+9 | 6.144e+5 | 6.144e+5 | 4.719e+9 | 1.229e+6 | 6.144e+5 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `fused_moe_mlp` | prefill | 27/48 | 4.832e+12 | 1.258e+9 | 1.258e+9 | 2.416e+11 | 2.517e+9 | 1.258e+9 | 19.69 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 27/48 | 2.359e+9 | 6.144e+5 | 6.144e+5 | 4.719e+9 | 1.229e+6 | 6.144e+5 | 0.50 | memory | — | — | — |
 | `hyper_connection` | prefill | 55/97 | 1.310e+12 | 1.430e+10 | 4.196e+9 | 1.281e+9 | 2.462e+10 | 1.653e+10 | 30.87 | memory | — | — | — |
 | `hyper_connection` | decode | 55/97 | 6.396e+8 | 6.984e+6 | 2.049e+6 | 1.281e+9 | 1.202e+7 | 8.071e+6 | 0.49 | memory | — | — | — |
 | `qsa_sparse_attention` | prefill | 13/12 | 3.094e+11 | 0 | 0 | 0 | 2.870e+9 | 2.769e+9 | 54.86 | memory | — | — | — |
@@ -2404,8 +2431,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 5/119 | 4.185e+13 | 4.605e+9 | 4.605e+9 | 1.308e+12 | 9.211e+9 | 4.605e+9 | 31.67 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
-| `swiglu` | decode | 5/119 | 2.043e+10 | 2.249e+6 | 2.249e+6 | 4.087e+10 | 4.497e+6 | 2.249e+6 | 0.50 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
+| `fused_moe_mlp` | prefill | 2/58 | 4.185e+13 | 3.892e+9 | 3.892e+9 | 1.308e+12 | 7.785e+9 | 3.892e+9 | 31.72 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 2/58 | 2.043e+10 | 1.901e+6 | 1.901e+6 | 4.087e+10 | 3.801e+6 | 1.901e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 28/547 | 3.301e+13 | 0 | 0 | 3.224e+10 | 1.281e+10 | 2.202e+10 | 492.21 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 28/547 | 1.612e+10 | 0 | 0 | 3.224e+10 | 6.254e+6 | 1.075e+7 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `dsa_sparse_mla` | prefill | 3/61 | 5.242e+12 | 0 | 0 | 0 | 7.233e+10 | 6.962e+10 | 36.93 | memory | — | — | — |
@@ -2428,6 +2455,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_add` | decode | 2/58 | 0 | 4.157e+5 | 0 | 0 | 1.663e+6 | 8.315e+5 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | prefill | 2/58 | 0 | 0 | 0 | 0 | 1.703e+9 | 1.362e+10 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 2/58 | 0 | 0 | 0 | 0 | 8.315e+5 | 6.652e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 3/61 | 0 | 7.130e+8 | 7.130e+8 | 0 | 1.426e+9 | 7.130e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.510e+8 | 0 |
+| `swiglu` | decode | 3/61 | 0 | 3.482e+5 | 3.482e+5 | 0 | 6.963e+5 | 3.482e+5 | 0.00 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
 | `topk` | prefill | 2/58 | 0 | 3.124e+7 | 9.503e+5 | 0 | 6.082e+7 | 3.801e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 2/58 | 0 | 1.525e+4 | 4.640e+2 | 0 | 2.970e+4 | 1.856e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.936e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
@@ -2441,8 +2470,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 391/514 | 3.399e+13 | 0 | 0 | 3.372e+10 | 1.119e+10 | 1.113e+10 | 606.48 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 391/514 | 1.408e+11 | 0 | 0 | 3.372e+10 | 1.513e+8 | 2.043e+8 | 4.13 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | prefill | 86/86 | 1.330e+13 | 2.525e+9 | 2.525e+9 | 5.541e+11 | 5.050e+9 | 2.525e+9 | 23.68 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | decode | 86/86 | 6.493e+9 | 1.233e+6 | 1.233e+6 | 1.299e+10 | 2.466e+6 | 1.233e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `fused_moe_mlp` | prefill | 43/43 | 1.330e+13 | 2.164e+9 | 2.164e+9 | 5.541e+11 | 4.329e+9 | 2.164e+9 | 23.72 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 43/43 | 6.493e+9 | 1.057e+6 | 1.057e+6 | 1.299e+10 | 2.114e+6 | 1.057e+6 | 0.50 | memory | — | — | — |
 | `mla_kv_compress` | prefill | 41/41 | 5.326e+11 | 0 | 0 | 5.201e+8 | 6.879e+8 | 2.600e+8 | 362.79 | matrix | — | — | — |
 | `mla_kv_compress` | decode | 41/41 | 2.600e+8 | 0 | 0 | 5.201e+8 | 3.359e+5 | 1.270e+5 | 0.50 | memory | — | — | — |
 | `dsv4_indexer` | prefill | 21/21 | 3.610e+11 | 1.128e+10 | 0 | 0 | 3.491e+10 | 1.737e+10 | 6.90 | memory | — | — | — |
@@ -2471,6 +2500,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mhc_post` | decode | 1/1 | 3.932e+5 | 4.096e+3 | 0 | 0 | 4.915e+4 | 8.240e+3 | 6.85 | memory | — | — | — |
 | `moe_dispatch` | prefill | 43/43 | 0 | 0 | 0 | 0 | 7.214e+8 | 4.329e+9 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 43/43 | 0 | 0 | 0 | 0 | 3.523e+5 | 2.114e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 43/43 | 0 | 3.607e+8 | 3.607e+8 | 0 | 7.214e+8 | 3.607e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `swiglu` | decode | 43/43 | 0 | 1.761e+5 | 1.761e+5 | 0 | 3.523e+5 | 1.761e+5 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rmsnorm` | prefill | 92/151 | 0 | 6.751e+8 | 2.028e+5 | 2.714e+5 | 3.376e+8 | 3.376e+8 | 0.00 | memory | 计算✓ 字节✓ | 6.713e+7 | 0 |
 | `rmsnorm` | decode | 92/151 | 0 | 1.009e+8 | 2.466e+4 | 2.714e+5 | 5.047e+7 | 5.047e+7 | 0.00 | memory | 计算✓ 字节✓ | 3.278e+4 | 0 |
 | `vision_activation` | prefill | 1/32 | 0 | 6.921e+7 | 6.921e+7 | 0 | 1.384e+8 | 6.921e+7 | 0.00 | memory | — | — | — |
@@ -2496,8 +2527,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 5/181 | 3.440e+13 | 5.190e+9 | 5.190e+9 | 6.719e+11 | 1.038e+10 | 5.190e+9 | 50.04 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
-| `swiglu` | decode | 5/181 | 1.680e+10 | 2.534e+6 | 2.534e+6 | 3.360e+10 | 5.069e+6 | 2.534e+6 | 0.50 | memory | 计算✓ 字节✓ | 4.915e+4 | 0 |
+| `fused_moe_mlp` | prefill | 2/89 | 3.440e+13 | 4.480e+9 | 4.480e+9 | 6.719e+11 | 8.959e+9 | 4.480e+9 | 50.20 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 2/89 | 1.680e+10 | 2.187e+6 | 2.187e+6 | 3.360e+10 | 4.375e+6 | 2.187e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 19/550 | 3.288e+13 | 2.701e+9 | 0 | 3.211e+10 | 1.302e+10 | 1.136e+10 | 582.06 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 19/550 | 1.606e+10 | 1.319e+6 | 0 | 3.211e+10 | 6.356e+6 | 5.548e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 6/184 | 4.744e+12 | 0 | 0 | 0 | 4.246e+10 | 4.169e+10 | 56.37 | memory | — | — | — |
@@ -2516,6 +2547,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_add` | decode | 2/89 | 0 | 4.557e+5 | 0 | 0 | 1.823e+6 | 9.114e+5 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | prefill | 2/89 | 0 | 0 | 0 | 0 | 1.866e+9 | 1.493e+10 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 2/89 | 0 | 0 | 0 | 0 | 9.114e+5 | 7.291e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 3/92 | 0 | 7.109e+8 | 7.109e+8 | 0 | 1.422e+9 | 7.109e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
+| `swiglu` | decode | 3/92 | 0 | 3.471e+5 | 3.471e+5 | 0 | 6.943e+5 | 3.471e+5 | 0.00 | memory | 计算✓ 字节✓ | 4.915e+4 | 0 |
 | `topk` | prefill | 2/89 | 0 | 3.044e+7 | 1.458e+6 | 0 | 5.833e+7 | 5.833e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 2/89 | 0 | 1.486e+4 | 7.120e+2 | 0 | 2.848e+4 | 2.848e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.097e+7 | 2.097e+7 | 0.00 | memory | — | — | — |
@@ -2529,8 +2562,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 546/1157 | 1.157e+14 | 1.153e+7 | 0 | 1.134e+11 | 2.828e+10 | 3.952e+10 | 638.32 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 546/1157 | 5.100e+11 | 1.153e+7 | 0 | 1.134e+11 | 4.562e+8 | 6.387e+8 | 4.45 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `swiglu` | prefill | 93/185 | 9.957e+13 | 2.098e+10 | 2.098e+10 | 5.445e+12 | 4.195e+10 | 2.098e+10 | 18.08 | memory | 计算✓ 字节✓ | 2.768e+8 | 0 |
-| `swiglu` | decode | 93/185 | 4.862e+10 | 1.024e+7 | 1.024e+7 | 9.724e+10 | 2.048e+7 | 1.024e+7 | 0.50 | memory | 计算✓ 字节✓ | 1.352e+5 | 0 |
+| `fused_moe_mlp` | prefill | 46/92 | 9.957e+13 | 1.852e+10 | 1.852e+10 | 5.445e+12 | 3.704e+10 | 1.852e+10 | 18.10 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 46/92 | 4.862e+10 | 9.044e+6 | 9.044e+6 | 9.724e+10 | 1.809e+7 | 9.044e+6 | 0.50 | memory | — | — | — |
 | `matmul` | prefill | 48/102 | 1.590e+12 | 0 | 0 | 0 | 1.213e+10 | 1.130e+10 | 67.87 | memory | — | — | — |
 | `matmul` | decode | 48/102 | 8.999e+10 | 0 | 0 | 0 | 1.067e+9 | 7.839e+8 | 48.61 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 24/69 | 6.668e+11 | 3.473e+9 | 6.359e+5 | 3.418e+6 | 7.434e+9 | 7.434e+9 | 44.84 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2557,6 +2590,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `gated_rmsnorm` | decode | 24/69 | 0 | 4.239e+6 | 1.696e+6 | 1.766e+4 | 3.391e+6 | 1.696e+6 | 0.00 | memory | 计算✓ 字节✓ | 5.735e+4 | 0 |
 | `moe_add` | prefill | 46/92 | 0 | 1.351e+9 | 0 | 0 | 5.402e+9 | 2.701e+9 | 0.00 | memory | — | — | — |
 | `moe_add` | decode | 46/92 | 0 | 6.595e+5 | 0 | 0 | 2.638e+6 | 1.319e+6 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 47/93 | 0 | 2.454e+9 | 2.454e+9 | 0 | 4.907e+9 | 2.454e+9 | 0.00 | memory | 计算✓ 字节✓ | 2.768e+8 | 0 |
+| `swiglu` | decode | 47/93 | 0 | 1.198e+6 | 1.198e+6 | 0 | 2.396e+6 | 1.198e+6 | 0.00 | memory | 计算✓ 字节✓ | 1.352e+5 | 0 |
 | `moe_dispatch` | prefill | 46/92 | 0 | 0 | 0 | 0 | 1.351e+9 | 2.161e+10 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 46/92 | 0 | 0 | 0 | 0 | 6.595e+5 | 1.055e+7 | 0.00 | memory | — | — | — |
 | `mla_output_gate` | prefill | 23/24 | 0 | 6.040e+8 | 1.208e+9 | 0 | 1.208e+9 | 1.208e+9 | 0.00 | memory | — | — | — |
@@ -2578,8 +2613,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `swiglu` | prefill | 2/62 | 1.438e+13 | 3.121e+9 | 3.121e+9 | 4.494e+11 | 6.241e+9 | 3.121e+9 | 31.35 | memory | 计算✓ 字节✓ | 1.258e+7 | 0 |
-| `swiglu` | decode | 2/62 | 7.021e+9 | 1.524e+6 | 1.524e+6 | 1.404e+10 | 3.047e+6 | 1.524e+6 | 0.50 | memory | 计算✓ 字节✓ | 6.144e+3 | 0 |
+| `fused_moe_mlp` | prefill | 2/62 | 1.438e+13 | 3.121e+9 | 3.121e+9 | 4.494e+11 | 6.241e+9 | 3.121e+9 | 31.35 | memory | — | — | — |
+| `fused_moe_mlp` | decode | 2/62 | 7.021e+9 | 1.524e+6 | 1.524e+6 | 1.404e+10 | 3.047e+6 | 1.524e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 8/187 | 6.951e+12 | 0 | 0 | 6.788e+9 | 3.133e+9 | 3.745e+9 | 508.61 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 8/187 | 3.394e+9 | 0 | 0 | 6.788e+9 | 1.530e+6 | 1.829e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 4/124 | 1.599e+12 | 0 | 0 | 0 | 1.457e+10 | 1.405e+10 | 55.86 | memory | — | — | — |

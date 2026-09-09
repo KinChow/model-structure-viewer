@@ -10,9 +10,16 @@ import { buildEdgeMap, hashSpecTree } from "./opsSpecTreeGoldenLib.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
-function walk(node, visit) {
-  visit(node);
-  for (const child of node.children || []) walk(child, visit);
+// P7（步骤 7）：legacy structure.root 遍历退役——断言改走 Graph IR 节点
+// （层级 = parent_id 挂接 + order 排序；语义 id = canonical_id）。
+function childrenOf(graph, parentId) {
+  return graph.nodes
+    .filter((node) => node.parent_id === parentId)
+    .sort((left, right) => (left.order || 0) - (right.order || 0) || left.id.localeCompare(right.id));
+}
+
+function walk(graph, visit) {
+  for (const node of graph.nodes) visit(node, childrenOf(graph, node.id));
 }
 
 test("W3-D2：所有多子节点模块均有 dataflow_edges 或 sequence 标记", () => {
@@ -21,12 +28,12 @@ test("W3-D2：所有多子节点模块均有 dataflow_edges 或 sequence 标记"
   for (const entry of catalog.models) {
     const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path)));
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "declaration-test" });
-    walk(structure.root, (node) => {
+    walk(structure.graph, (node, children) => {
       if (node.type === "operator" || node.type === "embedding" || node.type === "output") return;
-      if ((node.children || []).length < 2) return;
+      if (children.length < 2) return;
       const declared = Array.isArray(node.attributes?.dataflow_edges) && node.attributes.dataflow_edges.length > 0;
       const sequenced = node.attributes?.sequence === true;
-      if (!declared && !sequenced) offenders.push(`${entry.model_id} :: ${node.id}`);
+      if (!declared && !sequenced) offenders.push(`${entry.model_id} :: ${node.canonical_id}`);
     });
   }
   if (offenders.length > 0) {
@@ -41,9 +48,9 @@ test("W3-D2：所有输出边 evidence 非空", () => {
   for (const entry of catalog.models) {
     const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path)));
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "evidence-test" });
-    walk(structure.root, (node) => {
+    walk(structure.graph, (node) => {
       for (const edge of node.attributes?.dataflow_edges || []) {
-        if (!edge) empty.push(`${entry.model_id} :: ${node.id} :: 空边`);
+        if (!edge) empty.push(`${entry.model_id} :: ${node.canonical_id} :: 空边`);
       }
     });
   }

@@ -157,12 +157,13 @@ function layerSpanForNode(node) {
 }
 
 /** 逐 stage 返回已投影的权重与 KV，供后续 fit UI 使用。 */
-export function projectPlan({ root, graph, weightBytes = 0, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
+// P7（步骤 7）：root 兜底取点退役——图缺位时才走平坦摊薄的兜底投影。
+export function projectPlan({ graph, weightBytes = 0, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
-  if (root || graph) {
-    const projected = projectNodePlan({ root, graph, targetWeightBytes: weightBytes, kvBytes, stateBytes, config, plan: checked.plan });
+  if (graph?.nodes?.length) {
+    const projected = projectNodePlan({ graph, targetWeightBytes: weightBytes, kvBytes, stateBytes, config, plan: checked.plan });
     if (projected.stages.some((stage) => stage.weightBytes > 0) || weightBytes <= 0) return projected;
   }
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
@@ -194,19 +195,21 @@ function nodeResidentWeightBytes(node) {
   return nodeWeightBytes(node) || declaredWeightElements(node?.attributes?.weightMatrices) * 2;
 }
 
-function treeWeightBytes(root, graph) {
+// P7（步骤 7）：tree root 入参退役——自然权重直接沿 Graph IR 汇总。
+function graphWeightBytes(graph) {
   let total = 0;
-  walkStructure(root, ({ node, multiplier }) => {
+  walkStructure(graph, ({ node, multiplier }) => {
     total += nodeResidentWeightBytes(node) * multiplier;
-  }, graph);
+  });
   return total;
 }
 
-export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
+// P7（步骤 7）：tree root 入参与 visitTree 回退分支退役——Graph IR 是唯一归属路径。
+export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
-  const naturalWeightBytes = treeWeightBytes(root, graph);
+  const naturalWeightBytes = graphWeightBytes(graph);
   const weightScale = positiveNumber(targetWeightBytes) && naturalWeightBytes > 0 ? targetWeightBytes / naturalWeightBytes : 1;
   const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, stateBytes: 0, dpRanks: dp, expertWeightBytes: 0, expertCount: null }));
   function accountNode(node, inheritedRepeat, inheritedLayerSpan, children, visitChild) {
@@ -251,9 +254,6 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
     const childMultiplier = childRepeatMultiplier(nodeForScope, inheritedRepeat, { repeatHandled: layerRepeatHandled });
     for (const child of children) visitChild(child, childMultiplier, layerSpan);
   }
-  function visitTree(node, inheritedRepeat = 1, inheritedLayerSpan = null) {
-    accountNode(node, inheritedRepeat, inheritedLayerSpan, node?.children || [], visitTree);
-  }
   function visitGraph(graphValue) {
     const byId = new Map((graphValue.nodes || []).map((node) => [node.id, node]));
     const childrenByParent = new Map();
@@ -277,7 +277,6 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
     visitNode(graphValue.root_id || graphValue.nodes.find((node) => node.parent_id == null)?.id || "root");
   }
   if (graph?.nodes?.length) visitGraph(graph);
-  else if (root) visitTree(root);
   const kv = kvBytesPerCard(kvBytes, config, checked.plan);
   const state = stateBytesPerCard(stateBytes, config, checked.plan);
   for (const stage of stages) {
@@ -303,12 +302,13 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
   return { ok: true, errors: [], plan: checked.plan, stages, kvShardFactor: kv.shardFactor };
 }
 
-/** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。 */
-export function projectPdFit({ root, graph, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, stateBytes = 0, prefillStateBytes, decodeStateBytes, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
+/** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。
+ *  P7（步骤 7）：root 入参退役，projectPlan 与本函数一致只收 Graph IR。 */
+export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, stateBytes = 0, prefillStateBytes, decodeStateBytes, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
   function side(plan, chip, sideKvBytes, sideStateBytes) {
-    const projection = projectPlan({ root, graph, weightBytes, kvBytes: sideKvBytes, stateBytes: sideStateBytes, config, plan });
+    const projection = projectPlan({ graph, weightBytes, kvBytes: sideKvBytes, stateBytes: sideStateBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
       const totalBytes = stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0) + activationBytes + runtimeBytes + commBufferBytes;

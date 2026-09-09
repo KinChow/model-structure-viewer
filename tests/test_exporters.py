@@ -3,19 +3,24 @@ from __future__ import annotations
 import pytest
 
 from model_structure_viewer.exporters import export_dot, export_mermaid, export_structure
-from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphEdge, StructureGraphNode, StructureNode
+from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphEdge, StructureGraphNode
 
 
+# P7（步骤 7）：夹具从 legacy root 树换为 Graph IR——导出只消费 structure.graph
+# （graph 为空即输出空图，不再有树回退）。
 def _structure() -> ModelStructure:
-    leaf_a = StructureNode(id="layers.0", name="Layer 0", type="block")
-    leaf_b = StructureNode(id="layers.1", name='He said "hi"', type="block\\with")
-    list_node = StructureNode(id="layers", name="layers", type="module-list", children=[leaf_a, leaf_b])
-    root = StructureNode(id="model", name="模型/Root", type="model", children=[list_node])
-    return ModelStructure(summary={}, source={}, root=root)
-
-
-def _count_nodes(node: StructureNode) -> int:
-    return 1 + sum(_count_nodes(child) for child in node.children)
+    nodes = [
+        StructureGraphNode(id="root", canonical_id="model", name="模型/Root", type="model"),
+        StructureGraphNode(id="root.0", canonical_id="layers", name="layers", type="module-list", parent_id="root", order=0),
+        StructureGraphNode(id="root.0.0", canonical_id="layers.0", name="Layer 0", type="block", parent_id="root.0", order=0),
+        StructureGraphNode(id="root.0.1", canonical_id="layers.1", name='He said "hi"', type="block\\with", parent_id="root.0", order=1),
+    ]
+    edges = [
+        StructureGraphEdge(id="root~root.0", source="root", target="root.0", evidence="module-order"),
+        StructureGraphEdge(id="root.0~root.0.0", source="root.0", target="root.0.0", evidence="module-order"),
+        StructureGraphEdge(id="root.0~root.0.1", source="root.0", target="root.0.1", evidence="module-order"),
+    ]
+    return ModelStructure(summary={}, source={}, graph=StructureGraph(nodes=nodes, edges=edges))
 
 
 def test_export_json_round_trip():
@@ -30,8 +35,8 @@ def test_export_mermaid_escapes_quotes_and_backslashes():
     assert '\\"hi\\"' in text
     assert "block\\\\with" in text
     # Structural assertions: one line per node + one per edge + header.
-    n_nodes = _count_nodes(structure.root)
-    n_edges = n_nodes - 1
+    n_nodes = len(structure.graph.nodes)
+    n_edges = len(structure.graph.edges)
     body_lines = [line for line in text.splitlines() if line.startswith("  ")]
     assert len(body_lines) == n_nodes + n_edges
 
@@ -50,20 +55,23 @@ def test_export_dot_safe_id_for_non_ascii():
 
 
 def test_mermaid_pipe_in_label_does_not_break_graph():
-    leaf = StructureNode(id="ffn", name="gate|up|down", type="MLP")
-    root = StructureNode(id="root", name="root", type="model", children=[leaf])
-    structure = ModelStructure(summary={}, source={}, root=root)
+    structure = ModelStructure(summary={}, source={}, graph=StructureGraph(nodes=[
+        StructureGraphNode(id="root", canonical_id="root", name="root", type="model"),
+        StructureGraphNode(id="root.0", canonical_id="ffn", name="gate|up|down", type="MLP", parent_id="root", order=0),
+    ]))
     text = export_mermaid(structure)
     # Pipes inside labels must be escaped so mermaid does not treat them as node shape syntax.
     assert "gate\\|up\\|down" in text
     assert "|" not in text.replace("\\|", "")
 
 
-def test_safe_id_disambiguates_case_collisions():
-    a = StructureNode(id="lm_head", name="lm_head", type="Linear")
-    b = StructureNode(id="LMHead", name="LMHead", type="Linear")
-    root = StructureNode(id="root", name="root", type="model", children=[a, b])
-    structure = ModelStructure(summary={}, source={}, root=root)
+def test_safe_id_disambiguates_slug_collisions():
+    # 图节点 id 是唯一路径，但 slug 化仍可能相撞（"a.b" 与 "a_b" 同 slug）；
+    # 哈希后缀必须保证导出 id 唯一。
+    structure = ModelStructure(summary={}, source={}, graph=StructureGraph(nodes=[
+        StructureGraphNode(id="a.b", canonical_id="a.b", name="dot path", type="Linear"),
+        StructureGraphNode(id="a_b", canonical_id="a_b", name="underscore path", type="Linear"),
+    ]))
     text = export_dot(structure)
     # Extract node ids (first token on indented lines containing '[label=').
     ids = []
@@ -75,9 +83,13 @@ def test_safe_id_disambiguates_case_collisions():
 
 
 def test_safe_id_handles_pure_cjk_paths():
-    leaf = StructureNode(id="模块", name="模块A", type="Linear")
-    root = StructureNode(id="模型", name="模型", type="model", children=[leaf])
-    structure = ModelStructure(summary={}, source={}, root=root)
+    structure = ModelStructure(summary={}, source={}, graph=StructureGraph(
+        nodes=[
+            StructureGraphNode(id="模型", canonical_id="模型", name="模型", type="model"),
+            StructureGraphNode(id="模型.0", canonical_id="模块", name="模块A", type="Linear", parent_id="模型", order=0),
+        ],
+        edges=[StructureGraphEdge(id="模型~模型.0", source="模型", target="模型.0", evidence="module-order")],
+    ))
     text = export_mermaid(structure)
     body_lines = [line.strip() for line in text.splitlines() if line.startswith("  ")]
     # Two nodes + one edge.
@@ -90,22 +102,3 @@ def test_safe_id_handles_pure_cjk_paths():
 def test_export_unsupported_format_raises():
     with pytest.raises(ValueError):
         export_structure(_structure(), "yaml")
-
-
-def test_export_mermaid_prefers_graph_over_legacy_tree():
-    structure = ModelStructure(
-        summary={},
-        source={},
-        root=StructureNode(id="stale", name="Stale", type="model"),
-        graph=StructureGraph(
-            nodes=[
-                StructureGraphNode(id="root", module_id="model", name="Graph Model", type="model"),
-                StructureGraphNode(id="root.0", module_id="decoder", parent_id="root", order=0, name="Graph Decoder", type="decoder"),
-            ],
-            edges=[StructureGraphEdge(id="declared", source="root", target="root.0", evidence="declared")],
-        ),
-    )
-    text = export_mermaid(structure)
-    assert "Graph Model" in text
-    assert "Graph Decoder" in text
-    assert "Stale" not in text

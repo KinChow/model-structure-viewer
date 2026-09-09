@@ -22,7 +22,8 @@ export function buildNodeLens(structure, chip, {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, nodes: {} };
 
-  const rows = aggregateNodeCosts(computeNodeCosts(null, config, { batch, sequence, phase, graph: structure.graph }));
+  // P7（步骤 7）：computeNodeCosts 首参即 Graph IR（root 占位与 options.graph 透传退役）。
+  const rows = aggregateNodeCosts(computeNodeCosts(structure.graph, config, { batch, sequence, phase }));
   const tokens = phase === "decode" ? 1 : sequence;
   const forwardTokens = batch * tokens;
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };

@@ -16,10 +16,11 @@ import { quantizationConfigOf, isQuantizedPath, quantLinearWeightBytes } from ".
  * 融合叶（fused_moe_mlp）的 gate/up/down 3×E 个矩阵不在 linear 族内，整块
  * 留在 bf16 桶（25 个量化 MoE 模型实测容量 ≈2× 偏高）。
  */
-function quantizedMatrixBytes(root, graph, quant) {
+// P7（步骤 7）：root 入参退役——量化枚举直接遍历 Graph IR。
+function quantizedMatrixBytes(graph, quant) {
   let elements = 0;
   let bytes = 0;
-  walkStructure(root, ({ node, multiplier }) => {
+  walkStructure(graph, ({ node, multiplier }) => {
     const path = String(node?.canonical_id ?? node?.id ?? "");
     const declaration = node?.attributes?.weightMatrices;
     if (Array.isArray(declaration) && declaration.length > 0) {
@@ -45,18 +46,19 @@ function quantizedMatrixBytes(root, graph, quant) {
     // P5：QUANTIZABLE_OPS 回退已删 —— 量化枚举只消费声明组（weightMatrices
     // 是权重归属唯一入口）。无声明叶不入枚举，留在 bf16 基桶（保守高估）；
     // 覆盖率护栏（P2 棘轮=0）保证内置模型不会走到这里。
-  }, graph);
+  });
   return { elements, bytes };
 }
 
-export function aggregateCost({ root, graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
+// P7（步骤 7）：Graph IR 是唯一结构载荷（legacy root 字段随后端协议一并退役）。
+export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
   kvBytes = 2, activationPeak, runtimeConst, commBuffer, weightBytesPerParameter } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;
-  const nodeWeights = sumNodeWeights(root, graph);
+  const nodeWeights = sumNodeWeights(graph);
   const quant = quantizationConfigOf(config);
   const naturalWeightBytes = hasParameterCount
     ? Object.entries(parameterCount).reduce((sum, [dtype, count]) => sum + count * bytesPerDtype(dtype), 0)
-    : nodeWeights > 0 ? nodeWeights : quantCapacityBytes(root, graph, config, quant);
+    : nodeWeights > 0 ? nodeWeights : quantCapacityBytes(graph, config, quant);
   const parameterTotal = hasParameterCount
     ? Object.values(parameterCount).reduce((sum, count) => sum + count, 0)
     : derivedWeightParameters(config);
@@ -64,7 +66,7 @@ export function aggregateCost({ root, graph, config, parameterCount, batch = 1, 
   const weightBytes = hasWeightOverride ? parameterTotal * weightBytesPerParameter : naturalWeightBytes;
   const memory = memoryBreakdown({ weightBytes, bufferBytes: derivedBufferBytes(config), config, batch, tokens: sequence, kvBytes,
     activationPeak, runtimeConst, commBuffer });
-  const nodes = computeNodeCosts(root, config, { batch, sequence, phase, graph, visionTokens: visionTokens ?? undefined });
+  const nodes = computeNodeCosts(graph, config, { batch, sequence, phase, visionTokens: visionTokens ?? undefined });
   const unknownComputePaths = nodes
     .filter((row) => row.compute_macs == null)
     .map((row) => row.path);
@@ -120,25 +122,25 @@ function summarizeMacsSources(nodes) {
  * **排除矩阵（modules_to_not_convert / dynamic 命中）必须留在 bf16 桶** ——
  * 它们以未量化精度运行，若留在标量量化宽（如 fp8 的 1B）会把排除项算小
  *（M2.7 实测 lm_head/gate 排除后出现 -150,048 的反常下降，2026-09-09 修正）。
- * 树不可枚举（bare config，无 root 结构）时退回标量
+ * 图不可枚举（bare config，无 graph 结构）时退回标量
  * quantizationBytesPerParameter —— 没有 [out,in] 就没有 scale 形状与排除
  * 归属，这是信息极限而非建模缺口（登记于 operators_reference §7）。
  */
-function quantCapacityBytes(root, graph, config, quant) {
+function quantCapacityBytes(graph, config, quant) {
   const base = derivedWeightBytes(config, 2);
   if (!quant) {
     const scalarBytes = config?.quantizationBytesPerParameter || 2;
     return scalarBytes !== 2 ? derivedWeightBytes(config, scalarBytes) : base;
   }
-  const { elements, bytes } = quantizedMatrixBytes(root, graph, quant);
+  const { elements, bytes } = quantizedMatrixBytes(graph, quant);
   if (elements <= 0) return base;
   return base - elements * 2 + bytes;
 }
 
-function sumNodeWeights(root, graph) {
+function sumNodeWeights(graph) {
   let total = 0;
-  walkStructure(root, ({ node, multiplier }) => {
+  walkStructure(graph, ({ node, multiplier }) => {
     total += nodeWeightBytes(node) * multiplier;
-  }, graph);
+  });
   return total;
 }

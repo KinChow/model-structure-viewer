@@ -24,7 +24,11 @@ export function graphNodeToNode(graphNode) {
   };
 }
 
-export function walkGraph(graph, visit) {
+// P7（步骤 7）：walkStructure 的 tree root 入参退役——Graph IR 是唯一遍历路径。
+// 旧签名 walkStructure(root, visit, graph) 的树回退分支已删除（原 walkGraph
+// 本体并入）；多倍率语义（childRepeatMultiplier / 显式子 repeat 压过父
+// repeat）与旧图分支逐位一致。
+export function walkStructure(graph, visit) {
   if (!graph?.nodes?.length) return;
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
   const childrenByParent = new Map();
@@ -54,19 +58,4 @@ export function walkGraph(graph, visit) {
     for (const child of children) walk(child.id, childMultiplier);
   }
   walk(graph.root_id || graph.nodes.find((node) => node.parent_id == null)?.id || "root");
-}
-
-export function walkStructure(root, visit, graph = null) {
-  if (graph?.nodes?.length) {
-    walkGraph(graph, visit);
-    return;
-  }
-  function walk(node, path = "root", multiplier = 1) {
-    visit({ node, path, multiplier });
-    const childMultiplier = childRepeatMultiplier(node, multiplier);
-    (node?.children || []).forEach((child, index) => {
-      walk(child, `${path}.${index}`, childMultiplier);
-    });
-  }
-  if (root) walk(root);
 }

@@ -13,6 +13,7 @@ import { normalizeConfig } from "../../../structure/config/normalize.js";
 import { countsForNode } from "../../../structure/formulas/extractor.js";
 import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters } from "../../../cost/derivedWeights.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
+import { graphRoot } from "../../graph/selectors.js";
 import { deriveBuildPlan } from "../../config/plan.js";
 import { scoredPairs } from "../counts.js";
 
@@ -132,7 +133,9 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
 
     let totalMatrix = 0;
     let unknown = 0;
-    const stack = [{ node: structure.root, multiplier: 1 }];
+    // P7（步骤 7）：手写树栈遍历换成 graphRoot 图视图（root_id 契约字段）——
+    // 节点 id / repeat / children 语义不变。
+    const stack = [{ node: graphRoot(structure.graph), multiplier: 1 }];
     while (stack.length > 0) {
       const { node, multiplier } = stack.pop();
       const children = node?.children || [];
@@ -184,7 +187,8 @@ function syntheticIdentity(name, config, { tie = false, moe = false } = {}) {
   const structure = buildStructureFromConfig(config, { modelId: name, source: "identity-test" });
   let totalMatrix = 0;
   let unknown = 0;
-  const stack = [{ node: structure.root, multiplier: 1 }];
+  // P7（步骤 7）：同上，栈遍历起点换成 graphRoot 图视图。
+  const stack = [{ node: graphRoot(structure.graph), multiplier: 1 }];
   while (stack.length > 0) {
     const { node, multiplier } = stack.pop();
     const children = node?.children || [];

@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildStructureForPayload } from "./useStructure.js";
+import { graphRoot } from "../structure/graph/selectors.js";
+
+// P7（步骤 7）：legacy structure.root 断言退役——按 Graph IR 检查
+// （层级断言走 graphRoot 图视图，节点查找按 canonical_id）。
+function findNode(structure, canonicalId) {
+  return structure.graph.nodes.find((node) => (node.canonical_id || node.id) === canonicalId) || null;
+}
 
 test("buildStructureForPayload handles pasted config in the frontend without API", async () => {
   let apiCalled = false;
@@ -45,7 +52,8 @@ test("buildStructureForPayload keeps local safetensors truth for a picked direct
 });
 
 test("buildStructureForPayload falls back to backend when auto local config is missing", async () => {
-  const expected = { summary: { strategy: "backend" }, source: {}, root: { id: "root" } };
+  // 后端契约：graph 是唯一结构载荷（P7 步骤 7）
+  const expected = { summary: { strategy: "backend" }, source: {}, graph: { version: 2, schema_version: 2, root_id: "root", nodes: [], edges: [] } };
   const structure = await buildStructureForPayload(
     { source: "auto", model_id: "Qwen/Qwen3.5-0.8B" },
     async (payload) => {
@@ -343,23 +351,15 @@ test("buildStructureForPayload enriches HF tree with checkpoint truth when avail
   assert.equal(structure.summary.strategy, "template+truth");
   assert.equal(structure.source.strategy, "template+truth");
 
-  const findNode = (node, id) => {
-    if (node.id === id) return node;
-    for (const c of node.children || []) {
-      const found = findNode(c, id);
-      if (found) return found;
-    }
-    return null;
-  };
   // 模板算子 q_proj 绑定到 trie 层 0 的真值
-  const qProj = findNode(structure.root, "decoder.0.self_attn.q_proj");
+  const qProj = findNode(structure, "decoder.0.self_attn.q_proj");
   assert.equal(qProj.params, 1024 * 1024);
   assert.equal(qProj.value_source, "checkpoint");
   assert.deepEqual(qProj.weight_shapes.weight, [1024, 1024]);
   assert.equal(qProj.dtype, "BF16");
-  // 无模板对应物（rope）不绑定
-  const rope = findNode(structure.root, "decoder.0.self_attn.rope");
-  assert.equal(rope.params, undefined);
+  // 无模板对应物（rope）不绑定（图 schema：未知扩展字段为 null，不是 undefined）
+  const rope = findNode(structure, "decoder.0.self_attn.rope");
+  assert.equal(rope.params, null);
 });
 
 test("无模板 HF 架构把 checkpoint trie 报告为骨架真值", async () => {
@@ -384,5 +384,5 @@ test("无模板 HF 架构把 checkpoint trie 报告为骨架真值", async () =>
 
   assert.equal(structure.summary.strategy, "skeleton-truth");
   assert.equal(structure.source.strategy, "skeleton-truth");
-  assert.equal(structure.root.children[0].value_source, "checkpoint");
+  assert.equal(graphRoot(structure.graph).children[0].value_source, "checkpoint");
 });

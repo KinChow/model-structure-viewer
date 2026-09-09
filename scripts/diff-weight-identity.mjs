@@ -18,6 +18,7 @@ import { resolveArchitecture } from "../frontend/src/structure/registry/resolveA
 import { buildNetwork } from "../frontend/src/structure/model_executor/models/index.js";
 import { createStructureIr } from "../frontend/src/structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../frontend/src/structure/materializers/toStructureNode.js";
+import { graphRoot } from "../frontend/src/structure/graph/selectors.js";
 import { countsForNode } from "../frontend/src/structure/formulas/extractor.js";
 import { childRepeatMultiplier } from "../frontend/src/cost/traverse.js";
 import {
@@ -45,7 +46,8 @@ const num = (n) => n.toLocaleString("en-US");
 /** 结构树逐叶 bytes.weights → 按「层号」与「算子」两级聚合（单位：参数个数）。 */
 function leafWeightBreakdown(normalized, structure, phase) {
   const perLayer = new Map(); // layerIndex|section -> Map(op -> params)
-  const stack = [{ node: structure.root, multiplier: 1 }];
+  // P7（步骤 7）：structure.root 消费退役——遍历起点换成 graphRoot 图视图。
+  const stack = [{ node: graphRoot(structure.graph), multiplier: 1 }];
   while (stack.length > 0) {
     const { node, multiplier } = stack.pop();
     const kids = node?.children || [];

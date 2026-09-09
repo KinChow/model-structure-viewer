@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { expertAllToAllBytes, nodeCommunicationBytes, pdKvTransferBytes, pipelineP2PBytes, planCommunicationBytes, ringAllReduceBytes } from "../comm.js";
+import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
+
+// P7（步骤 7）：planCommunicationBytes 只收 Graph IR——夹具 tree root 统一转图。
+const toGraph = (root) => materializeStructureGraph(root);
 
 test("F11 TP ring all-reduce 每层两次时包含 2×(TP-1)/TP 系数", () => {
   assert.equal(ringAllReduceBytes({ batch: 2, tokens: 3, hidden: 4, bytesPerElement: 2, tp: 4 }), 144);
@@ -96,7 +100,7 @@ test("PD 两侧布局不同只标记重排，不估算重排开销", () => {
 });
 
 test("通信汇总包含重复层节点通信和 PP 边界通信", () => {
-  const result = planCommunicationBytes({ root: { repeat: 2, children: [{ id: "decoder.0.self_attn.o_proj" }] }, config: { hiddenSize: 4 }, plan: { tp: 2, pp: 2 }, tokens: 1, bytesPerElement: 2 });
+  const result = planCommunicationBytes({ graph: toGraph({ repeat: 2, children: [{ id: "decoder.0.self_attn.o_proj" }] }), config: { hiddenSize: 4 }, plan: { tp: 2, pp: 2 }, tokens: 1, bytesPerElement: 2 });
   assert.equal(result.nodeBytes, 16);
   assert.equal(result.ppBytes, 8);
   assert.equal(result.totalBytes, 24);
@@ -104,24 +108,22 @@ test("通信汇总包含重复层节点通信和 PP 边界通信", () => {
 
 test("通信汇总不重复计算父列表和范围子节点 repeat", () => {
   const root = { repeat: 4, children: [{ repeat: 4, children: [{ id: "decoder.0.self_attn.o_proj" }] }] };
-  const result = planCommunicationBytes({ root, config: { hiddenSize: 4 }, plan: { tp: 2 }, tokens: 1, bytesPerElement: 2 });
+  const result = planCommunicationBytes({ graph: toGraph(root), config: { hiddenSize: 4 }, plan: { tp: 2 }, tokens: 1, bytesPerElement: 2 });
   assert.equal(result.nodeBytes, 32);
 });
 
-test("通信汇总优先使用 Graph IR 节点而不是 legacy tree", () => {
-  const graph = {
-    version: 2,
-    schema_version: 2,
-    root_id: "root",
-    nodes: [
-      { id: "root", module_id: "model", parent_id: null, order: 0, type: "model" },
-      { id: "root.0", module_id: "decoder.layers.0.attention.o_proj", parent_id: "root", order: 0, type: "operator", attributes: { communication_role: "tp_attention_output" } },
-    ],
-    edges: [],
-  };
+test("通信汇总按 Graph IR 节点计算（root 入参已退役）", () => {
   const result = planCommunicationBytes({
-    root: { id: "stale", children: [] },
-    graph,
+    graph: {
+      version: 2,
+      schema_version: 2,
+      root_id: "root",
+      nodes: [
+        { id: "root", module_id: "model", parent_id: null, order: 0, type: "model" },
+        { id: "root.0", module_id: "decoder.layers.0.attention.o_proj", parent_id: "root", order: 0, type: "operator", attributes: { communication_role: "tp_attention_output" } },
+      ],
+      edges: [],
+    },
     config: { hiddenSize: 4 },
     plan: { tp: 2 },
     tokens: 1,

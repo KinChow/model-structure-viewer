@@ -3,7 +3,6 @@ from model_structure_viewer.schemas import (
     ModelStructure,
     StructureGraph,
     StructureGraphNode,
-    StructureNode,
     VerifyRequest,
 )
 from model_structure_viewer.settings import AppSettings
@@ -11,10 +10,11 @@ from model_structure_viewer.verification.transformers_verify import verify_trans
 
 
 def _structure():
+    # P7（步骤 7）：graph 是唯一必需载荷——root-only 兼容夹具退役。
     return ModelStructure(
         summary={"strategy": "meta-introspect", "backbone_class": "DemoModel"},
         source={"strategy": "meta-introspect", "backbone_class": "DemoModel"},
-        root=StructureNode(id="root", name="DemoModel", type="module"),
+        graph=StructureGraph(nodes=[StructureGraphNode(id="root", canonical_id="root", name="DemoModel", type="module")]),
     )
 
 

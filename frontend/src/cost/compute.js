@@ -36,9 +36,11 @@ function macsSource(node, counts) {
   return counts.matrix > 0 ? "formula" : "not-compute";
 }
 
-export function computeNodeCosts(root, config, options = {}) {
+// P7（步骤 7）：首参从 tree root 改为 Graph IR——walkStructure 已是图唯一遍历
+// 路径，options.graph 透传随之删除（生产消费方 aggregate/lens 均已传图）。
+export function computeNodeCosts(graph, config, options = {}) {
   const rows = [];
-  walkStructure(root, ({ node, path, multiplier }) => {
+  walkStructure(graph, ({ node, path, multiplier }) => {
     const counts = countsFor(node, config, options);
     const computeMacs = node?.children?.length ? 0 : (counts ? counts.matrix : null);
     const compute = computeMacs == null ? null : computeMacs * multiplier;
@@ -64,7 +66,7 @@ export function computeNodeCosts(root, config, options = {}) {
       actions,
       weightBytes: nodeWeightBytes(node) * multiplier,
       estimate_status: compute == null ? "unknown" : "estimated" });
-  }, options.graph);
+  });
   return rows;
 }
 

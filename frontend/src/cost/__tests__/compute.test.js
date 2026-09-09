@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { aggregateNodeCosts, computeNodeCosts, nodeMacs } from "../compute.js";
 import { normalizeConfig } from "../../structure/config/normalize.js";
+import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 import { aggregateCost } from "../aggregate.js";
+
+// P7（步骤 7）：cost 链只遍历 Graph IR——夹具 tree root 统一经
+// materializeStructureGraph 转图（节点 canonical_id / 乘子语义不变）。
+const toGraph = (root) => materializeStructureGraph(root);
 
 test("packed qweight is unknown without logical shape metadata", () => {
   assert.equal(nodeMacs({ weight_shapes: { qweight: [4, 1] } }, {}, { batch: 1, sequence: 1 }), null);
@@ -15,7 +20,7 @@ test("unknown linear MACs remain unknown in model totals", () => {
     weight_shapes: { qweight: [4, 1] },
     children: [],
   };
-  const result = aggregateCost({ root: { children: [node] }, config: {}, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph({ children: [node] }), config: {}, activationPeak: 0, runtimeConst: 0 });
 
   assert.equal(result.totalMacs, null);
   assert.equal(result.totalFlops, null);
@@ -30,7 +35,7 @@ test("checkpoint skeleton linear leaves contribute to model totals", () => {
     weight_shapes: { weight: [4, 2] },
     children: [],
   };
-  const result = aggregateCost({ root: { children: [node] }, config: {}, batch: 1, sequence: 3, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph({ children: [node] }), config: {}, batch: 1, sequence: 3, activationPeak: 0, runtimeConst: 0 });
 
   assert.equal(result.totalMacs, 24);
   assert.equal(result.computeComplete, true);
@@ -40,7 +45,7 @@ test("checkpoint skeleton linear leaves contribute to model totals", () => {
 test("template linear operators derive MACs from numeric tensor shapes", () => {
   const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] };
   assert.equal(nodeMacs(node, {}, { batch: 1, sequence: 3, phase: "prefill" }), 96);
-  const result = aggregateCost({ root: { children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }, config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph({ children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }), config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3, activationPeak: 0, runtimeConst: 0 });
   assert.equal(result.totalMacs, 96);
   assert.equal(result.macsPerToken, 32);
   assert.equal(result.totalFlops, 192);
@@ -55,7 +60,7 @@ test("二维专家投影按逻辑输入输出宽度估算 MACs", () => {
 
 test("父节点 lens 可以汇总叶子成本，但模型总量不重复计费", () => {
   const root = { id: "root", children: [{ id: "decoder", children: [{ id: "decoder.linear", type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] }] }] };
-  const rows = computeNodeCosts(root, {}, { batch: 1, sequence: 2, phase: "prefill" });
+  const rows = computeNodeCosts(toGraph(root), {}, { batch: 1, sequence: 2, phase: "prefill" });
   const aggregate = aggregateNodeCosts(rows);
   assert.equal(aggregate.find((row) => row.path === "root.0").aggregate_macs, 64);
   assert.equal(aggregate.find((row) => row.path === "root").aggregate_macs, 64);
@@ -97,7 +102,7 @@ test("参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度�
     ],
   };
   const config = { linearAttentionMode: "qwen3_5", hiddenSize: 16, linearKeyHeads: 1, linearValueHeads: 1, linearKeyDim: 2, linearValueDim: 2, linearConvKernelSize: 3 };
-  const result = aggregateCost({ root, config, batch: 1, sequence: 2, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 2, activationPeak: 0, runtimeConst: 0 });
   assert.equal(result.nodes[1].compute_macs, 0);
   assert.equal(result.nodes[2].compute_macs, 36);
   assert.equal(result.nodes[3].compute_macs, 24);
@@ -125,8 +130,8 @@ test("模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs",
   const config = { hiddenSize: 4, intermediateSize: 6, experts: 8, expertsPerToken: 2 };
   // W5-1 语义修正：routed swiglu 按 k 全激活（T·k·3·EH·EI），旧链的 ·(k/E) 少乘 E
   // ——identity 收敛校准结论（39B≈官方 37B）。
-  assert.equal(computeNodeCosts(standard, config, { batch: 1, sequence: 3 })[0].compute_macs, 432);
-  assert.equal(computeNodeCosts(latent, config, { batch: 1, sequence: 3 })[0].compute_macs, 216);
+  assert.equal(computeNodeCosts(toGraph(standard), config, { batch: 1, sequence: 3 })[0].compute_macs, 432);
+  assert.equal(computeNodeCosts(toGraph(latent), config, { batch: 1, sequence: 3 })[0].compute_macs, 216);
 });
 
 test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {
@@ -160,7 +165,7 @@ test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent stat
 test("MiniMax M3 sparse attention MACs use selected blocks plus local/init blocks", () => {
   const node = { type: "attention", attributes: { attention_kind: "sparse" }, id: "text_decoder.3.self_attn" };
   const config = { modelType: "minimax_m3_vl", attentionHeads: 2, headDim: 3, sparseTopkBlocks: 2, sparseBlockSize: 4, sparseInitBlock: 1, sparseLocalBlock: 0 };
-  assert.equal(computeNodeCosts(node, config, { batch: 1, sequence: 5, phase: "prefill" })[0].compute_macs, 720);
+  assert.equal(computeNodeCosts(toGraph(node), config, { batch: 1, sequence: 5, phase: "prefill" })[0].compute_macs, 720);
 });
 
 test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {
@@ -168,25 +173,25 @@ test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {
     { id: "decoder.0.mlp.gate_proj", weight_shapes: { weight: [4, 2] }, children: [] },
     { id: "decoder.1.mlp.experts.0", weight_shapes: { weight: [4, 2] }, children: [] },
   ] };
-  const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2, layerSchedule: ["dense", "moe"] }, { batch: 1, sequence: 1 });
+  const rows = computeNodeCosts(toGraph(root), { experts: 8, expertsPerToken: 2, layerSchedule: ["dense", "moe"] }, { batch: 1, sequence: 1 });
   assert.equal(rows[1].compute_macs, 8);
   assert.equal(rows[2].compute_macs, 2);
 });
 
 test("F16 真实专家路径在缺少 layerSchedule 时仍使用活跃比例", () => {
   const root = { children: [{ id: "decoder.0.mlp.experts.0", weight_shapes: { weight: [4, 2] }, children: [] }] };
-  const rows = computeNodeCosts(root, { experts: 8, expertsPerToken: 2 }, { batch: 1, sequence: 1 });
+  const rows = computeNodeCosts(toGraph(root), { experts: 8, expertsPerToken: 2 }, { batch: 1, sequence: 1 });
   assert.equal(rows[1].compute_macs, 2);
 });
 
 test("layernorm 名称包含 attention 时不应误判为 attention 核心", () => {
   const node = { type: "normalization", name: "post attention layernorm", output_shape: [-1, -1, 8] };
-  assert.equal(computeNodeCosts(node, { attentionHeads: 2, headDim: 4 }, { batch: 1, sequence: 2 })[0].compute_macs, 0);
+  assert.equal(computeNodeCosts(toGraph(node), { attentionHeads: 2, headDim: 4 }, { batch: 1, sequence: 2 })[0].compute_macs, 0);
 });
 
 test("父节点和范围子节点同时有 repeat 时只计算一次范围倍数", () => {
   const root = { repeat: 4, children: [{ id: "decoder.0", repeat: 4, children: [{ weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] }] };
-  const rows = computeNodeCosts(root, {}, { batch: 1, sequence: 1 });
+  const rows = computeNodeCosts(toGraph(root), {}, { batch: 1, sequence: 1 });
   assert.equal(rows[2].compute_macs, 16);
   assert.equal(rows[2].multiplier, 4);
 });
@@ -202,8 +207,8 @@ test("V3 用户可调 visionTokens：vision 域随 tokens 线性变化，文本�
     { id: "model.layers.0.mlp.gate_proj", type: "operator", attributes: { operator_id: "linear" }, weight_shapes: { weight: [4, 2] }, children: [] },
   ] };
   const options = { batch: 1, sequence: 8, phase: "prefill" };
-  const small = computeNodeCosts(root, config, { ...options, visionTokens: 512 });
-  const large = computeNodeCosts(root, config, { ...options, visionTokens: 2048 });
+  const small = computeNodeCosts(toGraph(root), config, { ...options, visionTokens: 512 });
+  const large = computeNodeCosts(toGraph(root), config, { ...options, visionTokens: 2048 });
   const byId = (rows, id) => rows.find((row) => row.node.id === id).compute_macs;
   // vision 域叶子：macs = 4*2*tokens，512→4096，2048→16384（线性 4×）
   assert.equal(byId(small, "vision_tower.blocks.0.attn.proj"), 4096);

@@ -38,7 +38,8 @@ test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁
       normalized,
       resolved,
     }));
-    const rows = computeNodeCosts(null, normalized, { batch: 1, sequence: 128, phase: "prefill", graph: structure.graph });
+    // P7（步骤 7）：computeNodeCosts 首参即 Graph IR，不再经 options.graph 透传。
+    const rows = computeNodeCosts(structure.graph, normalized, { batch: 1, sequence: 128, phase: "prefill" });
     for (const row of rows) {
       if (!row.actions) continue;
       const op = String(row.node?.attributes?.operator_id || row.node?.type || "").toLowerCase();

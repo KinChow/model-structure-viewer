@@ -19,6 +19,11 @@ import { materializeModelStructure } from "../../structure/materializers/toStruc
 import { deriveBuildPlan } from "../../structure/config/plan.js";
 import { aggregateCost } from "../aggregate.js";
 import { derivedWeightBytes } from "../derivedWeights.js";
+import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
+
+// P7（步骤 7）：projectNodePlan/aggregateCost 只收 Graph IR——
+// 夹具 tree root 统一经 materializeStructureGraph 转图。
+const toGraph = (root) => materializeStructureGraph(root);
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -144,8 +149,8 @@ function routedDeclaredBytes(normalized, plan) {
  *  这里用 tp=1 与 tp=N 的差额反解复制量，避免把 norm 闭式公式在测试里抄一遍
  *  （同义重复；norm 宽度知识已由锚 1 锁定）。 */
 function replicatedBytes(structure, config) {
-  const one = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 1, ep: 1 } }).stages[0].weightBytes;
-  const two = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 2, ep: 1 } }).stages[0].weightBytes;
+  const one = projectNodePlan({ graph: structure.graph, config, plan: { tp: 1, ep: 1 } }).stages[0].weightBytes;
+  const two = projectNodePlan({ graph: structure.graph, config, plan: { tp: 2, ep: 1 } }).stages[0].weightBytes;
   // tp=2 时非复制类全部减半：two = replicated + (one − replicated)/2 ⇒ replicated = 2·two − one
   return 2 * two - one;
 }
@@ -153,7 +158,7 @@ function replicatedBytes(structure, config) {
 test("锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其余÷tp（聚合投影与闭式分解一致）", () => {
   const { normalized, structure } = buildMiniMaxM27();
   const config = { ...normalized, layers: normalized.layers, experts: normalized.experts };
-  const base = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 1, ep: 1 } });
+  const base = projectNodePlan({ graph: structure.graph, config, plan: { tp: 1, ep: 1 } });
   const natural = base.stages[0].weightBytes; // tp=1/ep=1 → 全复制，即树的声明驻留总量
   const routed = routedDeclaredBytes(normalized, deriveBuildPlan(normalized.raw ?? normalized));
   const replicated = replicatedBytes(structure, config); // router + norm 族（P4 声明后不再 ÷tp）
@@ -161,18 +166,18 @@ test("锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其�
   assert.ok(replicated > 0 && rest > 0, "复制类与其余类都应为正（分解口径检查）");
 
   // {tp:4, ep:2}：专家块 ÷moe_ep=2、复制类不切、其余（attention/dense GEMM）÷tp=4
-  const projected = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 4, ep: 2 } });
+  const projected = projectNodePlan({ graph: structure.graph, config, plan: { tp: 4, ep: 2 } });
   const expected = routed / 2 + replicated + rest / 4;
   assert.ok(Math.abs(projected.stages[0].weightBytes - expected) < 1e-6 * natural,
     `每卡权重 ${projected.stages[0].weightBytes} 与 专家块÷ep+复制类+其余÷tp ${expected} 不一致`);
 
   // 无 EP 的 DP：专家集合 ÷dp、矩阵 ÷tp（DP attention 复制其余）
-  const dpPlan = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 2, dp: 2 } });
+  const dpPlan = projectNodePlan({ graph: structure.graph, config, plan: { tp: 2, dp: 2 } });
   const expectedDp = routed / (2 * 2) + replicated + rest / 2;
   assert.ok(Math.abs(dpPlan.stages[0].weightBytes - expectedDp) < 1e-6 * natural);
 
   // EP + DP attention（vLLM 组合语义 ep_size = tp×dp）：专家 ÷4、attention 复制
-  const epDpPlan = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 2, dp: 2, ep: 4, attnMode: "dp" } });
+  const epDpPlan = projectNodePlan({ graph: structure.graph, config, plan: { tp: 2, dp: 2, ep: 4, attnMode: "dp" } });
   const expectedEpDp = routed / 4 + replicated + rest / 2;
   assert.ok(Math.abs(epDpPlan.stages[0].weightBytes - expectedEpDp) < 1e-6 * natural);
 });
@@ -180,12 +185,12 @@ test("锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其�
 test("锚 2：expertWeightRange 接声明的专家数与组合 setDegree（平均/最坏区间一致）", () => {
   const { normalized, structure } = buildMiniMaxM27();
   const config = { ...normalized, layers: normalized.layers, experts: normalized.experts };
-  const base = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 1, ep: 1 } });
+  const base = projectNodePlan({ graph: structure.graph, config, plan: { tp: 1, ep: 1 } });
   const natural = base.stages[0].weightBytes;
   const routed = routedDeclaredBytes(normalized, deriveBuildPlan(normalized.raw ?? normalized));
   const experts = normalized.experts;
 
-  const projected = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 1, ep: 3 } });
+  const projected = projectNodePlan({ graph: structure.graph, config, plan: { tp: 1, ep: 3 } });
   // 平均 = 全复制 − 专家全量 + 专家÷3；最坏再换 ceil(E/3) 份专家
   const expectedAverage = natural - routed + routed / 3;
   const expectedWorst = expectedAverage - routed / 3 + (routed / experts) * Math.ceil(experts / 3);
@@ -213,7 +218,7 @@ test("量化枚举消费 weightMatrices：fp8 下专家矩阵按声明组精确�
   const perMatrix = 256 * 128 + 2 * 1 * 4;
   const instances = 4 * 3;
   const expected = base - 256 * 128 * instances * 2 + perMatrix * instances;
-  const cost = aggregateCost({ root, config, batch: 1, sequence: 4, kvBytes: 2 });
+  const cost = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 4, kvBytes: 2 });
   assert.equal(cost.memory.weightBytes, expected);
 });
 
@@ -224,7 +229,7 @@ test("量化枚举排除语义对声明组同源：modules_to_not_convert 命中
     { id: "decoder.0.moe.expert_mlp", type: "operator", attributes: { operator_id: "fused_moe_mlp", weightMatrices: [group] }, children: [] },
   ] };
   const config = { hiddenSize: 8, layers: 1, vocabSize: 16, intermediateSize: 8, attentionHeads: 1, headDim: 2, kvHeads: 1, quantization_config: quant };
-  const cost = aggregateCost({ root, config, batch: 1, sequence: 4, kvBytes: 2 });
+  const cost = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 4, kvBytes: 2 });
   assert.equal(cost.memory.weightBytes, derivedWeightBytes(config, 2));
 });
 

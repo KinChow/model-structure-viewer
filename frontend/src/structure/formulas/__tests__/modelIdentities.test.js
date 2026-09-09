@@ -16,6 +16,7 @@ import { resolveArchitecture } from "../../registry/resolveArchitecture.js";
 import { buildNetwork } from "../../model_executor/models/index.js";
 import { createStructureIr } from "../../ir/createStructureIr.js";
 import { materializeModelStructure } from "../../materializers/toStructureNode.js";
+import { graphRoot } from "../../graph/selectors.js";
 import { countsForNode } from "../extractor.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
 import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters, derivedDecoderLayerBreakdown } from "../../../cost/derivedWeights.js";
@@ -127,6 +128,10 @@ function expectedWeightBytes(normalized, phase, tokens, plan) {
   return (dense - fp32 + tiedHead + routedActive + vision) * B + fp32 * 4;
 }
 
+// P7（步骤 7）：遍历起点从 legacy structure.root 换成 graphRoot 图视图
+// （root_id 契约字段；节点 id/repeat/children 语义不变）。
+const treeView = (structure) => graphRoot(structure.graph);
+
 function walkLeaves(root, visit) {
   const stack = [{ node: root, multiplier: 1 }];
   while (stack.length > 0) {
@@ -157,7 +162,7 @@ test("W1 报表：权重字节恒等式 + bound 期望", () => {
 
     for (const ph of PHASES) {
       let weights = 0;
-      walkLeaves(structure.root, (node, multiplier) => {
+      walkLeaves(treeView(structure), (node, multiplier) => {
         const inVision = String(node?.id || "").includes("vision");
         const options = inVision
           ? { batch: 1, sequence: normalized.visionTokens || 1, phase: ph.name, vision: true, visionTokens: normalized.visionTokens || 1 }
@@ -172,7 +177,7 @@ test("W1 报表：权重字节恒等式 + bound 期望", () => {
 
     for (const ph of BOUND_PHASES) {
       // 按模块子树聚合：遇到 attention/mlp/moe 模块就把它整棵子树的动作向量求和
-      const stack = [{ node: structure.root, multiplier: 1 }];
+      const stack = [{ node: treeView(structure), multiplier: 1 }];
       while (stack.length > 0) {
         const { node, multiplier } = stack.pop();
         const type = String(node?.type || "");
@@ -290,7 +295,7 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
   for (const entry of catalog.models) {
     const raw = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const { normalized, structure } = buildStructure(raw, entry.model_id);
-    walkLeaves(structure.root, (node) => {
+    walkLeaves(treeView(structure), (node) => {
       const declaration = node?.attributes?.weightMatrices;
       if (!Array.isArray(declaration) || declaration.length === 0) return;
       declaredLeaves += 1;
@@ -358,7 +363,7 @@ test("P2 护栏：带权重叶的 weightMatrices 声明覆盖（棘轮，只许�
   for (const entry of catalog.models) {
     const raw = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const { normalized, structure } = buildStructure(raw, entry.model_id);
-    walkLeaves(structure.root, (node) => {
+    walkLeaves(treeView(structure), (node) => {
       const actions = countsForNode(node, {
         config: normalized,
         options: { batch: 1, sequence: 2048, phase: "prefill" },
@@ -443,7 +448,7 @@ test("W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）", () =>
     let selectiveRead = 0;
     let indexRead = 0;
     let attnLeaves = 0;
-    walkLeaves(structure.root, (node, multiplier) => {
+    walkLeaves(treeView(structure), (node, multiplier) => {
       const id = String(node?.id || "");
       if (id.includes("vision")) return;
       const actions = countsForNode(node, { config: normalized, options, path: id, bytesPerElement: B });
@@ -584,13 +589,10 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "g_b_proj -> output_gate_norm": "regroup",
 }));
 
-function indexNodesByCanonicalId(root, map) {
-  const stack = [root];
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node) continue;
+// P7（步骤 7）：树遍历索引退役——Graph IR 节点自带 canonical_id，直接建索引。
+function indexNodesByCanonicalId(graph, map) {
+  for (const node of graph.nodes) {
     map.set(node.canonical_id ?? node.id, node);
-    for (const child of node.children || []) stack.push(child);
   }
 }
 
@@ -607,7 +609,7 @@ test("W5 恒等式：激活流形状连续性（全 59 模型声明边）", () =
     const raw = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const { structure } = buildStructure(raw, entry.model_id);
     const nodes = new Map();
-    indexNodesByCanonicalId(structure.root, nodes);
+    indexNodesByCanonicalId(structure.graph, nodes);
     for (const edge of structure.graph?.edges || []) {
       const src = nodes.get(edge.source_canonical_id);
       const dst = nodes.get(edge.target_canonical_id);

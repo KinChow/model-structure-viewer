@@ -1,9 +1,10 @@
 """Unit tests for semantics and fold helpers."""
-from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphNode, StructureNode
-from model_structure_viewer.structure.fold import collapse
+import pytest
+from pydantic import ValidationError
+
+from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphNode
 from model_structure_viewer.structure import semantics
-from model_structure_viewer.structure.introspect import _walk
-from model_structure_viewer.structure.graph import materialize_structure_graph, project_graph_to_tree
+from model_structure_viewer.structure.graph import GraphDraft, collapse_graph
 
 
 class _FakeModule:
@@ -66,93 +67,70 @@ def test_extract_leaf_module_skips_complex_objects():
     assert "weight" not in attrs
 
 
-def _layer(class_name: str, idx: int) -> StructureNode:
-    return StructureNode(
-        id=f"root.layers.{idx}",
-        name=str(idx),
-        type="module",
-        attributes={"class": class_name},
-    )
-
-
-def test_fold_homogeneous_module_list():
-    parent = StructureNode(
-        id="root.layers",
-        name="layers",
-        type="module-list",
-        children=[_layer("DecoderLayer", i) for i in range(4)],
-    )
-    folded = collapse(parent)
-    assert len(folded.children) == 1
-    assert folded.children[0].repeat == 4
-
-
-def test_fold_heterogeneous_module_list_splits_groups():
-    children = [_layer("DenseLayer", i) for i in range(3)] + [_layer("MoeLayer", i) for i in range(3, 9)]
-    parent = StructureNode(id="root.layers", name="layers", type="module-list", children=children)
-    folded = collapse(parent)
-    assert len(folded.children) == 2
-    assert folded.children[0].repeat == 3
-    assert folded.children[1].repeat == 6
+# P7（步骤 7）：树夹具折叠用例（test_fold_homogeneous/heterogeneous）已迁往
+# tests/test_fold.py 的 Graph IR 夹具——树投影退役后折叠只在图上发生。
 
 
 def test_introspection_shapes_prevent_folding_different_linear_layers():
     import torch
 
-    raw = _walk(
-        torch.nn.Sequential(torch.nn.Linear(8, 16), torch.nn.Linear(8, 32)),
-        attribute_name="",
-        path="root",
-    )
-    folded = collapse(raw)
+    from model_structure_viewer.structure.introspect import _build_graph_draft
 
-    assert len(folded.children) == 2
-    assert folded.children[0].weight_shapes == {"weight": [16, 8], "bias": [16]}
-    assert folded.children[1].weight_shapes == {"weight": [32, 8], "bias": [32]}
-    assert folded.children[0].params == 16 * 8 + 16
-    assert folded.children[0].dtype == "F32"
-    assert folded.children[0].value_source == "introspect"
+    # P7（步骤 7）：_walk 兼容树视图退役——改走图草稿 + 图原生折叠。
+    graph = _build_graph_draft(
+        torch.nn.Sequential(torch.nn.Linear(8, 16), torch.nn.Linear(8, 32))
+    ).finalize()
+    folded = collapse_graph(graph)
+
+    children = [node for node in folded.nodes if node.parent_id == folded.root_id]
+    assert len(children) == 2
+    assert children[0].weight_shapes == {"weight": [16, 8], "bias": [16]}
+    assert children[1].weight_shapes == {"weight": [32, 8], "bias": [32]}
+    assert children[0].params == 16 * 8 + 16
+    assert children[0].dtype == "F32"
+    assert children[0].value_source == "introspect"
 
 
-def test_structure_graph_materializes_stable_paths_and_edges():
-    root = StructureNode(
-        id="model",
-        name="Model",
-        type="model",
-        children=[
-            StructureNode(id="embed", name="Embed", type="embedding"),
-            StructureNode(id="decoder", name="Decoder", type="decoder"),
-            StructureNode(id="head", name="Head", type="output"),
-        ],
-    )
+def test_collapse_graph_rebuilds_stable_paths_and_edges():
+    """P7（步骤 7）：materialize/project 双向视图退役——折叠边界的重建契约
+    （位序路径 id、canonical 语义身份、module-order 边与 canonical 端点）
+    由 collapse_graph 单向保证；本夹具无 module-list，折叠退化为纯重建。"""
+    draft = GraphDraft()
+    draft.add_node(node_id="root", canonical_id="model", parent_id=None, order=0,
+                   name="Model", type="model")
+    for index, (canonical, node_type, name) in enumerate([
+        ("embed", "embedding", "Embed"),
+        ("decoder", "decoder", "Decoder"),
+        ("head", "output", "Head"),
+    ]):
+        draft.add_node(node_id=f"root.{index}", canonical_id=canonical, parent_id="root",
+                       order=index, name=name, type=node_type)
+    graph = draft.finalize()
 
-    graph = materialize_structure_graph(root)
+    rebuilt = collapse_graph(graph)
 
-    assert graph.version == 2
-    assert graph.schema_version == 2
-    assert graph.root_id == "root"
-    assert [node.id for node in graph.nodes] == ["root", "root.0", "root.1", "root.2"]
-    assert [node.canonical_id for node in graph.nodes] == ["model", "embed", "decoder", "head"]
-    assert graph.nodes[1].name == "Embed"
-    assert graph.nodes[1].order == 0
-    assert graph.edges[0].source_canonical_id == "embed"
-    assert graph.edges[0].target_canonical_id == "decoder"
-    projected = project_graph_to_tree(graph)
-    assert projected.id == "model"
-    assert [child.id for child in projected.children] == ["embed", "decoder", "head"]
-    assert [(edge.source, edge.target) for edge in graph.edges] == [
+    assert rebuilt.version == 2
+    assert rebuilt.schema_version == 2
+    assert rebuilt.root_id == "root"
+    assert [node.id for node in rebuilt.nodes] == ["root", "root.0", "root.1", "root.2"]
+    assert [node.canonical_id for node in rebuilt.nodes] == ["model", "embed", "decoder", "head"]
+    assert rebuilt.nodes[1].name == "Embed"
+    assert rebuilt.nodes[1].order == 0
+    assert rebuilt.edges[0].source_canonical_id == "embed"
+    assert rebuilt.edges[0].target_canonical_id == "decoder"
+    assert [(edge.source, edge.target) for edge in rebuilt.edges] == [
         ("root.0", "root.1"),
         ("root.1", "root.2"),
     ]
 
 
-def test_model_structure_normalizes_root_and_graph_as_reversible_views():
-    root_only = ModelStructure(root=StructureNode(id="model", name="Model", type="model"))
-    assert root_only.graph is None
-
-    graph_only = ModelStructure(graph=StructureGraph(
+def test_model_structure_requires_graph_as_only_payload():
+    """P7（步骤 7）：graph 是唯一必需载荷——root 视图与补投影校验器退役。"""
+    structure = ModelStructure(graph=StructureGraph(
         nodes=[StructureGraphNode(id="root", canonical_id="model", name="Graph Model", type="model")],
     ))
-    assert graph_only.root is not None
-    assert graph_only.root.id == "model"
-    assert graph_only.root.name == "Graph Model"
+    assert structure.graph.nodes[0].canonical_id == "model"
+    assert structure.graph.nodes[0].name == "Graph Model"
+
+    with pytest.raises(ValidationError):
+        ModelStructure(summary={}, source={})

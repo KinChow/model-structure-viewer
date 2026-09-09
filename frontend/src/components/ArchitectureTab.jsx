@@ -148,7 +148,8 @@ function ArchitectureTab({
   const changeCompareChip = (next) => onCompareChipIdChange?.(next);
   const changeComparePlan = (next) => onComparePlanChange?.(next);
   const changeEfficiency = (next) => onEfficiencyChange?.(next);
-  const formulaLinks = useMemo(() => collectFormulaLinks(structure?.graph || structure?.root), [structure]);
+  // P7（步骤 7）：structure?.root 回退退役——公式索引只消费 Graph IR。
+  const formulaLinks = useMemo(() => collectFormulaLinks(structure?.graph), [structure]);
   const chip = chips.find((entry) => entry.id === chipId) || chips[0];
   const candidateChip = chips.find((entry) => entry.id === compareChipId) || chips[1] || chips[0];
   const primaryScenario = useMemo(

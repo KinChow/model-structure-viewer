@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import IntrospectionError
-from ..schemas import ModelStructure, StructureNode
+from ..schemas import ModelStructure
 from . import semantics
-from .graph import GraphDraft, collapse_graph, project_graph_to_tree
+from .graph import GraphDraft, collapse_graph
 from .keys import make_extra_config
 from .repair.runtime import ConfigNormalizer, RuntimePatch
 from .summary import extract_summary, infer_model_family
@@ -67,10 +67,11 @@ def build_from_meta_model(
         diagnostics = dict(enriched_source.get("diagnostics") or {})
         diagnostics.update(normalizer_diagnostics)
         enriched_source["diagnostics"] = diagnostics
+    # P7（步骤 7）：ModelStructure 只携带 Graph IR——root 补投影退役
+    # （schemas.ModelStructure 的 graph 为唯一必需载荷）。
     return ModelStructure(
         summary=summary,
         source=enriched_source,
-        root=project_graph_to_tree(graph),
         graph=graph,
         extra_config=make_extra_config(config),
     )
@@ -158,18 +159,6 @@ def _build_graph_draft(module: Any) -> GraphDraft:
 
     visit(module, attribute_name="", path="root", parent_id=None, order=0)
     return draft
-
-
-def _walk(module: Any, *, attribute_name: str, path: str) -> StructureNode:
-    """Compatibility view for callers that still need a tree node."""
-    graph = _build_graph_draft(module).finalize()
-    root = project_graph_to_tree(graph)
-    if path != "root" or attribute_name:
-        # Historical tests call this helper with an arbitrary root path; keep
-        # the old node shape while the production path remains graph-first.
-        root.id = path
-        root.name = semantics.display_name(attribute_name, module) if attribute_name else root.name
-    return root
 
 
 def _drop_none(values: dict[str, Any]) -> dict[str, Any]:

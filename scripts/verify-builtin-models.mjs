@@ -9,31 +9,39 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models", "catalog.json"), "utf8"));
 
 const results = [];
+// P7（步骤 7）：判据全部改走 structure.graph——legacy root 视图已停产。
+// 层级判据 = root_id 直接子节点（parent_id 挂接 + order 排序）；算子注册
+// 检查遍历全部图节点，语义 id 取 canonical_id（与原树节点 id 同源）。
+function topLevelNodes(graph) {
+  return (graph?.nodes || [])
+    .filter((node) => node.parent_id === graph.root_id)
+    .sort((left, right) => (left.order || 0) - (right.order || 0) || left.id.localeCompare(right.id));
+}
+
 function collectValidationErrors(structure, normalized) {
   const errors = [];
-  if (!structure?.summary || !structure?.root || !structure.root.children?.length) {
-    errors.push("missing summary/root/root.children");
+  const graph = structure?.graph;
+  if (!structure?.summary || !graph?.nodes?.length || topLevelNodes(graph).length === 0) {
+    errors.push("missing summary/graph/top-level graph nodes");
     return errors;
   }
   if (structure.summary.canonical_architecture === "unsupported") {
     errors.push("resolved to unsupported");
   }
-  if (normalized.layers && !structure.root.children.some((node) => node.type === "decoder")) {
+  const topLevel = topLevelNodes(graph);
+  if (normalized.layers && !topLevel.some((node) => node.type === "decoder")) {
     errors.push("text layers exist but decoder is missing");
   }
-  if (normalized.hasVision && !structure.root.children.some((node) => node.type === "vision-encoder")) {
+  if (normalized.hasVision && !topLevel.some((node) => node.type === "vision-encoder")) {
     errors.push("vision config exists but vision graph is missing");
   }
-  const visit = (node) => {
-    if (node.type === "operator") {
-      const formulaId = node.attributes?.formula_id;
-      if (!formulaId || !formulaForOperator(formulaId)) {
-        errors.push(`operator ${node.id} has no registered formula`);
-      }
+  for (const node of graph.nodes) {
+    if (node.type !== "operator") continue;
+    const formulaId = node.attributes?.formula_id;
+    if (!formulaId || !formulaForOperator(formulaId)) {
+      errors.push(`operator ${node.canonical_id || node.id} has no registered formula`);
     }
-    for (const child of node.children || []) visit(child);
-  };
-  visit(structure.root);
+  }
   return errors;
 }
 
@@ -51,8 +59,8 @@ for (const entry of catalog.models) {
       model_id: entry.model_id,
       ok,
       canonical_architecture: structure?.summary?.canonical_architecture || null,
-      root: structure?.root?.name || null,
-      children: structure?.root?.children?.length || 0,
+      graph_root: structure?.graph?.nodes?.find((node) => node.id === structure.graph.root_id)?.name || null,
+      nodes: structure?.graph?.nodes?.length || 0,
       error: errors.join("; "),
     });
   } catch (error) {
@@ -60,8 +68,8 @@ for (const entry of catalog.models) {
       model_id: entry.model_id,
       ok: false,
       canonical_architecture: null,
-      root: null,
-      children: 0,
+      graph_root: null,
+      nodes: 0,
       error: error.stack || error.message,
     });
   }
@@ -76,5 +84,5 @@ if (failed.length > 0) {
 }
 
 for (const result of results) {
-  console.log(`${result.model_id}\t${result.canonical_architecture}\tchildren=${result.children}`);
+  console.log(`${result.model_id}\t${result.canonical_architecture}\tnodes=${result.nodes}`);
 }

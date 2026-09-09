@@ -21,42 +21,6 @@ def export_structure(structure: ModelStructure, fmt: str) -> str:
     raise ValueError(f"Unsupported export format: {fmt}")
 
 
-def _walk_tree(
-    root: StructureNode,
-    *,
-    on_node: NodeVisitor,
-    on_edge: EdgeVisitor,
-) -> None:
-    used: set[str] = set()
-
-    def assign_id(path: str) -> str:
-        slug = _slug(path)
-        digest = hashlib.sha1(path.encode("utf-8")).hexdigest()[:6]
-        candidate = slug or f"n_{digest}"
-        if candidate not in used:
-            used.add(candidate)
-            return candidate
-        # Collision: fall back to slug + hash so the id stays unique while
-        # remaining readable. ``digest`` is derived from the full path, so two
-        # different paths cannot produce the same disambiguated id.
-        disambiguated = f"{candidate}_{digest}"
-        used.add(disambiguated)
-        return disambiguated
-
-    def visit(node: StructureNode, parent_id: str | None, path: str) -> None:
-        node_id = assign_id(path or node.id)
-        on_node(node_id, node)
-        if parent_id is not None:
-            on_edge(parent_id, node_id)
-        for index, child in enumerate(node.children):
-            child_path = (
-                f"{path}.{index}.{child.id}" if path else f"{node.id}.{index}.{child.id}"
-            )
-            visit(child, node_id, child_path)
-
-    visit(root, None, "")
-
-
 def _walk_graph(structure: ModelStructure, *, on_node: NodeVisitor, on_edge: EdgeVisitor) -> None:
     graph = structure.graph
     if graph is None:
@@ -100,11 +64,12 @@ def _assign_graph_id(path: str, used: set[str]) -> str:
     return disambiguated
 
 
+# P7（步骤 7）：mermaid/dot 只走 Graph IR——graph 缺位/为空即输出空图
+# （仅头行），root 回退与 _walk_tree 一并退役。
 def export_mermaid(structure: ModelStructure) -> str:
     lines = ["flowchart TD"]
-    walker = _walk_graph if structure.graph is not None and structure.graph.nodes else _walk_tree
-    walker(
-        structure if walker is _walk_graph else structure.root,
+    _walk_graph(
+        structure,
         on_node=lambda nid, node: lines.append(f'  {nid}["{_escape_mermaid(_label(node))}"]'),
         on_edge=lambda src, dst: lines.append(f"  {src} --> {dst}"),
     )
@@ -118,9 +83,8 @@ def export_dot(structure: ModelStructure) -> str:
         '  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#64748b", fontname="Helvetica"];',
         '  edge [color="#64748b"];',
     ]
-    walker = _walk_graph if structure.graph is not None and structure.graph.nodes else _walk_tree
-    walker(
-        structure if walker is _walk_graph else structure.root,
+    _walk_graph(
+        structure,
         on_node=lambda nid, node: lines.append(f'  {nid} [label="{_escape_dot(_label(node))}"];'),
         on_edge=lambda src, dst: lines.append(f"  {src} -> {dst};"),
     )

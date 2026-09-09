@@ -4,17 +4,20 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../structure/buildStructure.js";
+import { graphRoot } from "../structure/graph/selectors.js";
 import { layoutGraph } from "./layout.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-function expandedPaths(root) {
+// P7（步骤 7）：展开路径从 Graph IR 的图视图推导（graphRoot = selectors 的
+// root_id 契约视图），layoutGraph 消费整份 structure 而不是 legacy root。
+function expandedPaths(rootView) {
   const paths = new Set();
   function visit(node, currentPath) {
     paths.add(currentPath);
     (node.children || []).forEach((child, index) => visit(child, `${currentPath}.${index}`));
   }
-  visit(root, "root");
+  visit(rootView, "root");
   return paths;
 }
 
@@ -24,7 +27,7 @@ test("all built-in multi-operator modules use semantic graph edges", async () =>
   for (const entry of catalog.models) {
     const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "builtin-layout-test" });
-    const graph = layoutGraph(structure.root, expandedPaths(structure.root));
+    const graph = layoutGraph(structure, expandedPaths(graphRoot(structure.graph)));
     for (const parent of graph.nodes) {
       if (!(["attention", "mlp", "moe"].includes(parent.node?.type))) continue;
       const childDepth = parent.path.split(".").length + 1;

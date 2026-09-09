@@ -3,7 +3,7 @@ import test from "node:test";
 import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElk } from "./elkLayout.js";
 import { materializeStructureGraph } from "../structure/graph/materializeStructureGraph.js";
-import { projectGraphToTree } from "../structure/graph/projectGraphToTree.js";
+import { graphViewNode } from "../structure/graph/selectors.js";
 
 test("layoutGraph exposes independent visible nodes and edges", () => {
   const graph = layoutGraph({
@@ -27,21 +27,18 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
 });
 
 test("layoutGraph consumes explicit IR edges without inferring replacements", () => {
-  const root = {
-    name: "model",
-    type: "model",
-    children: [
-      { name: "first", type: "module", children: [] },
-      { name: "second", type: "module", children: [] },
-    ],
-  };
+  // P7（步骤 7）：夹具从 "root 树 + 仅边图" 的兼容形态迁移为完整 Graph IR——
+  // 节点与边都来自图，不再有树侧内容可回退。
   const graph = layoutGraph({
-    root,
     graph: {
       version: 2,
       schema_version: 2,
       root_id: "root",
-      nodes: [],
+      nodes: [
+        { id: "root", name: "model", type: "model" },
+        { id: "root.0", parent_id: "root", order: 0, name: "first", type: "module" },
+        { id: "root.1", parent_id: "root", order: 1, name: "second", type: "module" },
+      ],
       edges: [{ id: "explicit", source: "root.1", target: "root.0", kind: "dataflow", evidence: "declared" }],
     },
   }, new Set(["root"]));
@@ -52,7 +49,7 @@ test("layoutGraph consumes explicit IR edges without inferring replacements", ()
   ]);
 });
 
-test("layoutGraph prefers graph projection over a stale legacy tree", () => {
+test("layoutGraph builds the canvas view from Graph IR and ignores stale legacy fields", () => {
   const graphRoot = {
     id: "model",
     name: "Graph Model",
@@ -88,7 +85,9 @@ test("layoutGraph consumes builder-declared edges without using display names", 
   assert.equal(graph.edges.some((edge) => edge.evidence === "module-order" && edge.source.startsWith("root.0.")), false);
 });
 
-test("graph projection preserves hierarchy and node facts", () => {
+// P7（步骤 7）：旧图→树投影函数已删除——层级/事实保留语义由
+// selectors.graphViewNode（layout.js 的生产路径）承接，按图节点断言。
+test("graph view projection preserves hierarchy and node facts", () => {
   const root = {
     id: "model",
     name: "Model",
@@ -104,7 +103,7 @@ test("graph projection preserves hierarchy and node facts", () => {
     }],
   };
   const graph = materializeStructureGraph(root);
-  const projected = projectGraphToTree(graph);
+  const projected = graphViewNode(graph, graph.root_id);
   assert.equal(projected.id, "model");
   assert.equal(projected.children[0].id, "decoder");
   assert.equal(projected.children[0].repeat, 4);

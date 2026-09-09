@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 SourceKind = Literal["auto", "builtin", "local", "hf", "config"]
 CachePolicy = Literal["prefer-local", "refresh", "offline"]
@@ -71,22 +71,10 @@ class StructureGraph(BaseModel):
 class ModelStructure(BaseModel):
     summary: dict[str, Any] = Field(default_factory=dict)
     source: dict[str, Any] = Field(default_factory=dict)
-    # Graph IR is the canonical payload. root remains a reversible legacy view.
-    root: StructureNode | None = None
-    graph: StructureGraph | None = None
+    # P7（步骤 7）：Graph IR 是唯一结构载荷（必填）——legacy root 可逆视图与
+    # ensure_graph_primary 补投影校验器一并退役（协议执法由必填字段承担）。
+    graph: StructureGraph
     extra_config: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def ensure_graph_primary(self) -> "ModelStructure":
-        if self.graph is None and self.root is None:
-            raise ValueError("ModelStructure requires graph or root")
-        # Local import avoids a schemas -> graph -> schemas import cycle during
-        # module initialization; validation runs after both modules load.
-        from .structure.graph import project_graph_to_tree
-
-        if self.root is None:
-            self.root = project_graph_to_tree(self.graph)
-        return self
 
 
 class StructureRequest(BaseModel):

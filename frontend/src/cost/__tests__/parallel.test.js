@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, projectNodePlan, projectPdFit, projectPlan, stateBytesPerCard, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
+
+// P7（步骤 7）：projectPlan/projectNodePlan/projectPdFit 只收 Graph IR——
+// 夹具 tree root 统一经 materializeStructureGraph 转图（canonical_id 保持语义路径）。
+const toGraph = (root) => materializeStructureGraph(root);
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
@@ -77,15 +82,16 @@ test("F14 按节点路径分配 PP stage，首尾模块不平均摊薄", () => {
     { id: "layers.0", repeat: 2, children: [{ id: "layers.0.q_proj", weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] },
     { id: "lm_head", weight_shapes: { weight: [5, 2] }, dtype: "BF16", children: [] },
   ] };
-  const result = projectNodePlan({ root, config: { layers: 2, kvHeads: 1 }, plan: { tp: 1, pp: 2, dp: 1 }, kvBytes: 0 });
+  const result = projectNodePlan({ graph: toGraph(root), config: { layers: 2, kvHeads: 1 }, plan: { tp: 1, pp: 2, dp: 1 }, kvBytes: 0 });
   assert.equal(result.ok, true);
   assert.equal(result.stages[0].weightBytes, 48);
   assert.equal(result.stages[1].weightBytes, 28);
 });
 
-test("projectNodePlan prefers Graph IR nodes over a stale legacy root", () => {
+test("projectNodePlan walks Graph IR nodes with declared ranges", () => {
+  // P7（步骤 7）：root 入参退役——图是唯一归属路径（原"优先图、忽略陈旧树"
+  // 的回退语义随回退分支一并删除）。
   const result = projectNodePlan({
-    root: { id: "stale", children: [] },
     graph: {
       version: 2,
       schema_version: 2,
@@ -115,19 +121,19 @@ test("projectNodePlan prefers Graph IR nodes over a stale legacy root", () => {
 });
 
 test("PP 按 stage 层数分配 KV 而不是每个 stage 复制全量", () => {
-  const result = projectNodePlan({ root: { id: "model", children: [] }, config: { layers: 5, kvHeads: 1 }, plan: { pp: 2 }, kvBytes: 100 });
+  const result = projectNodePlan({ graph: toGraph({ id: "model", children: [] }), config: { layers: 5, kvHeads: 1 }, plan: { pp: 2 }, kvBytes: 100 });
   assert.deepEqual(result.stages.map((stage) => stage.kvBytes), [40, 60]);
 });
 
 test("PP 按实际 linear-attention 层分配 KDA state", () => {
   const config = { layers: 2, attentionSchedule: ["linear", "gqa"], attentionHeads: 2, headDim: 4, linearKeyHeads: 2, linearValueHeads: 2, linearKeyDim: 4, linearValueDim: 4, linearConvKernelSize: 3 };
-  const result = projectNodePlan({ root: { id: "model", children: [] }, config, plan: { tp: 1, pp: 2 }, stateBytes: 128 });
+  const result = projectNodePlan({ graph: toGraph({ id: "model", children: [] }), config, plan: { tp: 1, pp: 2 }, stateBytes: 128 });
   assert.deepEqual(result.stages.map((stage) => stage.stateBytes), [128, 0]);
 });
 
 test("PP 汇总不重复计算父列表和范围子节点 repeat", () => {
   const root = { id: "decoder", repeat: 4, children: [{ id: "decoder.0", repeat: 4, children: [{ id: "decoder.0.mlp.down_proj", weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] }] };
-  const result = projectNodePlan({ root, config: { layers: 4, kvHeads: 1 }, plan: { pp: 1 }, kvBytes: 0 });
+  const result = projectNodePlan({ graph: toGraph(root), config: { layers: 4, kvHeads: 1 }, plan: { pp: 1 }, kvBytes: 0 });
   assert.equal(result.stages[0].weightBytes, 32);
 });
 
@@ -141,7 +147,7 @@ test("EP 返回专家权重平均值和最坏值区间", () => {
 test("stage 权重返回 EP 平均/最坏两种投影（P5：声明驱动）", () => {
   // 专家块识别走 ep 组声明（isRoutedExpertPath 正则随规则表退役）。
   const root = { id: "model.layers.0", children: [{ id: "model.layers.0.moe.expert_mlp", repeat: 8, attributes: { operator_id: "fused_moe_mlp", weightMatrices: [{ class: "ep", out: 2, in: 2, count: 8, matrices: 1 }] }, children: [] }] };
-  const result = projectNodePlan({ root, config: { layers: 1, experts: 8, kvHeads: 1 }, plan: { ep: 3 }, kvBytes: 0 });
+  const result = projectNodePlan({ graph: toGraph(root), config: { layers: 1, experts: 8, kvHeads: 1 }, plan: { ep: 3 }, kvBytes: 0 });
   assert.equal(result.stages[0].weightAverageBytes, 64 / 3);
   assert.equal(result.stages[0].weightWorstBytes, 24);
 });
@@ -168,6 +174,6 @@ test("计划最大上下文由最紧张 stage 决定", () => {
 
 test("权重 what-if 比例同步应用到节点级 stage 投影", () => {
   const root = { id: "model", weight_shapes: { weight: [10] }, dtype: "BF16", children: [] };
-  const result = projectPlan({ root, weightBytes: 5, config: {}, plan: { tp: 1 }, kvBytes: 0 });
+  const result = projectPlan({ graph: toGraph(root), weightBytes: 5, config: {}, plan: { tp: 1 }, kvBytes: 0 });
   assert.equal(result.stages[0].weightBytes, 5);
 });

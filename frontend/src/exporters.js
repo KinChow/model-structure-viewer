@@ -19,32 +19,6 @@ function fallbackId(path) {
   return hash.toString(16).slice(0, 6);
 }
 
-function walkTree(root, handlers) {
-  const used = new Set();
-  function assignId(path) {
-    const base = slug(path) || `n_${fallbackId(path)}`;
-    if (!used.has(base)) {
-      used.add(base);
-      return base;
-    }
-    const disambiguated = `${base}_${fallbackId(path)}`;
-    used.add(disambiguated);
-    return disambiguated;
-  }
-
-  function visit(node, parentId, path) {
-    const nodeId = assignId(path || node.id);
-    handlers.onNode(nodeId, node);
-    if (parentId) handlers.onEdge(parentId, nodeId);
-    for (const [index, child] of (node.children || []).entries()) {
-      const childPath = path ? `${path}.${index}.${child.id}` : `${node.id}.${index}.${child.id}`;
-      visit(child, nodeId, childPath);
-    }
-  }
-
-  visit(root, null, "");
-}
-
 function walkGraph(graph, handlers) {
   const used = new Set();
   const ids = new Map();
@@ -81,10 +55,11 @@ function escapeDot(value) {
   return String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
+// P7（步骤 7）：mermaid/dot 只走 Graph IR——graph 为空即输出空图（仅头行），
+// 不再回退 legacy tree。
 function exportMermaid(structure) {
   const lines = ["flowchart TD"];
-  const walker = structure?.graph?.nodes?.length ? walkGraph : walkTree;
-  walker(structure?.graph?.nodes?.length ? structure.graph : structure.root, {
+  walkGraph(structure?.graph, {
     onNode: (id, node) => lines.push(`  ${id}["${escapeMermaid(label(node))}"]`),
     onEdge: (source, target) => lines.push(`  ${source} --> ${target}`),
   });
@@ -98,8 +73,7 @@ function exportDot(structure) {
     '  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#64748b", fontname="Helvetica"];',
     '  edge [color="#64748b"];',
   ];
-  const walker = structure?.graph?.nodes?.length ? walkGraph : walkTree;
-  walker(structure?.graph?.nodes?.length ? structure.graph : structure.root, {
+  walkGraph(structure?.graph, {
     onNode: (id, node) => lines.push(`  ${id} [label="${escapeDot(label(node))}"];`),
     onEdge: (source, target) => lines.push(`  ${source} -> ${target};`),
   });

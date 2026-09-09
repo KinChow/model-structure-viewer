@@ -88,10 +88,12 @@ export function layoutDiagram(root, expandedGroups) {
  * Convert the visible hierarchy into a graph view model. Analysis code keeps
  * the original tree paths; the canvas consumes these independent collections.
  */
+// P7（步骤 7）：structure?.root 回退退役——视图只从 Graph IR 构造；
+// 入参兼容"裸节点树"（测试夹具形态），此时按需经 materializeStructureGraph 生成边集。
 export function layoutGraph(structureOrRoot, expandedGroups) {
-  const structure = structureOrRoot?.graph || structureOrRoot?.root ? structureOrRoot : null;
-  const graphRoot = structure?.graph ? graphViewNode(structure.graph, structure.graph.root_id || "root") : null;
-  const root = graphRoot || structure?.root || structureOrRoot;
+  const structure = structureOrRoot?.graph ? structureOrRoot : null;
+  const graphRoot = structure ? graphViewNode(structure.graph, structure.graph.root_id || "root") : null;
+  const root = graphRoot || structureOrRoot;
   const items = layoutDiagram(root, expandedGroups);
   const stageForPath = (path) => {
     const firstChild = path.split(".")[1];

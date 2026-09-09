@@ -148,7 +148,10 @@ def test_build_from_meta_model_supports_expanded_module_tree(monkeypatch):
         collapse_repeated=False,
     )
 
-    assert len(compressed.root.children) == 1
-    assert compressed.root.children[0].repeat == 2
-    assert len(expanded.root.children) == 2
-    assert all(child.repeat is None for child in expanded.root.children)
+    # P7（步骤 7）：root 视图退役——折叠语义按 Graph IR 断言。
+    compressed_children = [node for node in compressed.graph.nodes if node.parent_id == compressed.graph.root_id]
+    expanded_children = [node for node in expanded.graph.nodes if node.parent_id == expanded.graph.root_id]
+    assert len(compressed_children) == 1
+    assert compressed_children[0].repeat == 2
+    assert len(expanded_children) == 2
+    assert all(child.repeat is None for child in expanded_children)

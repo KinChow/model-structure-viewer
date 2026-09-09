@@ -2,12 +2,14 @@
 // 规范化 = 键递归排序 + minify；哈希用于紧凑存储，失败时由测试 dump 全文供 diff。
 // 注意：仅剥离 FORMULAS 注册表注入的 explanation/inputs/outputs 大文本（由
 // operatorId 决定，与 ops/index.js 重构无关），其余逐字节保真。
+// P7（步骤 7）：数据来源从 legacy structure.root 换成 Graph IR——spec 树取
+// selectors.graphRoot 的图视图（root_id 契约字段），边集直接取 structure.graph。
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../../buildStructure.js";
-import { materializeStructureGraph } from "../../graph/materializeStructureGraph.js";
+import { graphRoot } from "../../graph/selectors.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
@@ -43,7 +45,7 @@ export function buildSpecTreeMap() {
   for (const entry of catalog.models) {
     const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "spec-golden" });
-    map[entry.model_id] = JSON.stringify(stripRegistryTexts(sortDeep(structure.root)));
+    map[entry.model_id] = JSON.stringify(stripRegistryTexts(sortDeep(graphRoot(structure.graph))));
   }
   return map;
 }
@@ -59,7 +61,7 @@ export function buildEdgeMap() {
   for (const entry of catalog.models) {
     const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "spec-golden" });
-    const graph = materializeStructureGraph(structure.root);
+    const graph = structure.graph;
     map[entry.model_id] = JSON.stringify(graph.edges.map((edge) => [edge.source, edge.target, edge.evidence]));
   }
   return map;

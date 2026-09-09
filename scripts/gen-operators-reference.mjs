@@ -16,6 +16,7 @@ import { resolveArchitecture } from "../frontend/src/structure/registry/resolveA
 import { buildNetwork } from "../frontend/src/structure/model_executor/models/index.js";
 import { createStructureIr } from "../frontend/src/structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../frontend/src/structure/materializers/toStructureNode.js";
+import { graphRoot } from "../frontend/src/structure/graph/selectors.js";
 import { FORMULAS } from "../frontend/src/structure/formulas/index.js";
 import { MODULES, DECOMPOSE_PENDING } from "../frontend/src/structure/formulas/modules.js";
 import { OPERATOR_TO_MODULE, moduleParamsFor } from "../frontend/src/structure/formulas/moduleProbeParams.js";
@@ -114,7 +115,9 @@ function collectByStructureClass() {
     }));
     // op -> { nodes, instances, prefill:{...}, decode:{...} }
     const ops = new Map();
-    walk(structure.root, (node, multiplier) => {
+    // P7（步骤 7）：structure.root 消费退役——遍历起点换成 graphRoot 图视图
+    // （root_id 契约字段；节点 id/repeat/children 语义不变）。
+    walk(graphRoot(structure.graph), (node, multiplier) => {
       const op = String(node?.attributes?.operator_id || (node?.type === "embedding" ? "embedding" : ""));
       if (!op) return;
       if (!ops.has(op)) {
@@ -212,7 +215,7 @@ function collect() {
     const structure = materializeModelStructure(createStructureIr({
       network: buildNetwork(resolved, normalized), normalized, resolved,
     }));
-    walk(structure.root, (node, multiplier) => {
+    walk(graphRoot(structure.graph), (node, multiplier) => {
       const op = String(node?.attributes?.operator_id || (node?.type === "embedding" ? "embedding" : "")) || "(unknown)";
       if (op === "(unknown)") { unknownLeaves += 1; return; }
       const row = touch(op);
@@ -246,7 +249,7 @@ function collect() {
       }
     });
     // 表 B：槽位内的算子序列按子节点声明顺序取，跨模型做「首次出现即追加」的并集
-    walkOrdered(structure.root, (node) => {
+    walkOrdered(graphRoot(structure.graph), (node) => {
       const op = String(node?.attributes?.operator_id || (node?.type === "embedding" ? "embedding" : ""));
       if (!op) return;
       const slotPath = slotPathOf(node);

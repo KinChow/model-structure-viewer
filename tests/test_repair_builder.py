@@ -1,5 +1,5 @@
 from model_structure_viewer.errors import IntrospectionError
-from model_structure_viewer.schemas import ModelStructure, StructureNode
+from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphNode
 from model_structure_viewer.structure import builder
 
 
@@ -7,10 +7,11 @@ CONFIG = {"model_type": "deepseek_v3", "architectures": ["DeepseekV3ForCausalLM"
 
 
 def _structure(strategy):
+    # P7（步骤 7）：graph 是唯一必需载荷——root-only 兼容夹具退役。
     return ModelStructure(
         summary={"strategy": strategy},
         source={"strategy": strategy},
-        root=StructureNode(id="root", name="Root", type="model"),
+        graph=StructureGraph(nodes=[StructureGraphNode(id="root", canonical_id="root", name="Root", type="model")]),
     )
 
 

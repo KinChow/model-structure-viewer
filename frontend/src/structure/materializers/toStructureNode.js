@@ -1,6 +1,5 @@
 import { TEMPLATE_FAMILIES } from "../registry/architectureCatalog.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
-import { projectGraphToTree } from "../graph/projectGraphToTree.js";
 import { enrichGraphWithTruth } from "../truth/graphTruth.js";
 
 function structureNodeFromSpec(spec) {
@@ -119,7 +118,8 @@ export function materializeModelStructure(ir) {
       checkpoint_truth_endpoint: options.checkpointTruthEndpoint || null,
       diagnostics: mergedDiagnostics,
     },
-    root: projectGraphToTree(graph),
+    // P7（步骤 7）：legacy root 视图停产——Graph IR 是唯一结构载荷
+    // （root_id 仍是 graph 协议契约字段，见 graph/selectors.js）。
     graph,
     extra_config: normalized.raw,
   };

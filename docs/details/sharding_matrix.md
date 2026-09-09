@@ -74,9 +74,19 @@ attributes: {
 
 builder 侧改动清单：MoE 模板（moe.js）的 expert_mlp 叶改独立 operator_id
 `fused_moe_mlp`（对标 vLLM FusedMoE，终结与纯激活共用 swiglu id 的身份
-过载）并携带声明；shared 融合形态（plan.sharedExpertsAreFused）同叶声明
-两组（ep 组 + tp 组）；dense/attention 的 linear 叶声明由统一助手
+过载）并携带声明；dense/attention 的 linear 叶声明由统一助手
 （layer base 或 operatorSpec 内）按现有形状自动产出，不逐模板手写。
+
+**fused shared expert 的方案更正（P3，2026-09-10 取证结论）**：本文原写
+"shared 融合形态同叶声明两组（ep 组 + tp 组）"，该假设与 checkpoint 事实不符，
+已作废。取证：`models/moonshotai/Kimi-K3/k3-index.json` 每个 MoE 层只有
+`shared_experts.{gate,up,down}_proj.weight` 各一个（92 层 × 3 = 276 个张量），
+`modeling_kimi_linear.py:797-801` 先 `intermediate_size = moe_intermediate_size
+× num_shared_experts` 再实例化**单个** `KimiMLP`。即"融合"= 一个更宽的 MLP，
+不是打包张量，也不涉及 ep 亲和（shared expert 唯一分片语义 = ÷tp，见
+`parallel_protocol.md` Q5）。现有三叶形态（out = 模块宽）与 checkpoint 1:1
+对应，无需独立 operator_id、无需双组声明。P3 的实际内容 = fused 判定单源化
+（删 normalize 的 model_type 子串第二判定源，归 archs 配方）+ 语义锁测试。
 
 ### 层 2：计划侧（轴与策略）
 

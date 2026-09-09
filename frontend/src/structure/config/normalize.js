@@ -1,3 +1,13 @@
+// normalize.js —— config 字段归一层（§4.7：只供数，方案决定权归 plan.js/组网）。
+//
+// 唯一的例外是 sharedExpertIntermediateSize 的**回退宽度语义**：字段缺失时，
+// "模块宽 vs 单专家宽"取决于 checkpoint 是否把多个 shared expert 打包成单张量
+// （fused），这是家族知识而非字段判据 —— 判定权归 archs 配方（P3 单源化），
+// 本文件只消费该布尔值。archs/ 与 config/ 同为结构栈最底层（见
+// __tests__/layering.test.js），其唯一上游 model_executor/roles.js 是零 import
+// 的角色词表，不构成分层倒置。
+import { archRecipe } from "../archs/index.js";
+
 export const LAYER_KEYS = ["num_hidden_layers", "num_layers", "n_layer", "n_layers"];
 const HIDDEN_KEYS = ["hidden_size", "dim", "d_model"];
 const HEAD_KEYS = ["num_attention_heads", "n_heads", "attention_heads"];
@@ -142,9 +152,14 @@ export function normalizeConfig(config) {
   //   C 变体（A 再兜一层 textConfig）：linearAttentionMode 的 kimi 分支。
   // 它们在"顶层 model_type 与 text_config 不同"时结果不同，统一属功能决策，不在重构范围。
   const modelTypeProbe = String(config?.model_type || textConfig?.model_type || "");
-  // kimi_k3 将多个 shared expert 打包为单个 gate/up/down 张量（fused），
-  // 决定 sharedExpertIntermediateSize 回退语义是"模块宽"而非"单专家宽"。
-  const sharedExpertsFused = modelTypeProbe.includes("kimi_k3");
+  // fused shared expert（多个 shared expert 打包为单个 gate/up/down 张量）决定
+  // sharedExpertIntermediateSize 回退语义是"模块宽"而非"单专家宽"。
+  // P3：判定权归 archs 配方（§4.7 —— normalize 只归一字段，方案由 plan 决定），
+  // 此前这里另有一份 `modelTypeProbe.includes("kimi_k3")` 判定，与
+  // ARCH_RECIPES.sharedExpertsAreFused 构成双源。
+  const sharedExpertsFused = Boolean(archRecipe(
+    Array.isArray(config?.architectures) ? config.architectures[0] : undefined,
+  ).sharedExpertsAreFused);
   const layers = pick(LAYER_KEYS);
   const visionLayers = visionConfig ? firstNumber(visionConfig, [...LAYER_KEYS, "depth", "vt_num_hidden_layers"]) : undefined;
   const hiddenSize = pick(HIDDEN_KEYS);
@@ -278,8 +293,8 @@ export function normalizeConfig(config) {
       ?? (modelTypeProbe.includes("qwen3_5_moe")
         && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
     sharedExpertIntermediateSize: pick(SHARED_EXPERT_INTERMEDIATE_KEYS)
-      // 通用 MoE 回退：shared expert 模块中间维 = moeIntermediateSize；仅 kimi_k3
-      // （fused，多个 shared expert 打包为单张量）乘 n_shared。非 fused 模型的
+      // 通用 MoE 回退：shared expert 模块中间维 = moeIntermediateSize；融合形态
+      // （sharedExpertsFused，判定归 archs 配方）乘 n_shared 得模块宽。非融合模型的
       // 个数由 derivedWeights/moe.js 的 count 乘子处理，回退只给单专家宽。
       // 列表式启发式曾两次漏模型（deepseek_v3、glm_moe_dsa）。
       ?? ((firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS))

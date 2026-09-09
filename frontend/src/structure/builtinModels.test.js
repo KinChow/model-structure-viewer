@@ -68,6 +68,20 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       assert.ok(nodes.some((node) => node.name === "Output Attention Residual"), "Kimi-K3: missing output AttnRes module");
       assert.ok(nodes.some((node) => node.name === "MLA output gate"), "Kimi-K3: missing MLA output gate");
       assert.ok(nodes.some((node) => node.id.endsWith(".moe.shared_experts")), "Kimi-K3: missing shared experts");
+      // P3 fused shared expert：checkpoint 取证（models/moonshotai/Kimi-K3/k3-index.json
+      // 每个 MoE 层只有 shared_experts.{gate,up,down}_proj.weight 各一个，共 92×3=276 个
+      // 张量；modeling_kimi_linear.py:797-801 `intermediate_size =
+      // moe_intermediate_size * num_shared_experts` 后实例化**单个** KimiMLP）——
+      // 融合形态就是"一个更宽的 MLP"，不是 n 份专家，也不涉及 ep 亲和。
+      const sharedGate = nodes.find((node) => node.id.endsWith(".moe.shared_experts.gate_proj"));
+      assert.ok(sharedGate, "Kimi-K3: missing fused shared expert gate projection");
+      assert.equal(normalized.sharedExpertIntermediateSize, normalized.moeIntermediateSize * normalized.sharedExperts);
+      assert.deepEqual(
+        sharedGate.attributes.weightMatrices,
+        [{ class: "tp", out: normalized.sharedExpertIntermediateSize, in: normalized.hiddenSize, count: 1, matrices: 1 }],
+        "Kimi-K3: fused shared expert 声明应为单组 tp（模块宽 = moeI×n_shared，count=1）",
+      );
+      assert.equal(deriveBuildPlan(normalized.raw ?? normalized).sharedExpertsAreFused, true);
     }
   }
 });

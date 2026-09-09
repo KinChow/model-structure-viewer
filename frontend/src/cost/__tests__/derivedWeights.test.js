@@ -12,6 +12,31 @@ test("dense decoder fallback 计算 embedding、attention、MLP、norm 和 tied 
   assert.equal(derivedWeightParameters(config), 40 + 48 + 4 + 8 + 96 + 4);
 });
 
+test("fused vs 非 fused shared expert：参数量按形态而非个数（P3）", () => {
+  // 取证（models/moonshotai/Kimi-K3）：k3-index.json 每个 MoE 层只有
+  // shared_experts.{gate,up,down}_proj.weight 各一个；
+  // modeling_kimi_linear.py:797-801 先把 intermediate_size 乘 num_shared_experts
+  // 再实例化**单个** KimiMLP —— 融合形态 = 一个更宽的 MLP。
+  // 非 fused（DeepSeek 系）则是 n 份各自 moeI 宽的 MLP。两者在 n=1 时等价，
+  // n>1 时参数量相同但**结构不同**（1 份宽 vs n 份窄）——这里锁的是
+  // sharedExpertIntermediateSize 语义：fused 传模块宽、非 fused 传单专家宽。
+  const base = {
+    layers: 1, hiddenSize: 8, attentionHeads: 2, kvHeads: 1, headDim: 4, valueHeadDim: 4,
+    intermediateSize: 8, vocabSize: 10, tieWordEmbeddings: true,
+    experts: 4, expertsPerToken: 2, moeIntermediateSize: 6, layerSchedule: ["moe"],
+    sharedExperts: 2,
+  };
+  // fused：normalize 已把 sharedExpertIntermediateSize 折成模块宽（6×2=12），
+  // 期望侧按 1 组 × 3 矩阵 × H × 12。
+  const fused = derivedWeightParameters({ ...base, sharedExpertIntermediateSize: 12, sharedExpertsAreFused: true });
+  // 非 fused：单专家宽 6，期望侧按 2 组 × 3 矩阵 × H × 6 —— 总量与 fused 相等。
+  const separate = derivedWeightParameters({ ...base, sharedExpertIntermediateSize: 6, sharedExpertsAreFused: false });
+  assert.equal(fused, separate, "两形态的 shared expert 总参数量应相等（3·H·moeI·n）");
+  // 若把 fused 的模块宽错按 n 份计（3·H·12·2），会多出 3·H·12 —— 该差额即回归信号。
+  const wrong = derivedWeightParameters({ ...base, sharedExpertIntermediateSize: 12, sharedExpertsAreFused: false });
+  assert.equal(wrong - fused, 3 * base.hiddenSize * 12, "fused 声明被当成 n 份时的差额（回归探针）");
+});
+
 test("tid2eid buffer 与 fp32 参数的字节宽（paramDtypes 登记表）", () => {
   // tid2eid：buffer 不是参数（Megatron-Bridge 明文）——容量 = hash 层数 × vocab × k × 4B int32，
   // 不进 derivedWeightParameters / derivedWeightBytes。

@@ -51,15 +51,26 @@ test("expertShardDivisor：TRT-LLM 混合 ETP（每卡 E/moe_ep 个完整专家�
   assert.equal(expertShardDivisor({ tp: 4, moe_ep: 2 }).divisor, 2);
 });
 
-test("validatePlan：moe_tp/moe_ep 正整数、moe_ep ≤ 专家数、EP=TP×DP 组合校验", () => {
-  assert.equal(validatePlan({ tp: 4, moe_ep: 2, moe_tp: 2 }, { experts: 8 }).ok, true);
+test("validatePlan：协议 Q2 专家域闭合 + Q4 无 EP moe_tp=tp + EP=TP×DP 组合校验（P6）", () => {
+  // 无 EP：moe_tp 缺省走 sharding 缺省链；显式给出必须 = tp（Q4）
+  assert.equal(validatePlan({ tp: 4 }, { experts: 8 }).ok, true);
+  assert.match(validatePlan({ tp: 4, moe_tp: 2 }, { experts: 8 }).errors[0], /moe_tp\(2\) 应等于 tp\(4\)/);
+  // EP 启用 + 混合 ETP：专家域闭合 moe_ep × moe_tp = ep × tp（TRT-LLM Hybrid ETP）
+  assert.equal(validatePlan({ tp: 4, ep: 2, moe_ep: 2, moe_tp: 4 }, { experts: 8 }).ok, true);
+  assert.match(validatePlan({ tp: 4, ep: 2, moe_ep: 2, moe_tp: 2 }, { experts: 8 }).errors[0], /专家域不闭合/);
+  // moe_ep 是 ep 的细化：不能超过 ep
+  assert.match(validatePlan({ tp: 4, ep: 1, moe_ep: 2 }, { experts: 8 }).errors[0], /moe_ep\(2\) 不能大于 ep\(1\)/);
+  // 整除：experts % moe_ep == 0
+  assert.match(validatePlan({ tp: 2, ep: 4, moe_ep: 3, moe_tp: 8 }, { experts: 8 }).errors[0], /整除/);
+  assert.equal(validatePlan({ tp: 2, ep: 4, moe_ep: 4, moe_tp: 2 }, { experts: 8 }).ok, true);
+  // 既有校验保留
   assert.match(validatePlan({ tp: 4, moe_ep: 0 }, {}).errors[0], /moeEp/);
   assert.match(validatePlan({ tp: 4, moe_ep: 16 }, { experts: 8 }).errors[0], /moe_ep 不能大于专家总数/);
   // vLLM：EP_SIZE = TP×DP（DP attention + EP）。ep 与 tp×dp 不一致即拒绝
   assert.equal(validatePlan({ tp: 2, dp: 2, ep: 4, attnMode: "dp" }, {}).ok, true);
   assert.match(validatePlan({ tp: 2, dp: 2, ep: 2, attnMode: "dp" }, {}).errors[0], /TP×DP=4/);
   // 混合 ETP 显式声明 moe_ep 时不做该约束（TRT-LLM 语义自洽）
-  assert.equal(validatePlan({ tp: 2, dp: 2, ep: 2, attnMode: "dp", moe_ep: 2 }, {}).ok, true);
+  assert.equal(validatePlan({ tp: 2, dp: 2, ep: 2, attnMode: "dp", moe_ep: 2, moe_tp: 2 }, {}).ok, true);
 });
 
 test("declaredClassDivisor / declaredWeightBytesPerCard：四类 class 的单卡响应", () => {
@@ -215,4 +226,36 @@ test("量化枚举排除语义对声明组同源：modules_to_not_convert 命中
   const config = { hiddenSize: 8, layers: 1, vocabSize: 16, intermediateSize: 8, attentionHeads: 1, headDim: 2, kvHeads: 1, quantization_config: quant };
   const cost = aggregateCost({ root, config, batch: 1, sequence: 4, kvBytes: 2 });
   assert.equal(cost.memory.weightBytes, derivedWeightBytes(config, 2));
+});
+
+// ---------------------------------------------------------------------------
+// P6 接缝测试（MAINTENANCE 纪律 7）：UI 第四消费者（CostSummary PlanFields 产出的
+// snake_case 计划）→ validatePlan → 声明分片，全链贯通。两端各有测试不等于链路
+// 被覆盖——moe_tp/moe_ep/vocab_parallel 此前协议层支持但 UI 无入口，组合语义在
+// 用户路径上触发不了。
+// ---------------------------------------------------------------------------
+test("P6 接缝：UI 输入的 snake_case 计划贯通 validatePlan 与声明分片", () => {
+  // UI 输入形态：moe_tp/moe_ep 为字符串或 undefined（空输入），vocab_parallel 为布尔
+  const uiPlan = { tp: "4", pp: "1", ep: "2", dp: "1", moe_tp: "4", moe_ep: "2", vocab_parallel: false };
+  const plan = {
+    tp: Number(uiPlan.tp), pp: Number(uiPlan.pp), ep: Number(uiPlan.ep), dp: Number(uiPlan.dp),
+    moe_tp: uiPlan.moe_tp === undefined ? undefined : Number(uiPlan.moe_tp),
+    moe_ep: uiPlan.moe_ep === undefined ? undefined : Number(uiPlan.moe_ep),
+    vocab_parallel: uiPlan.vocab_parallel,
+  };
+  const checked = validatePlan(plan, { experts: 8 });
+  assert.equal(checked.ok, true, checked.errors.join("; "));
+  // 协议生效：moe_ep=2、moe_tp=4，专家域闭合 2×4 = 2×4
+  assert.equal(checked.plan.moeEp, 2);
+  assert.equal(checked.plan.moeTp, 4);
+  // 声明分片消费该计划：专家叶 ÷(moe_ep×moe_tp)=8；vocabParallel=false 时 lm_head 复制
+  const expert = weightBytesPerCard(800, { id: "decoder.0.moe.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } }, checked.plan);
+  assert.equal(expert.bytes, 100);
+  assert.equal(expert.axis, "ep");
+  const head = weightBytesPerCard(400, { id: "lm_head.linear", attributes: { weightMatrices: [{ class: "vocab", out: 1, in: 1 }] } }, checked.plan);
+  assert.equal(head.bytes, 400);
+  assert.equal(head.axis, "vocab");
+  // 校验失败的计划（专家域不闭合）被拒：UI 显示方案无效而不是静默算错
+  const bad = validatePlan({ ...plan, moe_tp: 2 }, { experts: 8 });
+  assert.equal(bad.ok, false);
 });

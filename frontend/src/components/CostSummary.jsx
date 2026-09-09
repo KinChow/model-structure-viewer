@@ -25,14 +25,22 @@ function fitText(value, english = false) {
   return value == null ? (english ? "unknown" : "未知") : value ? (english ? "yes" : "是") : (english ? "no" : "否");
 }
 
-function PlanFields({ plan, onChange, english }) {
+function PlanFields({ plan, onChange, english, config }) {
   const update = (key, value) => onChange({ ...plan, [key]: Math.max(1, Number(value) || 1) });
+  // P6（协议 Q9）：moe_tp/moe_ep/vocab_parallel 进 UI —— 协议层早已支持并有
+  // 校验，但没有用户入口（sharding_matrix §四"一处不落即死功能"的第四处）。
+  // world_size 是派生量（tp×pp×dp），只读显示。
+  const worldSize = (plan.tp ?? 1) * (plan.pp ?? 1) * (plan.dp ?? 1);
   return <div className="cost-plan-fields">
     <label>TP<input type="number" min="1" value={plan.tp} onChange={(event) => update("tp", event.target.value)} /></label>
     <label>PP<input type="number" min="1" value={plan.pp} onChange={(event) => update("pp", event.target.value)} /></label>
     <label>EP<input type="number" min="1" value={plan.ep} onChange={(event) => update("ep", event.target.value)} /></label>
     <label>DP<input type="number" min="1" value={plan.dp} onChange={(event) => update("dp", event.target.value)} /></label>
+    <label>MoE TP<input type="number" min="1" value={plan.moe_tp ?? ""} placeholder={String(plan.tp ?? 1)} onChange={(event) => onChange({ ...plan, moe_tp: event.target.value === "" ? undefined : Math.max(1, Number(event.target.value) || 1) })} /></label>
+    <label>MoE EP<input type="number" min="1" value={plan.moe_ep ?? ""} placeholder={String(plan.ep ?? 1)} onChange={(event) => onChange({ ...plan, moe_ep: event.target.value === "" ? undefined : Math.max(1, Number(event.target.value) || 1) })} /></label>
     <label>{english ? "Attention parallelism" : "Attention 并行方式"}<select value={plan.attnMode} onChange={(event) => onChange({ ...plan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label>
+    <label>{english ? "Vocab parallel" : "词表并行"}<input type="checkbox" checked={plan.vocab_parallel !== false} onChange={(event) => onChange({ ...plan, vocab_parallel: event.target.checked })} /></label>
+    <label>{english ? "World size" : "世界大小（派生）"}<output>{worldSize}</output></label>
   </div>;
 }
 

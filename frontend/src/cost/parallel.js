@@ -6,6 +6,7 @@ import { childRepeatMultiplier, graphNodeToNode, walkStructure } from "./travers
 import { deriveBuildPlan } from "../structure/config/plan.js";
 import { LAYER_INDEX_RE } from "../structure/formulas/extractor.js";
 import { declaredWeightBytesPerCard, declaredWeightElements, expertShardDivisor } from "./sharding.js";
+import { normalizeParallelPlan } from "./parallelPlan.js";
 const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 function positiveInteger(value) {
@@ -16,42 +17,12 @@ function positiveNumber(value) {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
-/** 校验用户给定的并行计划，避免静默接受不可能的卡数配置。 */
+/** 校验用户给定的并行计划，避免静默接受不可能的卡数配置。
+ *  P6：归一化与校验单源迁至 parallelPlan.js（协议 Q8：并行 plan 独立 schema），
+ *  本函数保留原签名委托——validatePlan 的全部消费者（kvBytesPerCard/state/
+ *  projectPlan/PD/lens/comm）行为不变。 */
 export function validatePlan(plan = {}, config = {}) {
-  const normalized = {
-    tp: plan.tp ?? plan.TP ?? 1,
-    pp: plan.pp ?? plan.PP ?? 1,
-    ep: plan.ep ?? plan.EP ?? 1,
-    dp: plan.dp ?? plan.DP ?? 1,
-    // N2-4 W-B：混合 ETP 轴（TRT-LLM 语义）。缺省 undefined——组合语义由
-    // sharding.js expertShardDivisor 按 EP 状态取缺省（EP 启用 moe_tp=1 完整
-    // 专家、未启用 moe_tp=tp 矩阵切分），不在此处伪造数值。
-    moeTp: plan.moeTp ?? plan.moe_tp,
-    moeEp: plan.moeEp ?? plan.moe_ep,
-    worldSize: plan.worldSize ?? plan.world_size,
-    attnMode: plan.attnMode ?? plan.attn_mode ?? "tp",
-    vocabParallel: plan.vocabParallel ?? plan.vocab_parallel ?? true,
-  };
-  const errors = [];
-  for (const key of ["tp", "pp", "ep", "dp"]) if (!positiveInteger(normalized[key])) errors.push(`${key} 必须是正整数`);
-  for (const key of ["moeTp", "moeEp"]) {
-    if (normalized[key] != null && !positiveInteger(normalized[key])) errors.push(`${key} 必须是正整数`);
-  }
-  const expectedWorld = normalized.tp * normalized.pp * normalized.dp;
-  if (normalized.worldSize != null && normalized.worldSize !== expectedWorld) {
-    errors.push(`world_size 应为 TP×PP×DP=${expectedWorld}`);
-  }
-  if (!["tp", "dp"].includes(normalized.attnMode)) errors.push("attn_mode 只能是 tp 或 dp");
-  if (config?.experts && normalized.ep > config.experts) errors.push("EP 不能大于专家总数");
-  if (config?.experts && normalized.moeEp > config.experts) errors.push("moe_ep 不能大于专家总数");
-  // vLLM 组合语义（AMD playbook / DP 文档核实）：EP 启用时 ep_size = tp × dp
-  // （DP attention + EP 是 DeepSeek 系标准部署）。仅在依赖 ep 缺省（未显式声明
-  // moe_ep 的混合 ETP 不受此约束）且 DP attention 时硬校验。
-  if (normalized.ep > 1 && normalized.attnMode === "dp" && normalized.moeEp == null
-    && normalized.ep !== normalized.tp * normalized.dp) {
-    errors.push(`EP 启用时 ep 应为 TP×DP=${normalized.tp * normalized.dp}（vLLM：EP_SIZE = TP_SIZE × DP_SIZE）`);
-  }
-  return { ok: errors.length === 0, errors, plan: { ...normalized, worldSize: normalized.worldSize ?? expectedWorld } };
+  return normalizeParallelPlan(plan, config);
 }
 
 /**

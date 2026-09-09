@@ -70,6 +70,12 @@ module evidence，由 compare 层与前端 Graph 对账。`root` 进入退役流
 compute、aggregate、通信、PP/PD projection 和导出只消费 graph。`root` 不属于
 共享协议，旧消费者必须迁移到 graph 后删除。
 
+## 版本边界
+
+- 前端 IR `version: 3`（`frontend/src/structure/ir/createStructureIr.js`）是**前端内部演进版本**，只约束前端内消费者；
+- Graph `schema_version: 2`（前端 `materializeStructureGraph.js` 与后端 `schemas.py` 同值）是**前后端共享协议版本**，升版需两侧同步；
+- 两者语义不同、独立演进，不做字段合并（无 oracle 收益，登记为决策——route-closeout P9，2026-09-10）。
+
 ## 责任边界
 
 | 区域 | 负责 | 不负责 |

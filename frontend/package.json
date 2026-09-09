@@ -14,7 +14,8 @@
     "build": "npm run catalog && vite build",
     "preview": "vite preview",
     "docs:operators": "node ../scripts/gen-operators-reference.mjs",
-    "docs:check": "node ../scripts/gen-operators-reference.mjs --check"
+    "docs:models": "node ../scripts/gen-model-reference.mjs",
+    "docs:check": "node ../scripts/gen-operators-reference.mjs --check && node ../scripts/gen-model-reference.mjs --check"
   },
   "dependencies": {
     "@huggingface/hub": "^2.16.3",

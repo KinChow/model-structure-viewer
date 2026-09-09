@@ -25,6 +25,9 @@
 - [模型发布时间来源](details/models/release_metadata.md)
 - [成熟框架并行策略调研](details/parallel_strategies.md)：vLLM/SGLang 的 attention、MoE、TP/DP/EP/ETP 和 shared expert 现状
 - [并行与权重分片协议](details/parallel_protocol.md)：逻辑轴定义、约束等式、九项裁决和三类成本口径（协议唯一住址）
+- [模型台账参考](models_reference.md)：59 内置模型机器台账（family / canonical architecture / 参数量级 / 证据库 / release_time），`gen-model-reference.mjs` 生成 + `docs:check` 守护
+- [架构台账参考](architectures_reference.md)：别名表 / canonical 目录 / ARCH_RECIPES 配方机器台账，同一生成器 + `docs:check` 守护
+- [算子对照参考](details/operators_reference.md)：逐算子触发面 / 恒等式机器台账（`gen-operators-reference.mjs` 生成段），同族台账此前漏登，此处补齐
 
 ## 维护规则
 

@@ -1833,8 +1833,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 ## 模块层分解台账（生成物）
 
-- 已声明分解的模块：**17** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `dsv4_hash_route` · `vision_position` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
-- 尚未声明分解（`DECOMPOSE_PENDING`）：**9**
+- 已声明分解的模块：**18** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `dsv4_hash_route` · `vision_position` · `vision_merge` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
+- 尚未声明分解（`DECOMPOSE_PENDING`）：**8**
 
 | 模块 | 待办原因 |
 |---|---|
@@ -1845,7 +1845,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `hyper_connection` | W4 随多流残差一并落 |
 | `ple` | ngram 查表 + short conv 组合，W4 |
 | `attention_residual` | K3 AttnResBlock，W3 期望侧建模时一并落 |
-| `vision_merge` | 同上（含 G1 少乘 T_v 缺口） |
 | `vision_activation` | 同上 |
 
 > 恒等式（融合分解 / 权重字节 / KV 读量 / 激活流形状连续性）的判定结果不在此生成，
@@ -1898,8 +1897,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 2.048e+3 | 2.048e+3 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 4.424e+5 | 0 | 0 | 1.769e+6 | 8.847e+5 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 4.424e+5 | 0 | 0 | 1.769e+6 | 8.847e+5 | 0.00 | memory | — | — | — |
-| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.536e+3 | 6.144e+3 | 0.00 | memory | — | — | — |
-| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 1.536e+3 | 6.144e+3 | 0.00 | memory | — | — | — |
+| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 8.847e+5 | 8.847e+5 | 0.00 | memory | — | — | — |
+| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 8.847e+5 | 8.847e+5 | 0.00 | memory | — | — | — |
 | `attention_qkv_split` | prefill | 1/12 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/12 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 6/18 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -1951,8 +1950,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 4.096e+3 | 4.096e+3 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 6.636e+5 | 0 | 0 | 2.654e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 6.636e+5 | 0 | 0 | 2.654e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
-| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.304e+3 | 9.216e+3 | 0.00 | memory | — | — | — |
-| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 2.304e+3 | 9.216e+3 | 0.00 | memory | — | — | — |
+| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.327e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
+| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 1.327e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
 | `attention_qkv_split` | prefill | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 10/30 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2203,8 +2202,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 8.192e+3 | 8.192e+3 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 2.621e+5 | 0 | 0 | 1.049e+6 | 5.243e+5 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 2.621e+5 | 0 | 0 | 1.049e+6 | 5.243e+5 | 0.00 | memory | — | — | — |
-| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.048e+3 | 8.192e+3 | 0.00 | memory | — | — | — |
-| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 2.048e+3 | 8.192e+3 | 0.00 | memory | — | — | — |
+| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 5.243e+5 | 5.243e+5 | 0.00 | memory | — | — | — |
+| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 5.243e+5 | 5.243e+5 | 0.00 | memory | — | — | — |
 | `attention_qkv_split` | prefill | 1/24 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/24 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `mla_kv_split` | prefill | 11/11 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2340,8 +2339,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 5.120e+3 | 5.120e+3 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 6.636e+5 | 0 | 0 | 2.654e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 6.636e+5 | 0 | 0 | 2.654e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
-| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.304e+3 | 9.216e+3 | 0.00 | memory | — | — | — |
-| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 2.304e+3 | 9.216e+3 | 0.00 | memory | — | — | — |
+| `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.327e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
+| `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 1.327e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
 | `attention_qkv_split` | prefill | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 14/36 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |

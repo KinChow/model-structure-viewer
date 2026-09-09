@@ -40,6 +40,7 @@ import {
   causalConvCounts,
   gateCounts,
   hashRouteCounts,
+  rearrangeCounts,
   linearCounts,
   linearAttentionStateCounts,
   rmsnormCounts,
@@ -267,6 +268,25 @@ const MODULE_LIST = [
     residentIntermediates: () => [],
     compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
     notes: ["addCounts 与 add 原子逐位同构（vector 1/元素、actIn 2E·b、actOut E·b）"],
+  },
+  {
+    // 视觉 patch merge：[V, H] → [V/merge², merge²·H] 的物化拷贝（非视图——
+    // 分辨率动态、无法 strided 表达）。两端总元素数相等（V·H），
+    // 与 permute_copy 原子逐位同构。运行时口径同步补了 G1 的 T_v 缺口
+    //（此前 inElements/outElements 是单 token 宽度，漏乘 token 数）。
+    id: "vision_merge",
+    title: "Vision Patch Merge",
+    source: { framework: "vLLM", symbol: "Qwen2_5_VisionPatchMerger / vision patch merge", ref: "model_executor/models/qwen2_5_vision_navigation.py" },
+    fused: (p) => rearrangeCounts({
+      copy: true,
+      inElements: p.tokens * p.inWidth,
+      outElements: Math.max(1, Math.floor(p.tokens / (p.mergeSize * p.mergeSize))) * p.inWidth * p.mergeSize * p.mergeSize,
+      bytesPerElement: p.b,
+    }),
+    decompose: (p) => [{ atom: "permute_copy", args: { elements: p.tokens * p.inWidth, bytesPerElement: p.b } }],
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => 2 * p.tokens * p.inWidth * p.b,
+    notes: ["tokens 必须能被 merge² 整除（内置模型均满足：2304/4、576/4）"],
   },
 ];
 
@@ -548,7 +568,6 @@ export const DECOMPOSE_PENDING = {
   hyper_connection: "W4 随多流残差一并落",
   ple: "ngram 查表 + short conv 组合，W4",
   attention_residual: "K3 AttnResBlock，W3 期望侧建模时一并落",
-  vision_merge: "同上（含 G1 少乘 T_v 缺口）",
   vision_activation: "同上",
 };
 

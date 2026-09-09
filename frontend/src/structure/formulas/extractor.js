@@ -736,8 +736,21 @@ export function countsForNode(node, env = {}) {
       return swigluCounts({ tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement });
     case "vision_position":
       return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || 0, bytesPerElement });
-    case "vision_merge":
-      return rearrangeCounts({ copy: true, inElements: staticWidth(node?.input_shape) || 0, outElements: staticWidth(node?.output_shape) || 0, bytesPerElement });
+    case "vision_merge": {
+      // G1 缺口补齐（2026-09-09）：此前 inElements/outElements 是**单 token 宽度**，
+      // 漏乘 token 数。patch merge 是 [V, H] → [V/merge², merge²·H] 的真实拷贝，
+      // 两端总元素数相等（V·H），必须各乘自己的 token 数。
+      const inWidth = staticWidth(node?.input_shape) || 0;
+      const outWidth = staticWidth(node?.output_shape) || 0;
+      const mergeSize = Math.max(config?.visionMergeSize || 1, 1);
+      const outTokens = Math.max(1, Math.floor(tokens / (mergeSize * mergeSize)));
+      return rearrangeCounts({
+        copy: true,
+        inElements: inWidth * tokens,
+        outElements: outWidth * outTokens,
+        bytesPerElement,
+      });
+    }
     case "split":
     case "mla_kv_split":
     case "qwen_qkvz_split":

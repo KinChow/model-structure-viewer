@@ -10,23 +10,19 @@ export function collectDiagnostics({ network, normalized, resolved }) {
   const warnings = [];
   const unsupported = [];
 
-  if (resolved.resolution !== "architecture-alias") {
-    warnings.push({
-      code: "architecture-inferred",
-      message: `Architecture resolved by ${resolved.resolution}`,
-    });
-  }
-  if (!normalized.layers && resolved.canonicalArchitecture !== "generic-config") {
+  // 步骤 2（结构正确性收口）：resolution 只剩 architecture-alias | unsupported。
+  // 未知架构不再走 architecture-inferred 警告通道，统一进 unsupported。
+  if (resolved.resolution === "architecture-alias" && !normalized.layers) {
     warnings.push({
       code: "missing-layer-count",
       message: "No text layer count was found in config",
     });
   }
-  if (resolved.canonicalArchitecture === "generic-config") {
+  if (resolved.canonicalArchitecture === "unsupported") {
     // vLLM _raise_for_unsupported 模式：不支持即枚举支持项，让用户知道下一步。
     unsupported.push({
-      code: "generic-config",
-      message: `Config does not expose enough fields to build a model network. `
+      code: "unsupported-architecture",
+      message: `Config does not map to a supported architecture template. `
         + `Supported architectures: ${SUPPORTED_MODEL_ARCHITECTURES.join(", ")}`,
     });
   }

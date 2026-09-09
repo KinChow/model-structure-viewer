@@ -46,13 +46,13 @@ test("diagnosticsModel：template+truth 无 banner；mergeSemantics 旧键兼容
 test("diagnosticsModel：unsupported 与 warnings 透传（M11-P0-3）", () => {
   const model = diagnosticsModel({
     strategy: "skeleton-truth",
-    unsupported: [{ code: "generic-config", message: "Supported architectures: gqa-decoder" }],
-    warnings: [{ code: "architecture-inferred", message: "Architecture resolved by field-inference" }],
+    unsupported: [{ code: "unsupported-architecture", message: "Supported architectures: gqa-decoder" }],
+    warnings: [{ code: "missing-layer-count", message: "No text layer count was found in config" }],
   }, { english: false });
   assert.equal(model.unsupportedCount, 1);
   assert.match(model.unsupported[0].message, /gqa-decoder/);
   assert.equal(model.warningCount, 1);
-  assert.equal(model.warnings[0].code, "architecture-inferred");
+  assert.equal(model.warnings[0].code, "missing-layer-count");
   const empty = diagnosticsModel({ strategy: "no-truth" });
   assert.equal(empty.unsupportedCount, 0);
   assert.equal(empty.warningCount, 0);

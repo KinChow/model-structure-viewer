@@ -8,8 +8,7 @@ export const ARCHITECTURE_CATALOG = Object.freeze({
   "multimodal-gqa-moe-decoder": { hasTemplate: true },
   "multimodal-mla-moe-decoder": { hasTemplate: true },
   "hybrid-multimodal-moe-decoder": { hasTemplate: true },
-  "generic-decoder": { hasTemplate: false },
-  "generic-config": { hasTemplate: false },
+  "unsupported": { hasTemplate: false },
 });
 
 export const TEMPLATE_FAMILIES = new Set(

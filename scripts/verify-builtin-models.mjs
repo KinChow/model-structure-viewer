@@ -15,8 +15,8 @@ function collectValidationErrors(structure, normalized) {
     errors.push("missing summary/root/root.children");
     return errors;
   }
-  if (structure.summary.canonical_architecture === "generic-config") {
-    errors.push("resolved to generic-config");
+  if (structure.summary.canonical_architecture === "unsupported") {
+    errors.push("resolved to unsupported");
   }
   if (normalized.layers && !structure.root.children.some((node) => node.type === "decoder")) {
     errors.push("text layers exist but decoder is missing");

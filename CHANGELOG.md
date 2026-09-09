@@ -12,6 +12,7 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- 未知架构统一 `unsupported`（执行路线步骤 2）：删除 `generic-decoder` 字段推断兜底与 `generic-config` 分支，alias 精确表未命中的架构以空网络走完管线并枚举支持项；诊断 code 改名 `unsupported-architecture`，`models/generic.js` 删除。
 - 后端 introspection 改为通过 `GraphDraft` 直接生成 Graph IR v2，`StructureNode` 只作为兼容投影和旧调用入口。
 - 前端搜索、节点选择、祖先展开、面包屑和顶层模块列表优先从 Graph IR 稳定路径读取，新增 graph selector 单测。
 - `ModelStructure` 统一校验 graph/root 互相投影：Graph IR 为规范载荷，root-only 旧调用仍可用，graph-only 载荷自动生成 root 兼容视图。

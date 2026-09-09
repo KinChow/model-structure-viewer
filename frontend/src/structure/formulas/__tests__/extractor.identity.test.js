@@ -244,9 +244,11 @@ test("T4b 合成 dense 恒等式：tied embeddings", () => {
 });
 
 test("T4b 合成 dense 恒等式：headDim 由 hidden/heads 推导", () => {
-  // 无 head_dim 字段：真实 dense 模型常见形态（llama 系），headDim=256/8=32
+  // 无 head_dim 字段：真实 dense 模型常见形态（llama 系），headDim=256/8=32。
+  // 步骤 2 后 llama 无精确别名（不伪造结构），fixture 用已适配的 qwen3 等价
+  // 表达同一意图——headDim 推导是 config 级判据，与家族名无关。
   syntheticIdentity("synthetic-dense-derived-dim", {
-    model_type: "llama", architectures: ["LlamaForCausalLM"],
+    model_type: "qwen3", architectures: ["Qwen3ForCausalLM"],
     hidden_size: 256, num_hidden_layers: 4, num_attention_heads: 8,
     num_key_value_heads: 2, intermediate_size: 512,
     vocab_size: 1000, tie_word_embeddings: false,

@@ -13,6 +13,8 @@
 - Graph IR v2 节点事实、Graph-first 消费和已有 parity 基线测试；legacy
   `root` projection 仍在退役过程中，不作为终态能力。
 - Graph-first layout、compute/aggregate、通信、PP/PD projection、导出和 canonical node identity。
+- 未知架构统一 `unsupported`：alias 精确表未命中的架构不再组网（generic-decoder
+  兜底已删），空网络走完管线并枚举支持项。
 
 ## P0：验证流程收口（已完成）
 
@@ -36,8 +38,8 @@ framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
 1. **协议定稿**：确定 physical topology、logical parallel plan、
    weight shard plan、communication plan 的边界；调研依据见
    [`details/parallel_strategies.md`](details/parallel_strategies.md)。
-2. **结构正确性收口**：未知架构统一 `unsupported`，删除
-   `generic-decoder` 的未知架构兜底。
+2. ~~**结构正确性收口**：未知架构统一 `unsupported`，删除
+   `generic-decoder` 的未知架构兜底。~~ ✅ 已完成（2026-09-10）。
 3. **权重协议收口**：补齐所有带权重叶的 `weightMatrices`，明确
    `tp`、`ep`、`vocab`、`replicated` 和 shared expert 语义，删除
    分片、量化和容量计算 fallback。

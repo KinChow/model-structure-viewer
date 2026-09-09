@@ -160,7 +160,7 @@ test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks",
   }
 });
 
-test("keeps inferred architecture diagnostics in the IR", () => {
+test("keeps unsupported architecture diagnostics in the IR", () => {
   const normalized = normalizeConfig({
     model_type: "qwen3",
     num_hidden_layers: 2,
@@ -171,13 +171,15 @@ test("keeps inferred architecture diagnostics in the IR", () => {
   const network = buildNetwork(resolved, normalized);
   const ir = createStructureIr({ network, normalized, resolved });
 
-  // W5 语义变更：config 没有 architectures 时**不再**用 model_type 子串猜家族
-  // （原来 "qwen3" 会被 probe.includes("qwen") 猜成 gqa-decoder）。现在退到
-  // field-inference —— 由 layers/hidden/heads 等结构字段建通用 decoder，
-  // 并照旧出 architecture-inferred 告警。判定与猜测的区别就在这里。
-  assert.equal(ir.resolved.canonicalArchitecture, "generic-decoder");
-  assert.equal(ir.diagnostics.resolution, "field-inference");
-  assert.equal(ir.diagnostics.warnings[0].code, "architecture-inferred");
+  // 步骤 2 语义变更：config 没有 architectures 时**不再**走任何兜底——
+  // 原来先猜家族子串（W5 删），再按 layers/hidden/heads 建通用 decoder
+  // （field-inference，本次删）。两者都属于伪造结构；现在统一 unsupported：
+  // 空网络走完管线，诊断枚举支持项。
+  assert.equal(ir.resolved.canonicalArchitecture, "unsupported");
+  assert.equal(ir.diagnostics.resolution, "unsupported");
+  assert.equal(ir.diagnostics.unsupported.length, 1);
+  assert.equal(ir.diagnostics.unsupported[0].code, "unsupported-architecture");
+  assert.deepEqual(ir.diagnostics.warnings, []);
 });
 
 test("builds network modules and materializes operator formulas", () => {
@@ -225,8 +227,8 @@ test("builds network modules and materializes operator formulas", () => {
 
 test("adds readable tensor shapes to modules and operators", () => {
   const normalized = normalizeConfig({
-    model_type: "qwen3_5",
-    architectures: ["Qwen3_5ForCausalLM"],
+    model_type: "qwen3",
+    architectures: ["Qwen3ForCausalLM"],
     num_hidden_layers: 2,
     hidden_size: 1024,
     num_attention_heads: 8,
@@ -235,7 +237,7 @@ test("adds readable tensor shapes to modules and operators", () => {
     intermediate_size: 3584,
     vocab_size: 248320,
   });
-  const resolved = resolveArchitecture(normalized, { modelId: "Qwen/Qwen3.5-0.8B" });
+  const resolved = resolveArchitecture(normalized, { modelId: "Qwen/Qwen3-4B" });
   const network = buildNetwork(resolved, normalized);
   const structure = materializeModelStructure(createStructureIr({ network, normalized, resolved }));
 

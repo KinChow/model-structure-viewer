@@ -19,11 +19,9 @@ export function resolveArchitecture(normalized, options = {}) {
   // W5：删除原「architecture + model_type + modelId 拼串做 includes」的家族兜底。
   // 该兜底会把任何 id 里带 "qwen"/"deepseek"/"minimax" 的模型硬塞进某个模板，
   // 属于猜测而非判定；vLLM 的做法是 `_raise_for_unsupported` —— 精确表认不出
-  // 就报 unsupported，由 collectDiagnostics 出前端告警，绝不伪造结构。
-  // 实测：删除前 57/59 走 architecture-alias，仅 Qwen3_5MoeForCausalLM 系 2 个
-  // 落兜底，已补进 aliases.js 精确表。
-  if (normalized.layers) {
-    return { canonicalArchitecture: "generic-decoder", architecture: normalized.architecture, resolution: "field-inference" };
-  }
-  return { canonicalArchitecture: "generic-config", architecture: normalized.architecture, resolution: "generic-config" };
+  // 就报 unsupported。
+  // 步骤 2（结构正确性收口）：再删 layers 字段推断兜底（generic-decoder）——
+  // 用 layers/hidden/heads 拼通用网络同样属于伪造结构。前端的对应物 =
+  // 空网络走完管线 + collectDiagnostics 枚举支持项。
+  return { canonicalArchitecture: "unsupported", architecture: normalized.architecture, resolution: "unsupported" };
 }

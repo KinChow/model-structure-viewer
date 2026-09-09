@@ -64,6 +64,8 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
     case "vision_activation":
       // 视觉部件只在有视觉塔的结构类存在
       return c.hasVision ? { tokens: c.visionTokens || 1, hidden: c.visionHiddenSize || 0, intermediate: c.visionIntermediateSize || 0, b } : null;
+    case "hyper_connection":
+      return c.hyperConnectionCount ? { tokens, hidden: c.hiddenSize || 0, streams: c.hyperConnectionCount, lowrank: c.hyperConnectionLowrank || 0, b } : null;
     case "attention_residual":
       return c.attnResBlockSize ? { tokens, hidden: c.hiddenSize || 0, b } : null;
     case "vision_merge":

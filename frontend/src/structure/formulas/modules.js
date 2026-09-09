@@ -326,6 +326,57 @@ const MODULE_LIST = [
     compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
     notes: ["norm/proj 两对是独立叶（self_attention_res_* / mlp_res_*），不在本模块内"],
   },
+  {
+    // Qwen4Exp 的 delayed HyperConnection（GatedResidual，vLLM
+    // qwen4_exp/common/hyperconnection.py:140-240）。七个组成部分全部
+    // 用既有原子表达：grouped norm → rmsnorm 分解片段（weightOne）、
+    // down/up/inject → linear 分解片段、SiLU → silu 原子（与 gateCounts
+    // 逐位同构）、sigmoid 门 → sigmoid + mul、combine → add。
+    id: "hyper_connection",
+    title: "Hyper Connection",
+    source: { framework: "vLLM", symbol: "GatedResidual", ref: "models/qwen4_exp/common/hyperconnection.py:140" },
+    fused: (p) => {
+      const hyperHidden = p.streams * p.hidden;
+      return sumCounts(
+        rmsnormCounts({ tokens: p.tokens, hidden: hyperHidden, bytesPerElement: p.b, weightOne: true }),
+        linearCounts({ logicalShape: [p.lowrank, hyperHidden], tokens: p.tokens, bytesPerElement: p.b }),
+        gateCounts({ tokens: p.tokens, width: p.lowrank, bytesPerElement: p.b }),
+        linearCounts({ logicalShape: [hyperHidden, p.lowrank], tokens: p.tokens, bytesPerElement: p.b }),
+        gateCounts({ tokens: p.tokens, width: hyperHidden, bytesPerElement: p.b }),
+        linearCounts({ logicalShape: [p.streams, hyperHidden], tokens: p.tokens, bytesPerElement: p.b }),
+        addCounts({ tokens: p.tokens, hidden: hyperHidden, bytesPerElement: p.b }),
+      );
+    },
+    decompose: (p) => {
+      const hyperHidden = p.streams * p.hidden;
+      const e = p.tokens * hyperHidden;
+      const el = p.tokens * p.lowrank;
+      return [
+        ...rmsnormDecompose({ tokens: p.tokens, hidden: hyperHidden, weightOne: true, b: p.b }),
+        ...linearDecompose({ tokens: p.tokens, inDim: hyperHidden, out: p.lowrank, b: p.b }),
+        { atom: "silu", args: { elements: el, bytesPerElement: p.b } },
+        ...linearDecompose({ tokens: p.tokens, inDim: p.lowrank, out: hyperHidden, b: p.b }),
+        { atom: "sigmoid", args: { elements: e, bytesPerElement: p.b } },
+        { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
+        ...linearDecompose({ tokens: p.tokens, inDim: hyperHidden, out: p.streams, b: p.b }),
+        { atom: "add", args: { elements: e, bytesPerElement: p.b } },
+      ];
+    },
+    residentIntermediates: (p) => [
+      { name: "hc_norm 的中间量组", elements: p.tokens * p.streams * p.hidden },
+      { name: "SiLU 输出", elements: p.tokens * p.lowrank },
+    ],
+    compulsoryBytes: (p) => {
+      const hyperHidden = p.streams * p.hidden;
+      // 主输入（多流状态）+ 输出（混合后的 block 输入）+ 三份权重
+      const weights = (2 * p.lowrank * hyperHidden + p.streams * hyperHidden) * p.b;
+      return (2 * p.tokens * hyperHidden) * p.b + weights;
+    },
+    notes: [
+      "gate 的 vector/sfu（gateCounts）= sigmoid + mul 两原子之和，逐位闭合",
+      "inject 在最终 mixer（use_combine=false）由运行时置零，模块层按有 combine 的常规形态声明",
+    ],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -603,7 +654,6 @@ export const DECOMPOSE_PENDING = {
   mhc_post: "同上",
   mhc_fused_post_pre: "同上",
   mhc_contract: "同上",
-  hyper_connection: "W4 随多流残差一并落",
   ple: "ngram 查表 + short conv 组合，W4",
 };
 

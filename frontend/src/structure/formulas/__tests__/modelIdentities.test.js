@@ -20,6 +20,7 @@ import { countsForNode } from "../extractor.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
 import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters, derivedDecoderLayerBreakdown } from "../../../cost/derivedWeights.js";
 import { kvBytesPerToken, kvBytesPerTokenBreakdown } from "../../../cost/memory.js";
+import { paramBytes } from "../paramDtypes.js";
 import { classifyRoofline } from "../../../cost/roofline.js";
 import { deriveBuildPlan } from "../../config/plan.js";
 
@@ -293,19 +294,33 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
       const declaration = node?.attributes?.weightMatrices;
       if (!Array.isArray(declaration) || declaration.length === 0) return;
       declaredLeaves += 1;
+      // embedding 叶：声明描述**驻留容量**（vocab·hidden，P4-2），gather 的
+      // counts.bytes.weights=0（流量按行计，M11 已入 actIn）——两者语义本就
+      // 不同，登记例外：只要求声明与 vocab·hidden 对账。
+      if (node?.type === "embedding") {
+        const declared = declaration.reduce((sum, group) => sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in, 0);
+        if (declared !== (normalized.vocabSize || 0) * (normalized.hiddenSize || 0)) {
+          offenders.push(`${entry.model_id} ${node?.id} embedding declared=${declared} vs vocab·hidden=${(normalized.vocabSize || 0) * (normalized.hiddenSize || 0)}`);
+        }
+        return;
+      }
       const actions = countsForNode(node, {
         config: normalized,
         options: { batch: 1, sequence: 2048, phase: "prefill" },
         path: node?.id || "",
         bytesPerElement: B,
       });
-      const declaredElements = declaration.reduce(
-        (sum, group) => sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in,
+      // P4-2：dtype-aware 判据 —— 带 param_dtype 的组按 paramDtypes 登记表的
+      // 字节宽计（mHC fn/base/scale 与 KDA 衰减参数是 fp32），其余 2B。dtype
+      // 知识仍单源在 paramDtypes.js，声明只引用键名。
+      const declaredBytes = declaration.reduce(
+        (sum, group) => sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in
+          * (group.param_dtype ? paramBytes(group.param_dtype) : B),
         0,
       );
       // multiplier 与声明无关（声明描述单实例），与 identity 测试同口径两侧同乘可消去。
-      if (!actions || declaredElements * B !== actions.bytes.weights) {
-        offenders.push(`${entry.model_id} ${node?.id} declared=${declaredElements}·${B}B vs counts=${actions?.bytes?.weights ?? "null"}`);
+      if (!actions || declaredBytes !== actions.bytes.weights) {
+        offenders.push(`${entry.model_id} ${node?.id} declared=${declaredBytes}B vs counts=${actions?.bytes?.weights ?? "null"}`);
       }
     });
   }
@@ -326,13 +341,13 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
 // 不在判据内 —— 声明体描述的是权重矩阵归属，无权重就无归属。
 //
 // 为什么要这条：锚 1 只保证「已声明的叶声明得对」，对**没声明的叶**完全沉默。
-// 删除 WEIGHT_PROJECTION_RULES 路径正则回退的前提是零裸奔叶，而裸奔叶的清单
-// 必须机械可得（对标 §3.5b /tmp 引用棘轮的手法：登记现状 + 只许下降）。
+// P4-2 后全目录 18399 带权叶全部有声明（棘轮归零），WEIGHT_PROJECTION_RULES
+// 的删除前提达成（P5）。棘轮保持 0：新增带权算子不声明即顶破。
 //
 // 棘轮：MAINTENANCE.md「P2 声明覆盖」条目。**只许下降**，新增带权算子若不声明
 // 会顶破基线立即红。
 // ---------------------------------------------------------------------------
-const WEIGHT_DECLARATION_BASELINE = 2338;
+const WEIGHT_DECLARATION_BASELINE = 0;
 
 test("P2 护栏：带权重叶的 weightMatrices 声明覆盖（棘轮，只许下降）", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));

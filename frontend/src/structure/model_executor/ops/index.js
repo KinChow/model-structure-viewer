@@ -404,11 +404,26 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       kernel_size: normalized.linearConvKernelSize,
       activation: "silu",
       channel_layout: qwen ? { q: keyProjection, k: keyProjection, v: valueProjection, z: valueProjection } : undefined,
+      // P4-2：depthwise 卷积核（causal-conv1d 自定义 kernel，无 quant_method → 不量化； [channels, kernel]，channels = 2·keyProj + valueProj
+      //（extractor causal_conv1d case 的 width 同式）；沿通道（头维）tp 切）
+      weightMatrices: [weightMatrixDecl("tp", { shape: [2 * keyProjection + valueProjection, normalized.linearConvKernelSize || 0], split: "output", quantizable: false })],
     }, { input: qkvConvDims, output: qkvConvDims }),
     operatorSpec(`${prefix}.state_update`, "KDA recurrent state", "gated_delta_attention", {
       ...shapeFlow(`${convShape}, ${betaShape}, ${stateShape}`, qwen ? gateShape : qkvShape),
       semantic_role: "gated_delta_recurrent_state",
       model_kind: modelKind,
+      // P4-2：递推核标量参数（extractor stateUpdateCounts 的 gdnScalars 项，
+      // fp32 走 paramDtypes 的 gdn_decay）。两族形状不同（kimi_gdn_linear_attn.py
+      // :237-241,265-268 沿头维 sharded_weight_loader → tp）：
+      //   qwen GDN：dt_bias 与 A_log 都是 valueHeads → 一组 [heads] matrices=2
+      //   KDA（glm5_next/kimi_k3）：dt_bias = projection_size（heads·valueDim）、
+      //     A_log = heads
+      weightMatrices: (modelKind === "glm5_next" || modelKind === "kimi_k3")
+        ? [
+          weightMatrixDecl("tp", { shape: [valueHeads * valueDim], param_dtype: "gdn_decay", quantizable: false, split: "output" }),
+          weightMatrixDecl("tp", { shape: [valueHeads], param_dtype: "gdn_decay", quantizable: false, split: "output" }),
+        ]
+        : [weightMatrixDecl("tp", { shape: [valueHeads], matrices: 2, param_dtype: "gdn_decay", quantizable: false, split: "output" })],
       attention_kind: "linear",
       mode: "chunk_prefill_or_fused_recurrent",
       qk_l2norm: true,
@@ -477,13 +492,23 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
   const specs = [];
   if (normalized.qLoraRank != null) {
-    specs.push(operatorSpec(`${prefix}.q_a_proj`, "query down projection", "mla_query_compress", shapeFlow(shapes.hidden, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: dims.hidden, output: [-1, -1, normalized.qLoraRank] }));
+    // P4-2：q_a + q_a_norm 的组成与 extractor mla_query_compress ctx 同源。
+    specs.push(operatorSpec(`${prefix}.q_a_proj`, "query down projection", "mla_query_compress", {
+      ...shapeFlow(shapes.hidden, `[batch, sequence, q latent=${normalized.qLoraRank}]`),
+      weightMatrices: [
+        weightMatrixDecl("tp", { shape: [normalized.qLoraRank, dimWidth(dims.hidden)], split: "output" }),
+      ],
+    }, { input: dims.hidden, output: [-1, -1, normalized.qLoraRank] }));
     specs.push(operatorSpec(`${prefix}.q_a_norm`, "query latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: [-1, -1, normalized.qLoraRank], output: [-1, -1, normalized.qLoraRank] }));
     specs.push(operatorSpec(`${prefix}.q_b_proj`, "query up projection", "linear", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, shapes.attentionQuery), { input: [-1, -1, normalized.qLoraRank], output: dims.attentionQuery }));
   } else {
     specs.push(operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }));
   }
-  specs.push(operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", shapeFlow(shapes.hidden, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"} + rope=${normalized.qkRopeHeadDim ?? "unknown"}]`), { input: dims.hidden, output: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)] }));
+  // P4-2：extractor mla_kv_compress ctx 只有一个 proj 项（out 取叶 output 宽）。
+  specs.push(operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", {
+    ...shapeFlow(shapes.hidden, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"} + rope=${normalized.qkRopeHeadDim ?? "unknown"}]`),
+    weightMatrices: [weightMatrixDecl("tp", { shape: [(normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0), dimWidth(dims.hidden)], split: "output" })],
+  }, { input: dims.hidden, output: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)] }));
   specs.push(operatorSpec(`${prefix}.kv_split`, "KV latent and rope split", "mla_kv_split", {
     ...shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"} + rope=${normalized.qkRopeHeadDim ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}], [batch, sequence, rope=${normalized.qkRopeHeadDim ?? "unknown"}]`),
     split_sizes: [normalized.kvLoraRank, normalized.qkRopeHeadDim],
@@ -564,6 +589,8 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       compress_ratio: ratio,
       implementation: ["vLLM.DeepseekCompressor", "SGLang.Compressor"],
       cache_role: "compressed_kv_and_score_state",
+      // extractor mla_kv_compress ctx：out 以叶 output_shape 为权威（模板声明）。
+      weightMatrices: [weightMatrixDecl("tp", { shape: [2 * (ratio === 4 ? 2 : 1) * headDim, dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: [-1, -1, 2 * (ratio === 4 ? 2 : 1) * headDim] }));
   }
 
@@ -857,6 +884,12 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
     operatorSpec(`${prefix}.q_a_proj`, "query down projection", "mla_query_compress", {
       ...shapeFlow(shapes.hidden, qLatentShape),
       implementation: ["vLLM.q_a_proj", "SGLang.q_a_proj"],
+      // P4-2：只有 q_a 一个矩阵 —— extractor ctx 里的 norm 键未被 counts 函数
+      // 消费（q_a_norm 是独立 rmsnorm 叶，memory 教训 3：融合内已有的不再发独立叶
+      // 的反向情形：独立 norm 叶在场，组合叶不再计）。
+      weightMatrices: [
+        weightMatrixDecl("tp", { shape: [qRank, dimWidth(dims.hidden)], split: "output" }),
+      ],
     }, { input: dims.hidden, output: [-1, -1, qRank] }),
     operatorSpec(`${prefix}.q_a_norm`, "query latent RMSNorm", "rmsnorm", shapeFlow(qLatentShape, qLatentShape), { input: [-1, -1, qRank], output: [-1, -1, qRank] }),
     operatorSpec(`${prefix}.q_b_proj`, "query up projection", "linear", {
@@ -868,6 +901,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       implementation: ["vLLM.kv_a_proj_with_mqa", "SGLang.kv_a_proj_with_mqa"],
       kv_lora_rank: kvRank,
       qk_rope_head_dim: ropeDim,
+      weightMatrices: [weightMatrixDecl("tp", { shape: [kvRank + ropeDim, dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: [-1, -1, kvRank + ropeDim] }),
     operatorSpec(`${prefix}.kv_split`, "KV latent and rope split", "mla_kv_split", {
       ...shapeFlow(kvLatentShape, `[batch, sequence, kv latent=${kvRank}], [batch, sequence, rope=${ropeDim}]`),

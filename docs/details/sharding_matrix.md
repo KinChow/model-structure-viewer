@@ -169,8 +169,23 @@ total/experts × ceil(experts/ep)），声明体的 count 即 experts 语义。
 首跑：**带权叶 18399，已声明 5233（linear tp 组 4271 + fused_moe_mlp ep 组 962），
 缺声明 13166**。
 
-P4 提交 1 后：**已声明 16061，缺声明 2338**（归一化族与线性族由 `operatorSpec`
-工厂按形状自动声明）。剩余缺口见下表标注。
+P4 提交 2 后：**已声明 18399 / 带权叶 18399，缺声明 0（棘轮归零）**。长尾族
+（MLA/KDA/conv1d/mHC/HC/PLE/embedding）的声明组与 counts 组成逐项同源，分片
+亲和全部按 vLLM 源码取证：
+
+- **replicated（无并行包装 = 每卡完整持有）**：mHC fn/base/scale（裸
+  nn.Parameter，`deepseek_v4/amd/model.py:712-753`）+ 融合 norm；HyperConnection
+  的 raw nn.Linear（`hyperconnection.py:176-193` 注释原文 "raw Linear weights
+  (checkpoint-compatible)"）；PLE/conv1d/embedding（custom kernel /
+  ParallelEmbedding 无 quant_method 包装，本就不被量化 → quantizable: false）；
+- **tp（有分片取证）**：KDA/GDN 衰减参数 dt_bias/A_log（
+  `kimi_gdn_linear_attn.py:241,268` `sharded_weight_loader(0)` /
+  `a_log_weight_loader(0)` 沿头维切）；
+- **锚 1 升级为 dtype-aware**：声明组带 `param_dtype` 键（引用 paramDtypes
+  登记表，dtype 知识不进声明），fp32 组按 4B 对账；embedding 走登记例外
+  （声明=驻留容量，gather 流量按行计入 actIn）。
+
+下表为首跑缺口台账（历史记录，供追溯）：
 
 | operator_id / type | 缺声明叶（首跑） | P4 提交 1 后 | 典型 path | 目标 class |
 |---|---|---|---|---|
@@ -188,7 +203,7 @@ P4 提交 1 后：**已声明 16061，缺声明 2338**（归一化族与线性�
 | embedding | 57 | 57 | `embed_tokens` | vocab |
 | ple | 2 | 2 | `decoder.1.ple.inject` | tp |
 
-P4 提交 1 的三处口径修正（都由锚 1/锚 2/golden 三条护栏抓出，非事后发现）：
+P4 的四处口径修正（都由锚 1/锚 2/golden 三条护栏抓出，非事后发现）：
 1. **router 是 replicated 而非 ÷tp**：vLLM `qwen3_moe.py:167`
    `self.gate = ReplicatedLinear(...)`、`fused_moe/router/gate_linear.py:18`
    `class GateLinear(ReplicatedLinear)`。声明前 router 落在规则表第 4 条
@@ -200,5 +215,4 @@ P4 提交 1 的三处口径修正（都由锚 1/锚 2/golden 三条护栏抓出�
    其中。**不能用"维度>1"当判据** —— K3 的 `attn_residual.res_proj` 是
    out=1 的真 GEMM（[1, 7168] 打分投影），会被误伤（实测 K3 容量差 1.97e6 B）。
 
-后续提交 2（长尾族）注意：**锚 1 判据需同步升级为「声明元素 ×
-paramDtypeBytes」**——mHC 的 base/scale 与 fn 为 fp32，恒 2B 对不上。
+

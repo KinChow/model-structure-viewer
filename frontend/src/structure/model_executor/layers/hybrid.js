@@ -1,7 +1,34 @@
 import { moduleSpec, withShapeDims } from "./base.js";
-import { operatorSpec } from "../ops/index.js";
+import { operatorSpec, weightMatrixDecl } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
+
+// P4-2：长尾复合算子的权重声明。每组的 shape/quantizable/param_dtype 与
+// formulas/index.js 对应 counts 的组成逐项同源（锚 1 执法），分片亲和按
+// vLLM 源码取证：
+// - hyper_connection：vLLM qwen4_exp/common/hyperconnection.py:176-193 用的是
+//   **raw nn.Linear**（注释原文 "raw Linear weights (checkpoint-compatible)"，
+//   无 ColumnParallel/RowParallel 包装）→ 每卡完整持有 = replicated；
+// - mHC（deepseek_v4/amd/model.py:712-753）：hc_*_fn/base/scale 全是裸
+//   nn.Parameter（torch.float32，无 weight_loader 分片）→ replicated；
+// - KDA/GDN 衰减参数：kimi_gdn_linear_attn.py:241,268 用 sharded_weight_loader /
+//   a_log_weight_loader 沿头维切 → tp。
+
+/** mHC 的 fn [mix_hc, hc_dim]：mix_hc = (2+hc_mult)·hc_mult、hc_dim = hc_mult·H
+ *  （vLLM deepseek_v4/amd/model.py:709-711，与 extractor 的 mhcMixRows/mhcDim 同式）。 */
+function mhcGroups(normalized, hiddenWidth) {
+  const mult = normalized.mhcNumResidualStreams || 0;
+  const mixRows = (2 + mult) * mult;
+  const hcDim = mult * hiddenWidth;
+  return [
+    weightMatrixDecl("replicated", { shape: [mixRows, hcDim], param_dtype: "mhc_fn", quantizable: false }),
+    weightMatrixDecl("replicated", { shape: [mixRows], param_dtype: "mhc_base", quantizable: false }),
+    weightMatrixDecl("replicated", { shape: [3], param_dtype: "mhc_scale", quantizable: false }),
+    // attn_norm / ffn_norm 的 RMSNorm 权重融进 mhc 内核（model.py:704-705），
+    // 结构树里没有独立 norm 叶 —— bf16，记在本叶（extractor mhc ctx 的 norm 项）。
+    weightMatrixDecl("replicated", { shape: [hiddenWidth], quantizable: false }),
+  ];
+}
 
 export function hyperConnectionModule(id, normalized, phase = "branch") {
   const shapes = tensorShapes(normalized);
@@ -34,6 +61,16 @@ export function hyperConnectionModule(id, normalized, phase = "branch") {
       // **没有** block_inject_weight（hc_count × hyper_hidden）。此前一律按有
       // combine 记，Flash-Next 多算 40,960 参数（2026-09-09 权重字节逐层归因）。
       hc_use_combine: phase !== "final",
+      // P4-2：hc_norm[grouped] + W_down + W_up + W_inject 的组成与 extractor 的
+      // hyper_connection ctx 逐项同源；raw nn.Linear 无并行包装 → replicated。
+      weightMatrices: [
+        weightMatrixDecl("replicated", { shape: [(normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0)], quantizable: false }),
+        weightMatrixDecl("replicated", { shape: [normalized.hyperConnectionLowrank || 0, (normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0)], quantizable: false }),
+        weightMatrixDecl("replicated", { shape: [(normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0), normalized.hyperConnectionLowrank || 0], quantizable: false }),
+        ...(phase !== "final"
+          ? [weightMatrixDecl("replicated", { shape: [normalized.hyperConnectionCount || 0, (normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0)], quantizable: false })]
+          : []),
+      ],
     }, { input: dims.hidden, output: dims.hidden })],
   ), dims.hidden, dims.hidden);
 }
@@ -60,6 +97,14 @@ export function pleModule(id, normalized) {
     [operatorSpec(`${id}.inject`, "PLE injection", "ple", {
       ...shapeFlow(`${shapes.hidden}, input_ids, ngram_context`, shapes.hidden),
       embed_dim: normalized.pleEmbedDim,
+      // P4-2：与 extractor ple ctx 逐项同源（W_kv [2E,H] + conv [E,k] +
+      // grouped norm [E]）。Qwen modeling 未入库（离线取证），无并行包装证据，
+      // W_kv/conv 跟随规则表现状 tp 并登记；norm 为向量参数 replicated。
+      weightMatrices: [
+        weightMatrixDecl("tp", { shape: [2 * (normalized.pleEmbedDim || 0), normalized.hiddenSize || 0], split: "output", quantizable: false }),
+        weightMatrixDecl("tp", { shape: [normalized.pleEmbedDim || 0, normalized.pleNgramSize || 1], split: "output", quantizable: false }),
+        weightMatrixDecl("replicated", { shape: [normalized.pleEmbedDim || 0], quantizable: false }),
+      ],
     }, { input: dims.hidden, output: dims.hidden })],
   ), dims.hidden, dims.hidden);
 }
@@ -123,6 +168,13 @@ export function multiHyperConnectionModule(id, normalized, phase = "pre") {
       tau: normalized.mhcTau,
       hc_eps: normalized.mhcEps,
       post_mult_value: normalized.mhcPostMultValue,
+      // P4-2：pre 与 fused_post_pre 持有 hc_*_fn/base/scale + 融合 norm 的权重
+      // （extractor mhc ctx 的 matrix/base/scale/norm 项）；post 的 combine 是
+      // weightsShared（复用最后一层 ffn 参数，vLLM model.py:1074-1097），
+      // contract 无自有权重 —— 两者的 counts.bytes.weights=0，不在覆盖判据内。
+      ...(phase === "pre" || phase === "fused_post_pre"
+        ? { weightMatrices: mhcGroups(normalized, normalized.hiddenSize || 0) }
+        : {}),
     }, { input: numericInput, output: numericOutput })],
   ), dims.hidden, dims.hidden);
 }

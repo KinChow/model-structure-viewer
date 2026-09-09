@@ -1599,12 +1599,16 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       `weightBytesPerElement`），其余参数跟随 torch_dtype。checkpoint 证据在场时
       以 truth/skeleton 的逐 tensor weight_dtypes 为准（即 safetensors 头部机制）。
 - [ ] **量化容量缺口：swiglu 携带的专家 GEMM 未进量化枚举**（2026-09-09
-      N2-3 显形）。M2.7 / M3-MXFP8 的路由专家与共享专家 GEMM 权重挂在
-      swiglu 叶（不在 `QUANTIZABLE_OPS` 枚举范围），这两类的量化容量目前
-      按 bf16 上界计（M2.7 4.77e11 = 全 bf16；正确值应大部分 fp8 ≈ 2.4e11
-      量级）。正确落法 = `quantizedMatrixBytes` 扩展 swiglu 叶的 3 矩阵枚举
-      （routed × experts 折叠、shared ×1），专家折叠语义必须与 counts 的
-      expertFraction 同源，防止两套 E-folding 漂移。
+      N2-3 显形；**探针实测爆炸半径远超初判**：不止 M2.7/M3——全部 25 个
+      量化 MoE 模型的路由专家权重都挂在 swiglu 叶，V4-Pro 1.55e12 /
+      Qwen3.8-2.4T 2.37e12 / Kimi-K2 系 1.02e12 参数未进枚举，均按 bf16
+      计 → 量化 MoE 模型容量普遍 ≈2× 偏高，专家块是主导项）。
+      机制：MoE 模板的专家 GEMM（gate/up/down 三矩阵 [moeI, EH]）融合在
+      swiglu 叶的 counts 里（3·E·EH·EI），`QUANTIZABLE_OPS` 枚举只认 linear
+      族叶 → 该块留在 bf16 桶。
+      落法：`quantizedMatrixBytes` 对 swiglu 叶扩展 3 矩阵枚举
+      （[EI,EH] 取叶形状，×experts 折叠）；**验收锚** = 枚举元素数 ×2B 必须
+      等于叶 counts 的 bytes.weights（单源锚定，专家折叠不允许第二套推导）。
 - [x] **量化容量 per-matrix 精确化**（`cost/quantBytes.js`，2026-09-09）：
       无 checkpoint 时不再用标量 `quantizationBytesPerParameter` 一刀切 ——
       枚举树上全部线性族叶子的 [out,in]（output/input 正维积），按方案精确计：

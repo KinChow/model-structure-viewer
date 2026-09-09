@@ -479,6 +479,30 @@ const MODULE_LIST = [
       "pre 的逐 token mix 管线（rsqrt + ~48 FMA）未单列，量级 T×50，登记为已知近似",
     ],
   },
+  {
+    // mHC 的 post 段：把 block 输出按 per-token 的 post/comb mix 注回每条流。
+    // kernel 取证（mhc.py:280-338）：MHCPostOp **没有任何权重** —— 它消费的
+    // post_layer_mix / comb_res_mix 是同一 sublayer 的 pre 刚算出的逐 token
+    // 激活；msv 的 [mixRows, hcDim] GEMM 框架下这些逐 token 权重即
+    // weightsShared（算力照计、权重字节不重复计）。comb tile 的 Sinkhorn
+    // 计算发生在 pre（scale[2] 分支），不在 post。
+    id: "mhc_post",
+    title: "mHC Post",
+    source: { framework: "vLLM", symbol: "MHCPostOp", ref: "models/deepseek_v4/amd/model.py:755 + mhc.py:280-338" },
+    fused: (p) => sumCounts(
+      linearCounts({ logicalShape: [p.mixRows, p.hcDim], tokens: p.tokens, bytesPerElement: p.b, weightsShared: true }),
+      addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+    ),
+    decompose: (p) => [
+      // weightBytesPerElement: 0 = 复用 pre 已计过的逐 token mix（原子侧的
+      // weightsShared 落点），actIn 只计 lhs（块输出）
+      { atom: "matmul", args: { batch: 1, m: p.tokens, k: p.hcDim, n: p.mixRows, bytesPerElement: p.b, weightBytesPerElement: 0, rhs: "weight", outElements: p.tokens * p.mixRows } },
+      { atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
+    ],
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
+    notes: ["post 的逐元素 hc_mult+1 FMA 用 GEMM 框架一阶近似（登记的初版精度）"],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -752,7 +776,6 @@ export const MODULES = Object.fromEntries([...MODULE_LIST, ...ATTENTION_MODULES]
 
 /** 已登记但尚未声明分解的模块（W1 清单；报表逐条打印，W2-W4 消化）。 */
 export const DECOMPOSE_PENDING = {
-  mhc_post: "同上",
   mhc_fused_post_pre: "同上",
 };
 

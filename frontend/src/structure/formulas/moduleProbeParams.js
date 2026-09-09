@@ -74,6 +74,13 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
         iterations: c.mhcSinkhornIterations || 0,
         b,
       } : null;
+    case "mhc_post":
+      return c.multiHyperConnection ? {
+        tokens, hidden: c.hiddenSize || 0,
+        mixRows: (2 + (c.mhcNumResidualStreams || 0)) * (c.mhcNumResidualStreams || 0),
+        hcDim: (c.mhcNumResidualStreams || 0) * (c.hiddenSize || 0),
+        b,
+      } : null;
     case "mhc_contract":
       return c.multiHyperConnection ? { tokens, hidden: c.hiddenSize || 0, b } : null;
     case "ple":

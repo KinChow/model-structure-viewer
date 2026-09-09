@@ -148,3 +148,34 @@ total/experts × ceil(experts/ep)），声明体的 count 即 experts 语义。
 - activations 的 CP/SP 响应；
 - 计划搜索/推荐（五支柱越界，Vidur 指引不变）；
 - EP 负载不均衡的动态建模（保留 average/worst 区间即可）。
+
+## 附录：声明覆盖缺口台账（P2 护栏首跑，2026-09-10）
+
+判据 = `counts.bytes.weights > 0` 或 `weight_shapes` 非空或 `type === "embedding"`
+的叶必须有 `weightMatrices` 声明。护栏测试
+`modelIdentities.test.js` 「P2 护栏：带权重叶的 weightMatrices 声明覆盖」，
+棘轮基线登记在 `MAINTENANCE.md`（只许下降）。
+
+首跑：**带权叶 18399，已声明 5233（linear tp 组 4271 + fused_moe_mlp ep 组 962），
+缺声明 13166**。
+
+| operator_id / type | 缺声明叶 | 典型 path | 目标 class |
+|---|---|---|---|
+| linear | 5966 | `lm_head.linear`、`moe.router`、`self_attn.qkv_proj`、projector | vocab（lm_head）/ tp（其余） |
+| gemma_rmsnorm | 2402 | `norm.rmsnorm` | replicated |
+| rmsnorm | 2027 | `input_layernorm` | replicated |
+| mla_kv_compress | 475 | `self_attn.kv_a_proj` | tp |
+| gated_rmsnorm | 433 | `self_attn.output_gate_norm` | replicated（逐头宽度取最后一维） |
+| gated_delta_attention | 433 | `self_attn.state_update`（KDA 衰减/门参数） | tp |
+| causal_conv1d | 433 | `self_attn.short_conv`（卷积核） | tp |
+| mhc_fused_post_pre | 299 | `mhc_ffn_pre.fused_post_pre` | tp（fn 为 fp32，见 paramDtypes） |
+| mhc_pre | 299 | `mhc_attn_pre.pre` | tp |
+| mla_query_compress | 230 | `self_attn.q_a_proj` | tp |
+| hyper_connection | 110 | `hyper_connection_mixer.final`（down/up/inject） | tp |
+| embedding | 57 | `embed_tokens` | vocab |
+| ple | 2 | `decoder.1.ple.inject` | tp |
+
+覆盖推进顺序（P4 两个提交）：先规则化族（norm 三类 + embed/lm_head + router +
+shared_expert_gate），再长尾族（MLA / KDA / conv1d / mhc / hyper_connection /
+ple / vision / hash_route）。**锚 1 判据需同步升级为「声明元素 ×
+paramDtypeBytes」**——mHC 的 base/scale 与 fn 为 fp32，恒 2B 对不上。

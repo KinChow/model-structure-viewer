@@ -316,8 +316,71 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
   assert.deepEqual(offenders, [], "声明元素数×2B 与叶 counts.bytes.weights 不等：声明或公式有一侧错了，先查同源性（routedExpertWeightMatrices 与 extractor 的 EH/EH 取值链）");
 });
 
-// 注意力族算子：KV 恒等式的参与者。W2 拆 id 后同步更新（旧的
-// qsa_attention / qsa_indexer 已不存在，留着会让这三行统计成 0）。
+// ---------------------------------------------------------------------------
+// P2 覆盖率护栏（步骤 3 前置）：带权重的叶必须有 weightMatrices 声明。
+//
+// 判据：counts.bytes.weights > 0（该叶真的要读权重）⇒ 必须有声明。
+// 另加 embedding 叶：gather 不读全表，counts.bytes.weights 为 0，但它**持有**
+// vocab·hidden 的权重（容量口径必须算），所以按 type 显式纳入判据。
+// 纯激活叶（rope/split/softmax/residual_add/moe_dispatch/… weights=0）天然
+// 不在判据内 —— 声明体描述的是权重矩阵归属，无权重就无归属。
+//
+// 为什么要这条：锚 1 只保证「已声明的叶声明得对」，对**没声明的叶**完全沉默。
+// 删除 WEIGHT_PROJECTION_RULES 路径正则回退的前提是零裸奔叶，而裸奔叶的清单
+// 必须机械可得（对标 §3.5b /tmp 引用棘轮的手法：登记现状 + 只许下降）。
+//
+// 棘轮：MAINTENANCE.md「P2 声明覆盖」条目。**只许下降**，新增带权算子若不声明
+// 会顶破基线立即红。
+// ---------------------------------------------------------------------------
+const WEIGHT_DECLARATION_BASELINE = 13166;
+
+test("P2 护栏：带权重叶的 weightMatrices 声明覆盖（棘轮，只许下降）", () => {
+  const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
+  const missingByOp = new Map();
+  let weightedLeaves = 0;
+  let declaredLeaves = 0;
+
+  for (const entry of catalog.models) {
+    const raw = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
+    const { normalized, structure } = buildStructure(raw, entry.model_id);
+    walkLeaves(structure.root, (node) => {
+      const actions = countsForNode(node, {
+        config: normalized,
+        options: { batch: 1, sequence: 2048, phase: "prefill" },
+        path: node?.id || "",
+        bytesPerElement: B,
+      });
+      const weights = actions?.bytes?.weights ?? 0;
+      const hasWeightShapes = Object.keys(node?.weight_shapes || {}).length > 0;
+      const isEmbedding = node?.type === "embedding";
+      if (!(weights > 0) && !hasWeightShapes && !isEmbedding) return; // 纯激活叶：无权重归属可声明
+      weightedLeaves += 1;
+      const declaration = node?.attributes?.weightMatrices;
+      if (Array.isArray(declaration) && declaration.length > 0) {
+        declaredLeaves += 1;
+        return;
+      }
+      const op = node?.attributes?.operator_id || node?.type || "(unknown)";
+      const bucket = missingByOp.get(op) || { count: 0, sample: node?.id || "", model: entry.model_id };
+      bucket.count += 1;
+      missingByOp.set(op, bucket);
+    });
+  }
+
+  const missing = weightedLeaves - declaredLeaves;
+  const groups = [...missingByOp.entries()].sort((a, b) => b[1].count - a[1].count);
+  console.error(`\n=== P2 声明覆盖：带权叶 ${weightedLeaves}，已声明 ${declaredLeaves}，缺声明 ${missing}（基线 ${WEIGHT_DECLARATION_BASELINE}）===`);
+  for (const [op, info] of groups) {
+    console.error(`  ${op}: ${info.count} 叶  例：${info.model} :: ${info.sample}`);
+  }
+  assert.ok(weightedLeaves > 0, "没有任何带权重叶：遍历或 counts 链断了");
+  assert.ok(
+    missing <= WEIGHT_DECLARATION_BASELINE,
+    `缺声明带权叶 ${missing} 超过棘轮基线 ${WEIGHT_DECLARATION_BASELINE}：新增带权算子必须同时声明 weightMatrices（见 details/sharding_matrix.md 层 1）`,
+  );
+});
+
+// 注意力族算子：KV 恒等式的参与者。W2 拆 id 后同步更新（旧的// qsa_attention / qsa_indexer 已不存在，留着会让这三行统计成 0）。
 // 主注意力（读 KV cache 的那些叶）。W5：**indexer 不在内** —— 它读的是自己那份
 // 独立的 index-k cache（宽 index_head_dim、单头），与 kvBytesPerToken 无关，
 // 混在一起比会让稀疏模型看起来「超读」。indexer 侧单列在 INDEXER_OPS。

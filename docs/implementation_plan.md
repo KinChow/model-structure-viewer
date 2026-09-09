@@ -35,9 +35,11 @@ framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
 
 执行顺序：
 
-1. **协议定稿**：确定 physical topology、logical parallel plan、
+1. ~~**协议定稿**：确定 physical topology、logical parallel plan、
    weight shard plan、communication plan 的边界；调研依据见
-   [`details/parallel_strategies.md`](details/parallel_strategies.md)。
+   [`details/parallel_strategies.md`](details/parallel_strategies.md)。~~
+   ✅ 已完成（2026-09-10）：协议唯一住址
+   [`details/parallel_protocol.md`](details/parallel_protocol.md)。
 2. ~~**结构正确性收口**：未知架构统一 `unsupported`，删除
    `generic-decoder` 的未知架构兜底。~~ ✅ 已完成（2026-09-10）。
 3. **权重协议收口**：补齐所有带权重叶的 `weightMatrices`，明确

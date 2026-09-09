@@ -110,14 +110,17 @@ MAINTENANCE.md 棘轮已回写。
    `verification/compare_structure.py` 现仅自测，需扩展真实对账；
 3. C 档三项（KV keep-ratio / overlap 参数化 / per-stage 通信五路）越过
    「纯理论估算」边界，逐项确认行为口径。
-4. 明确 SGLang 式独立 MoE TP/EP/DP 轴与 vLLM 式展平专家域在 MSV 中的映射，
-   并统一 `validatePlan`、`sharding`、通信估算和 UI 的输入契约。
+4. ~~明确 SGLang 式独立 MoE TP/EP/DP 轴与 vLLM 式展平专家域在 MSV 中的映射，
+   并统一 `validatePlan`、`sharding`、通信估算和 UI 的输入契约。~~
+   ✅ 已定稿（2026-09-10）：九项裁决落
+   [`details/parallel_protocol.md`](details/parallel_protocol.md)。
 
 ### M12 之后的收口工作
 
 以下事项不属于 M12 的通信功能本身，但必须在下一轮协议收口中处理：
 
-1. 未知架构统一返回 `unsupported`，删除 `generic-decoder` 的未知架构兜底。
+1. ~~未知架构统一返回 `unsupported`，删除 `generic-decoder` 的未知架构兜底。~~
+   ✅ 已完成（2026-09-10，`60c9e4e`）。
 2. `weightMatrices` 覆盖全部带权重叶；删除分片、量化和容量计算 fallback。
 3. `sharedExpertsAreFused` 贯通 recipe、结构、operator、声明、分片和成本。
 4. 后端输出 Transformers module evidence，接通与前端 Graph 的节点、边和类别对账。

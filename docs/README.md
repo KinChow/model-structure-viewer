@@ -24,6 +24,7 @@
 - [模型来源解析](details/models/source_resolution.md)
 - [模型发布时间来源](details/models/release_metadata.md)
 - [成熟框架并行策略调研](details/parallel_strategies.md)：vLLM/SGLang 的 attention、MoE、TP/DP/EP/ETP 和 shared expert 现状
+- [并行与权重分片协议](details/parallel_protocol.md)：逻辑轴定义、约束等式、九项裁决和三类成本口径（协议唯一住址）
 
 ## 维护规则
 

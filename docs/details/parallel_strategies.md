@@ -6,6 +6,10 @@
 并行计划和权重归属协议的设计依据。本文不把运行时通信实现直接变成
 MSV Graph 节点；MSV 只保留能够解释结构、权重归属和理论成本的稳定语义。
 
+**协议结论已定稿**：本文是**证据层**，逻辑轴定义、约束等式、九项裁决和
+口径边界见 [`parallel_protocol.md`](parallel_protocol.md)（协议唯一住址）。
+本文与协议冲突时以协议为准；新增框架证据先落本文，再评估是否改协议。
+
 调研对象：
 
 - `/Users/zhouzijian01/Desktop/workspace/code/kinchow/vllm`

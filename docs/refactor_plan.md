@@ -59,7 +59,57 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M11** 诚实性收口（2026-09-08 四路审计后重定义，原名"冗余清扫 + 并行/通信层对齐"） | P0 正确性与地基 7 条 + P1 诚实性信号补齐 7 条 + P2 清洁与文档 8 条，详见下方 M11 专节。改名理由：四路审计（结构/成本/UI+后端/文档）证明主要欠账不是冗余代码，而是"算不出来就说算不出来"的承诺在最后一公里被吞 | M11 专节验收标准五条 |
 | **M11.5** 结构边界调整（M11 后单独一波，2026-09-08 裁决移出） | plan.js 迁 `config/`（cost/{derivedWeights,memory,parallel}.js、formulas/extractor.js、ops/index.js 三层 5 文件消费实锤，它只从 config 派生却住在 model_executor/）；formulas↔model_executor 目录环解耦（`ops/index.js:1` → formulas，`extractor.js:29-32` → model_executor，目录级双向） | 动 import 拓扑牵连基线哈希，必须整体可回退，不与 P0 混做 |
 | **M12** 并行策略功能扩展（后期） | C 档：KV keep-ratio 压缩档位、overlap 参数化、per-stage 通信五路 roofline——越过"纯理论估算"边界的行为变化，开工前单独对齐；**2026-09-08 移入三项**（原 M11 条目）：AllToAll 补 dp>1 条件（vLLM 口径，唯一有行为变化的条目）；interNode/PD 跨机通信时间（三张公开卡全无 `inter_node` 规格，需补芯片数据 + 接 roofline，`pdKvTransferBytes` 现只给字节量不进 roofline）；后端对账链路（`verification/compare_structure.py` 27 行仅自测调用，无任何真实前后端对账测试；后端 oracle 定位表述与对账方案届时一并单独对齐） | 单独对齐后定 |
-| **M10** 小项收尾 | 旁路 C（手工卡 field_sources 等 5 项）；昇腾条目（sfu_rate_source:"vector" 落地）；qwen35_full 改名撤销；§2.5 保持登记 | 旁路 C：field_sources 齐全 |
+| **算子本体两级化** | 2026-09-09 收官（见状态总览专行） | 四条恒等式容差 0 + 生成器 + 台账清零 | 差分测试验收 + 基线先行 |
+
+---
+
+## 2026-09-09 起的排期（算子本体六波收官后重排）
+
+现状基线：node 312/312 · pytest 158 · 护栏 exit 0 · verify:models 59 ·
+docs:check 一致 · e2e 9+1。四条恒等式容差 0；DECOMPOSE_PENDING 清零；
+MAINTENANCE.md 棘轮已回写。
+
+### N1 = M11.5 结构边界调整（下一波，唯一未开工的完整波次）
+
+- **范围**（2026-09-08 裁决定稿，不变）：
+  1. `model_executor/plan.js` 迁 `structure/config/plan.js`（消费方：
+     cost/{derivedWeights,memory,parallel}.js、formulas/extractor.js、
+     ops/index.js 等三层——「从 config 派生却住在 model_executor」）；
+  2. formulas↔model_executor **目录环解耦**：环现为
+     `ops/index.js:1 → formulas/index.js` 与
+     `formulas/extractor.js:33-34 → model_executor/{dims,layers/vision}.js`；
+  3. 共享 bytes 助手抽取（counts.js/matmul/sparse 的字节公式单处化）。
+- **验收**：import 拓扑图（madge 或等价）无环；基线哈希与恒等式逐位不变；
+  §8.1 家族名棘轮 ≤14（预期下降：配方表接管后）。
+- **风险与回退**：动 import 拓扑牵连基线哈希——基线先行（N0 = 现状全绿即基线）、
+  单独一波、不与其他项混做；每步重生成 + 人工审 diff。
+- **不做**：不改任何公式数值；不动 operator id。
+
+### N2 = 登记项小波（N1 后，可碎片化推进）
+
+1. **逐 op compute-dtype 声明**：actions 增加可选 computeDtype，roofline 按
+   op 选费率行（mhc_pre/mhc_fused_post_pre 声明 tf32——TF32 费率行已就位
+   07f6aab）；否则 mHC 类 TF32 GEMM 永远按 bf16 判 bound。
+2. **safetensors 头部 per-tensor dtype 接入证据库**：fetch-evidence.mjs 增读
+   头部（8B 长度 + JSON），dtype/shape 落 L3 index；在场时压过
+   paramDtypes 推断层（终态方案，hf-mem 同法）。
+3. **量化 scale 的动态表**：dynamic 表的路径模式全部走 canonicalModulePath
+   桥接（b4ff157 已立规则），新模型只加数据不加代码。
+
+### N3 = M10 扫尾（已销案，无剩余工作）
+
+旁路 C/D/E、昇腾条目、qwen35_full（值非分派，保留）、§2.5（等 IR 扩展，
+保持登记）——状态总览已回写，无遗留动作。
+
+### N4 = M12 并行策略扩展（**开工前需用户对齐**）
+
+前置条件（缺一不开工）：
+1. 芯片表 `inter_node` 数据补齐（三张公开卡均无该规格）；
+2. 后端 oracle 定位表述裁决（`verification/compare_structure.py` 现仅自测）；
+3. C 档三项（KV keep-ratio / overlap 参数化 / per-stage 通信五路）越过
+   「纯理论估算」边界，逐项确认行为口径。
+
+| **M10** 小项收尾 | ✅（2026-09-09 销案，见状态总览） | 旁路 C/D/E、昇腾条目均已落；qwen35_full 保留现名（值非分派）；§2.5 保持登记 |
 
 ---
 
@@ -83,8 +133,9 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M8** | ✅ V1 ✅ / V2 ✅（全模型恒等式断言覆盖，REGISTERED 登记结构缺口容差）/ V3 ✅（visualTokens 用户输入） | vision 词表与绑定、恒等式域拆分、qkv_hidden_size 修复、kimi_k3 KDA 去重计数、MLA g_proj、GLM hc/indexer 登记；详见 details/identity_calibration.md 案例 |
 | **M9** | ✅ | §10 三态快照 + MAINTENANCE.md（五重 oracle + 变更纪律） |
 | **M11** | ✅（2026-09-08 收官） | 诚实性收口：P0 七条 ✅、P1 七条 ✅、P2 八条（7 ✅ + 1 项探针推翻取消）+ 附加：算子层三缺陷修复（qsa kind 三分支/compressor ctx/GLM-Flash 证据改判 qsa→dsa）、bytes 全量补齐（§3.1c 棘轮 PENDING 清空）、§3.1b/§3.1d 护栏、内存侧基线、第六 oracle、GLM-Flash 恒等式 1.0964→1.0909、V4 0.9828→0.9933；单测 261、e2e 语义断言；详见 M11 专节落地核销 |
-| **M11.5** | ⬜（M11 后） | plan.js 迁 config/ + formulas↔model_executor 目录环解耦 + 共享 bytes 助手抽取（2026-09-08 裁决：M11 已重，单独一波） |
-| **M10** | ⬜ | 旁路 C（5 项）、昇腾条目（sfu→vector 插槽）、qwen35_full 改名撤销、§2.5 持有 |
+| **算子本体重构六波** | ✅（2026-09-09 收官，05fccf6 + 后续 13 个提交） | 两级本体（19 原子 atoms.js + 模块 modules.js，命名对标 vLLM nn.Module）；四条恒等式**全部容差 0**（融合分解 382 组 0 不闭合、权重字节 32/32 逐字节、KV 读分桶夹逼、激活流形状连续性 33434 边）；稀疏部件按算法出处拆 id、分类判据走 config 字段；MTP/residual_add/逐头 norm 权重宽/linear bias/量化 per-matrix 容量（quantBytes.js）/tid2eid buffer 分类/TF32 芯片行；DECOMPOSE_PENDING 清零（Sinkhorn 经 kernel 取证为运行时计算）；operators_reference 机器段生成器 + docs:check；逐层归因工具 diff-weight-identity.mjs。计划文件：~/.comate/plans/算子本体重构与分相位对账_1551cca5.plan.md |
+| **M11.5** | ⬜（M11 后） | plan.js 迁 config/ + formulas↔model_executor 目录环解耦 + 共享 bytes 助手抽取（2026-09-08 裁决：M11 已重，单独一波）。**2026-09-09 复核：前置已成熟**——六波收官后 golden 基线最厚（spec 树/边哈希 + 四条容差 0 恒等式），可回退性最好；环实证仍在（ops/index.js:1 → formulas，formulas/extractor.js:33-34 → model_executor） |
+| **M10** | ✅（2026-09-09 复核销案） | 旁路 C ✅（5128c24，field_sources + 单位异常警告 + 昇腾 910B4）/ 旁路 D ✅（17f1d65）/ 旁路 E ✅（69e2d18）；昇腾 sfu_rate_source:"vector" ✅（public.js:134）；qwen35_full 改名撤销——销案：W5 已定性为 attention kind 的**值**而非分派（护栏 §8.1 注释在案），保留现名；§2.5 残差边——保持登记（等 IR 扩展，设计决定不变） |
 | **M12** | ⬜（后期） | 并行策略功能扩展（C 档：KV keep-ratio、overlap、per-stage 通信）——开工前单独对齐 |
 
 ### W5 范围校准（2026-09-08 对齐用）

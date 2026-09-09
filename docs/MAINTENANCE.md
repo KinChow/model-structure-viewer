@@ -7,11 +7,11 @@
 
 | # | 命令（cwd） | 守护什么 | 基线 |
 |---|---|---|---|
-| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b 运行时接线（M11-P0-7：手搓 case / ctxBuilder / 显式豁免三选一） | §8.1 ≤14/16 |
-| 2 | `cd frontend && npm test` | 256 例单测：恒等式 2% 容差、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路（rooflineChain）、内存侧基线（cost-memory-actions）、真值接缝（truthDiagnosticsSeam） | 全绿 |
+| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b 运行时接线、§3.1d 来源标注、§3.5b /tmp 引用棘轮 | §8.1 ≤14/16 |
+| 2 | `cd frontend && npm test` | 312 例单测：四条恒等式**容差 0**（融合分解 382 组逐位+夹逼 / 权重字节逐字节 / KV 读分桶夹逼 / 激活流形状连续性）、19+ 原子手算 exact、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路、内存侧基线、量化 per-matrix 手算、TF32 费率行 | 全绿 |
 | 3 | `cd frontend && npm run verify:models` | 59 内置模型结构可构建 | `"failed": 0` |
-| 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照 | 148 passed |
-| 5 | `cd frontend && npm run test:e2e` | 浏览器端：图渲染、边 evidence 契约、成本交互 | 9 passed |
+| 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照 | 158 passed |
+| 5 | `cd frontend && npm run test:e2e` | 浏览器端：图渲染、边 evidence 契约、成本交互（全量内置模型回归仅桌面跑） | 9 passed + 1 skipped |
 
 哈希基线文件（有意变更时重生成并人工审阅 diff，流程见各测试头注释）：
 - `ops-spec-tree.golden.json` + `ops-edge.golden.json`（spec 树 + 边集，含 evidence）
@@ -22,8 +22,11 @@
 
 | 指标 | 当前 | 说明 |
 |---|---|---|
-| §8.1 家族名文件 | 14 / 16 | 配方表接管 plan.js 后应 <14 |
-| 恒等式容差 | 2% | 超差须先归因再放宽或修 bug |
+| §8.1 家族名文件 | 14 / 16 | 配方表接管 plan.js 后应 <14（M11.5） |
+| 四条恒等式容差 | **0** | 权重字节/KV/形状连续性/融合分解全部 error 模式；超差先跑 `scripts/diff-weight-identity.mjs` 归因，禁止放宽 |
+| `/tmp` 取证引用（operators_reference） | 15（§3.5b 棘轮） | 只许下降；新证据落 models/<org>/<id>/ 证据库 |
+| DECOMPOSE_PENDING | **0** | 新模块进 formulas/modules.js 必须同时声明 decompose |
+| 语义边登记（形状连续性） | 只许缩短 | 未登记的不连续边即失败 |
 | `graph_ambiguous_truth_matches` | 0 | 任何模型非 0 即绑定回归 |
 | 未知算子（unknown 叶子） | 0 | 新模型接入时允许临时 >0，须登记 |
 
@@ -64,9 +67,11 @@
 
 ## 已知登记残差（不阻塞，详见 principles.md §10 与 details/cost_counts.md）
 
-- GLM-5/5.1/5.2/5.3 +0.3%~+0.5% 正向残差未归因（Qwen3.8 已反转至 0.9997，
-  2026-09-08 实测）
-- embedding gather / 残差加法流量不可见（结构级缺口；embedding gather 流量
-  已于 M11 计入 counts.bytes，参数量口径仍为结构级缺口）
-- 恒等式容差：全局 2%，REGISTERED 9 项结构缺口例外（0.6%~10%，见
-  extractor.identity.test.js 与 identity_calibration.md 案例）
+- ~~GLM-5/5.1/5.2/5.3 +0.3%~+0.5% 正向残差未归因~~（已销：根因 = derivedWeights
+  的 DSA 分支 model_type 白名单漏 glm5_next + ops 模板 KDA 宽度错，
+  2026-09-09 修正后全类 1.0000）
+- embedding gather 流量已于 M11 计入 counts.bytes；残差加法流量已由
+  residual_add 叶覆盖（2026-09-09）
+- ~~恒等式容差：全局 2%，REGISTERED 9 项~~（已收至**容差 0、REGISTERED 空**：
+  matrix 0.005（浮点求和误差）/ 权重字节与 KV 与形状连续性精确；
+  identity_calibration.md 的案例即归因记录）

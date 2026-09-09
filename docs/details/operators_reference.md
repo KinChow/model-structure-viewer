@@ -1598,23 +1598,57 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       generic）、mHC 的 fn/base/scale（大矩阵 hc_*_fn 经 linearCounts 的
       `weightBytesPerElement`），其余参数跟随 torch_dtype。checkpoint 证据在场时
       以 truth/skeleton 的逐 tensor weight_dtypes 为准（即 safetensors 头部机制）。
-- [~] **量化容量缺口：swiglu 携带的专家 GEMM 未进量化枚举**（2026-09-09
-      N2-3 显形；**探针实测爆炸半径远超初判**：不止 M2.7/M3——全部 25 个
-      量化 MoE 模型的路由专家权重都挂在 swiglu 叶，V4-Pro 1.55e12 /
+- [x] **量化容量缺口：swiglu 携带的专家 GEMM 未进量化枚举**（2026-09-09
+      N2-3 显形；**探针实测爆炸半径远超初判**：不止 M2.7/M3——全部量化
+      MoE 模型的路由专家权重都挂在 swiglu 叶，V4-Pro 1.55e12 /
       Qwen3.8-2.4T 2.37e12 / Kimi-K2 系 1.02e12 参数未进枚举，均按 bf16
       计 → 量化 MoE 模型容量普遍 ≈2× 偏高，专家块是主导项）。
-      **W-A 已落地（2026-09-09，`05fccf6` 之后）**：专家融合叶拆独立 id
-      `fused_moe_mlp`（counts 逐位迁移，registry 49 条）+ weightMatrices
-      声明层 1（专家叶 ep 组 + attention/dense linear 叶 tp 组，统一助手
-      weightMatrixDecl）；锚 1（声明元素数 ×2B == 叶 counts.bytes.weights）
-      全目录 5233 个声明叶容差 0 全绿；golden 经 HEAD worktree 对审，
-      diff 仅 weightMatrices / operator_id / formula / source_fields 四类。
-      **W-B 已落地（同日）**：计划轴 moe_tp/moe_ep（validatePlan 校验，
-      EP=TP×DP 组合硬校验）+ sharding.js 组合语义纯函数（EP 启用完整专家、
-      无 EP 时 DP 切专家、混合 ETP）+ 三消费者接线（量化枚举/逐卡投影/
-      容量分桶，声明优先、规则表回退）；锚 2 M2.7 三方一致绿，量化 MoE
-      容量回落（M2.7 4.77e11→2.52e11 等 21 模型，基线重生成审阅）。
-      W-C（覆盖推进 + 销案）待做。
+      **2026-09-09 三波收官销案（完整方案与执行记录见
+      [details/sharding_matrix.md](sharding_matrix.md)**——三层设计 +
+      三消费者接线 + 四验收锚）：
+      ① **W-A 拆 operator id**：专家融合叶独立 id `fused_moe_mlp`（对标
+        vLLM `FusedMoE`，counts 逐位迁移，registry 49 条）+ weightMatrices
+        声明层 1（统一助手 weightMatrixDecl；专家叶 ep 组 + attention/dense
+        linear 叶 tp 组）；锚 1 全目录 5233 声明叶容差 0（棘轮表）；
+      ② **W-B 三消费者接线**：量化枚举/逐卡投影/容量分桶读同一声明
+        （声明优先、规则表回退）；计划轴 moe_tp/moe_ep + sharding.js
+        组合语义纯函数（EP=TP×DP、无 EP 时 DP 切专家、混合 ETP）；
+        锚 2 M2.7 三方一致（棘轮表）；锚 3 无声明叶逐位不变；
+      ③ **W-C 覆盖核实 + 第四量化方案**：量化 MoE 家族声明逐模型核实
+        （13 家族 / 30 模型，下表）；compressed-tensors 入枚举（w4a16 +
+        mxfp4，Kimi K2 系/K3 派生路径此前按 0.5B 标量宽整模型计——
+        attention/shared/embed 等排除矩阵被一起压到 0.5B，实测低估；
+        另发现 VLM 家族的 quantization_config 嵌在 raw.text_config 下，
+        quantizationConfigOf 整族漏检）；修正后 K2-Thinking 2.053e12 →
+        5.940e11（bf16 封顶 → w4a16）、K2.5/K2.6/K2.7-Code 5.134e11 →
+        5.948e11、K3 1.390e12 → 1.555e12；M2.7 4.767e11 → 2.521e11、
+        V4-Pro 3.237e12 → 1.689e12、Qwen3.8-2.4T 4.851e12 → 2.480e12。
+
+      **量化 MoE 家族声明核实表（2026-09-09，全部单 ep 组 matrices=3）**：
+
+      | 家族 | 模型数 | EH（in） | EI（out） | E | 量化方案 |
+      |---|---|---|---|---|---|
+      | minimax_m2 | 1 | 3072 | 1536 | 256 | fp8 |
+      | minimax_m3_vl | 1 | 6144 | 3072 | 128 | mxfp8 |
+      | qwen3_5_moe | 7 | 2048 | 512 | 256 | fp8 / gptq |
+      | qwen3_5_moe_text | 1 | 8192 | 2048 | 512 | fp8 |
+      | qwen4_exp | 1 | 2560 | 640 | 512 | fp8 |
+      | deepseek_v3 | 2 | 7168 | 2048 | 256 | fp8 |
+      | deepseek_v32 | 1 | 7168 | 2048 | 256 | fp8 |
+      | deepseek_v4 | 5 | 7168 | 3072 | 384 | fp8（hash 层同声明） |
+      | kimi_k2 | 4 | 7168 | 2048 | 384 | fp8 / compressed-tensors |
+      | kimi_k25 | 3 | 7168 | 2048 | 384 | compressed-tensors w4a16 |
+      | kimi_k3 | 1 | 3584（潜空间 latent） | 3072 | 896 | compressed-tensors mxfp4 |
+      | glm_moe_dsa | 2 | 6144 | 2048 | 256 | fp8 |
+      | glm5_next | 1 | 4096 | 2048 | 288 | fp8 |
+
+      登记事项：① shared expert 全部为独立 mlp 叶（tp 组声明）——设计里的
+      「shared 融合形态同叶声明两组」是 schema 能力，当前无树触发；
+      ② K2.5/K2.6/K2.7/K3 的 quantization_config 嵌在 raw.text_config 下
+      （VLM 家族），quantizationConfigOf 曾整族漏检 → 落到 normalize 派生的
+      0.5B 标量宽（整模型统一 0.5B，排除矩阵应 bf16 而被压低）——W-C 修复
+      后走逐矩阵精确枚举；K2-Thinking 无标量派生路径，此前 bf16 封顶，
+      是 w4a16 的直接受益者。
       机制：MoE 模板的专家 GEMM（gate/up/down 三矩阵 [moeI, EH]）融合在
       swiglu 叶的 counts 里（3·E·EH·EI），`QUANTIZABLE_OPS` 枚举只认 linear
       族叶 → 该块留在 bf16 桶。

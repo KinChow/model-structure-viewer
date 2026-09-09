@@ -1269,7 +1269,7 @@
    "actOut": 14886699008
   },
   "memory": {
-   "weightBytes": 2052816418820,
+   "weightBytes": 593967855616,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -1277,12 +1277,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 2086650984450,
+   "bytesMoved": 627802421248,
    "times": {
     "matrix": 0.150067136685,
     "vector": 0.00057726500759,
     "sfu": 0.000446588035282,
-    "memory": 1.13707753498,
+    "memory": 0.342108016592,
     "comm": 0
    }
   }
@@ -1297,7 +1297,7 @@
    "actOut": 16819781632
   },
   "memory": {
-   "weightBytes": 513437148672,
+   "weightBytes": 594822027264,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -1305,12 +1305,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 551381272064,
+   "bytesMoved": 632766150656,
    "times": {
     "matrix": 0.15473602575,
     "vector": 0.00063881764759,
     "sfu": 0.000590365407179,
-    "memory": 0.300463883202,
+    "memory": 0.344812898837,
     "comm": 0
    }
   }
@@ -1325,7 +1325,7 @@
    "actOut": 16819781632
   },
   "memory": {
-   "weightBytes": 513437148672,
+   "weightBytes": 594822027264,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -1333,12 +1333,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 551381272064,
+   "bytesMoved": 632766150656,
    "times": {
     "matrix": 0.15473602575,
     "vector": 0.00063881764759,
     "sfu": 0.000590365407179,
-    "memory": 0.300463883202,
+    "memory": 0.344812898837,
     "comm": 0
    }
   }
@@ -1353,7 +1353,7 @@
    "actOut": 16819781632
   },
   "memory": {
-   "weightBytes": 513437148672,
+   "weightBytes": 594822027264,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -1361,12 +1361,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 551381272064,
+   "bytesMoved": 632766150656,
    "times": {
     "matrix": 0.15473602575,
     "vector": 0.00063881764759,
     "sfu": 0.000590365407179,
-    "memory": 0.300463883202,
+    "memory": 0.344812898837,
     "comm": 0
    }
   }
@@ -1381,7 +1381,7 @@
    "actOut": 37098064896
   },
   "memory": {
-   "weightBytes": 1390495254720,
+   "weightBytes": 1555064840740,
    "activationBytes": 1610612736,
    "kvBytes": 14155776,
    "stateBytes": 232316928
@@ -1389,12 +1389,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1472445666500,
+   "bytesMoved": 1637015252510,
    "times": {
     "matrix": 0.500411953287,
     "vector": 0.00132232142113,
     "sfu": 0.00169808013785,
-    "memory": 0.802378980162,
+    "memory": 0.892057791135,
     "comm": 0
    }
   }

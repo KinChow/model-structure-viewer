@@ -8,7 +8,7 @@
 | # | 命令（cwd） | 守护什么 | 基线 |
 |---|---|---|---|
 | 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b 运行时接线、§3.1d 来源标注、§3.5b /tmp 引用棘轮 | §8.1 ≤14/16 |
-| 2 | `cd frontend && npm test` | 332 例单测：四条恒等式**容差 0**（融合分解 382 组逐位+夹逼 / 权重字节逐字节 / KV 读分桶夹逼 / 激活流形状连续性）、N2-4 锚 1（weightMatrices 声明单源，全目录逐叶）+ 锚 2（EP 组合语义三方一致）、19+ 原子手算 exact、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路、内存侧基线、量化 per-matrix 手算、TF32 费率行 | 全绿 |
+| 2 | `cd frontend && npm test` | 335 例单测：四条恒等式**容差 0**（融合分解 382 组逐位+夹逼 / 权重字节逐字节 / KV 读分桶夹逼 / 激活流形状连续性）、N2-4 锚 1（weightMatrices 声明单源，全目录逐叶）+ 锚 2（EP 组合语义三方一致）、四种量化方案 per-matrix 手算（fp8/mxfp8/gptq/compressed-tensors）、19+ 原子手算 exact、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路、内存侧基线、TF32 费率行 | 全绿 |
 | 3 | `cd frontend && npm run verify:models` | 59 内置模型结构可构建 | `"failed": 0` |
 | 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照 | 158 passed |
 | 5 | `cd frontend && npm run test:e2e` | 浏览器端：图渲染、边 evidence 契约、成本交互（全量内置模型回归仅桌面跑） | 9 passed + 1 skipped |
@@ -29,6 +29,8 @@
 | 语义边登记（形状连续性） | 只许缩短 | 未登记的不连续边即失败 |
 | `graph_ambiguous_truth_matches` | 0 | 任何模型非 0 即绑定回归 |
 | 未知算子（unknown 叶子） | 0 | 新模型接入时允许临时 >0，须登记 |
+| N2-4 声明单源（锚 1） | 5233 声明叶，违例 **0** | weightMatrices 声明元素数×2B == 叶 counts.bytes.weights，全目录逐叶容差 0；新声明/公式改动立即红 |
+| N2-4 EP 组合自洽（锚 2） | M2.7 三方一致 | 专家块÷moe_ep + 其余÷tp 与聚合投影、expertWeightRange 闭式互证（DP 切专家 / EP+DP attention / 混合 ETP） |
 
 ## 变更纪律
 

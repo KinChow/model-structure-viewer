@@ -5,16 +5,20 @@
 // 量化容量其实是**逐矩阵**可精确计算的 —— 每个线性层的 [out, in] 在结构树上
 // 就有（derivedLinearShape），块的 scale 形状 = ceil(out/b0)·ceil(in/b1)。
 //
-// 覆盖三种量化方案（2026-09-09 全量落地）：
+// 覆盖四种量化方案（2026-09-09 全量落地）：
 // - fp8（weight_block_size [b0,b1]）：权重 1B/元素 + scale（scale_fmt "ue8m0"
 //   为 1B/块，否则 fp32 4B/块）
 // - mxfp8（weight_block_size [1,32]）：权重 1B/元素 + e8m0 scale 1B/块
 //   （MXFP8 的 scale 是 32 元素一组的 e8m0）
 // - gptq（bits 4, group_size gs）：int4 打包 bits/8 B/元素 + scales fp16
 //   2B/(out·in/gs) + qzeros int4 (bits/8)B/(out·in/gs)
+// - compressed-tensors（Kimi K2 系/K3）：w4a16 int4（0.5B/元素 + fp16 scale
+//   每组，symmetric）与 mxfp4（0.5B/元素 + e8m0 1B/32 组）；"ignore" 数组 =
+//   modules_to_not_convert 同义，条目支持 "re:" 前缀正则
 //
-// 哪些矩阵被量化由 config 的 dynamic/modules_to_not_convert 声明（"-:" 前缀 =
-// 排除路径正则，如 GPTQ 的 "-:.*attn.*"），isQuantizedPath 判定。
+// 哪些矩阵被量化由 config 的 dynamic / modules_to_not_convert（或
+// compressed-tensors 的 ignore）声明（"-:" / "re:" 前缀 = 排除路径正则，
+// 如 GPTQ 的 "-:.*attn.*"），isQuantizedPath 判定。
 
 import { canonicalModulePath } from "../structure/truth/graphTruth.js";
 
@@ -27,11 +31,15 @@ function ceilDiv(a, b) {
   return Math.ceil(a / Math.max(b, 1));
 }
 
-/** 解析 config 上的 quantization_config（顶层或 text_config 嵌套）。 */
+/** 解析 config 上的 quantization_config（顶层或 text_config 嵌套）。
+ *  第四个查找位（raw.text_config）是 W-C 核实补的：VLM 家族（Kimi K2.5 系）
+ *  把 quantization_config 嵌在 text_config 里，而消费方传的是 normalized——
+ *  text_config 挂在其 raw 下，此前第三位只查顶层 text_config 会整族漏检。 */
 export function quantizationConfigOf(config) {
   return config?.quantization_config
     ?? config?.raw?.quantization_config
     ?? config?.text_config?.quantization_config
+    ?? config?.raw?.text_config?.quantization_config
     ?? null;
 }
 
@@ -50,6 +58,26 @@ export function quantLinearWeightBytes({ out, inn, quant }) {
     const groupSize = quant.group_size || 128;
     const groups = ceilDiv(inn, groupSize);
     return out * inn * (bits / 8) + out * groups * (FP16 + (bits / 8));
+  }
+  if (method === "compressed-tensors") {
+    // vLLM compressed-tensors（Kimi K2-Thinking/K2.5/K2.6/K2.7-Code/K3 实证）：
+    // 单 config_groups 组、targets ["Linear"]。按 weights.type 分两案：
+    // - int + group 策略（w4a16 pack-quantized，symmetric）：0.5B/元素 + fp16
+    //   scale 每组（对称无零点；非对称零点未取证 → null 诚实缺项）；
+    // - float 4-bit（mxfp4，K3）：0.5B/元素 + e8m0 scale 1B/32 组
+    //   （与 mxfp8 的 scale 机制同构，块形状 [1, group_size]）。
+    const weights = Object.values(quant.config_groups || {})[0]?.weights;
+    if (!weights) return null;
+    const groupSize = weights.group_size || 128;
+    if (weights.type === "int" && weights.strategy === "group") {
+      if (!weights.symmetric) return null;
+      const bits = weights.num_bits || 4;
+      return out * inn * (bits / 8) + out * ceilDiv(inn, groupSize) * FP16;
+    }
+    if (weights.type === "float" && weights.num_bits === 4) {
+      return out * inn * 0.5 + out * ceilDiv(inn, groupSize) * 1;
+    }
+    return null;
   }
   return null;
 }
@@ -88,14 +116,16 @@ function pathCandidates(path) {
 
 export function isQuantizedPath(path, quant) {
   if (!quant) return false;
-  // modules_to_not_convert（HF/vLLM 数组约定，GPTQ/FP8 常用）：命中即**不量化**，
-  // 优先于 dynamic 表（顺序语义：显式排除压过一切包含）。
-  const excluded = quant.modules_to_not_convert;
+  // modules_to_not_convert（HF/vLLM 数组约定，GPTQ/FP8 常用）；compressed-tensors
+  // 用同义的 "ignore" 数组（vLLM 把 ignore 映射到同一机制），条目支持 "re:" 前缀
+  // 正则（compressed-tensors 约定）。命中即**不量化**，优先于 dynamic 表。
+  const excluded = quant.modules_to_not_convert ?? quant.ignore;
   if (Array.isArray(excluded) && excluded.length > 0) {
     for (const entry of excluded) {
+      const source = entry.startsWith("re:") ? entry.slice(3) : entry;
       let re;
       try {
-        re = new RegExp(LITERAL_PATH.test(entry) ? canonicalModulePath(entry) : entry);
+        re = new RegExp(LITERAL_PATH.test(source) ? canonicalModulePath(source) : source);
       } catch {
         continue;
       }

@@ -22,6 +22,32 @@ test("gptq int4：0.5B/元素 + 每组 fp16 scale + int4 qzeros", () => {
   assert.equal(b, 4096 * 4096 * 0.5 + 4096 * 32 * (2 + 0.5));
 });
 
+test("compressed-tensors w4a16：0.5B/元素 + 每组 fp16 scale（symmetric 无零点）", () => {
+  // 照抄 Kimi-K2-Thinking：int4 / group 32 / symmetric / pack-quantized
+  const quant = { quant_method: "compressed-tensors", format: "pack-quantized", config_groups: { group_0: { targets: ["Linear"], weights: { num_bits: 4, type: "int", strategy: "group", group_size: 32, symmetric: true } } } };
+  const b = quantLinearWeightBytes({ out: 2048, inn: 7168, quant });
+  assert.equal(b, 2048 * 7168 * 0.5 + 2048 * Math.ceil(7168 / 32) * 2);
+  // 非对称零点未取证 → null 诚实缺项
+  const asym = { ...quant, config_groups: { group_0: { weights: { num_bits: 4, type: "int", strategy: "group", group_size: 32, symmetric: false } } } };
+  assert.equal(quantLinearWeightBytes({ out: 8, inn: 8, quant: asym }), null);
+});
+
+test("compressed-tensors mxfp4（K3）：0.5B/元素 + e8m0 scale 1B/32 组", () => {
+  const quant = { quant_method: "compressed-tensors", format: "mxfp4-pack-quantized", config_groups: { group_0: { targets: ["Linear"], weights: { num_bits: 4, type: "float", strategy: "group", group_size: 32, symmetric: true } } } };
+  const b = quantLinearWeightBytes({ out: 3072, inn: 3584, quant });
+  assert.equal(b, 3072 * 3584 * 0.5 + 3072 * Math.ceil(3584 / 32) * 1);
+});
+
+test("compressed-tensors 的 ignore 数组 = modules_to_not_convert 同义（'re:' 前缀正则）", () => {
+  // 照抄 Kimi-K2-Thinking 的 ignore 表：路由专家量化，attention/shared/dense-MLP/lm_head 排除
+  const quant = { quant_method: "compressed-tensors", ignore: ["lm_head", "re:.*self_attn.*", "re:.*shared_experts.*", "re:.*mlp\\.(gate|up|gate_up|down)_proj.*"] };
+  assert.equal(isQuantizedPath("decoder.3.moe.expert_mlp", quant), true);
+  assert.equal(isQuantizedPath("decoder.3.self_attn.q_proj", quant), false);
+  assert.equal(isQuantizedPath("decoder.3.moe.shared_experts.down_proj", quant), false);
+  assert.equal(isQuantizedPath("decoder.3.mlp.gate_proj", quant), false);
+  assert.equal(isQuantizedPath("lm_head", quant), false);
+});
+
 test("未知方案 / 非正形状：返回 null（调用方退回标量）", () => {
   assert.equal(quantLinearWeightBytes({ out: 4, inn: 4, quant: { quant_method: "awq" } }), null);
   assert.equal(quantLinearWeightBytes({ out: 0, inn: 4, quant: { quant_method: "fp8", weight_block_size: [128, 128] } }), null);
@@ -63,10 +89,12 @@ test("modules_to_not_convert 数组：命中即不量化，优先于 dynamic", (
   assert.equal(isQuantizedPath("lm_head", { quant_method: "fp8", modules_to_not_convert: [] }), true);
 });
 
-test("quantizationConfigOf：顶层 / raw 嵌套 / text_config 嵌套", () => {
+test("quantizationConfigOf：顶层 / raw 嵌套 / text_config 嵌套（normalized 的 raw.text_config 同样命中）", () => {
   const q = { quant_method: "fp8" };
   assert.equal(quantizationConfigOf({ quantization_config: q }), q);
   assert.equal(quantizationConfigOf({ raw: { quantization_config: q } }), q);
   assert.equal(quantizationConfigOf({ text_config: { quantization_config: q } }), q);
+  // W-C 核实补位：Kimi K2.5 系（VLM）把 quantization_config 嵌在 raw.text_config
+  assert.equal(quantizationConfigOf({ raw: { text_config: { quantization_config: q } } }), q);
   assert.equal(quantizationConfigOf({}), null);
 });

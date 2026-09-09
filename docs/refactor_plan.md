@@ -59,6 +59,7 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 | **M11** 诚实性收口（2026-09-08 四路审计后重定义，原名"冗余清扫 + 并行/通信层对齐"） | P0 正确性与地基 7 条 + P1 诚实性信号补齐 7 条 + P2 清洁与文档 8 条，详见下方 M11 专节。改名理由：四路审计（结构/成本/UI+后端/文档）证明主要欠账不是冗余代码，而是"算不出来就说算不出来"的承诺在最后一公里被吞 | M11 专节验收标准五条 |
 | **M11.5** 结构边界调整（M11 后单独一波，2026-09-08 裁决移出） | plan.js 迁 `config/`（cost/{derivedWeights,memory,parallel}.js、formulas/extractor.js、ops/index.js 三层 5 文件消费实锤，它只从 config 派生却住在 model_executor/）；formulas↔model_executor 目录环解耦（`ops/index.js:1` → formulas，`extractor.js:29-32` → model_executor，目录级双向） | 动 import 拓扑牵连基线哈希，必须整体可回退，不与 P0 混做 |
 | **M12** 并行策略功能扩展（后期） | C 档：KV keep-ratio 压缩档位、overlap 参数化、per-stage 通信五路 roofline——越过"纯理论估算"边界的行为变化，开工前单独对齐；**2026-09-08 移入三项**（原 M11 条目）：AllToAll 补 dp>1 条件（vLLM 口径，唯一有行为变化的条目）；interNode/PD 跨机通信时间（三张公开卡全无 `inter_node` 规格，需补芯片数据 + 接 roofline，`pdKvTransferBytes` 现只给字节量不进 roofline）；后端对账链路（`verification/compare_structure.py` 27 行仅自测调用，无任何真实前后端对账测试；后端 oracle 定位表述与对账方案届时一并单独对齐） | 单独对齐后定 |
+| **N2-4 权重归属声明与分片响应矩阵** | 方案定稿（2026-09-09，[details/sharding_matrix.md](details/sharding_matrix.md)），待执行 | 量化 MoE 容量 2× 偏高（25 模型实证）+ EP/TP 投影派生路径塌缩 + 排除桶错误——三层设计（叶声明/计划轴/内存类响应）三消费者接线 | 四验收锚（单源/EP 自洽/回退不变/golden 纪律） |
 | **算子本体两级化** | 2026-09-09 收官（见状态总览专行） | 四条恒等式容差 0 + 生成器 + 台账清零 | 差分测试验收 + 基线先行 |
 
 ---

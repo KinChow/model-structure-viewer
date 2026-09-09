@@ -1606,7 +1606,9 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       机制：MoE 模板的专家 GEMM（gate/up/down 三矩阵 [moeI, EH]）融合在
       swiglu 叶的 counts 里（3·E·EH·EI），`QUANTIZABLE_OPS` 枚举只认 linear
       族叶 → 该块留在 bf16 桶。
-      落法（2026-09-09 定稿，待执行）：
+      落法（2026-09-09 定稿，待执行；**完整方案见
+      [details/sharding_matrix.md](sharding_matrix.md)**——三层设计 +
+      三消费者接线 + 四验收锚 + 三波执行，下文为摘要）：
       ① **拆 operator id 而不是拆叶子**：MoE 专家融合叶现在与纯激活共用
         `swiglu` 这个 id——这正是 QSA/DSA/MSA 同类问题的翻版（一个 id 两种
         算法出处）。给融合专家 MLP 独立 id（对标 vLLM `FusedMoE` 模块），

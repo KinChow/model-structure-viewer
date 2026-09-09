@@ -64,6 +64,8 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
     case "vision_activation":
       // 视觉部件只在有视觉塔的结构类存在
       return c.hasVision ? { tokens: c.visionTokens || 1, hidden: c.visionHiddenSize || 0, intermediate: c.visionIntermediateSize || 0, b } : null;
+    case "attention_residual":
+      return c.attnResBlockSize ? { tokens, hidden: c.hiddenSize || 0, b } : null;
     case "vision_merge":
       // 内融合器只在 plan.visionInternalMerger 的结构类存在（S13 走外置
       // projector，树上没有 vision_merge 叶，模块恒等式不该覆盖它）。

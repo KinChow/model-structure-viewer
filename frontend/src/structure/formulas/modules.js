@@ -306,6 +306,26 @@ const MODULE_LIST = [
     compulsoryBytes: (p) => 2 * p.tokens * p.intermediate * p.b,
     notes: ["gelu 与 silu 的一阶口径差（erf vs sigmoid）登记为已知近似"],
   },
+  {
+    // K3 AttnResBlock 的**聚合叶**（两个 norm + 两个打分投影是独立叶，
+    // 见 ops 模板与 2026-09-09 的双计修正）：对 prev_valid_blocks 个残差
+    // 打分归一化后加权求和。softmax 原子与 softmaxCounts 逐位同构、
+    // add 原子与 addCounts 逐位同构，分解逐位闭合。
+    id: "attention_residual",
+    title: "Attention Residual Aggregate",
+    source: { framework: "vLLM", symbol: "KimiK3 attn_res aggregate", ref: "models/kimi_k3/amd/linear.py:562-580" },
+    fused: (p) => sumCounts(
+      softmaxCounts({ elements: p.tokens * p.hidden, bytesPerElement: p.b }),
+      addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+    ),
+    decompose: (p) => [
+      { atom: "softmax", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
+      { atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
+    ],
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
+    notes: ["norm/proj 两对是独立叶（self_attention_res_* / mlp_res_*），不在本模块内"],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -585,6 +605,5 @@ export const DECOMPOSE_PENDING = {
   mhc_contract: "同上",
   hyper_connection: "W4 随多流残差一并落",
   ple: "ngram 查表 + short conv 组合，W4",
-  attention_residual: "K3 AttnResBlock，W3 期望侧建模时一并落",
 };
 

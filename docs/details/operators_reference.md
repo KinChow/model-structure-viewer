@@ -1622,6 +1622,20 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       HF/llm-analysis 类显存工具走 per-tensor checkpoint 元数据（msv 的
       checkpoint 路径 parameters_by_dtype 已是该方案且正确），缺口仅在
       无 checkpoint 的派生路径。
+
+      **并行策略维度（2026-09-09 用户补刀，原设计遗漏）**：EP 投影
+      （cost/parallel.js `WEIGHT_PROJECTION_RULES`：路由专家 ÷EP、norm
+      复制、embed/lm_head 视 vocabParallel、其余 ÷TP）同样按**叶自持权重**
+      归属（`nodeWeightBytes` 依赖 weight_shapes，派生路径全零 → EP/TP 的
+      专家/非专家切分在派生路径上塌缩）。因此叶子声明必须带**分片类别**：
+      `weightMatrices: [{class: "ep"|"tp"|"replicated", out, in, count}]`
+      （路由专家 → ep；shared/dense → tp；norm → replicated），**三个消费者
+      读同一份声明**：① 量化枚举（quantizedMatrixBytes）② EP/TP 逐卡投影
+      （weightBytesPerCard，含 expertWeightRange 的平均/最坏不均衡区间）
+      ③ 容量 base 分桶。路径匹配规则表保留为无声明叶子的回退。
+      已核实的家族差异：M2.7 无 shared expert（纯路由，声明只含 ep 组）；
+      DeepSeek/K2 系 shared 是独立 linear 叶（已被 linear 枚举覆盖，
+      swiglu 声明只含 routed 组）。执行时逐模型核实，不得假设。
 - [x] **量化容量 per-matrix 精确化**（`cost/quantBytes.js`，2026-09-09）：
       无 checkpoint 时不再用标量 `quantizationBytesPerParameter` 一刀切 ——
       枚举树上全部线性族叶子的 [out,in]（output/input 正维积），按方案精确计：

@@ -208,6 +208,39 @@ export function appendGraphGaps(graph, skeleton, usedTruthIds) {
 }
 
 export function enrichGraphWithTruth(graph, truth, { hasTemplate, modelName, canonicalArchitecture, modelType }) {
+  // 离线证据文件形态：truth.skeleton 是**已折叠**的 SkeletonNode（由
+  // fetch-evidence --headers 从 safetensors 头部构建后入库，K3 原始张量
+  // 表 59.7MB 折叠后小几个数量级，符合「仅轻量元数据入库」纪律）。
+  // 在场时与 tensors 形态等价，压过 paramDtypes 推断层（聚合层已按
+  // hasParameterCount 走 checkpoint 路径）。
+  if (truth?.skeleton) {
+    const truthGraph = skeletonTruthGraph(truth.skeleton);
+    if (!hasTemplate) {
+      const root = truthGraph.nodes.find((node) => node.id === truthGraph.root_id);
+      if (root) {
+        root.canonical_id = "skeleton";
+        root.module_id = "skeleton";
+        root.name = modelName || canonicalArchitecture || "Model";
+        root.type = "model";
+      }
+      return {
+        graph: truthGraph,
+        diagnostics: { strategy: "skeleton-truth-file", total_tensors: truth.tensor_count ?? null, parameter_total: truth.parameterTotal ?? null },
+      };
+    }
+    const bound = bindTruthToGraph(graph, truthGraph, { modelType });
+    const enrichedGraph = appendGraphGaps(bound.graph, truth.skeleton, bound.diagnostics.graph_truth_used_ids);
+    return {
+      graph: enrichedGraph,
+      diagnostics: {
+        strategy: "template+truth-file",
+        bound_tensors: bound.diagnostics.graph_bound_tensors,
+        total_tensors: truth.tensor_count ?? null,
+        template_gaps: bound.diagnostics.graph_truth_gaps,
+        ambiguous_truth_matches: bound.diagnostics.graph_ambiguous_truth_matches,
+      },
+    };
+  }
   if (!truth || !Array.isArray(truth.tensors) || truth.tensors.length === 0) {
     return { graph, diagnostics: { strategy: "no-truth" } };
   }

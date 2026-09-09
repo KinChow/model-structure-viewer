@@ -1,4 +1,4 @@
-import { catalogPath, modelConfigPath, normalizeCatalog } from "../structure/catalog/manifest.js";
+import { catalogPath, modelConfigPath, normalizeCatalog, staticAssetPath } from "../structure/catalog/manifest.js";
 import { searchHfDirect } from "./hf.js";
 
 export async function requestJson(path, options) {
@@ -63,6 +63,22 @@ export async function fetchBuiltinConfigApi({ entry, modelId }) {
       config_path: target.configPath,
     },
   };
+}
+
+/**
+ * 离线 checkpoint 真值（N2-2）：models/<configPath 目录>/skeleton-truth.json，
+ * 由 `node scripts/fetch-evidence.mjs <org>/<id> --headers` 从 safetensors
+ * 头部构建后入库。文件是**可选**资产——404 视为该模型未取证，返回 null。
+ */
+export async function fetchBuiltinSkeletonTruthApi({ entry, modelId }) {
+  const target = entry || (await findBuiltinModelEntry(modelId));
+  if (!target) return null;
+  try {
+    const truthDir = String(target.configPath).replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+    return await requestJson(staticAssetPath(`models/${truthDir}/skeleton-truth.json`));
+  } catch {
+    return null;
+  }
 }
 
 async function findBuiltinModelEntry(modelId) {

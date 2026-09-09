@@ -1,5 +1,9 @@
 // fetch-evidence.mjs —— 模型证据库取证（M8-V2 基础设施）。
-// 用法：node scripts/fetch-evidence.mjs <org>/<id> [家族别名]
+// 用法：node scripts/fetch-evidence.mjs <org>/<id> [家族别名] [--headers]
+//   --headers：按 model.safetensors.index.json 的 weight_map 逐分片 Range 取
+//   safetensors 头部（8B 长度 + JSON），构建**折叠 skeleton** 写
+//   models/<org>/<id>/skeleton-truth.json（N2-2 离线 checkpoint 真值）。
+//   原始逐张量表不入库（K3 量级 59.7MB，轻量元数据纪律），需要时重下。
 // 下载 L1 config / L2 modeling 源码 / L3 index.json 到 evidence/<org>/<id>/，
 // index 原件 gitignore（可重下），并生成 index 摘要（逐层张量模式）。
 // 来源：HF 直连优先，失败回退 hf-mirror.com。
@@ -44,6 +48,52 @@ if (probe) {
     const result = await download(file, path.join(outDir, path.basename(file)));
     console.log(result ? `✓ ${file} → ${path.basename(result.file)} (${(result.bytes / 1024).toFixed(0)}KB)` : `✗ ${file}`);
   }
+  process.exit(0);
+}
+
+// ---- --headers：离线 checkpoint 真值（N2-2）----
+if (process.argv.includes("--headers")) {
+  const indexPath = path.join(outDir, "model.safetensors.index.json");
+  if (!fs.existsSync(indexPath)) {
+    console.error(`✗ 需要 ${indexPath}（先常规取证一次）`);
+    process.exit(1);
+  }
+  const weightMap = JSON.parse(fs.readFileSync(indexPath, "utf8")).weight_map || {};
+  const shards = [...new Set(Object.values(weightMap))];
+  console.log(`分片 ${shards.length} 个，逐个取头部（Range 206）…`);
+  const tensors = [];
+  for (const [tensorName, shard] of Object.entries(weightMap)) {
+    const url = HF(shard);
+    try {
+      // 与 frontend/src/cost/safetensorsReader.js 同一格式协议（8B u64le + JSON）
+      const lenRes = await fetch(url, { headers: { Range: "bytes=0-7" } });
+      if (!lenRes.ok || lenRes.status !== 206) throw new Error(`HTTP ${lenRes.status}`);
+      const lenBuf = new Uint8Array(await lenRes.arrayBuffer());
+      let headerLen = 0n;
+      for (let i = 7; i >= 0; i--) headerLen = (headerLen << 8n) | BigInt(lenBuf[i]);
+      const jsonLen = Number(headerLen);
+      if (!Number.isSafeInteger(jsonLen) || jsonLen <= 0 || jsonLen > 100 * 1024 * 1024) throw new Error(`头长非法 ${jsonLen}`);
+      const jsonRes = await fetch(url, { headers: { Range: `bytes=8-${8 + jsonLen - 1}` } });
+      if (!jsonRes.ok || jsonRes.status !== 206) throw new Error(`HTTP ${jsonRes.status}`);
+      const header = JSON.parse(new TextDecoder().decode(new Uint8Array(await jsonRes.arrayBuffer())));
+      const info = header[tensorName];
+      if (info) tensors.push({ name: tensorName, dtype: info.dtype, shape: info.shape });
+    } catch (error) {
+      console.log(`  ✗ ${tensorName} ← ${shard}: ${error.message}`);
+    }
+  }
+  // 折叠：直接复用前端 skeleton 构建器（folded tree，体积小几个数量级）
+  const { buildSkeleton } = await import("../frontend/src/structure/truth/skeleton.js");
+  const skeleton = buildSkeleton(tensors);
+  const parameterTotal = tensors.reduce((sum, t) => sum + t.shape.reduce((a, b) => a * b, 1), 0);
+  fs.writeFileSync(path.join(outDir, "skeleton-truth.json"), JSON.stringify({
+    generated: "safetensors headers (fetch-evidence --headers)",
+    source: `https://huggingface.co/${orgId}/`,
+    tensor_count: tensors.length,
+    parameterTotal,
+    skeleton,
+  }, null, 1));
+  console.log(`✓ skeleton-truth.json：${tensors.length} 张量 → 折叠节点（参数 ${parameterTotal.toLocaleString("en-US")}）`);
   process.exit(0);
 }
 

@@ -21,6 +21,8 @@ export const PUBLIC_CHIPS = [
     memory_bandwidth: 2039e9,
     peak_flops: {
       fp32: 19.5e12,
+      // TF32 dense（官方页 156/312 两列取未启用稀疏性列，与 bf16 的取列口径一致）
+      tf32: 156e12,
       bf16: 312e12,
       fp16: 312e12,
       int8: 624e12,
@@ -52,6 +54,8 @@ export const PUBLIC_CHIPS = [
     memory_bandwidth: 3.35e12,
     peak_flops: {
       fp32: 67e12,
+      // TF32 dense（H100 SXM 官方页 494.5/989 两列取 dense 列）
+      tf32: 494.5e12,
       bf16: 989.5e12,
       fp16: 989.5e12,
       fp8: 1979e12,
@@ -84,6 +88,7 @@ export const PUBLIC_CHIPS = [
     memory_bandwidth: 864e9,
     peak_flops: {
       fp32: 91.6e12,
+      tf32: 183e12,
       bf16: 362.05e12,
       fp16: 362.05e12,
       fp8: 733e12,

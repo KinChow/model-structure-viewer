@@ -9,10 +9,10 @@ function normalizeFieldSource(sourceUrl) {
   return trimmed || USER_INPUT_SOURCE;
 }
 
-export function createManualChip({ id, name, memoryGb, memoryBandwidthTb, fp32Tflops, fp16Tflops, bf16Tflops, fp8Tflops, int8Tops, interconnectGb, intraNodeGb, interNodeGb, sourceUrl } = {}) {
+export function createManualChip({ id, name, memoryGb, memoryBandwidthTb, fp32Tflops, tf32Tflops, fp16Tflops, bf16Tflops, fp8Tflops, int8Tops, interconnectGb, intraNodeGb, interNodeGb, sourceUrl } = {}) {
   const safeId = String(id || name || "manual-chip").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const peakFlops = Object.fromEntries([
-    ["fp32", fp32Tflops], ["fp16", fp16Tflops], ["bf16", bf16Tflops], ["fp8", fp8Tflops], ["int8", int8Tops],
+    ["fp32", fp32Tflops], ["tf32", tf32Tflops], ["fp16", fp16Tflops], ["bf16", bf16Tflops], ["fp8", fp8Tflops], ["int8", int8Tops],
   ].filter(([, value]) => Number(value) > 0).map(([dtype, value]) => [dtype, Number(value) * 1e12]));
   const intraNodeBandwidth = Number(intraNodeGb ?? interconnectGb);
   const interNodeBandwidth = Number(interNodeGb);

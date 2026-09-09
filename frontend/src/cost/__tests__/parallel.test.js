@@ -30,21 +30,30 @@ test("KDA request state follows attention TP and is replicated under DP-attentio
   assert.equal(stateBytesPerCard(160, {}, { tp: 4, attnMode: "dp" }).bytes, 160);
 });
 
-test("权重按模块类别选择 TP/EP/复制投影", () => {
-  assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.self_attn.q_proj" }, { tp: 4 }).bytes, 25);
-  assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.mlp.experts.0.up_proj" }, { tp: 4, ep: 2 }).bytes, 50);
-  assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.moe.expert_mlp" }, { tp: 4, ep: 2 }).bytes, 50);
-  assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.input_layernorm" }, { tp: 4 }).bytes, 100);
+test("权重按声明 class 选择 TP/EP/复制投影；无声明带权叶 = unknown（P5）", () => {
+  const q = (attrs) => ({ id: "decoder.0.self_attn.q_proj", attributes: attrs });
+  assert.deepEqual(weightBytesPerCard(100, q({ weightMatrices: [{ class: "tp", out: 1, in: 1 }] }), { tp: 4 }).bytes, 25);
+  const ep = { id: "decoder.0.moe.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } };
+  assert.deepEqual(weightBytesPerCard(100, ep, { tp: 4, ep: 2 }).bytes, 50);
+  const norm = { id: "decoder.0.input_layernorm", attributes: { weightMatrices: [{ class: "replicated", out: 1, in: 1 }] } };
+  assert.deepEqual(weightBytesPerCard(100, norm, { tp: 4 }).bytes, 100);
+  // P5：路径正则规则表已删 —— 无声明的带权叶诚实返回 unknown，不猜。
+  assert.deepEqual(weightBytesPerCard(100, { id: "decoder.0.self_attn.q_proj", attributes: {} }, { tp: 4 }), {
+    bytes: 100, divisor: 1, axis: "unknown",
+  });
 });
 
-test("节点 roofline 成本按 TP、EP 或复制规则投影到单卡", () => {
+test("节点 roofline 成本按声明 class 投影到单卡（P5：声明式）", () => {
   const cost = { macs: 80, weightBytes: 40, actInBytes: 24, actOutBytes: 16 };
-  assert.deepEqual(nodeCostPerCard(cost, { id: "decoder.0.self_attn.q_proj" }, { tp: 4 }), {
+  const q = { id: "decoder.0.self_attn.q_proj", attributes: { weightMatrices: [{ class: "tp", out: 1, in: 1 }] } };
+  assert.deepEqual(nodeCostPerCard(cost, q, { tp: 4 }), {
     macs: 20, weightBytes: 10, actInBytes: 6, actOutBytes: 4,
     projection: { axis: "tp", divisor: 4 },
   });
-  assert.equal(nodeCostPerCard(cost, { id: "decoder.0.mlp.experts.0.up_proj" }, { tp: 4, ep: 2 }).macs, 40);
-  assert.equal(nodeCostPerCard(cost, { id: "decoder.0.input_layernorm" }, { tp: 4 }).macs, 80);
+  const ep = { id: "decoder.0.moe.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } };
+  assert.equal(nodeCostPerCard(cost, ep, { tp: 4, ep: 2 }).macs, 40);
+  const norm = { id: "decoder.0.input_layernorm", attributes: { weightMatrices: [{ class: "replicated", out: 1, in: 1 }] } };
+  assert.equal(nodeCostPerCard(cost, norm, { tp: 4 }).macs, 80);
 });
 
 test("PP 层归属和逐 stage 投影返回结构", () => {
@@ -129,8 +138,9 @@ test("EP 返回专家权重平均值和最坏值区间", () => {
   assert.equal(result.expertsPerRank, 3);
 });
 
-test("stage 权重返回 EP 平均/最坏两种投影", () => {
-  const root = { id: "model.layers.0", children: [{ id: "model.layers.0.mlp.experts.0", repeat: 8, children: [{ id: "model.layers.0.mlp.experts.0.up_proj", weight_shapes: { weight: [2, 2] }, dtype: "BF16", children: [] }] }] };
+test("stage 权重返回 EP 平均/最坏两种投影（P5：声明驱动）", () => {
+  // 专家块识别走 ep 组声明（isRoutedExpertPath 正则随规则表退役）。
+  const root = { id: "model.layers.0", children: [{ id: "model.layers.0.moe.expert_mlp", repeat: 8, attributes: { operator_id: "fused_moe_mlp", weightMatrices: [{ class: "ep", out: 2, in: 2, count: 8, matrices: 1 }] }, children: [] }] };
   const result = projectNodePlan({ root, config: { layers: 1, experts: 8, kvHeads: 1 }, plan: { ep: 3 }, kvBytes: 0 });
   assert.equal(result.stages[0].weightAverageBytes, 64 / 3);
   assert.equal(result.stages[0].weightWorstBytes, 24);

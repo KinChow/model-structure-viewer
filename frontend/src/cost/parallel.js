@@ -88,52 +88,25 @@ function stateBytesForLayerRange(totalStateBytes, config = {}, start = 0, end = 
   return totalStateBytes * selected / totalElements;
 }
 
-function modulePath(node) {
-  return String(node?.id || "").toLowerCase();
-}
-
-function isRoutedExpertPath(path) {
-  return /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(path);
-}
-
-/** 按模块类别计算权重在单卡上的 TP/EP 投影；PP 只负责 stage 归属。 */
-// 单卡投影规则表（顺序敏感，首条命中生效）。来源：llm-analysis TP/EP 投影
-// 语义——① 路由专家按 sharding.js 的组合语义切（EP 启用 ÷moe_ep、未启用
-// ÷moe_tp×dp——vLLM DP-shards-experts，N2-4 W-B）；② norm 复制；③ 词表并行
-// 关闭时 embed/lm_head 复制；④ 其余 TP>1 按 TP 切；⑤ 默认复制。新增规则加表项。
-// 有 weightMatrices 声明的叶子不走本表（weightBytesPerCard 声明优先，sharding.js
-// declaredClassDivisor 与本表逐条同义——锚 3）。
-const WEIGHT_PROJECTION_RULES = [
-  {
-    axis: "ep",
-    when: (path, ctx) => isRoutedExpertPath(path) && (ctx.ep > 1 || ctx.dp > 1 || (ctx.moeEp ?? 1) > 1 || (ctx.moeTp ?? 1) > 1),
-    divisor: (ctx) => expertShardDivisor(ctx).divisor,
-  },
-  { axis: "replicated", when: (path) => /(^|\.)[^.]*norm[^.]*($|\.)/.test(path), divisor: () => 1 },
-  { axis: "replicated", when: (path, ctx) => /(embed|lm_head|output)/.test(path) && !ctx.vocabParallel, divisor: () => 1 },
-  { axis: "tp", when: (path, ctx) => ctx.tp > 1, divisor: (ctx) => ctx.tp },
-  { axis: "replicated", when: () => true, divisor: () => 1 },
-];
-
+/** 按模块类别计算权重在单卡上的 TP/EP 投影；PP 只负责 stage 归属。
+ *
+ * P5（执行路线步骤 3 收口）：路径正则规则表已删除——weightMatrices 是权重
+ * 归属**唯一**入口（`details/parallel_protocol.md` §一分层纪律）。P2 覆盖率
+ * 棘轮归零后（18399/18399 带权叶全声明），回退路径失去存在理由；保留它只会
+ * 让"路径猜归属"的知识复活（router ÷tp 的分片轴错误正是规则表时代的产物）。
+ * 无声明的带权叶（新接入模型未声明时）返回 axis: "unknown"——诚实缺项，
+ * 不再猜；覆盖率护栏测试会立即红并指认该叶。
+ */
 export function weightBytesPerCard(totalBytes, node, plan = {}) {
-  // N2-4 W-B：声明优先（feature flag = weightMatrices 存在，无声明叶逐位走
-  // 规则表回退）。组级 class 投影见 sharding.js；axis/divisor 取主导组，
-  // 供 nodeCostPerCard 分摊 compute。
   const declaration = node?.attributes?.weightMatrices;
   if (Array.isArray(declaration) && declaration.length > 0) {
     return declaredWeightBytesPerCard(totalBytes, declaration, plan);
   }
-  const path = modulePath(node);
-  const ctx = {
-    tp: plan.tp ?? plan.TP ?? 1,
-    ep: plan.ep ?? plan.EP ?? 1,
-    dp: plan.dp ?? plan.DP ?? 1,
-    moeTp: plan.moeTp ?? plan.moe_tp,
-    moeEp: plan.moeEp ?? plan.moe_ep,
-    vocabParallel: plan.vocabParallel ?? plan.vocab_parallel ?? true,
-  };
-  const rule = WEIGHT_PROJECTION_RULES.find((candidate) => candidate.when(path, ctx));
-  return { bytes: totalBytes / rule.divisor(ctx), divisor: rule.divisor(ctx), axis: rule.axis };
+  if (totalBytes > 0) {
+    // 无声明但确有驻留权重：unknown（不伪造归属，不静默按复制处理）。
+    return { bytes: totalBytes, divisor: 1, axis: "unknown" };
+  }
+  return { bytes: 0, divisor: 1, axis: "replicated" };
 }
 
 /**
@@ -270,7 +243,10 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
     const layerSpan = ownLayerSpan || inheritedLayerSpan;
     const rawWeight = nodeResidentWeightBytes(node) * inheritedRepeat * weightScale;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
-    const isExpert = isRoutedExpertPath(path);
+    // P5：专家块识别改走声明（ep 组在场）——与权重归属同一事实源，路径正则
+    // 随规则表一起退役。
+    const isExpert = Array.isArray(node?.attributes?.weightMatrices)
+      && node.attributes.weightMatrices.some((group) => group.class === "ep");
     // N2-4 W-B：expertWeightRange 的专家数接声明的 count（声明即语义——不再
     // 从 config 反推）；无声明的专家叶保持 config.experts。
     const declaredCount = Array.isArray(node?.attributes?.weightMatrices)

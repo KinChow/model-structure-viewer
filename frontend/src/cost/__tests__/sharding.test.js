@@ -2,8 +2,8 @@
 // - 组合语义纯函数手算（EP=TP×DP、无 EP 时 DP 切专家、混合 ETP moe_tp×moe_ep）
 // - 锚 2：EP 计划下 M2.7 每卡权重 = 专家块÷moe_ep + 其余÷tp，与聚合投影、
 //   expertWeightRange 三方一致
-// - 锚 3：无声明叶子走路径规则表，行为逐位不变（现有 parallel.test 全绿 +
-//   本文件的声明/无声明同义断言）
+// - 锚 3（已退役，P5）：路径规则表已删除，weightMatrices 是唯一入口 ——
+//   同义断言失去对象；无声明的带权叶现在返回 axis: "unknown"（诚实缺项）。
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
@@ -88,14 +88,13 @@ test("declaredClassDivisor / declaredWeightBytesPerCard：四类 class 的单卡
   assert.equal(projected.axis, "ep");
 });
 
-test("锚 3 同义：声明 tp 组与无声明规则表对同一 linear 叶逐位同结果", () => {
-  const node = { id: "decoder.0.self_attn.q_proj", attributes: { weightMatrices: [{ class: "tp", out: 2048, in: 4096 }] } };
-  const bare = { id: "decoder.0.self_attn.q_proj", attributes: {} };
-  assert.equal(weightBytesPerCard(100, node, { tp: 4 }).bytes, weightBytesPerCard(100, bare, { tp: 4 }).bytes);
-  // 专家叶声明路径与规则表在 ep>1、dp=1 时同义（÷moe_ep）
-  const expert = { id: "decoder.0.moe.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 8, in: 8, count: 4, matrices: 3 }] } };
-  const expertBare = { id: "decoder.0.moe.expert_mlp", attributes: {} };
-  assert.equal(weightBytesPerCard(100, expert, { tp: 4, ep: 2 }).bytes, weightBytesPerCard(100, expertBare, { tp: 4, ep: 2 }).bytes);
+test("锚 3 终态：无声明带权叶返回 unknown（不猜归属），零权重叶按复制", () => {
+  // P5：规则表已删。无声明 + 有权重 → unknown（诚实缺项，覆盖率护栏会把
+  // 内置模型的这类叶挡在门外）；无权重（纯激活/共享叶）→ 复制、字节 0。
+  const bare = weightBytesPerCard(100, { id: "decoder.0.self_attn.q_proj", attributes: {} }, { tp: 4 });
+  assert.deepEqual(bare, { bytes: 100, divisor: 1, axis: "unknown" });
+  const zero = weightBytesPerCard(0, { id: "decoder.0.moe.combine", attributes: {} }, { tp: 4 });
+  assert.deepEqual(zero, { bytes: 0, divisor: 1, axis: "replicated" });
 });
 
 // ---------------------------------------------------------------------------

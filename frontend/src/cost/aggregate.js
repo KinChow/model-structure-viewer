@@ -4,20 +4,6 @@ import { derivedWeightBytes, derivedWeightParameters, derivedBufferBytes } from 
 import { walkStructure } from "./traverse.js";
 import { quantizationConfigOf, isQuantizedPath, quantLinearWeightBytes } from "./quantBytes.js";
 
-// 量化命中且可枚举 [out,in] 的算子（线性族）。embedding/lm_head/hash 路由表等
-// 是否量化由 config 的 dynamic / modules_to_not_convert 声明决定（isQuantizedPath）。
-const QUANTIZABLE_OPS = new Set(["linear", "mla_query_compress", "mla_kv_compress"]);
-
-function positiveWidth(shape) {
-  if (!Array.isArray(shape)) return null;
-  let width = 1;
-  let any = false;
-  for (const value of shape) {
-    if (Number.isFinite(value) && value > 0) { width *= value; any = true; }
-  }
-  return any ? width : null;
-}
-
 /**
  * 无 checkpoint 时的**逐矩阵**量化容量：枚举树上全部线性族叶子的 [out, in]
  *（derivedLinearShape 同口径：output/input shape 的正维乘积），命中 quant 方案
@@ -56,16 +42,9 @@ function quantizedMatrixBytes(root, graph, quant) {
       }
       return;
     }
-    const op = String(node?.attributes?.operator_id || "").toLowerCase();
-    if (!QUANTIZABLE_OPS.has(op)) return;
-    if (!isQuantizedPath(path, quant)) return;
-    const out = positiveWidth(node?.output_shape);
-    const inn = positiveWidth(node?.input_shape);
-    if (out == null || inn == null) return;
-    const matrixBytes = quantLinearWeightBytes({ out, inn, quant });
-    if (matrixBytes == null) return;
-    elements += out * inn * multiplier;
-    bytes += matrixBytes * multiplier;
+    // P5：QUANTIZABLE_OPS 回退已删 —— 量化枚举只消费声明组（weightMatrices
+    // 是权重归属唯一入口）。无声明叶不入枚举，留在 bf16 基桶（保守高估）；
+    // 覆盖率护栏（P2 棘轮=0）保证内置模型不会走到这里。
   }, graph);
   return { elements, bytes };
 }

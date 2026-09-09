@@ -69,7 +69,7 @@ W4 仅依赖 W3a，可与 W3b 并行；为叙述线性排在 W3b 之后。
 docs:check 一致 · e2e 9+1。四条恒等式容差 0；DECOMPOSE_PENDING 清零；
 MAINTENANCE.md 棘轮已回写。
 
-### N1 = M11.5 结构边界调整（下一波，唯一未开工的完整波次）
+### N1 = M11.5 结构边界调整（✅ 2026-09-09 三阶段收官，见状态总览；原范围如下存档）
 
 - **范围**（2026-09-08 裁决定稿，不变）：
   1. `model_executor/plan.js` 迁 `structure/config/plan.js`（消费方：
@@ -134,7 +134,7 @@ MAINTENANCE.md 棘轮已回写。
 | **M9** | ✅ | §10 三态快照 + MAINTENANCE.md（五重 oracle + 变更纪律） |
 | **M11** | ✅（2026-09-08 收官） | 诚实性收口：P0 七条 ✅、P1 七条 ✅、P2 八条（7 ✅ + 1 项探针推翻取消）+ 附加：算子层三缺陷修复（qsa kind 三分支/compressor ctx/GLM-Flash 证据改判 qsa→dsa）、bytes 全量补齐（§3.1c 棘轮 PENDING 清空）、§3.1b/§3.1d 护栏、内存侧基线、第六 oracle、GLM-Flash 恒等式 1.0964→1.0909、V4 0.9828→0.9933；单测 261、e2e 语义断言；详见 M11 专节落地核销 |
 | **算子本体重构六波** | ✅（2026-09-09 收官，05fccf6 + 后续 13 个提交） | 两级本体（19 原子 atoms.js + 模块 modules.js，命名对标 vLLM nn.Module）；四条恒等式**全部容差 0**（融合分解 382 组 0 不闭合、权重字节 32/32 逐字节、KV 读分桶夹逼、激活流形状连续性 33434 边）；稀疏部件按算法出处拆 id、分类判据走 config 字段；MTP/residual_add/逐头 norm 权重宽/linear bias/量化 per-matrix 容量（quantBytes.js）/tid2eid buffer 分类/TF32 芯片行；DECOMPOSE_PENDING 清零（Sinkhorn 经 kernel 取证为运行时计算）；operators_reference 机器段生成器 + docs:check；逐层归因工具 diff-weight-identity.mjs。计划文件：~/.comate/plans/算子本体重构与分相位对账_1551cca5.plan.md |
-| **M11.5** | ⬜（M11 后） | plan.js 迁 config/ + formulas↔model_executor 目录环解耦 + 共享 bytes 助手抽取（2026-09-08 裁决：M11 已重，单独一波）。**2026-09-09 复核：前置已成熟**——六波收官后 golden 基线最厚（spec 树/边哈希 + 四条容差 0 恒等式），可回退性最好；环实证仍在（ops/index.js:1 → formulas，formulas/extractor.js:33-34 → model_executor） |
+| **M11.5** | ✅（2026-09-09 三阶段收官，0ed4665/d44a292/2095049） | ① plan.js 迁 config/（21 文件路径更新，输出逐位不变）；② 目录环解耦：dims.js + visionDimensions 迁 config/，formulas/ 对 model_executor 的 import 清零（layering.test.js 棘轮固化）；coverage↔public 文件环修复（validateChipEntry 迁 chipValidation.js，madge 0 环）；③ bytes 助手单处化：linear/rmsnorm 的 decompose 片段迁 counts.js（linearAtomSteps/rmsnormAtomSteps），addCounts/softmaxCounts/hashRouteCounts 委托原子（298 组输入 scratch 证明逐位相等），新增 countsAtomsConsistency 漂移守卫 |
 | **M10** | ✅（2026-09-09 复核销案） | 旁路 C ✅（5128c24，field_sources + 单位异常警告 + 昇腾 910B4）/ 旁路 D ✅（17f1d65）/ 旁路 E ✅（69e2d18）；昇腾 sfu_rate_source:"vector" ✅（public.js:134）；qwen35_full 改名撤销——销案：W5 已定性为 attention kind 的**值**而非分派（护栏 §8.1 注释在案），保留现名；§2.5 残差边——保持登记（等 IR 扩展，设计决定不变） |
 | **M12** | ⬜（后期） | 并行策略功能扩展（C 档：KV keep-ratio、overlap、per-stage 通信）——开工前单独对齐 |
 

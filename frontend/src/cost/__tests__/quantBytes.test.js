@@ -51,6 +51,18 @@ test("dynamic 排除/包含：'-:' 前缀为排除正则，显式列出为包含
   assert.equal(isQuantizedPath("decoder.0.self_attn.qkv_proj", { quant_method: "fp8" }), true);
 });
 
+test("modules_to_not_convert 数组：命中即不量化，优先于 dynamic", () => {
+  // HF/vLLM 数组约定（GPTQ/FP8 checkpoint 常见）；模式支持字面路径与正则
+  const quant = { quant_method: "fp8", weight_block_size: [128, 128], modules_to_not_convert: ["lm_head", ".*embed_tokens.*", "model.visual.*"] };
+  assert.equal(isQuantizedPath("lm_head", quant), false);
+  assert.equal(isQuantizedPath("embed_tokens", quant), false);
+  // 字面路径 "model.visual.*" 经 canonicalModulePath 的 visual→vision_tower 映射命中树 id
+  assert.equal(isQuantizedPath("vision_tower.0.qkv_proj", quant), false);
+  assert.equal(isQuantizedPath("decoder.3.self_attn.qkv_proj", quant), true);
+  // 空数组不排除
+  assert.equal(isQuantizedPath("lm_head", { quant_method: "fp8", modules_to_not_convert: [] }), true);
+});
+
 test("quantizationConfigOf：顶层 / raw 嵌套 / text_config 嵌套", () => {
   const q = { quant_method: "fp8" };
   assert.equal(quantizationConfigOf({ quantization_config: q }), q);

@@ -110,18 +110,24 @@ function summarizeMacsSources(nodes) {
 
 /**
  * 量化容量（无 checkpoint、树可枚举时）：
- *   全部参数按派生标量字节宽 + 被量化矩阵的（精确字节 − 标量字节）修正。
- * 标量字节宽取 quantizationBytesPerParameter（缺省 2）；树不可枚举
- *（bare config，无 root 结构）时退回纯标量 —— 没有 [out,in] 就没有
- * scale 形状，这是信息极限而非建模缺口（登记于 operators_reference §7）。
+ *   base = 全部参数按 bf16（2B，含 fp32 参数修正）；被量化矩阵换为其精确
+ *   字节（fp8 1B + scale / gptq 0.5B + scales+zeros）。
+ * **排除矩阵（modules_to_not_convert / dynamic 命中）必须留在 bf16 桶** ——
+ * 它们以未量化精度运行，若留在标量量化宽（如 fp8 的 1B）会把排除项算小
+ *（M2.7 实测 lm_head/gate 排除后出现 -150,048 的反常下降，2026-09-09 修正）。
+ * 树不可枚举（bare config，无 root 结构）时退回标量
+ * quantizationBytesPerParameter —— 没有 [out,in] 就没有 scale 形状与排除
+ * 归属，这是信息极限而非建模缺口（登记于 operators_reference §7）。
  */
 function quantCapacityBytes(root, graph, config, quant) {
-  const scalarBytes = config?.quantizationBytesPerParameter || 2;
-  const base = derivedWeightBytes(config, scalarBytes);
-  if (!quant) return base;
+  const base = derivedWeightBytes(config, 2);
+  if (!quant) {
+    const scalarBytes = config?.quantizationBytesPerParameter || 2;
+    return scalarBytes !== 2 ? derivedWeightBytes(config, scalarBytes) : base;
+  }
   const { elements, bytes } = quantizedMatrixBytes(root, graph, quant);
   if (elements <= 0) return base;
-  return base - elements * scalarBytes + bytes;
+  return base - elements * 2 + bytes;
 }
 
 function sumNodeWeights(root, graph) {

@@ -71,13 +71,40 @@ export function quantLinearWeightBytes({ out, inn, quant }) {
  */
 const LITERAL_PATH = /^[A-Za-z0-9_.\-]+$/;
 
+/**
+ * 树 id → checkpoint 命名的反向候选（canonicalModulePath 逆映射的最小子集）：
+ * checkpoint 把视觉塔叫 model.visual，树 id 是 vision_tower。
+ */
+function pathCandidates(path) {
+  const candidates = [path];
+  if (path.includes("vision_tower")) {
+    // 两种 checkpoint 命名都要接得住：Qwen3.5 的 model.visual.*（字面路径
+    // pattern 带 model. 前缀）与中段正则 ..*visual.*（不带前缀）
+    candidates.push(path.replaceAll("vision_tower", "visual"));
+    candidates.push(path.replaceAll("vision_tower", "model.visual"));
+  }
+  return candidates;
+}
+
 export function isQuantizedPath(path, quant) {
   if (!quant) return false;
+  // modules_to_not_convert（HF/vLLM 数组约定，GPTQ/FP8 常用）：命中即**不量化**，
+  // 优先于 dynamic 表（顺序语义：显式排除压过一切包含）。
+  const excluded = quant.modules_to_not_convert;
+  if (Array.isArray(excluded) && excluded.length > 0) {
+    for (const entry of excluded) {
+      let re;
+      try {
+        re = new RegExp(LITERAL_PATH.test(entry) ? canonicalModulePath(entry) : entry);
+      } catch {
+        continue;
+      }
+      if (pathCandidates(path).some((candidate) => re.test(candidate))) return false;
+    }
+  }
   const dynamic = quant.dynamic;
   if (!dynamic || typeof dynamic !== "object") return true;
-  // 树 id → checkpoint 命名的反向候选（canonicalModulePath 逆映射的最小子集）
-  const candidates = [path];
-  if (path.includes("vision_tower")) candidates.push(path.replaceAll("vision_tower", "visual"));
+  const candidates = pathCandidates(path);
   let matched = null;
   for (const [pattern, value] of Object.entries(dynamic)) {
     const isExclude = pattern.startsWith("-:");

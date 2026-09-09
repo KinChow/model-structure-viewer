@@ -1598,6 +1598,13 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       generic）、mHC 的 fn/base/scale（大矩阵 hc_*_fn 经 linearCounts 的
       `weightBytesPerElement`），其余参数跟随 torch_dtype。checkpoint 证据在场时
       以 truth/skeleton 的逐 tensor weight_dtypes 为准（即 safetensors 头部机制）。
+- [ ] **量化容量缺口：swiglu 携带的专家 GEMM 未进量化枚举**（2026-09-09
+      N2-3 显形）。M2.7 / M3-MXFP8 的路由专家与共享专家 GEMM 权重挂在
+      swiglu 叶（不在 `QUANTIZABLE_OPS` 枚举范围），这两类的量化容量目前
+      按 bf16 上界计（M2.7 4.77e11 = 全 bf16；正确值应大部分 fp8 ≈ 2.4e11
+      量级）。正确落法 = `quantizedMatrixBytes` 扩展 swiglu 叶的 3 矩阵枚举
+      （routed × experts 折叠、shared ×1），专家折叠语义必须与 counts 的
+      expertFraction 同源，防止两套 E-folding 漂移。
 - [x] **量化容量 per-matrix 精确化**（`cost/quantBytes.js`，2026-09-09）：
       无 checkpoint 时不再用标量 `quantizationBytesPerParameter` 一刀切 ——
       枚举树上全部线性族叶子的 [out,in]（output/input 正维积），按方案精确计：

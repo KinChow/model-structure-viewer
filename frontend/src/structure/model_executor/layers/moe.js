@@ -1,7 +1,7 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { deepseekV4MoeOperatorSpecs, kimiK3MoeOperatorSpecs, moeOperatorSpecs, operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 import { mlpModule } from "./mlp.js";
 import { sharedExpertGateModule } from "./hybrid.js";
 

@@ -1,7 +1,7 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 
 export function hyperConnectionModule(id, normalized, phase = "branch") {
   const shapes = tensorShapes(normalized);

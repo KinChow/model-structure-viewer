@@ -18,7 +18,7 @@ import { decoderLayerModule } from "./decoderLayer.js";
 import { rmsNormModule } from "./norm.js";
 import { operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 
 /** MTP 模块数：config 三种键名（DeepSeek/GLM 系、Qwen 系、MiniMax 系）。 */
 export function mtpModuleCount(normalized) {

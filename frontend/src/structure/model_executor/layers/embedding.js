@@ -1,6 +1,6 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 
 export function embeddingModule(id, normalized) {
   const shapes = tensorShapes(normalized);

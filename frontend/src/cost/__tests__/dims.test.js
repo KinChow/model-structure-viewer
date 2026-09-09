@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { tensorDims } from "../../structure/model_executor/dims.js";
+import { tensorDims } from "../../structure/config/dims.js";
 import { tensorShapes } from "../../structure/model_executor/shapes.js";
 
 const QWEN = {

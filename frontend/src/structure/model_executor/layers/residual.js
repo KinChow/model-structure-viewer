@@ -1,6 +1,6 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec } from "../ops/index.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 
 export function attentionResidualModule(id, normalized, { layerIndex = 0 } = {}) {
   const dims = tensorDims(normalized);

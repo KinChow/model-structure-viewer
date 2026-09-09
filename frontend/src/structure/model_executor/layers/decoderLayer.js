@@ -4,7 +4,7 @@ import { mlpModule } from "./mlp.js";
 import { moeModule } from "./moe.js";
 import { rmsNormModule } from "./norm.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 import { attentionResidualModule } from "./residual.js";
 import { hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
 import { residualAddSpec } from "../ops/index.js";

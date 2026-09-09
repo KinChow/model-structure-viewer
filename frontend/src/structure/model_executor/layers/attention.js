@@ -1,7 +1,7 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttentionOperatorSpecs, minimaxDenseAttentionOperatorSpecs, minimaxM2AttentionOperatorSpecs, minimaxSparseAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs, qwen35FullAttentionOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 
 // 组件表（W3-A）：attentionKind（×modelType）→ { name, ops, edges }。
 // ops 与 edges 必须取自同一表项 —— children 改了 edges 没跟着改在结构上不可能。

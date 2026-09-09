@@ -1,7 +1,7 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 
 export function lmHeadModule(id = "lm_head", normalized = null) {
   const shapes = normalized ? tensorShapes(normalized) : null;

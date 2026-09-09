@@ -2,7 +2,7 @@
 // tensorShapes 不再自行拼装数值，改为读 dims.js 的数值形状 + 标签表渲染展示串。
 // 输出与旧版逐字一致（modelArchitecture.test.js 断言依赖）。
 
-import { tensorDims } from "./dims.js";
+import { tensorDims } from "../config/dims.js";
 
 // 每个形状 key 的维度标签，顺序与 tensorDims 数值位置一一对应。
 const SHAPE_LABELS = {

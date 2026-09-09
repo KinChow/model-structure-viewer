@@ -2,7 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { decoderLayerModule } from "./decoderLayer.js";
 import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 import { deriveBuildPlan } from "../../config/plan.js";
 
 export function decoderStackNetwork(id, normalized, options = {}) {

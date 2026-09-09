@@ -30,8 +30,8 @@ import {
 } from "./counts.js";
 import { paramBytes } from "./paramDtypes.js";
 import { formulaForOperator } from "./index.js";
-import { tensorDims } from "../model_executor/dims.js";
-import { visionDimensions } from "../model_executor/layers/vision.js";
+import { tensorDims } from "../config/dims.js";
+import { visionDimensions } from "../config/visionDims.js";
 import { deriveBuildPlan } from "../config/plan.js";
 const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 

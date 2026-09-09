@@ -1,14 +1,16 @@
 // 芯片规格字段覆盖判定。
 // 来源：evolution_design.md §5.4(c) 的“按字段降级”规则；不使用估算值补齐缺失字段。
 import { PUBLIC_CHIPS } from "./public.js";
+// validateChipEntry / CONFIDENCE_VALUES 已迁 chipValidation.js（零依赖第三模块）：
+// public.js 不得 import coverage.js，否则 madge 报环；此处 re-export 保持旧 API 不变。
+import { CONFIDENCE_VALUES, validateChipEntry } from "./chipValidation.js";
 
 // 单位量级健全性对照（旁路 C）：手工条目的带宽/算力若与所有公开卡同字段偏差超过 10 倍
 // （如 GB 写成 Gb、TFLOPS 写成 GFLOPS），提示"单位可能错误"——只警告不拒绝（§3.6：倍数级错误会改变结论）。
-// PUBLIC_CHIPS 只在函数内运行时读取，模块加载期不解引用，与 public.js 的相互引用两种加载顺序均安全。
+// PUBLIC_CHIPS 只在函数内运行时读取，模块加载期不解引用（coverage → public 现为单向，无环）。
 const UNIT_SANITY_FACTOR = 10;
 const MANUAL_CHIP_SOURCE = "manual-session";
 
-const CONFIDENCE_VALUES = new Set(["official", "vendor-marketing", "community", "local"]);
 const REQUIRED_INTERCONNECT = ["intra_node.bandwidth"];
 
 function hasPositiveNumber(value) {
@@ -105,16 +107,6 @@ export function getChipCoverage(chip, dtype = "bf16") {
   };
 }
 
-/** 校验公开或本地芯片条目的基本形状；缺失规格返回错误，不自动填值。 */
-export function validateChipEntry(chip) {
-  const errors = [];
-  if (!chip || typeof chip !== "object") return ["芯片条目必须是对象"];
-  if (!chip.id) errors.push("缺少 id");
-  if (!chip.vendor) errors.push("缺少 vendor");
-  if (!chip.name) errors.push("缺少 name");
-  if (!chip.source) errors.push("缺少 source");
-  if (chip.confidence && !CONFIDENCE_VALUES.has(chip.confidence)) errors.push(`未知 confidence：${chip.confidence}`);
-  return errors;
-}
-
-export { CONFIDENCE_VALUES };
+// validateChipEntry / CONFIDENCE_VALUES 实现在 chipValidation.js，此处 re-export：
+// loadLocal.js、coverage.test.js 等旧调用方仍从 coverage.js 取用，API 不变。
+export { CONFIDENCE_VALUES, validateChipEntry };

@@ -1,4 +1,6 @@
-import { validateChipEntry } from "./coverage.js";
+// 校验器走 chipValidation.js（零依赖）：public.js（数据）不 import coverage.js（判定），
+// 否则与 coverage → public 的取数边构成加载环（M11.5 子项 2）。
+import { validateChipEntry } from "./chipValidation.js";
 
 const NVIDIA_A100_SOURCE = "https://www.nvidia.com/en-us/data-center/a100/";
 const NVIDIA_H100_SOURCE = "https://www.nvidia.com/en-us/data-center/h100/";

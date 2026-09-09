@@ -1,7 +1,7 @@
 import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
-import { tensorDims } from "../dims.js";
+import { tensorDims } from "../../config/dims.js";
 
 /**
  * 多模态投影器。两种形态，按 `mm_projector_type` 分：

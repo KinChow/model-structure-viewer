@@ -16,6 +16,8 @@
 // 哪些矩阵被量化由 config 的 dynamic/modules_to_not_convert 声明（"-:" 前缀 =
 // 排除路径正则，如 GPTQ 的 "-:.*attn.*"），isQuantizedPath 判定。
 
+import { canonicalModulePath } from "../structure/truth/graphTruth.js";
+
 const I4 = 0.5;
 const FP8 = 1;
 const FP16 = 2;
@@ -57,36 +59,33 @@ export function quantLinearWeightBytes({ out, inn, quant }) {
  * dynamic 的 key 不带 "-:" 前缀 = 显式量化的模块，"-:" 前缀 = 排除的正则，
  * 后出现的声明覆盖先出现的。
  *
- * 模式是对 **checkpoint 权重前缀**写的，与 msv 的树 id 命名有已知差异，
- * 用候选路径集合桥接（逐条注明出处）：
- * - 原路径（"decoder.3.self_attn.qkv_proj" —— attn 排除靠它命中）；
- * - "model.language_model." / "model." 前缀补全（GPTQ 的
- *   "model.language_model.embed_tokens" 是字面路径，树 id 是 "embed_tokens"）；
- * - vision_tower → visual（Qwen3.5 checkpoint 把视觉塔叫 model.visual）。
+ * 模式是对 **checkpoint 权重前缀**写的，与 msv 的树 id 命名存在已知差异
+ * （checkpoint 叫 model.language_model.embed_tokens / model.visual，树 id 是
+ * embed_tokens / vision_tower）。桥接分两类，规则各只有一份：
+ * - **字面路径** pattern（不含正则元字符）复用 checkpoint 真值绑定既有用的
+ *   `canonicalModulePath`（剥 model/language_model 包装、layers→decoder、
+ *   visual/vision→vision_tower）。注意不能对正则片段套它 —— 它的
+ *   filter(Boolean) 会把 ".*attn.*" 的前导空段吃掉、产出非法正则 "*attn.*"。
+ * - **正则片段**（"-:.*attn.*" 这类）原样通过；其中 visual/mtp 等中段名与
+ *   树 id 的差异由 path 侧的 checkpoint 命名候选桥接（vision_tower→visual）。
  */
-function pathCandidates(path) {
-  const candidates = [path];
-  if (path.startsWith("embed_tokens")) {
-    candidates.push(`model.language_model.${path}`, `model.${path}`);
-  }
-  if (path.includes("vision_tower")) {
-    candidates.push(path.replaceAll("vision_tower", "visual"));
-  }
-  return candidates;
-}
+const LITERAL_PATH = /^[A-Za-z0-9_.\-]+$/;
 
 export function isQuantizedPath(path, quant) {
   if (!quant) return false;
   const dynamic = quant.dynamic;
   if (!dynamic || typeof dynamic !== "object") return true;
-  const candidates = pathCandidates(path);
+  // 树 id → checkpoint 命名的反向候选（canonicalModulePath 逆映射的最小子集）
+  const candidates = [path];
+  if (path.includes("vision_tower")) candidates.push(path.replaceAll("vision_tower", "visual"));
   let matched = null;
   for (const [pattern, value] of Object.entries(dynamic)) {
     const isExclude = pattern.startsWith("-:");
     const source = isExclude ? pattern.slice(2) : pattern;
     let re;
     try {
-      re = new RegExp(source);
+      // 字面路径走真值绑定的规范化；正则片段原样通过（见上注）
+      re = new RegExp(LITERAL_PATH.test(source) ? canonicalModulePath(source) : source);
     } catch {
       continue;
     }

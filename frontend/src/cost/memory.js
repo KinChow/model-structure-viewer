@@ -157,13 +157,15 @@ function activationPeakBytes({ activationPeak = 1.5 * 1024 ** 3 } = {}) {
   return activationPeak;
 }
 
-export function memoryBreakdown({ weightBytes = 0, config, batch = 1, tokens = 1, kvBytes = 2,
+export function memoryBreakdown({ weightBytes = 0, bufferBytes = 0, config, batch = 1, tokens = 1, kvBytes = 2,
   activationPeak, runtimeConst = 1.5 * 1024 ** 3, commBuffer = 0 } = {}) {
   const kv = kvBytesPerToken(config, kvBytes) * batch * tokens;
   const state = linearStateBytesPerSequence(config, kvBytes) * batch;
   const activation = activationPeakBytes({ activationPeak });
-  const total = weightBytes + kv + state + activation + runtimeConst + commBuffer;
-  return { weightBytes, kvBytes: kv, kvBytesPerToken: kvBytesPerToken(config, kvBytes), stateBytes: state,
+  // bufferBytes：常驻 buffer（tid2eid 查表等）—— 不是参数、不进 weightBytes，
+  // 但加载后常驻显存（2026-09-09 分类裁决，出处见 derivedBufferBytes）。
+  const total = weightBytes + bufferBytes + kv + state + activation + runtimeConst + commBuffer;
+  return { weightBytes, bufferBytes, kvBytes: kv, kvBytesPerToken: kvBytesPerToken(config, kvBytes), stateBytes: state,
     stateBytesPerSequence: linearStateBytesPerSequence(config, kvBytes), activationBytes: activation, runtimeBytes: runtimeConst,
     commBufferBytes: commBuffer, totalBytes: total };
 }

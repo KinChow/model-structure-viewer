@@ -166,10 +166,15 @@ test("F8 MoE：topk 选择 + dispatch/combine 搬运 + combine 加权求和计 v
   assert.equal(combine.bytes.actIn, (2 * 2 * 16 + 2 * 2) * B); // 专家输出 + 路由权重
 });
 
-test("F8 hash 路由：纯查表，零计算", () => {
-  const c = hashRouteCounts({ tokens: 2, topk: 2, tableRows: 100, bytesPerElement: B });
+test("F8 hash 路由：tid2eid 是 buffer（零权重字节），gather 读=写=tokens·topk", () => {
+  // 2026-09-09 分类裁决：tid2eid 是 buffer 不是参数（Megatron-Bridge 明文），
+  // 表的常驻容量（vocab·k·4B）由 derivedBufferBytes 计入显存，不进权重字节；
+  // 本算子只计 gather 的真实拷贝流量。
+  const c = hashRouteCounts({ tokens: 2, topk: 2, bytesPerElement: B });
   assert.equal(c.matrix + c.vector + c.sfu, 0);
-  assert.equal(c.bytes.weights, 100 * B);
+  assert.equal(c.bytes.weights, 0);
+  assert.equal(c.bytes.actIn, 2 * 2 * B);
+  assert.equal(c.bytes.actOut, 2 * 2 * B);
 });
 
 test("F9 重排：split 是视图零流量（A1）；vision_merge 真拷贝", () => {

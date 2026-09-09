@@ -27,6 +27,7 @@ import {
   rearrangeCounts,
   scoredPairs,
 } from "./counts.js";
+import { paramBytes } from "./paramDtypes.js";
 import { formulaForOperator } from "./index.js";
 import { tensorDims } from "../model_executor/dims.js";
 import { visionDimensions } from "../model_executor/layers/vision.js";
@@ -361,7 +362,9 @@ function stateUpdateCounts(config, options, bytesPerElement, modelKind = "") {
     matrix: linearStateUpdateMacs(config, options),
     vector: steps * recurrentState,
     sfu: steps * heads * (delta ? 3 : 1),
-    bytes: { weights: gdnScalars * bytesPerElement, actIn: stateBytes * steps, actOut: stateBytes * steps },
+    // dt_bias / A_log 是 vLLM 显式声明的 torch.float32 参数（paramDtypes 登记），
+    // 不跟激活字节宽 —— 与 derivedWeights 的 gdnDecayElements 同表锁步。
+    bytes: { weights: gdnScalars * paramBytes("gdn_decay"), actIn: stateBytes * steps, actOut: stateBytes * steps },
   };
 }
 // ---------- 旧链镜像结束 ----------
@@ -835,13 +838,14 @@ export function countsForNode(node, env = {}) {
     case "moe_add":
       return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement });
     case "dsv4_hash_route":
-      // M11-P2：tid2eid 路由表 [vocab, num_experts_per_tok] 是真实参数
-      // （V4-Flash 权重 index 实证：129280×6 ≈ 775,680 条目/层，此前传
-      // tableRows:0 → weights 低估）。int32 索引按 bytesPerElement 计。
+      // 2026-09-09 分类裁决（取代 M11-P2 的「表算参数」口径）：tid2eid 是
+      // **buffer 不是参数**（Megatron-Bridge："Buffers are not parameters"；
+      // MaxText 同；出处 Hash Layers, Roller et al. 2021）。表的常驻容量
+      // （vocab·k·4B int32）由 derivedBufferBytes 计入显存，不进权重字节；
+      // 本叶只计 gather 的真实拷贝流量。
       return hashRouteCounts({
         tokens,
         topk: config?.expertsPerToken || 0,
-        tableRows: (config?.vocabSize || 0) * (config?.expertsPerToken || 0),
         bytesPerElement,
       });
     default: {
@@ -964,7 +968,7 @@ export function countsForNode(node, env = {}) {
           };
         },
         ple: () => ({
-          embed: { tokens, topk: 1, tableRows: 0, bytesPerElement },
+          embed: { tokens, topk: 1, bytesPerElement },
           kv: { logicalShape: [2 * (config?.pleEmbedDim || 0), H], tokens, bytesPerElement },
           norm: { tokens, hidden: config?.pleEmbedDim || 0, bytesPerElement },
           conv: { tokens: tokens, channels: config?.pleEmbedDim || 0, kernel: config?.pleNgramSize || 1, bytesPerElement },
@@ -980,10 +984,12 @@ export function countsForNode(node, env = {}) {
         // 注意：上游这些张量是 fp32；本工具统一按激活字节宽计，dtype 差异单列登记。
         mhc_pre: () => ({
           mix: { tokens, width: H, bytesPerElement },
-          // bias=true 承载 hc_attn_base（mix_hc 个）；scale 是 hc_attn_scale 的 3 个
-          // 标量，tokens=0 表示只读权重不产生逐 token 计算。
-          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement, bias: true },
-          scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement },
+          // hc_{attn,ffn}_base（mix_hc 个）与 _scale（3 个）是 vLLM 显式声明的
+          // torch.float32 标量（paramDtypes 登记），单独出、不跟激活字节宽；
+          // 大矩阵 hc_*_fn 仍是 [mix_hc, hc_dim]（v1 登记为跟随 torch_dtype）。
+          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement },
+          base: { logicalShape: [mhcMixRows(config), 1], tokens: 0, bytesPerElement: paramBytes("mhc_base") },
+          scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement: paramBytes("mhc_scale") },
           // attn_norm 的 RMSNorm 权重被融进 mhc_pre 内核（vLLM
           // deepseek_v4/amd/model.py:704、816-818 把 attn_norm.weight 传进去），
           // 结构树里没有独立的 input_layernorm 叶 —— 权重记在这里。
@@ -1002,8 +1008,9 @@ export function countsForNode(node, env = {}) {
           post: { tokens, width: H, bytesPerElement },
           inject: { tokens, hidden: H, bytesPerElement },
           pre: { tokens, width: H, bytesPerElement },
-          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement, bias: true },
-          scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement },
+          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement },
+          base: { logicalShape: [mhcMixRows(config), 1], tokens: 0, bytesPerElement: paramBytes("mhc_base") },
+          scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement: paramBytes("mhc_scale") },
           // 同理，ffn_norm 的权重融进 fused post+pre（model.py:705）。
           norm: { tokens, hidden: H, bytesPerElement },
         }),

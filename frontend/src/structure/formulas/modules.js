@@ -36,6 +36,7 @@ const sumCounts = (...parts) => parts.reduce((total, part) => ({
 }), { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } });
 import {
   attentionCounts,
+  hashRouteCounts,
   gateCounts,
   linearCounts,
   linearAttentionStateCounts,
@@ -233,6 +234,25 @@ const MODULE_LIST = [
     residentIntermediates: (p) => linearResident({ tokens: p.tokens, out: p.out, b: p.b }),
     compulsoryBytes: (p) => linearCompulsory({ tokens: p.tokens, inDim: p.hidden, out: p.out, b: p.b }),
     notes: ["latent/rope 的拆分是视图（mla_kv_split 零流量），不进分解"],
+  },
+  {
+    // DeepSeek V4 的哈希路由。2026-09-09 分类裁决：tid2eid 是 **buffer 不是
+    // 参数**（Megatron-Bridge："Buffers are not parameters"；MaxText 同；
+    // 出处 = Hash Layers, Roller et al. 2021）——表的常驻容量（vocab·k·4B
+    // int32）由 derivedBufferBytes 计入显存，不进权重字节恒等式；本模块只计
+    // gather 的真实拷贝。此前「表算权重」的口径与 gather 的物理读数冲突，
+    // 是 DECOMPOSE_PENDING 里唯一一条「口径冲突」而非「工作量」的待办。
+    id: "dsv4_hash_route",
+    title: "DeepSeek V4 Hash MoE Routing",
+    source: { framework: "vLLM", symbol: "DeepseekV4MoE hash routing (tid2eid)", ref: "models/deepseek_v4/" },
+    fused: (p) => hashRouteCounts({ tokens: p.tokens, topk: p.topk, bytesPerElement: p.b }),
+    decompose: (p) => [{ atom: "gather", args: { rows: p.tokens, width: p.topk, bytesPerElement: p.b } }],
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => 2 * p.tokens * p.topk * p.b,
+    notes: [
+      "tid2eid 是 buffer：容量走 derivedBufferBytes，不进权重字节恒等式",
+      "gather 读 = 写 = tokens·topk（每 token 取 topk 个专家 id）",
+    ],
   },
 ];
 
@@ -514,7 +534,6 @@ export const DECOMPOSE_PENDING = {
   hyper_connection: "W4 随多流残差一并落",
   ple: "ngram 查表 + short conv 组合，W4",
   attention_residual: "K3 AttnResBlock，W3 期望侧建模时一并落",
-  dsv4_hash_route: "口径冲突待裁决：fused 的 bytes.weights 记**整张** tid2eid 表（vocab·k≈775,680 条/层，为了让权重字节恒等式的『权重读一遍』口径成立），但 gather 原子物理上只碰 tokens·k 条 —— 声明分解会必然违反 bytes 夹逼的上界。要先决定 hash 表算权重还是算数据",
   vision_position: "视觉部件 4 类归属确认后落，W1 台账",
   vision_merge: "同上（含 G1 少乘 T_v 缺口）",
   vision_activation: "同上",

@@ -14,7 +14,7 @@ test("F4 MLA KV 使用压缩 latent 与 rotary 分量", () => {
 test("memory breakdown exposes token KV and request state separately", () => {
   const result = memoryBreakdown({ weightBytes: 10, config: { layers: 1, kvHeads: 1, headDim: 1 }, batch: 1, tokens: 2,
     activationPeak: 3, runtimeConst: 4, commBuffer: 5, kvBytes: 1 });
-  assert.deepEqual(result, { weightBytes: 10, kvBytes: 4, kvBytesPerToken: 2, stateBytes: 0, stateBytesPerSequence: 0, activationBytes: 3, runtimeBytes: 4, commBufferBytes: 5, totalBytes: 26 });
+  assert.deepEqual(result, { weightBytes: 10, bufferBytes: 0, kvBytes: 4, kvBytesPerToken: 2, stateBytes: 0, stateBytesPerSequence: 0, activationBytes: 3, runtimeBytes: 4, commBufferBytes: 5, totalBytes: 26 });
 });
 
 test("KDA recurrent and convolution state is request-scoped, not token KV", () => {

@@ -2,6 +2,7 @@
 // 来源：llm-analysis 的 get_num_params_* 公式形态；不包含架构特有 bias/额外 head。
 
 import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+import { paramBytes } from "../structure/formulas/paramDtypes.js";
 
 export function derivedWeightParameters(config = {}) {
   const hidden0 = config.hiddenSize || 0;
@@ -111,6 +112,17 @@ function decoderParameters(config = {}, perLayerOut = null) {
     }
     const mhcParameters = config.multiHyperConnection ? mhcLayerParameters(config) : 0;
     const hcParameters = config.hyperConnectionCount ? hyperConnectionLayerParameters(config) : 0;
+    // fp32 参数的**元素数**（字节宽在 paramDtypes 登记）：GDN/KDA 的 dt_bias+A_log
+    // 与 mHC 的 base/scale 标量。权重字节恒等式与容量字节都要把它们按 4B 计，
+    // 元素数仍留在参数量里（支柱②的参数量是纯元素计数）。
+    let fp32Elements = 0;
+    if (attentionKind === "linear") {
+      fp32Elements += gdnDecayElements(config, plan.linearAttentionMode);
+    }
+    if (config.multiHyperConnection) {
+      const mixRows = (2 + (config.mhcNumResidualStreams || 0)) * (config.mhcNumResidualStreams || 0);
+      fp32Elements += 2 * (mixRows + 3); // attn/ffn 两套 base[mix_hc] + scale[3]
+    }
     // PLE（Qwen4Exp 的 Position Learning Enhancement）只挂在 ple_layer_ids 指定的层：
     // W_kv[2·pleEmbedDim, hidden] + grouped norm(pleEmbedDim) + short-conv 核
     //（pleEmbedDim·ngram）。ngram 哈希嵌入表两侧都未建模（登记在 operators_reference
@@ -125,13 +137,11 @@ function decoderParameters(config = {}, perLayerOut = null) {
     if (schedule[i] === "moe" && experts > 0) {
       const routedExperts = experts * 3 * routedExpertHidden * moeIntermediate;
       routedThisLayer = routedExperts;
-      // 哈希路由层没有 router GEMM，用的是 tid2eid 查表（vocab × k 条）。
-      // 此前一律按 hidden·experts 记 router，V4-Pro 的 3 个哈希层每层多算
-      // 2,752,512、少算 775,680（2026-09-09 权重字节逐层归因）。
+      // 哈希路由层没有 router GEMM。tid2eid 查表是 **buffer 不是参数**
+      //（2026-09-09 裁决，见 hashRouteCounts 注释）：不进权重字节恒等式，
+      // 常驻容量由 derivedBufferBytes 单独计（vocab·k·4B int32）。
       const isHashLayer = i < (config.numHashLayers || 0);
-      const routerParameters = isHashLayer
-        ? (config.vocabSize || 0) * (config.expertsPerToken || 0)
-        : hidden * experts;
+      const routerParameters = isHashLayer ? 0 : hidden * experts;
       // 潜空间 MoE（K3）：down/up 两条投影 + combine 之后 latent 上的一层 RMSNorm
       //（结构树里是 moe.routed_expert_norm 叶，宽 = routed_expert_hidden_size）。
       const latentProjection = routedExpertHidden !== hidden
@@ -157,6 +167,7 @@ function decoderParameters(config = {}, perLayerOut = null) {
         hc: hcParameters,
         ple: pleParameters,
         routed: routedThisLayer,
+        fp32Elements,
         total: decoder - before,
       });
     }
@@ -250,6 +261,31 @@ export function derivedVisionParameters(config) {
   return patchEmbedding + layers * (attention + mlp) + merger + downsample;
 }
 
+/**
+ * GDN/KDA 衰减参数（dt_bias + A_log）的**元素数**，按 linearAttentionMode 分家族。
+ * 四个家族的公式都必须通过本函数取这两项 —— 字节宽在 paramDtypes（fp32）登记，
+ * 元素数与字节宽两侧各只写一遍，锁死不漂移。
+ */
+export function gdnDecayElements(config, mode) {
+  const heads = config.linearKeyHeads || config.attentionHeads || 0;
+  const headDim = config.linearKeyDim || config.headDim || 0;
+  const valueHeads = config.linearValueHeads || config.attentionHeads || heads;
+  switch (mode) {
+    case "qwen3_5":
+    case "qwen4_exp":
+      return 2 * valueHeads; // dt_bias + A_log，各 num_v_heads
+    case "glm5_next":
+    case "kimi_k3":
+      return heads * headDim + heads; // dt_bias = projection_size、A_log = num_heads
+    case "generic":
+      // 泛化 GDN 模板与 qwen 同形（leaf 的 state_update 对 generic 也发
+      // 2·heads 的 dt_bias+A_log），default 不给 —— 显式列出已知形态。
+      return 2 * valueHeads;
+    default:
+      return 0;
+  }
+}
+
 function qwen35LinearAttentionParameters(config) {
   const hidden = config.hiddenSize || 0;
   const keyHeads = config.linearKeyHeads || 0;
@@ -263,7 +299,7 @@ function qwen35LinearAttentionParameters(config) {
   return hidden * (2 * keyProjection + 2 * valueProjection)
     + 2 * hidden * valueHeads
     + convDim * kernel
-    + 2 * valueHeads
+    + gdnDecayElements(config, "qwen3_5")
     + valueDim
     + valueProjection * hidden;
 }
@@ -353,7 +389,10 @@ function genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim })
   const valueHeads = config.linearValueHeads || heads;
   const keyDim = config.linearKeyDim || qDim;
   const valueDim = config.linearValueDim || vDim;
-  return hidden * (keyHeads * keyDim + valueHeads * valueDim + hidden);
+  // GDN 的 dt_bias + A_log（fp32，paramDtypes 登记）—— 与 leaf 的
+  // state_update 同源，此前整片缺失（泛化形态此前无现网载体故未暴露）。
+  return hidden * (keyHeads * keyDim + valueHeads * valueDim + hidden)
+    + gdnDecayElements(config, "generic");
 }
 
 // GLM-5.3-Flash uses six-way fused qkvbfg_a plus separate f_b/g_b projections,
@@ -378,8 +417,7 @@ function glm5NextLinearAttentionParameters(config) {
     + headDim * qkvDim
     + headDim * qkvDim
     + 3 * qkvDim * convKernel
-    + qkvDim
-    + heads
+    + gdnDecayElements(config, "glm5_next")
     + headDim
     + qkvDim * hidden;
 }
@@ -395,8 +433,7 @@ function kimiK3LinearAttentionParameters(config) {
     + hidden * headDim
     + headDim * projection
     + 3 * projection * convKernel
-    + projection
-    + heads
+    + gdnDecayElements(config, "kimi_k3")
     + headDim
     + projection * hidden;
 }
@@ -414,7 +451,7 @@ function qwen4ExpLinearAttentionParameters(config) {
   return hidden * (2 * keyProjection + 2 * valueProjection)
     + 2 * hidden * valueHeads
     + convDim * kernel
-    + 2 * valueHeads
+    + gdnDecayElements(config, "qwen4_exp")
     + valueDim
     + valueProjection * hidden;
 }
@@ -447,6 +484,31 @@ function mhcLayerParameters(config) {
   return 2 * oneProjection;
 }
 
+/**
+ * 常驻 buffer 的字节（**不是参数**，不进权重字节恒等式，只进显存容量）：
+ * - DeepSeek V4 哈希层的 tid2eid 查表：num_hash_layers × vocab × k，int32
+ *   （Megatron-Bridge：`tid2eid` buffer, int32；"Buffers are not parameters"）。
+ */
+export function derivedBufferBytes(config = {}, bytesPerElement = 4) {
+  const hashLayers = config.numHashLayers || 0;
+  if (!hashLayers) return 0;
+  const tableEntries = (config.vocabSize || 0) * (config.expertsPerToken || 0);
+  return hashLayers * tableEntries * bytesPerElement;
+}
+
+/**
+ * fp32 参数的元素数（字节宽见 paramDtypes）。注意：MTP 的期望侧近似
+ * （decoderOnly/layers）不含 fp32 修正，本函数只覆盖主干层 —— 对 MTP
+ * 一层的份额误差是每家族至多一份 gdn/mhc 标量（KB 级）。
+ */
+export function derivedFp32Parameters(config = {}) {
+  const { perLayer } = derivedDecoderLayerBreakdown(config);
+  return perLayer.reduce((sum, row) => sum + (row.fp32Elements || 0), 0);
+}
+
 export function derivedWeightBytes(config = {}, bytesPerElement = 2) {
-  return derivedWeightParameters(config) * bytesPerElement;
+  const params = derivedWeightParameters(config);
+  const fp32 = derivedFp32Parameters(config);
+  // fp32 参数按 4B 计（paramDtypes 登记值），其余按调用方字节宽。
+  return params * bytesPerElement + fp32 * (4 - bytesPerElement);
 }

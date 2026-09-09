@@ -18,7 +18,7 @@ import { createStructureIr } from "../../ir/createStructureIr.js";
 import { materializeModelStructure } from "../../materializers/toStructureNode.js";
 import { countsForNode } from "../extractor.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
-import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters } from "../../../cost/derivedWeights.js";
+import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters, derivedDecoderLayerBreakdown } from "../../../cost/derivedWeights.js";
 import { kvBytesPerToken, kvBytesPerTokenBreakdown } from "../../../cost/memory.js";
 import { classifyRoofline } from "../../../cost/roofline.js";
 import { deriveBuildPlan } from "../../model_executor/plan.js";
@@ -89,7 +89,8 @@ function buildStructure(raw, modelId) {
 //   逐位吻合）；MoE 层数（schedule 实测 42 moe + 3 dense，与
 //   first_k_dense_replace=3 一致）。prefill 侧同模型仅 +0.57%。
 
-/** 期望侧：该相位下应被读一遍的权重字节（不含 embedding 表，gather 不计权重读）。 */
+/** 期望侧：该相位下应被读一遍的权重字节（不含 embedding 表，gather 不计权重读；
+ *  也不含 tid2eid 等 buffer —— 它们是常驻数据，容量由 derivedBufferBytes 单独计）。 */
 function expectedWeightBytes(normalized, phase, tokens, plan) {
   const hidden = normalized.hiddenSize || 0;
   const total = derivedWeightParameters(normalized);
@@ -118,7 +119,11 @@ function expectedWeightBytes(normalized, phase, tokens, plan) {
   // 叶子侧因此为 0 —— 期望侧同步扣掉。
   const mtp = derivedMtpParameters(normalized);
   const dense = total - mtp - vision - embed - routedN;
-  return (dense + tiedHead + routedActive + vision) * B;
+  // fp32 参数（paramDtypes 登记的 dt_bias/A_log、mHC base/scale）按 4B 计，
+  // 其余按 B。fp32 元素数只数主干层（MTP 的期望侧本来就被整体减掉）。
+  const fp32 = derivedDecoderLayerBreakdown(normalized).perLayer
+    .reduce((sum, row) => sum + (row.fp32Elements || 0), 0);
+  return (dense - fp32 + tiedHead + routedActive + vision) * B + fp32 * 4;
 }
 
 function walkLeaves(root, visit) {

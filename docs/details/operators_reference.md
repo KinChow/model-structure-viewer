@@ -1586,6 +1586,19 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 - [x] **逐层归因工具**：`node scripts/diff-weight-identity.mjs --phase decode <modelId>`
       把权重字节差额摊到「第几层 / 哪个算子」，替代早期靠代数反解 + 单层变体二分的
       手工流程。权重字节这条从 1% 收到 0 的 20 余处修正全部由它定位。
+- [x] **tid2eid 分类裁决落地**（2026-09-09 联网取证）：tid2eid 是 **buffer 不是参数**
+      （NVIDIA Megatron-Bridge 文档明文 "Buffers are not parameters"；MaxText 同；
+      出处 = Hash Layers, Roller et al. 2021）。哈希层的 gather 叶 `bytes.weights = 0`
+      （与 embedding 表同待遇），表的常驻容量（vocab·k·4B int32）由
+      `derivedBufferBytes` 计入显存（memory 面板新增 Buffers 行）。
+      `dsv4_hash_route` 的分解 = 一个 gather 原子，DECOMPOSE_PENDING 13 → 12。
+- [x] **fp32 参数登记表 v1**（`formulas/paramDtypes.js`）：vLLM 显式声明
+      torch.float32 的标量参数（GDN/KDA 的 dt_bias + A_log、mHC 的 base/scale）
+      两侧（leaf counts 与 derivedWeights 经 `gdnDecayElements` 同源）按 4B 计，
+      其余参数跟随 torch_dtype。v1 刻意不覆盖：mHC 的大矩阵 hc_*_fn（fp32 buffer，
+      跟随 torch_dtype 计）与量化 scale 张量（需量化块形状模型，另行立项）。
+      完整方案 = per-tensor dtype 取自 checkpoint safetensors 头部
+      （hf-mem / genmind 类估算器的做法，权重项置信度 99%）。
 
 <!-- BEGIN GENERATED: operators -->
 
@@ -1685,7 +1698,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `dsa_indexer` | 9.899e+9 | 0.04% | 1.973e+9 | 0.05% |
 | `dsv4_sparse_mla` | 1.017e+10 | 0.04% | 3.277e+8 | 0.01% |
 | `rmsnorm` | 0.000e+0 | 0.00% | 8.900e+9 | 0.25% |
-| `gated_delta_attention` | 3.625e+9 | 0.02% | 5.040e+9 | 0.14% |
+| `gated_delta_attention` | 3.625e+9 | 0.02% | 5.043e+9 | 0.14% |
 | `dsv4_indexer` | 4.127e+9 | 0.02% | 7.158e+8 | 0.02% |
 | `minimax_sparse_attention` | 4.064e+9 | 0.02% | 6.390e+8 | 0.02% |
 | `hyper_connection` | 1.279e+9 | 0.01% | 2.603e+9 | 0.07% |
@@ -1810,8 +1823,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 ## 模块层分解台账（生成物）
 
-- 已声明分解的模块：**15** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
-- 尚未声明分解（`DECOMPOSE_PENDING`）：**11**
+- 已声明分解的模块：**16** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `dsv4_hash_route` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
+- 尚未声明分解（`DECOMPOSE_PENDING`）：**10**
 
 | 模块 | 待办原因 |
 |---|---|
@@ -1822,7 +1835,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `hyper_connection` | W4 随多流残差一并落 |
 | `ple` | ngram 查表 + short conv 组合，W4 |
 | `attention_residual` | K3 AttnResBlock，W3 期望侧建模时一并落 |
-| `dsv4_hash_route` | 口径冲突待裁决：fused 的 bytes.weights 记**整张** tid2eid 表（vocab·k≈775,680 条/层，为了让权重字节恒等式的『权重读一遍』口径成立），但 gather 原子物理上只碰 tokens·k 条 —— 声明分解会必然违反 bytes 夹逼的上界。要先决定 hash 表算权重还是算数据 |
 | `vision_position` | 视觉部件 4 类归属确认后落，W1 台账 |
 | `vision_merge` | 同上（含 G1 少乘 T_v 缺口） |
 | `vision_activation` | 同上 |
@@ -1851,8 +1863,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `linear` | decode | 86/208 | 5.760e+10 | 0 | 0 | 1.701e+9 | 8.366e+7 | 1.025e+8 | 30.52 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 16/36 | 5.463e+10 | 0 | 0 | 0 | 3.566e+8 | 3.102e+8 | 81.92 | matrix | — | — | — |
 | `matmul` | decode | 16/36 | 6.216e+9 | 0 | 0 | 0 | 1.782e+8 | 1.066e+8 | 21.83 | memory | — | — | — |
-| `gated_delta_attention` | prefill | 6/18 | 2.899e+10 | 1.510e+8 | 2.765e+4 | 1.152e+3 | 3.232e+8 | 3.232e+8 | 44.85 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `gated_delta_attention` | decode | 6/18 | 1.416e+7 | 4.719e+6 | 8.640e+2 | 1.152e+3 | 1.010e+7 | 1.010e+7 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | prefill | 6/18 | 2.899e+10 | 1.510e+8 | 2.765e+4 | 2.304e+3 | 3.232e+8 | 3.232e+8 | 44.85 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | decode | 6/18 | 1.416e+7 | 4.719e+6 | 8.640e+2 | 2.304e+3 | 1.010e+7 | 1.010e+7 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `causal_conv1d` | prefill | 6/18 | 9.060e+8 | 0 | 0 | 8.847e+5 | 4.530e+8 | 4.530e+8 | 1.00 | memory | — | — | — |
 | `causal_conv1d` | decode | 6/18 | 4.424e+5 | 0 | 0 | 8.847e+5 | 8.847e+5 | 8.847e+5 | 0.17 | memory | — | — | — |
 | `swiglu` | prefill | 13/24 | 0 | 3.523e+8 | 3.523e+8 | 0 | 7.046e+8 | 3.523e+8 | 0.00 | memory | 计算✓ 字节✓ | 2.936e+7 | 0 |
@@ -1896,8 +1908,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `swiglu` | decode | 42/80 | 1.007e+9 | 3.686e+5 | 3.686e+5 | 2.013e+9 | 7.373e+5 | 3.686e+5 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 24/74 | 1.822e+11 | 0 | 0 | 0 | 1.132e+9 | 1.019e+9 | 84.72 | matrix | — | — | — |
 | `matmul` | decode | 24/74 | 2.097e+10 | 0 | 0 | 0 | 4.794e+8 | 3.239e+8 | 26.11 | memory | — | — | — |
-| `gated_delta_attention` | prefill | 10/30 | 9.664e+10 | 5.033e+8 | 9.216e+4 | 3.840e+3 | 1.054e+9 | 1.054e+9 | 45.85 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `gated_delta_attention` | decode | 10/30 | 4.719e+7 | 1.573e+7 | 2.880e+3 | 3.840e+3 | 3.293e+7 | 3.293e+7 | 0.72 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | prefill | 10/30 | 9.664e+10 | 5.033e+8 | 9.216e+4 | 7.680e+3 | 1.054e+9 | 1.054e+9 | 45.85 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | decode | 10/30 | 4.719e+7 | 1.573e+7 | 2.880e+3 | 7.680e+3 | 3.293e+7 | 3.293e+7 | 0.72 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `causal_conv1d` | prefill | 10/30 | 2.013e+9 | 0 | 0 | 1.966e+6 | 1.007e+9 | 1.007e+9 | 1.00 | memory | — | — | — |
 | `causal_conv1d` | decode | 10/30 | 9.830e+5 | 0 | 0 | 1.966e+6 | 1.966e+6 | 1.966e+6 | 0.17 | memory | — | — | — |
 | `moe_combine` | prefill | 21/40 | 0 | 2.684e+9 | 0 | 0 | 2.686e+9 | 3.355e+8 | 0.00 | memory | — | — | — |
@@ -2025,10 +2037,10 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `dsv4_indexer` | decode | 30/30 | 1.007e+9 | 3.146e+7 | 0 | 0 | 1.268e+8 | 4.781e+7 | 5.76 | memory | — | — | — |
 | `dsv4_compressed_attention` | prefill | 31/31 | 1.331e+11 | 0 | 0 | 0 | 8.847e+9 | 8.907e+9 | 7.50 | memory | — | — | — |
 | `dsv4_compressed_attention` | decode | 31/31 | 4.063e+6 | 0 | 0 | 0 | 1.067e+7 | 4.603e+6 | 0.27 | memory | — | — | — |
-| `mhc_fused_post_pre` | prefill | 61/61 | 8.597e+10 | 6.271e+9 | 3.582e+9 | 8.483e+7 | 1.612e+10 | 7.170e+9 | 3.68 | memory | — | — | — |
-| `mhc_fused_post_pre` | decode | 61/61 | 4.198e+7 | 3.062e+6 | 1.749e+6 | 8.483e+7 | 7.870e+6 | 3.501e+6 | 0.44 | memory | — | — | — |
-| `mhc_pre` | prefill | 61/61 | 8.597e+10 | 5.376e+9 | 1.791e+9 | 8.483e+7 | 1.433e+10 | 5.379e+9 | 4.34 | memory | — | — | — |
-| `mhc_pre` | decode | 61/61 | 4.198e+7 | 2.625e+6 | 8.746e+5 | 8.483e+7 | 6.996e+6 | 2.626e+6 | 0.44 | memory | — | — | — |
+| `mhc_fused_post_pre` | prefill | 61/61 | 8.597e+10 | 6.268e+9 | 3.582e+9 | 8.483e+7 | 1.612e+10 | 7.170e+9 | 3.68 | memory | — | — | — |
+| `mhc_fused_post_pre` | decode | 61/61 | 4.198e+7 | 3.061e+6 | 1.749e+6 | 8.483e+7 | 7.870e+6 | 3.501e+6 | 0.44 | memory | — | — | — |
+| `mhc_pre` | prefill | 61/61 | 8.597e+10 | 5.373e+9 | 1.791e+9 | 8.483e+7 | 1.433e+10 | 5.379e+9 | 4.34 | memory | — | — | — |
+| `mhc_pre` | decode | 61/61 | 4.198e+7 | 2.623e+6 | 8.746e+5 | 8.483e+7 | 6.996e+6 | 2.626e+6 | 0.44 | memory | — | — | — |
 | `rope` | prefill | 122/122 | 0 | 4.951e+10 | 0 | 0 | 6.601e+10 | 3.300e+10 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 122/122 | 0 | 2.417e+7 | 0 | 0 | 3.223e+7 | 1.612e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `moe_combine` | prefill | 61/61 | 0 | 1.075e+10 | 0 | 0 | 1.075e+10 | 1.791e+9 | 0.00 | memory | — | — | — |
@@ -2049,8 +2061,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mhc_contract` | decode | 1/1 | 0 | 7.168e+3 | 0 | 0 | 2.867e+4 | 1.434e+4 | 0.00 | memory | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.936e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 1.434e+4 | 1.434e+4 | 0.00 | memory | — | — | — |
-| `dsv4_hash_route` | prefill | 3/3 | 0 | 0 | 0 | 4.654e+6 | 1.229e+4 | 7.373e+4 | 0.00 | memory | — | — | — |
-| `dsv4_hash_route` | decode | 3/3 | 0 | 0 | 0 | 4.654e+6 | 6.000e+0 | 3.600e+1 | 0.00 | memory | — | — | — |
+| `dsv4_hash_route` | prefill | 3/3 | 0 | 0 | 0 | 0 | 7.373e+4 | 7.373e+4 | 0.00 | memory | — | — | — |
+| `dsv4_hash_route` | decode | 3/3 | 0 | 0 | 0 | 0 | 3.600e+1 | 3.600e+1 | 0.00 | memory | — | — | — |
 | `split` | prefill | 61/61 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | decode | 61/61 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 
@@ -2140,16 +2152,16 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `linear` | decode | 214/494 | 1.480e+11 | 0 | 0 | 1.739e+10 | 1.155e+8 | 1.843e+8 | 8.37 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `dsa_sparse_mla` | prefill | 11/11 | 7.563e+11 | 0 | 0 | 0 | 6.762e+9 | 6.647e+9 | 56.40 | memory | — | — | — |
 | `dsa_sparse_mla` | decode | 11/11 | 7.382e+8 | 0 | 0 | 0 | 2.924e+7 | 6.128e+6 | 20.87 | memory | — | — | — |
-| `gated_delta_attention` | prefill | 13/34 | 2.190e+11 | 1.141e+9 | 2.089e+5 | 5.614e+5 | 2.442e+9 | 2.442e+9 | 44.84 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `gated_delta_attention` | decode | 13/34 | 1.070e+8 | 3.565e+7 | 6.528e+3 | 5.614e+5 | 7.632e+7 | 7.632e+7 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | prefill | 13/34 | 2.190e+11 | 1.141e+9 | 2.089e+5 | 1.123e+6 | 2.442e+9 | 2.442e+9 | 44.84 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | decode | 13/34 | 1.070e+8 | 3.565e+7 | 6.528e+3 | 1.123e+6 | 7.632e+7 | 7.632e+7 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `mla_query_compress` | prefill | 11/11 | 1.417e+11 | 0 | 0 | 1.384e+8 | 1.845e+8 | 6.921e+7 | 361.41 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `mla_query_compress` | decode | 11/11 | 6.921e+7 | 0 | 0 | 1.384e+8 | 9.011e+4 | 3.379e+4 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `mla_kv_compress` | prefill | 11/11 | 4.724e+10 | 0 | 0 | 4.614e+7 | 1.845e+8 | 2.307e+7 | 186.18 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `mla_kv_compress` | decode | 11/11 | 2.307e+7 | 0 | 0 | 4.614e+7 | 9.011e+4 | 1.126e+4 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `mhc_fused_post_pre` | prefill | 24/45 | 3.624e+10 | 2.645e+9 | 1.510e+9 | 3.576e+7 | 6.795e+9 | 3.024e+9 | 3.68 | memory | — | — | — |
-| `mhc_fused_post_pre` | decode | 24/45 | 1.769e+7 | 1.291e+6 | 7.373e+5 | 3.576e+7 | 3.318e+6 | 1.477e+6 | 0.44 | memory | — | — | — |
-| `mhc_pre` | prefill | 24/45 | 3.624e+10 | 2.267e+9 | 7.551e+8 | 3.576e+7 | 6.040e+9 | 2.269e+9 | 4.34 | memory | — | — | — |
-| `mhc_pre` | decode | 24/45 | 1.769e+7 | 1.107e+6 | 3.687e+5 | 3.576e+7 | 2.949e+6 | 1.108e+6 | 0.44 | memory | — | — | — |
+| `mhc_fused_post_pre` | prefill | 24/45 | 3.624e+10 | 2.642e+9 | 1.510e+9 | 3.576e+7 | 6.795e+9 | 3.024e+9 | 3.68 | memory | — | — | — |
+| `mhc_fused_post_pre` | decode | 24/45 | 1.769e+7 | 1.290e+6 | 7.373e+5 | 3.576e+7 | 3.318e+6 | 1.477e+6 | 0.44 | memory | — | — | — |
+| `mhc_pre` | prefill | 24/45 | 3.624e+10 | 2.265e+9 | 7.551e+8 | 3.576e+7 | 6.040e+9 | 2.269e+9 | 4.34 | memory | — | — | — |
+| `mhc_pre` | decode | 24/45 | 1.769e+7 | 1.106e+6 | 3.687e+5 | 3.576e+7 | 2.949e+6 | 1.108e+6 | 0.44 | memory | — | — | — |
 | `causal_conv1d` | prefill | 13/34 | 6.845e+9 | 0 | 0 | 6.685e+6 | 3.423e+9 | 3.423e+9 | 1.00 | memory | — | — | — |
 | `causal_conv1d` | decode | 13/34 | 3.342e+6 | 0 | 0 | 6.685e+6 | 6.685e+6 | 6.685e+6 | 0.17 | memory | — | — | — |
 | `dsa_kpool_indexer` | prefill | 11/11 | 5.917e+9 | 1.871e+8 | 0 | 0 | 7.912e+8 | 3.754e+8 | 5.07 | memory | — | — | — |
@@ -2240,8 +2252,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `swiglu` | decode | 94/184 | 4.631e+10 | 4.145e+6 | 4.145e+6 | 9.261e+10 | 8.290e+6 | 4.145e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 48/46 | 1.581e+12 | 0 | 0 | 0 | 7.913e+9 | 7.721e+9 | 101.15 | matrix | — | — | — |
 | `matmul` | decode | 48/46 | 3.087e+9 | 0 | 0 | 0 | 3.987e+8 | 1.281e+7 | 7.50 | memory | — | — | — |
-| `gated_delta_attention` | prefill | 23/69 | 8.891e+11 | 4.631e+9 | 8.479e+5 | 3.533e+4 | 9.532e+9 | 9.532e+9 | 46.63 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `gated_delta_attention` | decode | 23/69 | 4.341e+8 | 1.447e+8 | 2.650e+4 | 3.533e+4 | 2.979e+8 | 2.979e+8 | 0.73 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | prefill | 23/69 | 8.891e+11 | 4.631e+9 | 8.479e+5 | 7.066e+4 | 9.532e+9 | 9.532e+9 | 46.63 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | decode | 23/69 | 4.341e+8 | 1.447e+8 | 2.650e+4 | 7.066e+4 | 2.979e+8 | 2.979e+8 | 0.73 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `moe_combine` | prefill | 47/92 | 0 | 3.087e+10 | 0 | 0 | 3.087e+10 | 3.087e+9 | 0.00 | memory | — | — | — |
 | `moe_combine` | decode | 47/92 | 0 | 1.507e+7 | 0 | 0 | 1.508e+7 | 1.507e+6 | 0.00 | memory | — | — | — |
 | `causal_conv1d` | prefill | 23/69 | 1.158e+10 | 0 | 0 | 1.130e+7 | 5.788e+9 | 5.788e+9 | 1.00 | memory | — | — | — |
@@ -2285,8 +2297,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `hyper_connection` | decode | 55/97 | 6.396e+8 | 6.984e+6 | 2.049e+6 | 1.281e+9 | 1.202e+7 | 8.071e+6 | 0.49 | memory | — | — | — |
 | `qsa_sparse_attention` | prefill | 13/12 | 3.094e+11 | 0 | 0 | 0 | 2.870e+9 | 2.769e+9 | 54.86 | memory | — | — | — |
 | `qsa_sparse_attention` | decode | 13/12 | 3.020e+8 | 0 | 0 | 0 | 5.289e+7 | 2.531e+6 | 5.45 | memory | — | — | — |
-| `gated_delta_attention` | prefill | 14/36 | 1.739e+11 | 9.060e+8 | 1.659e+5 | 6.912e+3 | 1.883e+9 | 1.883e+9 | 46.20 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `gated_delta_attention` | decode | 14/36 | 8.493e+7 | 2.831e+7 | 5.184e+3 | 6.912e+3 | 5.883e+7 | 5.883e+7 | 0.72 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | prefill | 14/36 | 1.739e+11 | 9.060e+8 | 1.659e+5 | 1.382e+4 | 1.883e+9 | 1.883e+9 | 46.20 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | decode | 14/36 | 8.493e+7 | 2.831e+7 | 5.184e+3 | 1.382e+4 | 5.883e+7 | 5.883e+7 | 0.72 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `ple` | prefill | 1/1 | 2.686e+10 | 3.146e+7 | 1.049e+7 | 2.623e+7 | 5.243e+7 | 5.243e+7 | 204.88 | matrix | — | — | — |
 | `ple` | decode | 1/1 | 1.311e+7 | 1.536e+4 | 5.121e+3 | 2.623e+7 | 2.560e+4 | 2.560e+4 | 0.50 | memory | — | — | — |
 | `matmul` | prefill | 2/54 | 1.034e+10 | 0 | 0 | 0 | 2.511e+8 | 1.794e+8 | 24.01 | memory | — | — | — |
@@ -2377,10 +2389,10 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `dsv4_sparse_mla` | decode | 21/21 | 7.046e+8 | 0 | 0 | 0 | 2.892e+7 | 6.881e+6 | 19.68 | memory | — | — | — |
 | `dsv4_compressed_attention` | prefill | 20/20 | 4.295e+10 | 0 | 0 | 0 | 2.855e+9 | 2.894e+9 | 7.47 | memory | — | — | — |
 | `dsv4_compressed_attention` | decode | 20/20 | 1.311e+6 | 0 | 0 | 0 | 5.407e+6 | 1.495e+6 | 0.19 | memory | — | — | — |
-| `mhc_fused_post_pre` | prefill | 43/43 | 3.463e+10 | 2.527e+9 | 1.443e+9 | 3.417e+7 | 6.493e+9 | 2.890e+9 | 3.68 | memory | — | — | — |
-| `mhc_fused_post_pre` | decode | 43/43 | 1.691e+7 | 1.234e+6 | 7.046e+5 | 3.417e+7 | 3.170e+6 | 1.411e+6 | 0.44 | memory | — | — | — |
-| `mhc_pre` | prefill | 43/43 | 3.463e+10 | 2.166e+9 | 7.215e+8 | 3.417e+7 | 5.771e+9 | 2.168e+9 | 4.34 | memory | — | — | — |
-| `mhc_pre` | decode | 43/43 | 1.691e+7 | 1.058e+6 | 3.523e+5 | 3.417e+7 | 2.818e+6 | 1.059e+6 | 0.44 | memory | — | — | — |
+| `mhc_fused_post_pre` | prefill | 43/43 | 3.463e+10 | 2.525e+9 | 1.443e+9 | 3.417e+7 | 6.493e+9 | 2.890e+9 | 3.68 | memory | — | — | — |
+| `mhc_fused_post_pre` | decode | 43/43 | 1.691e+7 | 1.233e+6 | 7.046e+5 | 3.417e+7 | 3.170e+6 | 1.411e+6 | 0.44 | memory | — | — | — |
+| `mhc_pre` | prefill | 43/43 | 3.463e+10 | 2.164e+9 | 7.215e+8 | 3.417e+7 | 5.771e+9 | 2.168e+9 | 4.34 | memory | — | — | — |
+| `mhc_pre` | decode | 43/43 | 1.691e+7 | 1.057e+6 | 3.523e+5 | 3.417e+7 | 2.818e+6 | 1.059e+6 | 0.44 | memory | — | — | — |
 | `rope` | prefill | 86/86 | 0 | 1.758e+10 | 0 | 0 | 2.345e+10 | 1.172e+10 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 86/86 | 0 | 8.586e+6 | 0 | 0 | 1.145e+7 | 5.724e+6 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `matmul` | prefill | 2/64 | 4.844e+9 | 0 | 0 | 0 | 1.512e+8 | 1.009e+8 | 19.22 | memory | — | — | — |
@@ -2411,8 +2423,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 8.192e+3 | 8.192e+3 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 3.932e+5 | 0 | 0 | 1.573e+6 | 7.864e+5 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 3.932e+5 | 0 | 0 | 1.573e+6 | 7.864e+5 | 0.00 | memory | — | — | — |
-| `dsv4_hash_route` | prefill | 3/3 | 0 | 0 | 0 | 4.654e+6 | 1.229e+4 | 7.373e+4 | 0.00 | memory | — | — | — |
-| `dsv4_hash_route` | decode | 3/3 | 0 | 0 | 0 | 4.654e+6 | 6.000e+0 | 3.600e+1 | 0.00 | memory | — | — | — |
+| `dsv4_hash_route` | prefill | 3/3 | 0 | 0 | 0 | 0 | 7.373e+4 | 7.373e+4 | 0.00 | memory | — | — | — |
+| `dsv4_hash_route` | decode | 3/3 | 0 | 0 | 0 | 0 | 3.600e+1 | 3.600e+1 | 0.00 | memory | — | — | — |
 | `attention_qkv_split` | prefill | 1/32 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/32 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | prefill | 43/43 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2459,8 +2471,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `swiglu` | decode | 93/185 | 4.862e+10 | 1.024e+7 | 1.024e+7 | 9.724e+10 | 2.048e+7 | 1.024e+7 | 0.50 | memory | 计算✓ 字节✓ | 1.352e+5 | 0 |
 | `matmul` | prefill | 48/102 | 1.590e+12 | 0 | 0 | 0 | 1.213e+10 | 1.130e+10 | 67.87 | memory | — | — | — |
 | `matmul` | decode | 48/102 | 8.999e+10 | 0 | 0 | 0 | 1.067e+9 | 7.839e+8 | 48.61 | memory | — | — | — |
-| `gated_delta_attention` | prefill | 24/69 | 6.668e+11 | 3.473e+9 | 6.359e+5 | 1.709e+6 | 7.434e+9 | 7.434e+9 | 44.84 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `gated_delta_attention` | decode | 24/69 | 3.256e+8 | 1.085e+8 | 1.987e+4 | 1.709e+6 | 2.323e+8 | 2.323e+8 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | prefill | 24/69 | 6.668e+11 | 3.473e+9 | 6.359e+5 | 3.418e+6 | 7.434e+9 | 7.434e+9 | 44.84 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `gated_delta_attention` | decode | 24/69 | 3.256e+8 | 1.085e+8 | 1.987e+4 | 3.418e+6 | 2.323e+8 | 2.323e+8 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `mla_query_compress` | prefill | 23/24 | 5.412e+11 | 0 | 0 | 5.285e+8 | 7.046e+8 | 1.510e+8 | 390.98 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `mla_query_compress` | decode | 23/24 | 2.642e+8 | 0 | 0 | 5.285e+8 | 3.441e+5 | 7.373e+4 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `mla_kv_compress` | prefill | 23/24 | 2.029e+11 | 0 | 0 | 1.982e+8 | 7.046e+8 | 5.662e+7 | 211.51 | matrix | 计算✓ 字节✓ | 0 | 0 |

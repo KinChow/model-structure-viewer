@@ -250,10 +250,16 @@ export function addCounts({ tokens, hidden, bytesPerElement }) {
 }
 
 /** dsv4 hash 路由：纯查表。tableRows = 哈希表条目数（按参数计 weights）。 */
-export function hashRouteCounts({ tokens, topk, tableRows, bytesPerElement }) {
+// Hash 路由（DeepSeek V4 tid2eid 静态查表）。2026-09-09 分类裁决：
+// tid2eid 是 **buffer 不是参数**（NVIDIA Megatron-Bridge 文档明文 "Buffers are
+// not parameters"；MaxText 同；出处 = Hash Layers, Roller et al. 2021）——
+// 所以 bytes.weights = 0（与 embedding 表同待遇：不进权重字节恒等式），
+// 流量按 gather 的真实拷贝计：每 token 读 topk 个专家 id、写 topk 个。
+// 表本身的常驻容量（vocab·k·4B int32）由 derivedBufferBytes 单独计入显存。
+export function hashRouteCounts({ tokens, topk, bytesPerElement }) {
   return {
     matrix: 0, vector: 0, sfu: 0,
-    bytes: { weights: tableRows * bytesPerElement, actIn: tokens * bytesPerElement, actOut: tokens * topk * bytesPerElement },
+    bytes: { weights: 0, actIn: tokens * topk * bytesPerElement, actOut: tokens * topk * bytesPerElement },
   };
 }
 

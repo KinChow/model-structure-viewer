@@ -245,7 +245,7 @@ export const FORMULAS = {
     explanation: "vLLM MHCPreOp：从多 residual streams 计算 post mix、comb mix，并合成为 attention 输入。",
     inputs: ["residual streams", "hc function", "hc scale", "hc base"],
     outputs: ["post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), addCounts(ctx.merge)),
+    counts: (ctx) => sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), addCounts(ctx.merge)),
   },
   mhc_fused_post_pre: {
     title: "mHC Fused Post + Pre",
@@ -255,7 +255,7 @@ export const FORMULAS = {
     explanation: "vLLM 在相邻 decoder layer 间融合上一层 post 与当前层 pre，并可同时执行 RMSNorm。",
     inputs: ["block output", "residual streams", "post mix", "comb mix", "hc function"],
     outputs: ["residual streams", "post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix), linearCounts(ctx.scale), rmsnormCounts(ctx.norm)),
+    counts: (ctx) => sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm)),
   },
   mhc_post: {
     title: "mHC Post",

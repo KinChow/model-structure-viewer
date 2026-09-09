@@ -288,6 +288,24 @@ const MODULE_LIST = [
     compulsoryBytes: (p) => 2 * p.tokens * p.inWidth * p.b,
     notes: ["tokens 必须能被 merge² 整除（内置模型均满足：2304/4、576/4）"],
   },
+  {
+    // 视觉激活（gelu_pytorch_tanh / gelu）：一阶口径与 silu 同构
+    //（1 乘 + 2 SFU，erf/exp 差异登记在 §4 的已知近似，见 operators_reference）。
+    // swigluCounts 是「读 x、y 两操作数」的融合口径（actIn 2E·b）；
+    // 分解 = silu + mul（silu 读 x、mul 读中间量与 y）= actIn 3E·b，
+    // 落在 bytes 夹逼内：compulsory = 2E·b ≤ fused 2E·b ≤ Σ分解 3E·b。
+    id: "vision_activation",
+    title: "Vision Activation",
+    source: { framework: "vLLM", symbol: "Qwen2_5VisionMLP act / vision activation", ref: "model_executor/models/qwen2_5_vision_navigation.py" },
+    fused: (p) => swigluCounts({ tokens: p.tokens, intermediate: p.intermediate, bytesPerElement: p.b }),
+    decompose: (p) => [
+      { atom: "silu", args: { elements: p.tokens * p.intermediate, bytesPerElement: p.b } },
+      { atom: "mul", args: { elements: p.tokens * p.intermediate, bytesPerElement: p.b } },
+    ],
+    residentIntermediates: (p) => [{ name: "silu(x) 中间量", elements: p.tokens * p.intermediate }],
+    compulsoryBytes: (p) => 2 * p.tokens * p.intermediate * p.b,
+    notes: ["gelu 与 silu 的一阶口径差（erf vs sigmoid）登记为已知近似"],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -568,6 +586,5 @@ export const DECOMPOSE_PENDING = {
   hyper_connection: "W4 随多流残差一并落",
   ple: "ngram 查表 + short conv 组合，W4",
   attention_residual: "K3 AttnResBlock，W3 期望侧建模时一并落",
-  vision_activation: "同上",
 };
 

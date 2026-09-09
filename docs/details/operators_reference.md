@@ -1623,19 +1623,41 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       checkpoint 路径 parameters_by_dtype 已是该方案且正确），缺口仅在
       无 checkpoint 的派生路径。
 
-      **并行策略维度（2026-09-09 用户补刀，原设计遗漏）**：EP 投影
-      （cost/parallel.js `WEIGHT_PROJECTION_RULES`：路由专家 ÷EP、norm
-      复制、embed/lm_head 视 vocabParallel、其余 ÷TP）同样按**叶自持权重**
-      归属（`nodeWeightBytes` 依赖 weight_shapes，派生路径全零 → EP/TP 的
-      专家/非专家切分在派生路径上塌缩）。因此叶子声明必须带**分片类别**：
-      `weightMatrices: [{class: "ep"|"tp"|"replicated", out, in, count}]`
-      （路由专家 → ep；shared/dense → tp；norm → replicated），**三个消费者
-      读同一份声明**：① 量化枚举（quantizedMatrixBytes）② EP/TP 逐卡投影
-      （weightBytesPerCard，含 expertWeightRange 的平均/最坏不均衡区间）
-      ③ 容量 base 分桶。路径匹配规则表保留为无声明叶子的回退。
-      已核实的家族差异：M2.7 无 shared expert（纯路由，声明只含 ep 组）；
-      DeepSeek/K2 系 shared 是独立 linear 叶（已被 linear 枚举覆盖，
-      swiglu 声明只含 routed 组）。执行时逐模型核实，不得假设。
+      **并行策略维度（2026-09-09 用户补刀后联网调研定稿）**：正确的模型不是
+      「逐节点路径规则表」，而是**分片响应矩阵**——内存类 × 并行轴 → 除数/
+      策略，叶子声明供权重分组，plan 供轴度数，投影为纯函数。
+
+      维度 1（张量侧·叶子声明的分片亲和）：
+      `weightMatrices: [{class, out, in, count}]`，class ∈
+      {tp-affine（attention/dense/shared 的 GEMM）、ep-affine（路由专家）、
+      vocab（lm_head/embed，视 vocabParallel）、replicated（norm）}。
+
+      维度 2（计划侧·轴与策略旗标）：tp、ep（或 moe_tp×moe_ep 混合，TRT-LLM
+      语义）、dp、pp、attnMode（dp attention）、vocabParallel。
+      **联网核实的组合语义**：
+      - vLLM：EP_SIZE = TP_SIZE × DP_SIZE（DP attention + EP 是 DeepSeek 系
+        标准部署，路由专家每卡 = E/(tp×dp)）；**无 EP 时 DP 也把专家 ÷dp
+        切**（专家 TP 切分语义）——「DP=复制」只对 attention 成立；
+      - shared expert：通常 ÷tp；仅当 EP+TP+DP 全开且特定 all2all backend
+        时复制（AMD vLLM playbook 实证）；
+      - TRT-LLM：TP / EP / 混合 ETP（每卡持 E/moe_ep 个完整专家、专家权重
+        再 ÷moe_tp）三模式——计划轴需要 moe_tp/moe_ep 分离才能表达混合；
+      - MLA/MQA 的 KV：TP 无法切单 KV 头 → KV ×tp 复制（msv 已实现：
+        kvBytesPerCard 的 isMla 分支）；DP attention 下复制（已实现）；
+        KDA state 同（已实现）。
+
+      维度 3（内存类侧·每类对轴的响应不同）：weights 按上表；KV/state 的
+      MLA 与 attnMode 响应已实现；activations（TP/SP/CP）超出当前范围，
+      登记不展开。
+
+      **三个消费者读同一矩阵**：① 量化枚举（quantizedMatrixBytes）
+      ② EP/TP/DP 逐卡投影（weightBytesPerCard + expertWeightRange 不均衡
+      区间）③ 容量 base 分桶。现有路径规则表降级为无声明叶子的回退。
+      已核实的家族差异：M2.7 无 shared expert（声明只含 ep 组）；DeepSeek/
+      K2 系 shared 是独立 linear 叶（swiglu 声明只含 routed 组）；
+      **DP 轴语义分家**：vLLM 推理 DP=复制（每 rank 全权重，msv 现状正确），
+      ZeRO/FSDP 式 ÷dp 分片属训练/离线推理扩展（SiDP），登记为范围外。
+      执行时逐模型核实声明，不得假设。
 - [x] **量化容量 per-matrix 精确化**（`cost/quantBytes.js`，2026-09-09）：
       无 checkpoint 时不再用标量 `quantizationBytesPerParameter` 一刀切 ——
       枚举树上全部线性族叶子的 [out,in]（output/input 正维积），按方案精确计：

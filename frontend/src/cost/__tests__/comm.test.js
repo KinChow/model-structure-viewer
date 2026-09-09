@@ -129,3 +129,28 @@ test("通信汇总优先使用 Graph IR 节点而不是 legacy tree", () => {
   });
   assert.equal(result.nodeBytes, 8);
 });
+
+// ---------------------------------------------------------------------------
+// P10：AllToAll dp>1（Q4/Q6：无 EP 时 DP 切专家，DP 副本间仍需 all-to-all）与
+// PD 传输时间（Q7②：bytes / min(两侧带宽)）。
+// ---------------------------------------------------------------------------
+test("P10：无 EP 但 dp>1 时 dispatch/combine 触发 all-to-all（DP-shards-experts）", () => {
+  const node = { id: "decoder.0.moe.dispatch" };
+  const plan = { tp: 1, dp: 2, ep: 1 };
+  const bytes = nodeCommunicationBytes(node, { hiddenSize: 512, expertsPerToken: 4 }, plan, { batch: 1, tokens: 8 });
+  // dispatch 一次：1 × 8 tokens × topk 4 × 512 × 2B
+  assert.equal(bytes, 8 * 4 * 512 * 2);
+  // 单 DP 无 EP：无 all-to-all
+  assert.equal(nodeCommunicationBytes(node, { hiddenSize: 512, expertsPerToken: 4 }, { tp: 1, dp: 1, ep: 1 }, { batch: 1, tokens: 8 }), 0);
+});
+
+test("P10：PD 传输时间 = per-rank bytes / 链路带宽（Q7②）", () => {
+  const result = pdKvTransferBytes({
+    totalKvBytes: 1000, totalStateBytes: 0, config: { kvHeads: 1, attentionHeads: 1 },
+    pdPlan: { prefill_plan: { tp: 1 }, decode_plan: { tp: 1 } },
+    prefillChip: { interconnect: { intra_node: { bandwidth: 500 } } },
+    decodeChip: { interconnect: { intra_node: { bandwidth: 500 } } },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.transferSeconds, result.perDecodeRankBytes / 500);
+});

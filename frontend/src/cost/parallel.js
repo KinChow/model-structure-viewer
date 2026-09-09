@@ -37,7 +37,9 @@ export function kvBytesPerCard(totalKvBytes, config = {}, plan = {}) {
   const shardFactor = isMla || attnMode === "dp"
     ? 1
     : Math.min(tp, config.kvHeads || config.attentionHeads || 1);
-  return { bytes: totalKvBytes / shardFactor, shardFactor, errors: [] };
+  // P10：KV keep-ratio（streaming/滑窗估算口径，非运行时行为承诺）。
+  const keepRatio = checked.plan.kvKeepRatio ?? 1;
+  return { bytes: (totalKvBytes / shardFactor) * keepRatio, shardFactor, keepRatio, errors: [] };
 }
 
 /** KDA request state is sharded with attention TP, but replicated under DP-attention. */

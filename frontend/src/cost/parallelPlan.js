@@ -29,6 +29,10 @@ export function normalizeParallelPlan(plan = {}, config = {}) {
     worldSize: plan.worldSize ?? plan.world_size,
     attnMode: plan.attnMode ?? plan.attn_mode ?? "tp",
     vocabParallel: plan.vocabParallel ?? plan.vocab_parallel ?? true,
+    // P10（协议 Q7③）：KV keep-ratio —— decode 侧实际驻留的 KV 比例
+    // （streaming/滑窗/逐出）。1 = 全保留（缺省）；<1 时 fit 估算按比例折减，
+    // 输出标注"估算口径，非运行时行为"。
+    kvKeepRatio: plan.kvKeepRatio ?? plan.kv_keep_ratio ?? 1,
   };
   const errors = [];
   for (const key of ["tp", "pp", "ep", "dp"]) if (!positiveInteger(normalized[key])) errors.push(`${key} 必须是正整数`);
@@ -40,6 +44,7 @@ export function normalizeParallelPlan(plan = {}, config = {}) {
     errors.push(`world_size 应为 TP×PP×DP=${expectedWorld}`);
   }
   if (!["tp", "dp"].includes(normalized.attnMode)) errors.push("attn_mode 只能是 tp 或 dp");
+  if (!(normalized.kvKeepRatio > 0) || normalized.kvKeepRatio > 1) errors.push("kv_keep_ratio 必须在 (0, 1] 区间");
   if (config?.experts && normalized.ep > config.experts) errors.push("EP 不能大于专家总数");
   if (config?.experts && normalized.moeEp > config.experts) errors.push("moe_ep 不能大于专家总数");
 

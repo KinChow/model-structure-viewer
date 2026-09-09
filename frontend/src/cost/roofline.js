@@ -116,8 +116,13 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
     ? candidates.reduce((best, current) => current[1] != null && (best[1] == null || current[1] > best[1]) ? current : best)[0]
     : "unknown";
 
+  // P10（协议 Q7③）：五路时间取 max 即 **overlap 静态上限**——comm 与 compute
+  // 取最大而非求和，是闭式不等式（任何调度下的真实耗时 ≤ 各路时间之和，且
+  // ≥ 最大单路；取 max = 保守下界口径的标注）。不建模 stream/调度，与
+  // "明确不做 overlap 仿真"的分界在此。
   return {
     dtype,
+    overlapUpperBound: true,
     bound,
     arithmeticIntensity: matrixTime != null && positive(bytesMoved) ? (2 * actions.matrix) / bytesMoved : null,
     ridgePoint: positive(rates.matrixPerSecond) && positive(rates.bytesPerSecond)

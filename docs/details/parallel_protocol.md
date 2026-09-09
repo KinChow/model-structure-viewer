@@ -136,6 +136,10 @@ sequence parallel / backend 是否已 reduce —— 属 runtime-unknown，不计
 ③ overlap 只做**静态上限**：comm 与 compute 取 max 而非 sum，输出必须标注
 "上限估计，非调度仿真"。这条同时是与"明确不做 overlap 仿真"的分界线：
 取 max 是闭式不等式，不涉及 kernel 调度或 stream 建模。
+   **实现现状（P10）**：roofline 五路聚合本就是 max 语义（bound = 最大单路），
+   输出带 `overlapUpperBound: true` 标记；PD 传输时间 = bytes/min(两侧带宽)；
+   AllToAll 的 dp>1 触发（无 EP 时 DP-shards-experts，Q4/Q6）；KV keep-ratio
+   进 parallel plan schema（0<r≤1，streaming/滑窗 fit 估算口径）。
 
 **Q8 并行 plan 独立 schema。**
 现状：并行 plan 字段只存在于 `cost/parallel.js` 的 `validatePlan` 归一化代码，

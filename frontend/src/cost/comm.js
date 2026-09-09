@@ -57,7 +57,11 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
   }
   // 来源：evolution_design.md F12；dispatch 与 combine 各归因一次，合计正好两次 all-to-all。
   if (/(?:^|\.)(?:dispatch|combine)(?:\.|$)/.test(path)) {
-    if (ep <= 1) return 0;
+    // P10（协议 Q6 + Q4）：无 EP 时专家被 DP 切（DP-shards-experts），DP 副本间
+    // 仍需 all-to-all；EP 启用时走上面 ep 分支。attnMode=tp 时 token 已按
+    // DP 复制、专家域含 dp——同样触发。口径标注近似（Q3：无 moe_dp 轴，用 dp 近似）。
+    const dp = plan.dp ?? plan.DP ?? 1;
+    if (ep <= 1 && !(dp > 1)) return 0;
     return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: config.expertsPerToken, bytesPerElement, operations: 1 });
   }
   return 0;
@@ -91,6 +95,11 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
     aggregateBytes: perRank.bytes * decodeRanks + perStateRank.bytes * decodeRanks,
     linkBandwidth,
     linkSource: linkBandwidth ? linkSource : "缺少链路带宽",
+    // P10（协议 Q7②）：传输时间 = bytes / 链路带宽（闭式，不建模 overlap/协议开销）。
+    // bytes 取 per-decode-rank 的 KV+state（时间口径与单卡接收量一致）。
+    transferSeconds: linkBandwidth
+      ? (perRank.bytes + perStateRank.bytes) / linkBandwidth
+      : null,
     layoutRepackRequired,
     shardFactor: perRank.shardFactor,
     stateShardFactor: perStateRank.shardFactor,

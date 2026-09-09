@@ -1833,8 +1833,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 ## 模块层分解台账（生成物）
 
-- 已声明分解的模块：**16** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `dsv4_hash_route` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
-- 尚未声明分解（`DECOMPOSE_PENDING`）：**10**
+- 已声明分解的模块：**17** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `dsv4_hash_route` · `vision_position` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
+- 尚未声明分解（`DECOMPOSE_PENDING`）：**9**
 
 | 模块 | 待办原因 |
 |---|---|
@@ -1845,7 +1845,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `hyper_connection` | W4 随多流残差一并落 |
 | `ple` | ngram 查表 + short conv 组合，W4 |
 | `attention_residual` | K3 AttnResBlock，W3 期望侧建模时一并落 |
-| `vision_position` | 视觉部件 4 类归属确认后落，W1 台账 |
 | `vision_merge` | 同上（含 G1 少乘 T_v 缺口） |
 | `vision_activation` | 同上 |
 

@@ -58,6 +58,12 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
     case "dsv4_hash_route":
       // tid2eid 是 buffer（容量走 derivedBufferBytes）；模块只计 gather 流量。
       return c.numHashLayers ? { tokens, topk: c.expertsPerToken || 1, b } : null;
+    case "vision_position":
+    case "vision_activation":
+      // 视觉部件只在有视觉塔的结构类存在
+      return c.hasVision ? { tokens: c.visionTokens || 1, hidden: c.visionHiddenSize || 0, intermediate: c.visionIntermediateSize || 0, b } : null;
+    case "vision_merge":
+      return c.hasVision ? { tokens: c.visionTokens || 1, inWidth: c.visionHiddenSize || 0, mergeSize: c.visionMergeSize || 1, b } : null;
     case "sdpa_attention":
       return heads ? {
         heads, kvHeads: c.kvHeads || heads, queryTokens: tokens, keyTokens: S,

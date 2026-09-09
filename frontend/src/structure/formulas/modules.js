@@ -35,9 +35,11 @@ const sumCounts = (...parts) => parts.reduce((total, part) => ({
   },
 }), { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } });
 import {
+  addCounts,
   attentionCounts,
-  hashRouteCounts,
+  causalConvCounts,
   gateCounts,
+  hashRouteCounts,
   linearCounts,
   linearAttentionStateCounts,
   rmsnormCounts,
@@ -253,6 +255,18 @@ const MODULE_LIST = [
       "tid2eid 是 buffer：容量走 derivedBufferBytes，不进权重字节恒等式",
       "gather 读 = 写 = tokens·topk（每 token 取 topk 个专家 id）",
     ],
+  },
+  {
+    // 视觉位置编码：加法（learned 2D / rope 变体的实现差异不影响一阶口径——
+    // 都是「读位置向量 + 逐元素加」）。与 addCounts 逐位同构。
+    id: "vision_position",
+    title: "Vision Position Embedding",
+    source: { framework: "vLLM", symbol: "Qwen2_5VisionRotaryEmbedding / vision position embedding", ref: "model_executor/models/qwen2_5_vision_navigation.py" },
+    fused: (p) => addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+    decompose: (p) => [{ atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } }],
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
+    notes: ["addCounts 与 add 原子逐位同构（vector 1/元素、actIn 2E·b、actOut E·b）"],
   },
 ];
 
@@ -534,7 +548,6 @@ export const DECOMPOSE_PENDING = {
   hyper_connection: "W4 随多流残差一并落",
   ple: "ngram 查表 + short conv 组合，W4",
   attention_residual: "K3 AttnResBlock，W3 期望侧建模时一并落",
-  vision_position: "视觉部件 4 类归属确认后落，W1 台账",
   vision_merge: "同上（含 G1 少乘 T_v 缺口）",
   vision_activation: "同上",
 };

@@ -58,7 +58,28 @@ EP 启用:           moe_ep × moe_tp == ep × tp（专家域闭合，TRT-LLM Hy
 无 EP:             moe_tp == tp
 ```
 
-## 三、九项裁决记录（2026-09-10 定稿）
+## 二点五、量化权重建模（2026-09-10 用户裁决补充）
+
+量化方案只作用于 **Linear 权重矩阵**：模型权重配置遵循 HF
+`quantization_config` 规范（quant_method / targets / ignore /
+modules_to_not_convert），vLLM/SGLang 的 quant method 按 Linear 模块应用。
+MSV 侧的三条对应：
+
+1. **声明侧**：`weightMatrices` 组带 `quantizable` 标记（P4-1）与 `shape`
+   数组、`split` 切分轴（schema v2）；
+2. **字节侧（已实现）**：`quantLinearWeightBytes` 按方案精确计 **打包权重 +
+   scale + zeros**（fp8 块量化 scale 数 = ceil(out/B)·ceil(in/B)——形状敏感，
+   所以向量/卷积核类参数必须 quantizable=false 而非靠维度猜）；
+3. **计算侧（登记，P10 实现）**：反量化走**融合算子**——vLLM 的两条实证：
+   w8a8 block kernel 在 kernel 内 dequant（`quantization/fp8.py:443` "use
+   BF16 dequant when direct FP8 is not supported"，per-tensor/channel 路径
+   `fp8.py:456` "dequant to BF16 and run GEMM"）；mxfp4 为 W4A16，kernel 内
+   反量化（`mxfp4.py:819` "the fallback dequantizes only the weights"）。
+   建模口径：量化 GEMM 的额外成本 = scale 读（已含在 weights 字节）+ 逐元素
+   convert 计算（融合进 GEMM 的 vector 动作），按 W4A16/W8A8 分方案定乘子。
+   不新增独立反量化算子节点——与 kernel 现实一致（融合），也避免结构树膨胀。
+
+
 
 每项格式：结论 → 依据 → 边界。
 

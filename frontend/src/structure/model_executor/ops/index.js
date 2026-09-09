@@ -62,9 +62,41 @@ function dimWidth(d) {
     : 0;
 }
 
-/** 一组权重矩阵声明。count/matrices 缺省为 1（单矩阵组，attention/dense 的线性叶）。 */
-export function weightMatrixDecl(klass, { out, in: inDim, count = 1, matrices = 1, quantizable = true }) {
-  return { class: klass, out, in: inDim, count, matrices, ...(quantizable ? {} : { quantizable: false }) };
+/**
+ * 一组权重声明（schema v2，2026-09-10 用户裁决：切分维度建模是真需求 + 可读性
+ * 优先 + 量化建模对齐成熟方案，不自己造轮子）：
+ *
+ *   { class, shape, count, matrices, split, quantizable, param_dtype }
+ *
+ * - **shape**：张量形状数组（safetensors/state_dict 的成熟表示——向量 [heads]、
+ *   卷积核 [width, kernel]、矩阵 [out, in]）。out = shape[0]、in = 其余维乘积
+ *  （||1）为派生字段，供现有消费者（sharding/aggregate/锚 1）零改动使用；
+ * - **split**：切分维度，成熟命名取自 vLLM 的并行类一一对应——
+ *   `MergedColumnParallelLinear`（gate_up/qkv，沿 output 切）→ "output"，
+ *   `RowParallelLinear`（down/o_proj，沿 input 切）→ "input"，
+ *   replicated（router/norm/向量参数）→ null。出处：vLLM `linear.py`
+ *   `create_weights` 的 `ModelWeightParameter(input_dim=1, output_dim=0)` ——
+ *   切分轴是权重参数的一级属性；当前消费者只算 ÷tp 总量比例，split 是为
+ *   维度级建模（w1/w3 列切、w2 行切）预留的一级字段，不改变现有行为；
+ * - **quantizable**：量化方案只作用于 Linear 权重矩阵（HF quantization_config
+ *   规范 targets: ["Linear"]，vLLM/SGLang 同）。norm scale/bias/衰减参数等
+ *   非 Linear 参数显式标 false；
+ * - **param_dtype**：引用 `formulas/paramDtypes.js` 的 FP32_PARAMS 键（不携带
+ *   字节数——dtype 知识仍单源在登记表），供锚 1 的 dtype-aware 判据使用。
+ */
+export function weightMatrixDecl(klass, { shape, out, in: inDim, count = 1, matrices = 1, split = null, quantizable = true, param_dtype = undefined }) {
+  let resolvedOut = out;
+  let resolvedIn = inDim;
+  if (Array.isArray(shape)) {
+    resolvedOut = shape[0];
+    resolvedIn = shape.slice(1).reduce((total, value) => total * value, 1) || 1;
+  }
+  const group = { class: klass, out: resolvedOut, in: resolvedIn, count, matrices };
+  if (Array.isArray(shape)) group.shape = shape;
+  if (split) group.split = split;
+  if (!quantizable) group.quantizable = false;
+  if (param_dtype) group.param_dtype = param_dtype;
+  return group;
 }
 
 // 归一化族：权重是**最后一维**那么长、跨其余维度共享（RMSNorm 沿最后一维归一）。
@@ -83,16 +115,20 @@ function normWeightMatrices(operatorId, inputShape, attributes) {
   if (!width) return null;
   // LayerNorm（affine_bias）有 bias，权重 2×宽度 —— 与 rmsnormCounts 同口径。
   const matrices = attributes?.affine_bias === true ? 2 : 1;
-  // norm 的 scale/bias 不是 Linear 权重，量化方案不作用于它（vLLM/SGLang 的
-  // quant config targets: ["Linear"]）。
-  return { weightMatrices: [weightMatrixDecl("replicated", { out: width, in: 1, matrices, quantizable: false })] };
+  // norm 的 scale/bias 不是 Linear 权重，量化方案不作用于它（HF quantization_config
+  // targets: ["Linear"]，vLLM/SGLang 同）。
+  return { weightMatrices: [weightMatrixDecl("replicated", { shape: [width], matrices, quantizable: false })] };
 }
 
 // 线性族：ColumnParallel/RowParallel 都按 tp 切，唯一例外是 lm_head/embed（vocab
 // 轴，受 vocabParallel 开关支配）与 MoE router（每卡各算一份完整门控，vLLM/SGLang
 // 的 gate 不切 —— replicated）。判据用**结构化 id 末段**，不用 display name（§3.2）。
+// split 轴与 vLLM 的并行类一一对应（qwen3_moe.py:97,104,289）：gate_up/qkv =
+// MergedColumnParallelLinear → "output"；down/o_proj = RowParallelLinear → "input"。
 const VOCAB_LINEAR = /(^|\.)(lm_head|output)(\.linear)?$/;
 const REPLICATED_LINEAR = /(^|\.)(router|hash_router)$/;
+const OUTPUT_SPLIT_LINEAR = /(^|\.)(gate_proj|up_proj|gate_up|q_proj|k_proj|v_proj|qkv_proj|qkvz_proj|in_proj_qkvb|w13)$/;
+const INPUT_SPLIT_LINEAR = /(^|\.)(down_proj|o_proj|out_proj|w2)$/;
 
 /** 线性叶的自动声明：out/in 取正维乘积（与 extractor 的 derivedLinearShape 同口径）。 */
 function linearWeightMatrices(operatorId, id, numericShapes, attributes) {
@@ -103,10 +139,14 @@ function linearWeightMatrices(operatorId, id, numericShapes, attributes) {
   if (!(out > 0) || !(inDim > 0)) return null;
   const path = String(id || "");
   const klass = VOCAB_LINEAR.test(path) ? "vocab" : REPLICATED_LINEAR.test(path) ? "replicated" : "tp";
-  // bias 也是权重（out 个），与 linearCounts 同口径 —— 用第二组 [out, 1] 表达；
+  const split = klass !== "tp" ? null
+    : OUTPUT_SPLIT_LINEAR.test(path) ? "output"
+    : INPUT_SPLIT_LINEAR.test(path) ? "input"
+    : null;
+  // bias 也是权重（out 个），与 linearCounts 同口径 —— 用第二组 [out] 表达；
   // bias 不参与量化（quant config targets: ["Linear"] 只覆盖权重矩阵）。
-  const groups = [weightMatrixDecl(klass, { out, in: inDim })];
-  if (attributes?.bias === true) groups.push(weightMatrixDecl(klass, { out, in: 1, quantizable: false }));
+  const groups = [weightMatrixDecl(klass, { shape: [out, inDim], split })];
+  if (attributes?.bias === true) groups.push(weightMatrixDecl(klass, { shape: [out], quantizable: false }));
   return { weightMatrices: groups };
 }
 
@@ -119,7 +159,7 @@ function linearWeightMatrices(operatorId, id, numericShapes, attributes) {
 export function routedExpertWeightMatrices(normalized) {
   const expertHidden = normalized.routedExpertHiddenSize || normalized.hiddenSize;
   const expertIntermediate = normalized.moeIntermediateSize || normalized.intermediateSize;
-  return [weightMatrixDecl("ep", { out: expertIntermediate, in: expertHidden, count: normalized.experts, matrices: 3 })];
+  return [weightMatrixDecl("ep", { shape: [expertIntermediate, expertHidden], count: normalized.experts, matrices: 3, split: "output" })];
 }
 
 // 打分式注意力的公共尾链：rope → scores → softmax → context → o_proj。
@@ -153,9 +193,9 @@ function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary positio
     operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
       ...shapeFlow(shapes.attentionContext, shapes.hidden),
       communication_role: "tp_attention_output",
-      // N2-4 层 1：RowParallel 输出投影，tp 亲和。声明与 numericShapes 同源
-      //（dims 取宽），五处 tail 调用（GQA/qwen35Full/MLA/minimax dense/minimaxM2）自动跟随。
-      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.hidden), in: dimWidth(dims.attentionContext) })],
+      // N2-4 层 1：RowParallel 输出投影（vLLM RowParallelLinear，沿 input 切）。
+      // 声明与 numericShapes 同源（dims 取宽），五处 tail 调用自动跟随。
+      weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.hidden), dimWidth(dims.attentionContext)], split: "input" })],
     }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
@@ -165,15 +205,15 @@ export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
   return [
     operatorSpec(`${prefix}.q_proj`, "q projection", "linear", {
       ...shapeFlow(shapes.hidden, shapes.attentionQuery),
-      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.attentionQuery), in: dimWidth(dims.hidden) })],
+      weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.attentionQuery), dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: dims.attentionQuery }),
     operatorSpec(`${prefix}.k_proj`, "k projection", "linear", {
       ...shapeFlow(shapes.hidden, shapes.attentionKey),
-      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.attentionKey), in: dimWidth(dims.hidden) })],
+      weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.attentionKey), dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: dims.attentionKey }),
     operatorSpec(`${prefix}.v_proj`, "v projection", "linear", {
       ...shapeFlow(shapes.hidden, shapes.attentionValue),
-      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.attentionValue), in: dimWidth(dims.hidden) })],
+      weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.attentionValue), dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: dims.attentionValue }),
     ...scaledDotProductTail(prefix, shapes, dims, {
       rope: {
@@ -906,11 +946,11 @@ export function mlpOperatorSpecs(prefix, normalized, roleScope = undefined) {
   return [
     operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", {
       ...shapeFlow(shapes.hidden, shapes.intermediate),
-      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.intermediate), in: dimWidth(dims.hidden) })],
+      weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.intermediate), dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.gate_proj`, "linear", roleScope)),
     operatorSpec(`${prefix}.up_proj`, "up projection", "linear", {
       ...shapeFlow(shapes.hidden, shapes.intermediate),
-      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.intermediate), in: dimWidth(dims.hidden) })],
+      weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.intermediate), dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: dims.intermediate }, resolveOperatorRole(`${prefix}.up_proj`, "linear", roleScope)),
     operatorSpec(`${prefix}.swiglu`, "SwiGLU activation", "swiglu", {
       ...shapeFlow(`${shapes.intermediate}, ${shapes.intermediate}`, shapes.intermediate),
@@ -924,7 +964,7 @@ export function mlpOperatorSpecs(prefix, normalized, roleScope = undefined) {
     operatorSpec(`${prefix}.down_proj`, "down projection", "linear", {
       ...shapeFlow(shapes.intermediate, shapes.hidden),
       communication_role: "tp_mlp_output",
-      weightMatrices: [weightMatrixDecl("tp", { out: dimWidth(dims.hidden), in: dimWidth(dims.intermediate) })],
+      weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.hidden), dimWidth(dims.intermediate)], split: "input" })],
     }, { input: dims.intermediate, output: dims.hidden }, resolveOperatorRole(`${prefix}.down_proj`, "linear", roleScope)),
   ];
 }

@@ -78,8 +78,16 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       assert.equal(normalized.sharedExpertIntermediateSize, normalized.moeIntermediateSize * normalized.sharedExperts);
       assert.deepEqual(
         sharedGate.attributes.weightMatrices,
-        [{ class: "tp", out: normalized.sharedExpertIntermediateSize, in: normalized.hiddenSize, count: 1, matrices: 1 }],
-        "Kimi-K3: fused shared expert 声明应为单组 tp（模块宽 = moeI×n_shared，count=1）",
+        [{
+          class: "tp",
+          out: normalized.sharedExpertIntermediateSize,
+          in: normalized.hiddenSize,
+          count: 1,
+          matrices: 1,
+          shape: [normalized.sharedExpertIntermediateSize, normalized.hiddenSize],
+          split: "output",
+        }],
+        "Kimi-K3: fused shared expert 声明应为单组 tp（模块宽 = moeI×n_shared，count=1，gate 沿 output 切）",
       );
       assert.equal(deriveBuildPlan(normalized.raw ?? normalized).sharedExpertsAreFused, true);
     }

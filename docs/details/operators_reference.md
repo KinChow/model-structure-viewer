@@ -1833,15 +1833,14 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 ## 模块层分解台账（生成物）
 
-- 已声明分解的模块：**22** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `dsv4_hash_route` · `vision_position` · `vision_merge` · `vision_activation` · `attention_residual` · `hyper_connection` · `ple` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
-- 尚未声明分解（`DECOMPOSE_PENDING`）：**4**
+- 已声明分解的模块：**23** —— `linear` · `rmsnorm` · `rope` · `swiglu` · `gate` · `softmax` · `topk_router` · `mla_query_compress` · `mla_kv_compress` · `dsv4_hash_route` · `vision_position` · `vision_merge` · `vision_activation` · `attention_residual` · `hyper_connection` · `ple` · `mhc_contract` · `sdpa_attention` · `dsa_indexer` · `dsa_kpool_indexer` · `qsa_indexer` · `minimax_block_indexer` · `linear_attention_state`
+- 尚未声明分解（`DECOMPOSE_PENDING`）：**3**
 
 | 模块 | 待办原因 |
 |---|---|
 | `mhc_pre` | Sinkhorn 段的原子词汇待定（softmax-on-streams），W4 |
 | `mhc_post` | 同上 |
 | `mhc_fused_post_pre` | 同上 |
-| `mhc_contract` | 同上 |
 
 > 恒等式（融合分解 / 权重字节 / KV 读量 / 激活流形状连续性）的判定结果不在此生成，
 > 由 `npm test` 的 `identities.test.js` 与 `modelIdentities.test.js` 断言并打印报表 —— 避免同一套数学写两遍。

@@ -412,6 +412,20 @@ const MODULE_LIST = [
       "conv 的 silu 融合段 = conv1d + silu 两原子（bytes 落夹逼）",
     ],
   },
+  {
+    // mHC 的 contract 段：把 hc_mult 条残差流收成单流 hidden（逐元素平均/加）。
+    // 运行时 counts 就是 addCounts（formulas/index.js 的 mhc_contract），
+    // 与 add 原子逐位同构。取证据：mhc kernel 的 stream collapse 无权重
+    //（HCHeadOp 另计，见 agent 取证 2026-09-09）。
+    id: "mhc_contract",
+    title: "mHC Stream Contract",
+    source: { framework: "vLLM", symbol: "mHC stream collapse", ref: "models/deepseek_v4/amd/model.py:994-1013" },
+    fused: (p) => addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+    decompose: (p) => [{ atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } }],
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
+    notes: ["HCHeadOp 的 hc_head_fn/base/scale 是模型级参数，不在本模块"],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -688,6 +702,5 @@ export const DECOMPOSE_PENDING = {
   mhc_pre: "Sinkhorn 段的原子词汇待定（softmax-on-streams），W4",
   mhc_post: "同上",
   mhc_fused_post_pre: "同上",
-  mhc_contract: "同上",
 };
 

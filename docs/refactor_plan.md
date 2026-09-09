@@ -102,13 +102,29 @@ MAINTENANCE.md 棘轮已回写。
 旁路 C/D/E、昇腾条目、qwen35_full（值非分派，保留）、§2.5（等 IR 扩展，
 保持登记）——状态总览已回写，无遗留动作。
 
-### N4 = M12 并行策略扩展（**开工前需用户对齐**）
+### N4 = M12 并行策略扩展（**已完成成熟框架调研，进入协议定稿**）
 
 前置条件（缺一不开工）：
 1. 芯片表 `inter_node` 数据补齐（三张公开卡均无该规格）；
-2. 后端 oracle 定位表述裁决（`verification/compare_structure.py` 现仅自测）；
+2. 后端 oracle 改为“前端 Graph 主事实源 + Transformers evidence 对账”，
+   `verification/compare_structure.py` 现仅自测，需扩展真实对账；
 3. C 档三项（KV keep-ratio / overlap 参数化 / per-stage 通信五路）越过
    「纯理论估算」边界，逐项确认行为口径。
+4. 明确 SGLang 式独立 MoE TP/EP/DP 轴与 vLLM 式展平专家域在 MSV 中的映射，
+   并统一 `validatePlan`、`sharding`、通信估算和 UI 的输入契约。
+
+### M12 之后的收口工作
+
+以下事项不属于 M12 的通信功能本身，但必须在下一轮协议收口中处理：
+
+1. 未知架构统一返回 `unsupported`，删除 `generic-decoder` 的未知架构兜底。
+2. `weightMatrices` 覆盖全部带权重叶；删除分片、量化和容量计算 fallback。
+3. `sharedExpertsAreFused` 贯通 recipe、结构、operator、声明、分片和成本。
+4. 后端输出 Transformers module evidence，接通与前端 Graph 的节点、边和类别对账。
+5. 统一 `ir_version`、`graph_version` 和 `api_schema_version` 的边界。
+6. 迁移所有 root 消费者，删除 `root`、tree projection 和仅为 root 存在的兼容路径。
+7. 从 registry 自动生成公式、架构、operator 和模型台账文档，并扩大 `docs:check` 覆盖范围。
+8. 统一 `principles.md`、`MAINTENANCE.md`、`implementation_plan.md` 的状态口径。
 
 | **M10** 小项收尾 | ✅（2026-09-09 销案，见状态总览） | 旁路 C/D/E、昇腾条目均已落；qwen35_full 保留现名（值非分派）；§2.5 保持登记 |
 
@@ -137,7 +153,7 @@ MAINTENANCE.md 棘轮已回写。
 | **算子本体重构六波** | ✅（2026-09-09 收官，05fccf6 + 后续 13 个提交） | 两级本体（19 原子 atoms.js + 模块 modules.js，命名对标 vLLM nn.Module）；四条恒等式**全部容差 0**（融合分解 382 组 0 不闭合、权重字节 32/32 逐字节、KV 读分桶夹逼、激活流形状连续性 33434 边）；稀疏部件按算法出处拆 id、分类判据走 config 字段；MTP/residual_add/逐头 norm 权重宽/linear bias/量化 per-matrix 容量（quantBytes.js）/tid2eid buffer 分类/TF32 芯片行；DECOMPOSE_PENDING 清零（Sinkhorn 经 kernel 取证为运行时计算）；operators_reference 机器段生成器 + docs:check；逐层归因工具 diff-weight-identity.mjs。计划文件：~/.comate/plans/算子本体重构与分相位对账_1551cca5.plan.md |
 | **M11.5** | ✅（2026-09-09 三阶段收官，0ed4665/d44a292/2095049） | ① plan.js 迁 config/（21 文件路径更新，输出逐位不变）；② 目录环解耦：dims.js + visionDimensions 迁 config/，formulas/ 对 model_executor 的 import 清零（layering.test.js 棘轮固化）；coverage↔public 文件环修复（validateChipEntry 迁 chipValidation.js，madge 0 环）；③ bytes 助手单处化：linear/rmsnorm 的 decompose 片段迁 counts.js（linearAtomSteps/rmsnormAtomSteps），addCounts/softmaxCounts/hashRouteCounts 委托原子（298 组输入 scratch 证明逐位相等），新增 countsAtomsConsistency 漂移守卫 |
 | **M10** | ✅（2026-09-09 复核销案） | 旁路 C ✅（5128c24，field_sources + 单位异常警告 + 昇腾 910B4）/ 旁路 D ✅（17f1d65）/ 旁路 E ✅（69e2d18）；昇腾 sfu_rate_source:"vector" ✅（public.js:134）；qwen35_full 改名撤销——销案：W5 已定性为 attention kind 的**值**而非分派（护栏 §8.1 注释在案），保留现名；§2.5 残差边——保持登记（等 IR 扩展，设计决定不变） |
-| **M12** | ⬜（后期） | 并行策略功能扩展（C 档：KV keep-ratio、overlap、per-stage 通信）——开工前单独对齐 |
+| **M12** | ⬜（后期，已完成源码调研） | 并行策略功能扩展（AllToAll 的 dp>1、interNode/PD 跨机时间、KV keep-ratio、overlap、per-stage 通信五路 roofline、MSV Graph 与 Transformers 对账）；调研结论见 [`details/parallel_strategies.md`](details/parallel_strategies.md)，开工前仍需协议定稿 |
 
 ### W5 范围校准（2026-09-08 对齐用）
 

@@ -10,6 +10,7 @@
 3. [重构计划](refactor_plan.md)：原则收口路线。自底向上的分波替换顺序、差分替换手法、每波验收命令。
 4. [UI/交互规范](ui_interaction.md)：入口、详情工作区、Cost Lens、PD 和交互行为。
 5. [测试和发布验证](testing_release.md)：单测、模型验证、构建、API 和浏览器验证。
+6. [竞品分析与 MSV 产品策略](competitive_analysis.md)：LLM Inference Analyzer、LLM Architecture Gallery、modelmap 的定位、能力对比和 MSV 路线建议。
 
 ## 实现细节
 
@@ -22,6 +23,7 @@
 - [图实现选型](details/graph_sources.md)
 - [模型来源解析](details/models/source_resolution.md)
 - [模型发布时间来源](details/models/release_metadata.md)
+- [成熟框架并行策略调研](details/parallel_strategies.md)：vLLM/SGLang 的 attention、MoE、TP/DP/EP/ETP 和 shared expert 现状
 
 ## 维护规则
 

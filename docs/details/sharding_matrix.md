@@ -68,9 +68,9 @@ attributes: {
   逐位可对账）；
 - dtype 不进声明：未量化参数走 paramDtypes，量化参数的字节由层 2 消费者
   按 quant 方案计算；
-- **兼容**：无声明叶子走现有路径规则表回退（parallel.js
-  WEIGHT_PROJECTION_RULES / quantBytes LITERAL_PATH）——回退路径行为
-  逐位不变，声明逐步覆盖。
+- **终态**：无声明叶子不得进入权重分片或量化 fallback。协议未覆盖时返回
+  `unknown` 并生成诊断；完成覆盖和迁移后删除
+  `WEIGHT_PROJECTION_RULES`、路径正则和其他同义推导逻辑。
 
 builder 侧改动清单：MoE 模板（moe.js）的 expert_mlp 叶改独立 operator_id
 `fused_moe_mlp`（对标 vLLM FusedMoE，终结与纯激活共用 swiglu id 的身份
@@ -81,9 +81,10 @@ builder 侧改动清单：MoE 模板（moe.js）的 expert_mlp 叶改独立 oper
 ### 层 2：计划侧（轴与策略）
 
 plan schema 扩展（validatePlan 同步）：
-- `moe_tp` / `moe_ep` 分离（TRT-LLM 混合 ETP 语义：每卡持 E/moe_ep 个
-  完整专家、专家权重再 ÷moe_tp）；默认 moe_ep = ep、moe_tp = tp（向后
-  兼容）；
+- `moe_tp` / `moe_ep` 分离（借鉴 SGLang 的显式逻辑轴，同时吸收 vLLM 的
+  有效专家域和 local expert ownership 语义）。默认值、物理 rank 约束和
+  attention/MoE rank 复用关系以 `details/parallel_strategies.md` 调研结论和
+  M12 定稿为准，在定稿前不得继续扩大现有默认语义；
 - `attnMode`（"dp"，已有）、`vocabParallel`（已有）保留；
 - **组合语义纯函数**（出处：AMD vLLM playbook / TRT-LLM / vLLM DP 文档）：
   - EP 启用：ep_size = tp × dp（DP attention + EP，DeepSeek 系标准部署），

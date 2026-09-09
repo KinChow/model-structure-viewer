@@ -10,13 +10,63 @@
 - 模型 registry、通用和专用 builder、layers、ops、公式、IR、materializer 和诊断链路。
 - 结构图、Layers、Inspector、JSON/Mermaid/DOT 导出、芯片 Cost Lens、并行投影和 PD 分析。
 - Python API/CLI、local cache、transformers meta-device 验证和 GitHub Pages 构建流程。
-- Graph IR v2 节点事实、graph-to-legacy-tree projection 和前后端 parity 测试。
+- Graph IR v2 节点事实、Graph-first 消费和已有 parity 基线测试；legacy
+  `root` projection 仍在退役过程中，不作为终态能力。
 - Graph-first layout、compute/aggregate、通信、PP/PD projection、导出和 canonical node identity。
 
 ## P0：验证流程收口（已完成）
 
 Playwright 已替换旧版 SVG/CDP 验收路径。`npm --prefix frontend run test:e2e`
 使用隔离 Vite 服务和桌面/移动 Chrome，覆盖入口来源、React Flow 节点与显式边、成本交互、窄屏布局和多模态视觉节点；`verify:page` 保留为兼容别名。
+全量内置模型重用例在双 project 并行时可能资源竞争超时（2026-09-10 实测：并行 fail、单跑通过）——失败先单跑复核再定性。
+
+## 当前执行路线（2026-09-09）
+
+本节是当前有效计划，优先级高于历史波次中的未更新描述。MSV 的终态是：
+
+```text
+前端 Graph = 唯一产品结构事实源
+后端 Python = Transformers evidence 和结构对账
+weightMatrices = 唯一权重归属/分片协议
+framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
+```
+
+执行顺序：
+
+1. **协议定稿**：确定 physical topology、logical parallel plan、
+   weight shard plan、communication plan 的边界；调研依据见
+   [`details/parallel_strategies.md`](details/parallel_strategies.md)。
+2. **结构正确性收口**：未知架构统一 `unsupported`，删除
+   `generic-decoder` 的未知架构兜底。
+3. **权重协议收口**：补齐所有带权重叶的 `weightMatrices`，明确
+   `tp`、`ep`、`vocab`、`replicated` 和 shared expert 语义，删除
+   分片、量化和容量计算 fallback。
+4. **并行计划实现**：按成熟框架证据统一 attention/MoE 的逻辑轴和物理
+   rank 约束，完善 `moe_tp`、`moe_ep`、`moe_dp`、DP/EP/ETP 校验。
+5. **fused shared expert 闭合**：贯通 recipe、builder、operator、
+   `weightMatrices`、sharding、derived weights、communication 和测试。
+6. **后端对账**：后端输出带路径、class 和参数信息的 Transformers
+   evidence，返回 `only_transformers`、`only_msv`、class/path/shape
+   mismatch；区分构造通过和结构一致。
+7. **Graph/root 收口**：迁移所有 root 消费者，删除 `root`、
+   graph-to-tree projection 及仅为兼容层保留的代码。
+8. **版本和文档治理**：统一版本字段，从 registry 自动生成公式、
+   architecture、operator 和模型台账，扩大 `docs:check`。
+9. **通信成本扩展**：在上述协议稳定后，再实现 AllToAll `dp > 1`、
+   inter-node/PD 时间、KV keep-ratio、overlap 和 per-stage roofline。
+
+成本输出必须区分：
+
+```text
+framework-neutral
+  参数量、shape、理论 FLOPs、checkpoint bytes、逻辑分片 bytes
+
+framework-conditioned
+  expert ownership、dispatch/combine、KV partition、workspace
+
+runtime-unknown
+  实际通信时间、overlap 后耗时、真实峰值显存、吞吐和 latency
+```
 
 ## P1：原则收口重构
 
@@ -29,15 +79,20 @@ W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
 
 未排期项（需先决策，不属于任一波次）：
 
-- **§6.4 来源解析归并**：endpoint fallback / revision 默认值 / auto 降级顺序目前前后端各一套且已不一致，需确定统一到前端 `model/loadModelArtifacts.js`。
+- **§6.4 来源解析契约**：前后端保持两套 resolver，以支持静态前端和 Python
+  服务；需要共享来源类型、revision、fallback、错误分类和 fixture 契约，
+  不强行合并运行时代码。
 - **§7 国产芯片条目**：每字段必须有公开来源，缺项保持 unknown。此项决定 W5 第 4 步（ERT 分离）的优先级。
 - **§2.5 残差与跨层级边**：需先扩展 IR 才能表达，暂缓；不得用并列节点伪装。
 
 ### 统一结构协议的生成或契约测试
 
-当前前后端 schema 与前端 materializer 仍由两边维护。优先增加跨端契约样例和字段兼容测试；只有重复维护成本继续上升时，才引入 schema-first 生成，避免为了工具本身扩大构建复杂度。
+当前前后端 schema 与前端 materializer 仍由两边维护。前端 Graph 是产品
+事实源，后端只输出 Transformers evidence；需要增加跨端契约样例和真实
+Graph/evidence 对账测试。schema-first 生成仅用于协议字段，不能让后端
+重新成为第二个产品结构事实源。
 
-`schemas.py:13-50` 的 `StructureNode` 与 `StructureGraphNode` 逐字重复 13 个字段，`materializeStructureGraph.js:503-522` 在 JS 侧再抄一遍；抽公共基模型属本项范围。
+`schemas.py:13-50` 的 `StructureNode` 与 `StructureGraphNode` 逐字重复 14 个字段，`materializeStructureGraph.js:76-95` 在 JS 侧再抄一遍；抽公共基模型属本项范围。
 
 ### 模型 catalog 维护自动化
 

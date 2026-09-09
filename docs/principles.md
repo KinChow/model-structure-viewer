@@ -553,6 +553,8 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 - ~~§2.1/§2.2（声明）~~：decoderLayer/decoderStack/网络层 `sequence: true` 显式声明 +
   执法测试；evidence 三值全非空且 UI 三轴展示（W3-D2/W6-2）。
 - ~~§3.1（counts 注册表）~~：42 条目全量动作向量，主链查表（W5-1）。
+- ~~§3.1（counts 覆盖）~~：embedding gather 流量计入 counts.bytes、残差加法由
+  residual_add 算子节点覆盖（M11，2026-09-09；MAINTENANCE.md 已销账）。
 - ~~§3.2/§3.3（旧链）~~：compute.js 旧分派链删除，显示名全禁（护栏 §3.2），
   未实现算子返回 null 与 0 可区分（W5-1/W5-2）。
 - ~~§3.4~~：ERT × counts 分离完成，chips/rates.js 费率表 + 五路 max（W5-2）。
@@ -566,8 +568,6 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 **仍偏离（已知不完美，继续持有）**：
 - §2.5：残差以并列节点表达，无跨层级捷径边。业界（ONNX/torch.fx）用 back-edge；
   本工具成本模型不含残差流量，属展示层增强——持有，不入里程碑。
-- §3.1（counts 覆盖）：embedding gather 与残差加法无算子节点，流量不可见
-  （结构级缺口；详见 `details/cost_counts.md`）。
 - §5.x：`source_ref` 未实现（旁路 B 收窄版范围）。
 - §6.2/§6.3/§6.4：后端保留为验证 oracle（2026-09-08 裁决），/api/verify
   强化与 source_ref 采集对齐后再评估；前后端来源解析策略仍两套。

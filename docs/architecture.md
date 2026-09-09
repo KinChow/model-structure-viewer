@@ -12,8 +12,9 @@ flowchart LR
   R --> C[config / metadata]
   C --> F[前端结构路径]
   C --> B[后端验证路径]
-  F --> IR[统一 Graph IR v2]
-  B --> IR
+  F --> IR[前端主 Graph IR]
+  B --> O[Transformers evidence / compare]
+  O --> IR
   IR --> V[详情 UI]
   IR --> E[JSON / Mermaid / DOT 导出]
   IR --> L[Cost Lens]
@@ -48,7 +49,11 @@ CLI / HTTP request
   -> API / CLI / export
 ```
 
-后端用于本地配置读取、远程配置读取、CLI/API 和 transformers 结构验证。结构 API 默认只返回 Graph IR v2；`root` 仅保留在内部 `ModelStructure` 兼容对象和显式 legacy 导出路径。后端默认面向可信的本地开发环境；`trust_remote_code=True`、本地路径和进程级 settings 都不是公网多租户安全边界。
+后端用于本地配置读取、远程配置读取、CLI/API 和 Transformers 结构验证。前端
+Graph 是 MSV 的主事实源；后端不生成第二份产品结构，而是返回 Transformers
+module evidence，由 compare 层与前端 Graph 对账。`root` 进入退役流程，不再是
+共享协议或新功能的兼容对象。后端默认面向可信的本地开发环境；
+`trust_remote_code=True`、本地路径和进程级 settings 都不是公网多租户安全边界。
 
 ## 共享协议
 
@@ -60,7 +65,10 @@ CLI / HTTP request
 - 参数量、dtype、权重来源和 tensor 名称
 - 算子、公式、诊断和结构生成策略
 
-`graph` 是唯一内部事实载体；`root` 是由 graph projection 生成的兼容层。后端 introspection 通过 `GraphDraft` 直接写入节点事实和层级边，前端搜索、选择、breadcrumb、layout、compute、aggregate、通信、PP/PD projection 和导出优先消费 graph。新功能不应把 `root.children` 当作事实源；root 只为旧 API、旧测试和第三方兼容调用保留。
+`graph` 是唯一内部事实载体。后端 introspection 产出 Transformers evidence，
+不再与前端 recipe 竞争产品结构事实。前端搜索、选择、breadcrumb、layout、
+compute、aggregate、通信、PP/PD projection 和导出只消费 graph。`root` 不属于
+共享协议，旧消费者必须迁移到 graph 后删除。
 
 ## 责任边界
 

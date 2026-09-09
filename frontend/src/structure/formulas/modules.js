@@ -503,6 +503,54 @@ const MODULE_LIST = [
     compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
     notes: ["post 的逐元素 hc_mult+1 FMA 用 GEMM 框架一阶近似（登记的初版精度）"],
   },
+  {
+    // mHC 的 fused post+pre 段（AITER/TileLang 融合路径）：post 半消费
+    // 上一段的逐 token mix（无权重、无 comb），pre 半带 hc_*_fn（fp32）、
+    // base/scale（fp32 标量）、ffn_norm 融合权重与 comb/Sinkhorn 段。
+    // 每个 fn 矩阵每 sublayer 恰好读一次（agent 取证：amd/model.py:832-870）。
+    id: "mhc_fused_post_pre",
+    title: "mHC Fused Post + Pre",
+    source: { framework: "vLLM", symbol: "MHCFusedPostPreOp", ref: "models/deepseek_v4/amd/model.py:756 + tilelang_kernels.py:494-611" },
+    fused: (p) => sumCounts(
+      gateCounts({ tokens: p.tokens, width: p.hidden, bytesPerElement: p.b }),
+      addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+      gateCounts({ tokens: p.tokens, width: p.hidden, bytesPerElement: p.b }),
+      linearCounts({ logicalShape: [p.mixRows, p.hcDim], tokens: p.tokens, bytesPerElement: p.b, weightBytesPerElement: 4 }),
+      linearCounts({ logicalShape: [p.mixRows, 1], tokens: 0, bytesPerElement: 4 }),
+      linearCounts({ logicalShape: [3, 1], tokens: 0, bytesPerElement: 4 }),
+      rmsnormCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+      sinkhornCounts({ tokens: p.tokens, streams: p.streams, iterations: p.iterations, bytesPerElement: p.b }),
+    ),
+    decompose: (p) => {
+      const mixElements = p.tokens * p.hidden;
+      const combElements = p.tokens * p.streams * p.streams;
+      return [
+        { atom: "sigmoid", args: { elements: mixElements, bytesPerElement: p.b } },
+        { atom: "mul", args: { elements: mixElements, bytesPerElement: p.b } },
+        { atom: "add", args: { elements: mixElements, bytesPerElement: p.b } },
+        { atom: "sigmoid", args: { elements: mixElements, bytesPerElement: p.b } },
+        { atom: "mul", args: { elements: mixElements, bytesPerElement: p.b } },
+        ...linearDecompose({ tokens: p.tokens, inDim: p.hcDim, out: p.mixRows, b: p.b, weightBytesPerElement: 4 }),
+        ...linearDecompose({ tokens: 0, inDim: 1, out: p.mixRows, b: 4 }),
+        ...linearDecompose({ tokens: 0, inDim: 1, out: 3, b: 4 }),
+        ...rmsnormDecompose({ tokens: p.tokens, hidden: p.hidden, b: p.b }),
+        { atom: "softmax", args: { elements: combElements, bytesPerElement: p.b } },
+        ...Array.from({ length: Math.max(p.iterations - 1, 0) * 2 }, () => [
+          { atom: "div", args: { elements: combElements, bytesPerElement: p.b } },
+          { atom: "add", args: { elements: combElements, bytesPerElement: p.b } },
+        ]).flat(),
+      ];
+    },
+    residentIntermediates: (p) => [
+      { name: "hc_norm 中间量组", elements: p.tokens * p.hidden },
+      { name: "comb/Sinkhorn 的 fp32 tile 状态", elements: p.tokens * p.streams * p.streams },
+    ],
+    compulsoryBytes: (p) => {
+      const weights = (p.mixRows * p.hcDim + p.mixRows + 3) * 4;
+      return (5 * p.tokens * p.hidden) * p.b + weights;
+    },
+    notes: ["post 半无权重（同 mhc_post）；pre 半带 fn/base/scale + comb/Sinkhorn"],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -776,6 +824,5 @@ export const MODULES = Object.fromEntries([...MODULE_LIST, ...ATTENTION_MODULES]
 
 /** 已登记但尚未声明分解的模块（W1 清单；报表逐条打印，W2-W4 消化）。 */
 export const DECOMPOSE_PENDING = {
-  mhc_fused_post_pre: "同上",
 };
 

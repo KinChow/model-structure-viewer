@@ -1038,11 +1038,11 @@
  "deepseek-ai/DeepSeek-V4-Flash": {
   "actions": {
    "matrix": 12147578896400,
-   "vector": 8425936384,
-   "sfu": 1186609664,
+   "vector": 8440378880,
+   "sfu": 1200699904,
    "weights": 587775412296,
-   "actIn": 20218122240,
-   "actOut": 12850702336
+   "actIn": 20325912576,
+   "actOut": 12904949760
   },
   "memory": {
    "weightBytes": 301340963485,
@@ -1053,12 +1053,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 334409788061,
+   "bytesMoved": 334571825821,
    "times": {
     "matrix": 0.111241564985,
-    "vector": 0.000432099301744,
-    "sfu": 0.000243407110564,
-    "memory": 0.182229735742,
+    "vector": 0.000432839942564,
+    "sfu": 0.000246297416205,
+    "memory": 0.182318034887,
     "comm": 0
    }
   }
@@ -1066,11 +1066,11 @@
  "deepseek-ai/DeepSeek-V4-Flash-0731": {
   "actions": {
    "matrix": 12147578896400,
-   "vector": 8425936384,
-   "sfu": 1186609664,
+   "vector": 8440378880,
+   "sfu": 1200699904,
    "weights": 587775412296,
-   "actIn": 20218122240,
-   "actOut": 12850702336
+   "actIn": 20325912576,
+   "actOut": 12904949760
   },
   "memory": {
    "weightBytes": 301340963485,
@@ -1081,12 +1081,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 334409788061,
+   "bytesMoved": 334571825821,
    "times": {
     "matrix": 0.111241564985,
-    "vector": 0.000432099301744,
-    "sfu": 0.000243407110564,
-    "memory": 0.182229735742,
+    "vector": 0.000432839942564,
+    "sfu": 0.000246297416205,
+    "memory": 0.182318034887,
     "comm": 0
    }
   }
@@ -1094,11 +1094,11 @@
  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": {
   "actions": {
    "matrix": 12276671709200,
-   "vector": 8709715456,
-   "sfu": 1331534336,
+   "vector": 8724157952,
+   "sfu": 1345624576,
    "weights": 588422670408,
-   "actIn": 20781265920,
-   "actOut": 13346547712
+   "actIn": 20889056256,
+   "actOut": 13400795136
   },
   "memory": {
    "weightBytes": 315374738862,
@@ -1109,12 +1109,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 349502552494,
+   "bytesMoved": 349664590254,
    "times": {
     "matrix": 0.112423733601,
-    "vector": 0.000446652074667,
-    "sfu": 0.00027313524841,
-    "memory": 0.190454227287,
+    "vector": 0.000447392715487,
+    "sfu": 0.000276025554051,
+    "memory": 0.190542526431,
     "comm": 0
    }
   }
@@ -1122,11 +1122,11 @@
  "deepseek-ai/DeepSeek-V4-Pro": {
   "actions": {
    "matrix": 56946614861800,
-   "vector": 21306866176,
-   "sfu": 2706743808,
+   "vector": 21327354368,
+   "sfu": 2726732288,
    "weights": 3266876730230,
-   "actIn": 50406563840,
-   "actOut": 32215828480
+   "actIn": 50559475712,
+   "actOut": 32292784128
   },
   "memory": {
    "weightBytes": 1661402088290,
@@ -1137,12 +1137,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1744024480610,
+   "bytesMoved": 1744254348130,
    "times": {
     "matrix": 0.521489147086,
-    "vector": 0.0010926598039,
-    "sfu": 0.000555229499077,
-    "memory": 0.95037026898,
+    "vector": 0.00109371048041,
+    "sfu": 0.000559329700103,
+    "memory": 0.950495530557,
     "comm": 0
    }
   }
@@ -1150,11 +1150,11 @@
  "deepseek-ai/DeepSeek-V4-Pro-0813": {
   "actions": {
    "matrix": 56946614861800,
-   "vector": 21306866176,
-   "sfu": 2706743808,
+   "vector": 21327354368,
+   "sfu": 2726732288,
    "weights": 3266876730230,
-   "actIn": 50406563840,
-   "actOut": 32215828480
+   "actIn": 50559475712,
+   "actOut": 32292784128
   },
   "memory": {
    "weightBytes": 1661402088290,
@@ -1165,12 +1165,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1744024480610,
+   "bytesMoved": 1744254348130,
    "times": {
     "matrix": 0.521489147086,
-    "vector": 0.0010926598039,
-    "sfu": 0.000555229499077,
-    "memory": 0.95037026898,
+    "vector": 0.00109371048041,
+    "sfu": 0.000559329700103,
+    "memory": 0.950495530557,
     "comm": 0
    }
   }
@@ -1598,11 +1598,11 @@
  "zai-org/GLM-5.3-Flash": {
   "actions": {
    "matrix": 8812944424960,
-   "vector": 5542895104,
-   "sfu": 1777818112,
+   "vector": 5558009344,
+   "sfu": 1792563712,
    "weights": 626537661688,
-   "actIn": 13007245312,
-   "actOut": 10281119744
+   "actIn": 13120049152,
+   "actOut": 10337890304
   },
   "memory": {
    "weightBytes": 320944778285,
@@ -1613,12 +1613,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 344233143341,
+   "bytesMoved": 344402717741,
    "times": {
     "matrix": 0.0807046192762,
-    "vector": 0.000284251030974,
-    "sfu": 0.000364680638359,
-    "memory": 0.187582771152,
+    "vector": 0.000285026120205,
+    "sfu": 0.000367705376821,
+    "memory": 0.187675177233,
     "comm": 0
    }
   }
@@ -1626,11 +1626,11 @@
  "zai-org/GLM-5.3-Flash-BF16": {
   "actions": {
    "matrix": 8812944424960,
-   "vector": 5542895104,
-   "sfu": 1777818112,
+   "vector": 5558009344,
+   "sfu": 1792563712,
    "weights": 626537661688,
-   "actIn": 13007245312,
-   "actOut": 10281119744
+   "actIn": 13120049152,
+   "actOut": 10337890304
   },
   "memory": {
    "weightBytes": 641742560737,
@@ -1641,12 +1641,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 665030925793,
+   "bytesMoved": 665200500193,
    "times": {
     "matrix": 0.0807046192762,
-    "vector": 0.000284251030974,
-    "sfu": 0.000364680638359,
-    "memory": 0.362394924415,
+    "vector": 0.000285026120205,
+    "sfu": 0.000367705376821,
+    "memory": 0.362487330496,
     "comm": 0
    }
   }

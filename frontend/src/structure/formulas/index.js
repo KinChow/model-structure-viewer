@@ -255,7 +255,7 @@ export const FORMULAS = {
     explanation: "vLLM 在相邻 decoder layer 间融合上一层 post 与当前层 pre，并可同时执行 RMSNorm。",
     inputs: ["block output", "residual streams", "post mix", "comb mix", "hc function"],
     outputs: ["residual streams", "post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm)),
+    counts: (ctx) => sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), sinkhornCounts(ctx.sinkhorn)),
   },
   mhc_post: {
     title: "mHC Post",

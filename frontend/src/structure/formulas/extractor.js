@@ -1030,6 +1030,8 @@ export function countsForNode(node, env = {}) {
           scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement: paramBytes("mhc_scale") },
           // 同理，ffn_norm 的权重融进 fused post+pre（model.py:705）。
           norm: { tokens, hidden: H, bytesPerElement },
+          // fused 的 pre 半同样含 comb/Sinkhorn（scale[1] ffn 分支）
+          sinkhorn: { tokens, streams: config?.mhcNumResidualStreams || 0, iterations: config?.mhcSinkhornIterations || 0, bytesPerElement },
         }),
         mhc_contract: () => ({
           contract: { tokens, hidden: H, bytesPerElement },

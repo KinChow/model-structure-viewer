@@ -4,13 +4,13 @@
 // 必须对同一个参数用同一个字节宽，否则恒等式失配。dtype 和公式一样是「两侧各写
 // 一遍就会漂移」的知识，所以定在这里，两边 import。
 //
-// v1 刻意不覆盖的（显式登记，不是遗漏）：
-// - mHC 的大矩阵 hc_{attn,ffn}_fn [mix_hc, hc_dim]：上游同样是 fp32 buffer
-//   （deepseek_v4/amd/model.py:714-727），但它是大矩阵，先跟随 torch_dtype 口径计；
-// - 量化 scale 张量（FP8 逐块 scale 等）：需要引入量化块形状模型，另行立项；
-// - 其余一切参数：默认跟随 torch_dtype（B=2）。
-// 完整方案（per-tensor dtype 取自 checkpoint safetensors 头部）见
-// operators_reference.md §7 与 MAINTENANCE 的登记。
+// 覆盖范围（2026-09-09 用户裁决「一次性修完」）：
+// - 全部 vLLM 显式声明 torch.float32 的参数（含大矩阵 hc_*_fn）；
+// - 量化张量（FP8 块量化 / MXFP8 / GPTQ）的权重与 scale 走 cost/quantBytes.js
+//   的 per-matrix 精确计算，不进本表（本表只管**未量化**参数的 dtype）；
+// - 其余参数默认跟随 torch_dtype（B=2）。
+// 终态方案：checkpoint 证据在场时以 safetensors 头部的逐 tensor dtype 为准
+// （truth/skeleton.js 的 weight_dtypes 已是该机制）。
 
 /** vLLM 显式声明 torch.float32 的参数组 -> 每元素字节。未登记的默认 2（bf16/fp16）。 */
 export const FP32_PARAMS = Object.freeze({
@@ -25,6 +25,10 @@ export const FP32_PARAMS = Object.freeze({
   // torch.float32、requires_grad=False）。
   mhc_base: 4,
   mhc_scale: 4,
+  // mHC 的大矩阵 hc_{attn,ffn}_fn [mix_hc, hc_dim]：上游同样是 fp32 buffer
+  //（deepseek_v4/amd/model.py:714-727，torch.float32、requires_grad=False），
+  // 但它是**密读 GEMM 操作数**，走权重字节恒等式（不同于 tid2eid 的散读）。
+  mhc_fn: 4,
 });
 
 export const DEFAULT_PARAM_BYTES = 2;

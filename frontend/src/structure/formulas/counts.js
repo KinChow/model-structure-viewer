@@ -41,7 +41,7 @@ export function causalDensity({ phase, queryTokens, keyTokens }) {
  * F1 线性。aten: aten.mm（torch mm_flop = m·n·2k FLOPs → 此处 MACs）。
  * logicalShape = [out, in]（weight 逻辑形状；packed 存储形状由 W5 提取层换算）。
  */
-export function linearCounts({ logicalShape, tokens, bytesPerElement, bias = false, expertFraction = 1, weightsShared = false }) {
+export function linearCounts({ logicalShape, tokens, bytesPerElement, weightBytesPerElement, bias = false, expertFraction = 1, weightsShared = false }) {
   const [out, inDim] = logicalShape;
   return {
     matrix: tokens * out * inDim * expertFraction,
@@ -54,7 +54,9 @@ export function linearCounts({ logicalShape, tokens, bytesPerElement, bias = fal
       // weightsShared：这次 GEMM 复用**别处已计过**的同一份权重（如 mHC 的
       // 最终 hc_post 复用最后一层的 hc_ffn_fn），算力照计、权重字节不重复计
       //（权重字节恒等式的口径是「该相位应读一遍」）。
-      weights: weightsShared ? 0 : (out * inDim + (bias ? out : 0)) * bytesPerElement,
+      // weightBytesPerElement：权重的字节宽可以不同于激活（fp32 的 mHC 混合
+      // 矩阵等，paramDtypes 登记）；未传则跟随激活字节宽。
+      weights: weightsShared ? 0 : (out * inDim + (bias ? out : 0)) * (weightBytesPerElement ?? bytesPerElement),
       actIn: tokens * inDim * bytesPerElement,
       actOut: tokens * out * bytesPerElement,
     },

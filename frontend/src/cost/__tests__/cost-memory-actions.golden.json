@@ -9,7 +9,7 @@
    "actOut": 7122714624
   },
   "memory": {
-   "weightBytes": 239752106240,
+   "weightBytes": 239752934816,
    "activationBytes": 1610612736,
    "kvBytes": 130023424,
    "stateBytes": 0
@@ -17,12 +17,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 255615635712,
+   "bytesMoved": 255616464288,
    "times": {
     "matrix": 0.0497489969512,
     "vector": 0.000312584270769,
     "sfu": 0.000320448459487,
-    "memory": 0.139292483086,
+    "memory": 0.139292934602,
     "comm": 0
    }
   }
@@ -65,7 +65,7 @@
    "actOut": 44733769728
   },
   "memory": {
-   "weightBytes": 433431760832,
+   "weightBytes": 433805217472,
    "activationBytes": 1610612736,
    "kvBytes": 92798976,
    "stateBytes": 0
@@ -73,12 +73,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 527435349440,
+   "bytesMoved": 527808806080,
    "times": {
     "matrix": 0.155148174572,
     "vector": 0.00160147272205,
     "sfu": 0.0033677521001,
-    "memory": 0.287415045196,
+    "memory": 0.287618552711,
     "comm": 0
    }
   }
@@ -177,7 +177,7 @@
    "actOut": 7148710912
   },
   "memory": {
-   "weightBytes": 125090775104,
+   "weightBytes": 125092202768,
    "activationBytes": 1610612736,
    "kvBytes": 12582912,
    "stateBytes": 78151680
@@ -185,12 +185,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 140433864000,
+   "bytesMoved": 140435291664,
    "times": {
     "matrix": 0.0454616302558,
     "vector": 0.000246531154051,
     "sfu": 0.000285253933949,
-    "memory": 0.0765265456923,
+    "memory": 0.0765273236685,
     "comm": 0
    }
   }
@@ -205,7 +205,7 @@
    "actOut": 7148710912
   },
   "memory": {
-   "weightBytes": 62545396768,
+   "weightBytes": 62561033248,
    "activationBytes": 1610612736,
    "kvBytes": 12582912,
    "stateBytes": 78151680
@@ -213,12 +213,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 77888485664,
+   "bytesMoved": 77904122144,
    "times": {
     "matrix": 0.0454616302558,
     "vector": 0.000246531154051,
     "sfu": 0.000285253933949,
-    "memory": 0.0424437282241,
+    "memory": 0.0424522490022,
     "comm": 0
    }
   }
@@ -261,7 +261,7 @@
    "actOut": 9594252288
   },
   "memory": {
-   "weightBytes": 27786708520,
+   "weightBytes": 27793085944,
    "activationBytes": 1610612736,
    "kvBytes": 33554432,
    "stateBytes": 78446592
@@ -269,12 +269,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 48099130152,
+   "bytesMoved": 48105507576,
    "times": {
     "matrix": 0.123417609677,
     "vector": 0.000270382792205,
     "sfu": 0.000395346432,
-    "memory": 0.026210631656,
+    "memory": 0.0262141069021,
     "comm": 0
    }
   }
@@ -289,7 +289,7 @@
    "actOut": 9594252288
   },
   "memory": {
-   "weightBytes": 13893363476,
+   "weightBytes": 14252429076,
    "activationBytes": 1610612736,
    "kvBytes": 33554432,
    "stateBytes": 78446592
@@ -297,12 +297,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 34205785108,
+   "bytesMoved": 34564850708,
    "times": {
     "matrix": 0.123417609677,
     "vector": 0.000270382792205,
     "sfu": 0.000395346432,
-    "memory": 0.0186397390377,
+    "memory": 0.018835404451,
     "comm": 0
    }
   }
@@ -429,7 +429,7 @@
    "actOut": 4130548736
   },
   "memory": {
-   "weightBytes": 35953592080,
+   "weightBytes": 35954177248,
    "activationBytes": 1610612736,
    "kvBytes": 10485760,
    "stateBytes": 32931840
@@ -437,12 +437,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 44661160976,
+   "bytesMoved": 44661746144,
    "times": {
     "matrix": 0.016567369593,
     "vector": 0.000134707045744,
     "sfu": 0.000157019201641,
-    "memory": 0.024337181067,
+    "memory": 0.0243374999422,
     "comm": 0
    }
   }
@@ -457,7 +457,7 @@
    "actOut": 4130548736
   },
   "memory": {
-   "weightBytes": 17976799880,
+   "weightBytes": 17987142280,
    "activationBytes": 1610612736,
    "kvBytes": 10485760,
    "stateBytes": 32931840
@@ -465,12 +465,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 26684368776,
+   "bytesMoved": 26694711176,
    "times": {
     "matrix": 0.016567369593,
     "vector": 0.000134707045744,
     "sfu": 0.000157019201641,
-    "memory": 0.0145410979107,
+    "memory": 0.0145467337889,
     "comm": 0
    }
   }
@@ -513,7 +513,7 @@
    "actOut": 10372770816
   },
   "memory": {
-   "weightBytes": 403404567744,
+   "weightBytes": 403406828176,
    "activationBytes": 1610612736,
    "kvBytes": 15728640,
    "stateBytes": 97689600
@@ -521,12 +521,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 426018818496,
+   "bytesMoved": 426021078928,
    "times": {
     "matrix": 0.0800141299247,
     "vector": 0.000382736518564,
     "sfu": 0.000380794709333,
-    "memory": 0.23215019263,
+    "memory": 0.232151424406,
     "comm": 0
    }
   }
@@ -541,7 +541,7 @@
    "actOut": 10372770816
   },
   "memory": {
-   "weightBytes": 201702295392,
+   "weightBytes": 201724618592,
    "activationBytes": 1610612736,
    "kvBytes": 15728640,
    "stateBytes": 97689600
@@ -549,12 +549,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 224316546144,
+   "bytesMoved": 224338869344,
    "times": {
     "matrix": 0.0800141299247,
     "vector": 0.000382736518564,
     "sfu": 0.000380794709333,
-    "memory": 0.122236687997,
+    "memory": 0.122248852566,
     "comm": 0
    }
   }
@@ -709,7 +709,7 @@
    "actOut": 9594252288
   },
   "memory": {
-   "weightBytes": 27786708520,
+   "weightBytes": 27793085944,
    "activationBytes": 1610612736,
    "kvBytes": 33554432,
    "stateBytes": 78446592
@@ -717,12 +717,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 48099130152,
+   "bytesMoved": 48105507576,
    "times": {
     "matrix": 0.123417609677,
     "vector": 0.000270382792205,
     "sfu": 0.000395346432,
-    "memory": 0.026210631656,
+    "memory": 0.0262141069021,
     "comm": 0
    }
   }
@@ -765,7 +765,7 @@
    "actOut": 4130548736
   },
   "memory": {
-   "weightBytes": 35953592080,
+   "weightBytes": 35954177248,
    "activationBytes": 1610612736,
    "kvBytes": 10485760,
    "stateBytes": 32931840
@@ -773,12 +773,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 44661160976,
+   "bytesMoved": 44661746144,
    "times": {
     "matrix": 0.016567369593,
     "vector": 0.000134707045744,
     "sfu": 0.000157019201641,
-    "memory": 0.024337181067,
+    "memory": 0.0243374999422,
     "comm": 0
    }
   }
@@ -821,7 +821,7 @@
    "actOut": 27980644352
   },
   "memory": {
-   "weightBytes": 2446196233760,
+   "weightBytes": 2446207693860,
    "activationBytes": 1610612736,
    "kvBytes": 48234496,
    "stateBytes": 297885696
@@ -829,12 +829,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 2508265584160,
+   "bytesMoved": 2508277044260,
    "times": {
     "matrix": 0.440164089136,
     "vector": 0.00109183438113,
     "sfu": 0.000989751768615,
-    "memory": 1.36682773917,
+    "memory": 1.36683398412,
     "comm": 0
    }
   }
@@ -877,7 +877,7 @@
    "actOut": 9594252288
   },
   "memory": {
-   "weightBytes": 27786708520,
+   "weightBytes": 27793085944,
    "activationBytes": 1610612736,
    "kvBytes": 33554432,
    "stateBytes": 78446592
@@ -885,12 +885,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 48099130152,
+   "bytesMoved": 48105507576,
    "times": {
     "matrix": 0.123417609677,
     "vector": 0.000270382792205,
     "sfu": 0.000395346432,
-    "memory": 0.026210631656,
+    "memory": 0.0262141069021,
     "comm": 0
    }
   }
@@ -933,7 +933,7 @@
    "actOut": 9616836608
   },
   "memory": {
-   "weightBytes": 128321900968,
+   "weightBytes": 128322793592,
    "activationBytes": 1610612736,
    "kvBytes": 14155776,
    "stateBytes": 58834944
@@ -941,12 +941,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 150214448808,
+   "bytesMoved": 150215341432,
    "times": {
     "matrix": 0.0321207488047,
     "vector": 0.000351872134564,
     "sfu": 0.000410579666051,
-    "memory": 0.0818562742128,
+    "memory": 0.0818567606299,
     "comm": 0
    }
   }
@@ -961,7 +961,7 @@
    "actOut": 20651802624
   },
   "memory": {
-   "weightBytes": 682099236125,
+   "weightBytes": 682103195581,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -969,12 +969,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 727948205341,
+   "bytesMoved": 727952164797,
    "times": {
     "matrix": 0.174724583769,
     "vector": 0.000767613952,
     "sfu": 0.000656926667487,
-    "memory": 0.396680401799,
+    "memory": 0.396682559423,
     "comm": 0
    }
   }
@@ -989,7 +989,7 @@
    "actOut": 20651802624
   },
   "memory": {
-   "weightBytes": 682099236125,
+   "weightBytes": 682100225989,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -997,12 +997,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 727948205341,
+   "bytesMoved": 727949195205,
    "times": {
     "matrix": 0.174724583769,
     "vector": 0.000767613952,
     "sfu": 0.000656926667487,
-    "memory": 0.396680401799,
+    "memory": 0.396680941205,
     "comm": 0
    }
   }
@@ -1017,7 +1017,7 @@
    "actOut": 24395644928
   },
   "memory": {
-   "weightBytes": 682964712477,
+   "weightBytes": 682965756021,
    "activationBytes": 1610612736,
    "kvBytes": 43974656,
    "stateBytes": 0
@@ -1025,12 +1025,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 739877305373,
+   "bytesMoved": 739878348917,
    "times": {
     "matrix": 0.179317980404,
     "vector": 0.00071584731241,
     "sfu": 0.000236252448821,
-    "memory": 0.403180919499,
+    "memory": 0.403181488157,
     "comm": 0
    }
   }
@@ -1040,12 +1040,12 @@
    "matrix": 12147578896400,
    "vector": 8411493888,
    "sfu": 1172519424,
-   "weights": 587707779144,
+   "weights": 587775412296,
    "actIn": 20110331904,
    "actOut": 12796454912
   },
   "memory": {
-   "weightBytes": 301238488381,
+   "weightBytes": 301340963485,
    "activationBytes": 1610612736,
    "kvBytes": 36470784,
    "stateBytes": 0
@@ -1053,12 +1053,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 334145275197,
+   "bytesMoved": 334247750301,
    "times": {
     "matrix": 0.111241564985,
     "vector": 0.000431358660923,
     "sfu": 0.000240516804923,
-    "memory": 0.182085594898,
+    "memory": 0.182141436598,
     "comm": 0
    }
   }
@@ -1068,12 +1068,12 @@
    "matrix": 12147578896400,
    "vector": 8411493888,
    "sfu": 1172519424,
-   "weights": 587707779144,
+   "weights": 587775412296,
    "actIn": 20110331904,
    "actOut": 12796454912
   },
   "memory": {
-   "weightBytes": 301238488381,
+   "weightBytes": 301340963485,
    "activationBytes": 1610612736,
    "kvBytes": 36470784,
    "stateBytes": 0
@@ -1081,12 +1081,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 334145275197,
+   "bytesMoved": 334247750301,
    "times": {
     "matrix": 0.111241564985,
     "vector": 0.000431358660923,
     "sfu": 0.000240516804923,
-    "memory": 0.182085594898,
+    "memory": 0.182141436598,
     "comm": 0
    }
   }
@@ -1096,12 +1096,12 @@
    "matrix": 12276671709200,
    "vector": 8695272960,
    "sfu": 1317444096,
-   "weights": 588355037256,
+   "weights": 588422670408,
    "actIn": 20673475584,
    "actOut": 13292300288
   },
   "memory": {
-   "weightBytes": 315272244006,
+   "weightBytes": 315374738862,
    "activationBytes": 1610612736,
    "kvBytes": 36470784,
    "stateBytes": 0
@@ -1109,12 +1109,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 349238019878,
+   "bytesMoved": 349340514734,
    "times": {
     "matrix": 0.112423733601,
     "vector": 0.000445911433846,
     "sfu": 0.000270244942769,
-    "memory": 0.190310075678,
+    "memory": 0.190365928142,
     "comm": 0
    }
   }
@@ -1124,12 +1124,12 @@
    "matrix": 56946614861800,
    "vector": 21286377984,
    "sfu": 2686755328,
-   "weights": 3266708827000,
+   "weights": 3266876730230,
    "actIn": 50253651968,
    "actOut": 32138872832
   },
   "memory": {
-   "weightBytes": 1661144991310,
+   "weightBytes": 1661402088290,
    "activationBytes": 1610612736,
    "kvBytes": 51896320,
    "stateBytes": 0
@@ -1137,12 +1137,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1743537516110,
+   "bytesMoved": 1743794613090,
    "times": {
     "matrix": 0.521489147086,
     "vector": 0.00109160912738,
     "sfu": 0.000551129298051,
-    "memory": 0.950104907694,
+    "memory": 0.950245007403,
     "comm": 0
    }
   }
@@ -1152,12 +1152,12 @@
    "matrix": 56946614861800,
    "vector": 21286377984,
    "sfu": 2686755328,
-   "weights": 3266708827000,
+   "weights": 3266876730230,
    "actIn": 50253651968,
    "actOut": 32138872832
   },
   "memory": {
-   "weightBytes": 1661144991310,
+   "weightBytes": 1661402088290,
    "activationBytes": 1610612736,
    "kvBytes": 51896320,
    "stateBytes": 0
@@ -1165,12 +1165,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1743537516110,
+   "bytesMoved": 1743794613090,
    "times": {
     "matrix": 0.521489147086,
     "vector": 0.00109160912738,
     "sfu": 0.000551129298051,
-    "memory": 0.950104907694,
+    "memory": 0.950245007403,
     "comm": 0
    }
   }
@@ -1185,7 +1185,7 @@
    "actOut": 14886699008
   },
   "memory": {
-   "weightBytes": 1026408209410,
+   "weightBytes": 1026410791140,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -1193,12 +1193,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1060242775040,
+   "bytesMoved": 1060245356770,
    "times": {
     "matrix": 0.150067136685,
     "vector": 0.00057726500759,
     "sfu": 0.000446588035282,
-    "memory": 0.577757492801,
+    "memory": 0.577758899661,
     "comm": 0
    }
   }
@@ -1213,7 +1213,7 @@
    "actOut": 14886699008
   },
   "memory": {
-   "weightBytes": 1026408209410,
+   "weightBytes": 1026410791140,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -1221,12 +1221,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1060242775040,
+   "bytesMoved": 1060245356770,
    "times": {
     "matrix": 0.150067136685,
     "vector": 0.00057726500759,
     "sfu": 0.000446588035282,
-    "memory": 0.577757492801,
+    "memory": 0.577758899661,
     "comm": 0
    }
   }
@@ -1241,7 +1241,7 @@
    "actOut": 14886699008
   },
   "memory": {
-   "weightBytes": 1026408209410,
+   "weightBytes": 1026410791140,
    "activationBytes": 1610612736,
    "kvBytes": 35979264,
    "stateBytes": 0
@@ -1249,12 +1249,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1060242775040,
+   "bytesMoved": 1060245356770,
    "times": {
     "matrix": 0.150067136685,
     "vector": 0.00057726500759,
     "sfu": 0.000446588035282,
-    "memory": 0.577757492801,
+    "memory": 0.577758899661,
     "comm": 0
    }
   }
@@ -1521,7 +1521,7 @@
    "actOut": 22095872000
   },
   "memory": {
-   "weightBytes": 753499628455,
+   "weightBytes": 753504086311,
    "activationBytes": 1610612736,
    "kvBytes": 56229888,
    "stateBytes": 0
@@ -1529,12 +1529,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 803657384871,
+   "bytesMoved": 803661842727,
    "times": {
     "matrix": 0.194520296707,
     "vector": 0.000647448786051,
     "sfu": 0.000298222303179,
-    "memory": 0.43793656197,
+    "memory": 0.437938991187,
     "comm": 0
    }
   }
@@ -1549,7 +1549,7 @@
    "actOut": 22095872000
   },
   "memory": {
-   "weightBytes": 753499628455,
+   "weightBytes": 753504086311,
    "activationBytes": 1610612736,
    "kvBytes": 56229888,
    "stateBytes": 0
@@ -1557,12 +1557,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 803657384871,
+   "bytesMoved": 803661842727,
    "times": {
     "matrix": 0.194520296707,
     "vector": 0.000647448786051,
     "sfu": 0.000298222303179,
-    "memory": 0.43793656197,
+    "memory": 0.437938991187,
     "comm": 0
    }
   }
@@ -1600,12 +1600,12 @@
    "matrix": 8812944424960,
    "vector": 5527780864,
    "sfu": 1763072512,
-   "weights": 626466882808,
+   "weights": 626537661688,
    "actIn": 12893919232,
    "actOut": 10223833088
   },
   "memory": {
-   "weightBytes": 320836457197,
+   "weightBytes": 320944778285,
    "activationBytes": 1610612736,
    "kvBytes": 7208960,
    "stateBytes": 76316672
@@ -1613,12 +1613,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 343954209517,
+   "bytesMoved": 344062530605,
    "times": {
     "matrix": 0.0807046192762,
     "vector": 0.000283475941744,
     "sfu": 0.000361655899897,
-    "memory": 0.187430771902,
+    "memory": 0.18748979925,
     "comm": 0
    }
   }
@@ -1628,12 +1628,12 @@
    "matrix": 8812944424960,
    "vector": 5527780864,
    "sfu": 1763072512,
-   "weights": 626466882808,
+   "weights": 626537661688,
    "actIn": 12893919232,
    "actOut": 10223833088
   },
   "memory": {
-   "weightBytes": 641671781857,
+   "weightBytes": 641742560737,
    "activationBytes": 1610612736,
    "kvBytes": 7208960,
    "stateBytes": 76316672
@@ -1641,12 +1641,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 664789534177,
+   "bytesMoved": 664860313057,
    "times": {
     "matrix": 0.0807046192762,
     "vector": 0.000283475941744,
     "sfu": 0.000361655899897,
-    "memory": 0.362263383018,
+    "memory": 0.362301952513,
     "comm": 0
    }
   }

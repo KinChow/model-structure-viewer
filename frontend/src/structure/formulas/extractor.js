@@ -984,10 +984,10 @@ export function countsForNode(node, env = {}) {
         // 注意：上游这些张量是 fp32；本工具统一按激活字节宽计，dtype 差异单列登记。
         mhc_pre: () => ({
           mix: { tokens, width: H, bytesPerElement },
-          // hc_{attn,ffn}_base（mix_hc 个）与 _scale（3 个）是 vLLM 显式声明的
-          // torch.float32 标量（paramDtypes 登记），单独出、不跟激活字节宽；
-          // 大矩阵 hc_*_fn 仍是 [mix_hc, hc_dim]（v1 登记为跟随 torch_dtype）。
-          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement },
+          // hc_{attn,ffn}_fn [mix_hc, hc_dim] 与 base/scale 标量都是 vLLM 显式
+          // 声明的 torch.float32（paramDtypes 登记），权重字节宽 4、激活仍跟
+          // bytesPerElement（linearCounts 的 weightBytesPerElement）。
+          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement, weightBytesPerElement: paramBytes("mhc_fn") },
           base: { logicalShape: [mhcMixRows(config), 1], tokens: 0, bytesPerElement: paramBytes("mhc_base") },
           scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement: paramBytes("mhc_scale") },
           // attn_norm 的 RMSNorm 权重被融进 mhc_pre 内核（vLLM
@@ -1008,7 +1008,7 @@ export function countsForNode(node, env = {}) {
           post: { tokens, width: H, bytesPerElement },
           inject: { tokens, hidden: H, bytesPerElement },
           pre: { tokens, width: H, bytesPerElement },
-          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement },
+          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement, weightBytesPerElement: paramBytes("mhc_fn") },
           base: { logicalShape: [mhcMixRows(config), 1], tokens: 0, bytesPerElement: paramBytes("mhc_base") },
           scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement: paramBytes("mhc_scale") },
           // 同理，ffn_norm 的权重融进 fused post+pre（model.py:705）。

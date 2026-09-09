@@ -120,8 +120,11 @@ function decoderParameters(config = {}, perLayerOut = null) {
       fp32Elements += gdnDecayElements(config, plan.linearAttentionMode);
     }
     if (config.multiHyperConnection) {
-      const mixRows = (2 + (config.mhcNumResidualStreams || 0)) * (config.mhcNumResidualStreams || 0);
-      fp32Elements += 2 * (mixRows + 3); // attn/ffn 两套 base[mix_hc] + scale[3]
+      const streams = config.mhcNumResidualStreams || 0;
+      const mixRows = (2 + streams) * streams;
+      const hcDim = streams * hidden;
+      // attn/ffn 两套：fn[mix_hc·hc_dim] + base[mix_hc] + scale[3]，全 fp32。
+      fp32Elements += 2 * (mixRows * hcDim + mixRows + 3);
     }
     // PLE（Qwen4Exp 的 Position Learning Enhancement）只挂在 ple_layer_ids 指定的层：
     // W_kv[2·pleEmbedDim, hidden] + grouped norm(pleEmbedDim) + short-conv 核

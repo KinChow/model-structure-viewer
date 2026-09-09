@@ -81,7 +81,10 @@ test("Graph IR 父节点只做汇总，不能把父级 attention 再计一次", 
     activationPeak: 0,
     runtimeConst: 0,
   });
-  assert.equal(result.totalMacs, 180);
+  // W3-①因果口径手算：T=S=3 → 每头可见对数 = 1+2+3 = 6，两头共 12 对。
+  // scores = 12·headDim(4) = 48；context = 12·valueDim(6) = 72；合计 120。
+  // （W3 前两相位通吃 T·S=9 对/头，算得 180。）
+  assert.equal(result.totalMacs, 120);
   assert.equal(result.nodes.find((row) => row.path === "root.0").compute_macs, 0);
 });
 

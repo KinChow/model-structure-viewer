@@ -33,6 +33,13 @@ test("W3-C：normalizeConfig 输出哈希与基线一致", () => {
   assert.deepEqual(bad, [], "normalize 输出变更：字段删除须重生成基线并审阅 diff（node scripts/gen-normalize-golden.mjs）");
 });
 
+// W5 说明（2026-09-09）：fixture 里 4 个 DeepseekV3ForCausalLM + model_type=kimi_k2
+// 的模型，linearAttentionMode 从 'kimi' 改为 'generic'。原因是配方位改读
+// archs/ARCH_RECIPES（key=architectures[0]）后，DeepseekV3ForCausalLM 这个被
+// deepseek_v3 与 kimi_k2 共用的架构名只能有一份声明。该 flag 对这些模型
+// **不可观测**——它们全是纯 MLA、没有线性注意力层，ops-spec-tree 与 edge
+// 两份 golden 哈希在本次改动下逐位不变即为证明。K2.5/2.6/2.7 走
+// KimiK25ForConditionalGeneration，仍声明为 'kimi'，未变。
 test("W3-C：deriveBuildPlan 与搬迁前方案字段逐值相等（parity fixture）", () => {
   const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
   const derived = buildPlanFromDerive();

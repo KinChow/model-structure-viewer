@@ -12,6 +12,70 @@
 
 新增模型的最小流程是：添加配置和必要元数据，运行 catalog 生成，补充架构 alias/builder（如果现有结构不能复用），运行前端组网验证，再更新模型专项说明。
 
+## 结构类台账（W1）
+
+`canonical architecture` 是**组网模板**的分组；开发与验收还需要更细的一层：
+**结构类**。判据全部取 `config.json` 的结构性字段存在性（对标 vLLM
+`ModelRegistry` 用 `architectures[0]` 精确键 + 显式字段派生逐层方案，不用
+`model_type` 子串），量化正交剔除（只影响 bytes 与参数字节）。
+
+59 个内置模型去重后 **16 个结构类**。开发单元是**部件**（22 个），结构类只是
+部件的组合；每个结构类挑一个代表模型做验收。
+
+### 部件清单（22 个）
+
+- 注意力 8：`GQA(+outgate)` · `MLA` · `DSA` · `DSA-kpool` · `QSA` ·
+  `DSV4(compress+swa)` · `MSA(block)` · `LinAttn(GDN/KDA)`
+- FFN 5：`DenseMLP` · `MoE` · `+shared` · `+hashroute` · `+latentMoE`
+- 残差 4：`plain` · `MHC` · `HyperConn+PLE` · `AttnResBlock`
+- 视觉 4：Qwen-VL 系（含 merger）· Kimi ViT · MiniMax projector · GLM-Flash
+- MTP 1（层数为参数：1 或 3）
+
+### 结构类与代表模型
+
+| 类 | architectures[0] | 注意力 | FFN | 残差 | 视觉 | MTP | 模型数 | 代表模型 |
+|---|---|---|---|---|---|---|---|---|
+| S01 | `Qwen3_5ForConditionalGeneration` | GQA+outgate / LinAttn | DenseMLP | plain | 有 | 1 | 15 | `Qwen/Qwen3.5-0.8B` |
+| S02 | `Qwen3_5MoeForConditionalGeneration` | GQA+outgate / LinAttn | MoE+shared | plain | 有 | 1 | 12 | `Qwen/Qwen3.5-35B-A3B` |
+| S03 | `GlmMoeDsaForCausalLM` | DSA | MoE+shared | plain | 无 | 1 | 6 | `zai-org/GLM-5` |
+| S04 | `DeepseekV3ForCausalLM` | MLA | MoE+shared | plain | 无 | 无 | 4 | `moonshotai/Kimi-K2-Instruct` |
+| S05 | `DeepseekV4ForCausalLM` | DSV4 | MoE+shared+hash | MHC | 无 | 1 | 4 | `deepseek-ai/DeepSeek-V4-Pro` |
+| S06 | `KimiK25ForConditionalGeneration` | MLA | MoE+shared | plain | 有 | 无 | 3 | `moonshotai/Kimi-K2.5` |
+| S07 | `DeepseekV3ForCausalLM` | MLA | MoE+shared | plain | 无 | 1 | 2 | `deepseek-ai/DeepSeek-V3.1` |
+| S08 | `Glm5NextForConditionalGeneration` | DSA-kpool / LinAttn | MoE+shared | MHC | 有 | 1 | 2 | `zai-org/GLM-5.3-Flash` |
+| S09 | `MiniMaxM3SparseForConditionalGeneration` | MSA | MoE+shared | plain | 有 | 1 | 2 | `MiniMaxAI/MiniMax-M3` |
+| S10 | `Qwen3_5MoeForCausalLM` | GQA+outgate / LinAttn | MoE+shared | plain | 无 | 1 | 2 | `Qwen/Qwen3.8-2.4T-A95B` |
+| S11 | `Qwen4ExpForConditionalGeneration` | QSA / LinAttn | MoE+shared | HyperConn+PLE | 有 | 1 | 2 | `Qwen/Qwen3.8-Flash-Next` |
+| S12 | `DeepseekV32ForCausalLM` | DSA | MoE+shared | plain | 无 | 1 | 1 | `deepseek-ai/DeepSeek-V3.2` |
+| S13 | `DeepseekV4ForCausalLM` | DSV4 | MoE+shared+hash | MHC | 有（平铺） | 3 | 1 | `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` |
+| S14 | `Glm4MoeForCausalLM` | GQA | MoE+shared | plain | 无 | 1 | 1 | `zai-org/GLM-4.7` |
+| S15 | `KimiK3ForConditionalGeneration` | MLA / LinAttn | MoE+shared+latentMoE | AttnResBlock | 有 | 无 | 1 | `moonshotai/Kimi-K3` |
+| S16 | `MiniMaxM2ForCausalLM` | GQA | MoE | plain | 无 | 3 | 1 | `MiniMaxAI/MiniMax-M2.7` |
+
+判据字段（可机械复现，不含家族名）：
+
+- `sparse_attention_config.sparse_block_size` → MSA 块稀疏
+- `compress_ratios` 数组 → DSV4 压缩/滑窗混合
+- `index_topk` + `kv_lora_rank` + `q_lora_rank` → DSA over MLA；再看
+  `index_kpool > 1` 决定是否 kpool 变体
+- `indexer_budget` + `indexer_kv_heads` + `indexer_compress_ratio` → QSA
+- `linear_attn_config` 或 `linear_num_key_heads` → 线性注意力层
+- `num_nextn_predict_layers` / `mtp_num_hidden_layers` / `num_mtp_modules` → MTP
+
+### S13 的视觉判定（W1 核查结论）
+
+`DeepSeek-V4-Flash-Vision-Exp` **没有**嵌套 `vision_config`，视觉参数是平铺的
+`vision_n_layers` / `vision_dim` / `vision_n_heads` / `vision_inter_dim` /
+`vision_patch_size`。`normalizeConfig` 的 `flatVisionConfig` 分支已正确识别
+（实测 `hasVision=true`、`visionLayers=32`、`visionHiddenSize=1024`），
+`resolveArchitecture` 也归入 `multimodal-mla-moe-decoder`——**不是代码缺陷**，
+早前台账脚本只查嵌套键才误判为无视觉。
+
+真实缺口是另一条：该模型 `visionTokens` 为 `undefined`（平铺配置没有
+`image_size`，`visionPatchTokenCount` 的三条回退全不命中），视觉域成本因此按
+`visionTokens || 1` 计。config 里的 `vision_max_n_token` 未被消费，是补齐这项的
+候选来源。登记为 W4 视觉部件项。
+
 ## 当前已支持模型
 
 当前 `models/catalog.json` 收录 59 个内置模型。下表按运行时 `resolveArchitecture` 得到的 canonical architecture 分组；这些模型均可通过 `builtin` 入口读取仓库配置并进入前端结构生成链路，模型列表以 catalog 为准。

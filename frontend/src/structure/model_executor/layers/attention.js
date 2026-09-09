@@ -16,11 +16,22 @@ const ATTENTION_COMPONENTS = [
         return [["qkv_projection", "qkvz_split"], ["qkvz_split", "short_conv"], ["beta_projection", "state_update"], ["decay_projection", "state_update"], ["short_conv", "state_update"], ["state_update", "output_gate_norm"], ["output_gate_norm", "out_proj"]];
       }
       if (modelType === "kimi_k3" || modelType === "glm5_next") {
-        // kimi_k3：decay 走低秩 f_a（在融合内）+ f_b（独立叶），边指向 f_b
-        const kdaEdges = [["qkv_projection", "short_conv"], ["beta_projection", "state_update"], ["short_conv", "state_update"], ["state_update", "output_gate_norm"], ["output_gate_norm", "out_proj"]];
-        return modelType === "kimi_k3"
-          ? [...kdaEdges.slice(0, 2), ["f_b_proj", "state_update"], ...kdaEdges.slice(2)]
-          : kdaEdges;
+        // KDA 的融合投影一次出 q/k/v/b/f_a(/g 或 g_a)，所以 beta 没有独立叶
+        //（vLLM glm5next/nvidia/kda.py:179-196、kimi_k3/amd/kda.py:110-127）。
+        // decay 走低秩 f_a（融合内）→ f_b（独立叶）；输出门 GLM 是低秩
+        // g_a（融合内）→ g_b（独立叶），K3 是全秩 g（直接在融合内）。
+        const lowRankGate = modelType === "glm5_next";
+        return [
+          ["qkv_projection", "short_conv"],
+          ["qkv_projection", "f_b_proj"],
+          ["f_b_proj", "state_update"],
+          ...(lowRankGate
+            ? [["qkv_projection", "g_b_proj"], ["g_b_proj", "output_gate_norm"]]
+            : [["qkv_projection", "output_gate_norm"]]),
+          ["short_conv", "state_update"],
+          ["state_update", "output_gate_norm"],
+          ["output_gate_norm", "out_proj"],
+        ];
       }
       return undefined;
     },

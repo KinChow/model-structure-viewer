@@ -25,6 +25,7 @@ import {
   addCounts,
   hashRouteCounts,
   rearrangeCounts,
+  scoredPairs,
 } from "./counts.js";
 import { formulaForOperator } from "./index.js";
 import { tensorDims } from "../model_executor/dims.js";
@@ -66,6 +67,24 @@ function staticWidth(shape) {
   const dimensions = shape.filter((value) => Number.isFinite(value) && value > 0);
   if (dimensions.length === 0) return null;
   return productOf(dimensions);
+}
+
+/**
+ * 归一化的**权重宽度** = 最后一维。
+ *
+ * RMSNorm 沿最后一维归一化，权重就是最后一维那么长，跨其余维度共享。
+ * 三维 [B,T,H] 时它与 staticWidth 相同；**逐头**的四维 [B,T,heads,headDim] 时
+ * staticWidth 会给出 heads·headDim，把权重放大 heads 倍。
+ * 上游实证：q_norm/k_norm = `RMSNorm(self.head_dim)`（vLLM qwen3.py:150-151、
+ * qwen3_next.py:358-359）；GDN 的输出门 = `RMSNormGated(self.head_v_dim)`
+ *（qwen_gdn_linear_attn.py:487-488），都不是全宽。
+ */
+function normWeightWidth(shape) {
+  if (!Array.isArray(shape) || shape.length < 1) return null;
+  for (let i = shape.length - 1; i >= 0; i -= 1) {
+    if (Number.isFinite(shape[i]) && shape[i] > 0) return shape[i];
+  }
+  return null;
 }
 
 /** 线性逻辑形状：logical_weight_shape 属性优先，其次 weight_shapes 中首个 ≥2 维形状。
@@ -291,21 +310,61 @@ function linearStateUpdateMacs(config, { batch = 1, sequence = 1, phase = "prefi
  * linearStateElementsPerLayer 同源同式；形状来源：vLLM
  * MambaStateShapeCalculator.kda_state_shape）。状态驻留 HBM，chunk 内不逐
  * token 重读。 */
-function stateUpdateCounts(config, options, bytesPerElement) {
+// W3-⑤：chunked linear attention 的块长（显式近似假设，A6）。业界 chunked
+// 实现默认 64；状态与 HBM 的交互次数 = ceil(T / CHUNK)，不是每 token 一次。
+const LINEAR_ATTENTION_CHUNK = 64;
+
+/** mHC 的混合行数 mix_hc = (2 + hc_mult)·hc_mult（vLLM deepseek_v4 model.py:711）。 */
+function mhcMixRows(config) {
+  const m = config?.mhcNumResidualStreams || 0;
+  return (2 + m) * m;
+}
+/** mHC 的多流拼接宽 hc_dim = hc_mult·hidden（同上 :712）。 */
+function mhcDim(config, hidden) {
+  return (config?.mhcNumResidualStreams || 0) * hidden;
+}
+
+function stateUpdateCounts(config, options, bytesPerElement, modelKind = "") {
   const { keyHeads, valueHeads, keyDim, valueDim } = linearAttentionDimensions(config);
   const kernel = Math.max(0, (config?.linearConvKernelSize || 1) - 1);
   const convElements = keyHeads * keyDim * 2 + valueHeads * valueDim;
   const recurrentElements = valueHeads * valueDim * keyDim;
   const stateBytes = (convElements * kernel + recurrentElements) * bytesPerElement;
+  // W3-⑤：状态读写次数分相位。此前恒为「一次前向读写一遍状态」，
+  // prefill 下漏算了分块次数。chunked 实现每块与状态交互一次：
+  //   prefill -> ceil(T / CHUNK)（CHUNK=64，业界 chunked linear attention 默认）
+  //   decode  -> 每 token 一次（T=1 即一次，与旧口径一致）
+  // 这是显式的近似执行形态假设（A6），记在保留容差清单里。
+  const steps = options?.phase === "decode"
+    ? Math.max(options?.batch ?? 1, 1)
+    : Math.ceil(Math.max(options?.sequence ?? 1, 1) / LINEAR_ATTENTION_CHUNK);
+  // W5：vector/sfu 不再恒零 —— 与 F7b（counts.js linearAttentionStateCounts）
+  // 同口径：decay 的逐元素乘按 steps 计、每步每头 exp（delta 另加 beta sigmoid）。
+  const { keyHeads: kh, valueHeads: vh, keyDim: kd, valueDim: vd } = linearAttentionDimensions(config);
+  const recurrentState = (vh || kh || 1) * (kd || 0) * (vd || 0);
+  const heads = vh || kh || 1;
+  const delta = true; // KDA/GDN 全是 gated delta rule；plain 线性注意力走 linear_attention 分支
+  // 递推核自带的标量参数（每次前向都要读一遍，此前记 0）。两族形状不同：
+  //   qwen GDN：dt_bias 与 A_log 都是 num_v_heads
+  //             （qwen_gdn_linear_attn.py:467-475）→ 2·heads
+  //   GLM5-Next / K3 KDA：A_log 是 num_heads、dt_bias 是 projection_size
+  //             （glm5next/nvidia/kda.py:205-243、kimi_k3/amd/kda.py:138-195）
+  //             → heads + heads·valueDim
+  // 判据用**字段存在性**：低秩 decay（f_b_proj）只在 KDA 族出现，配置上等价于
+  // 「有 linear_key_head_dim 且 key/value 头数一致的融合 qkvbfg/qkvgfab 布局」。
+  // 这里直接用 plan 的 linearAttentionMode（archs 显式登记，不是子串猜测）。
+  // modelKind 来自节点自身的 `attributes.model_kind`（模板在发射 state_update 时
+  // 声明，archs 显式登记的配方值，不是 model_type 子串猜测）。
+  const kdaFamily = modelKind === "glm5_next" || modelKind === "kimi_k3";
+  const gdnScalars = kdaFamily ? heads + heads * (vd || 0) : 2 * heads;
   return {
     matrix: linearStateUpdateMacs(config, options),
-    vector: 0,
-    sfu: 0,
-    bytes: { weights: 0, actIn: stateBytes, actOut: stateBytes },
+    vector: steps * recurrentState,
+    sfu: steps * heads * (delta ? 3 : 1),
+    bytes: { weights: gdnScalars * bytesPerElement, actIn: stateBytes * steps, actOut: stateBytes * steps },
   };
 }
 // ---------- 旧链镜像结束 ----------
-
 /**
  * 计算单个算子节点的动作向量。
  * @returns 动作向量；matrix 无法确定时返回 null（调用方计入 unknownComputePaths）。
@@ -362,7 +421,14 @@ export function countsForNode(node, env = {}) {
     case "linear": {
       // 与旧 isLinear 的 embed 排除等价：以结构化路径判断（node.name 不参与，§3.2）。
       // TODO(W3): builder 为 embed 投影声明结构化标记后移除路径判断。
-      if (/(^|\.)(patch_)?embed/.test(String(node?.id || path))) {
+      // **只排文本 token 嵌入**（真查表，gather 无 MAC、不读权重矩阵）。
+      // 原判据写成 `(patch_)?embed` 把**视觉 patch embedding 也当成查表**了 ——
+      // 它是 Conv3d(in_ch, hidden, kernel=(T_p,P,P), stride=kernel, bias=False)
+      //（vLLM qwen2_5_vl.py:548-560：view 后 conv 再 view，stride==kernel 即一次
+      // GEMM [L, C·T_p·P²]×[C·T_p·P², hidden]），权重 = C·T_p·P²·hidden。
+      // 实测 Qwen3.5-0.8B 因此少 1,179,648 参数（权重字节 0.9987）与
+      // 576·1,179,648 MAC（整模型 matrix 0.9956），两条残差同源。
+      if (/(^|\.)embed(_tokens)?$/.test(String(node?.id || path))) {
         // M11-P0-5：embedding gather——每 token 读一行权重、写一行 hidden
         const hidden = staticWidth(node?.output_shape) || config?.hiddenSize || 0;
         return {
@@ -375,7 +441,10 @@ export function countsForNode(node, env = {}) {
       const expertFraction = expertFractionFor(node?.id || path, config);
       const logical = linearLogicalShape(node) || derivedLinearShape(node);
       if (!logical) return null;
-      return linearCounts({ logicalShape: logical, tokens, bytesPerElement, expertFraction });
+      return linearCounts({
+        logicalShape: logical, tokens, bytesPerElement, expertFraction,
+        bias: node?.attributes?.bias === true,
+      });
     }
     case "matmul": {
       // scores/context 用输出 shape 模式匹配区分（结构化判据，§3.2）。
@@ -391,40 +460,71 @@ export function countsForNode(node, env = {}) {
       const part = patterns.context.some((pattern) => shapeMatchesPattern(output, pattern)) ? "context"
         : patterns.scores.some((pattern) => shapeMatchesPattern(output, pattern)) ? "scores"
         : null;
+      // W3-①因果：prefill 只算三角，decode 算全长（counts.js scoredPairs 唯一实现）。
+      const pairs = heads * scoredPairs({ phase, queryTokens, keyTokens });
+      // W3-②KV 读宽：此前 K/V 都按 **query 头数** 读，GQA/MQA/MLA 的共享完全没生效
+      //（KV 下界报表实测 DeepSeek-V3.1 超读 71x、Kimi-K3 53x）。修正为：
+      //   - 视觉塔 ViT 是 MHA → kvHeads = heads
+      //   - MLA/DSA（latent 共享）→ kvHeads=1，K 读宽 kv_lora+rope、V 读宽 kv_lora
+      //     （cache 里存的就是 latent，非内核选择）
+      //   - 其余 → config.kvHeads
+      const latentShared = !vision && kind.includes("mla") && (config?.kvLoraRank || 0) > 0;
+      const kvHeads = vision ? heads : (latentShared ? 1 : (config?.kvHeads || heads));
+      const kReadWidth = latentShared ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
+      const vReadWidth = latentShared ? (config?.kvLoraRank || 0) : valueDim;
       if (part === "scores") {
         // M11-P0-5：一阶访存——读 Q、K，写 scores（此前恒 0，F2 KV 流量从未生效）
+        // W6：`kvRead` 单列 —— 它是 actIn 里**从 KV cache 读的那部分**（不含 Q、
+        // 不含 scores 中间量）。KV 读恒等式只能拿这一项跟 cache 容量口径比，
+        // 拿 actIn 总量比就只能留松量（原 30%）。kvRead ⊆ actIn，不额外累加。
+        const kvRead = keyTokens * kvHeads * kReadWidth * bytesPerElement;
         return {
-          matrix: queryTokens * heads * keyTokens * headDim,
+          matrix: pairs * headDim,
           vector: 0,
           sfu: 0,
           bytes: {
             weights: 0,
-            actIn: (queryTokens * heads * headDim + keyTokens * heads * headDim) * bytesPerElement,
-            actOut: queryTokens * heads * keyTokens * bytesPerElement,
+            actIn: (queryTokens * heads * headDim + keyTokens * kvHeads * kReadWidth) * bytesPerElement,
+            actOut: pairs * bytesPerElement,
+            kvRead,
           },
         };
       }
       if (part === "context") {
-        // 读 scores、V，写 context 输出
+        // 读 scores、V，写 context 输出。
+        // W5 防双计：MLA/DSA 的 K 与 V 是**同一份 latent**（cache 里只存
+        // kv_lora+rope 一份），scores 叶已经把它整份流过一遍，context 叶再读
+        // 一次就是同一批 cache line 读两遍。KV 读下界报表实测这条让 MLA 系
+        // 模型（V3.1 2.12x / K3 2.06x / K2 系 2.01x）整体超读约 2 倍。
+        // 非 latent 共享的 GQA/MHA 里 K 与 V 是两个独立张量，照旧各读一次。
+        const vRead = latentShared ? 0 : keyTokens * kvHeads * vReadWidth;
         return {
-          matrix: queryTokens * heads * keyTokens * valueDim,
+          matrix: pairs * valueDim,
           vector: 0,
           sfu: 0,
           bytes: {
             weights: 0,
-            actIn: (queryTokens * heads * keyTokens + keyTokens * heads * valueDim) * bytesPerElement,
+            actIn: (pairs + vRead) * bytesPerElement,
             actOut: queryTokens * heads * valueDim * bytesPerElement,
+            kvRead: vRead * bytesPerElement,
           },
         };
       }
       return null;
     }
-    case "qsa_attention": {
+    // W2：单一 qsa_attention 条目拆成三个 operator_id（算法出处不同不共用条目）。
+    // 三者的 counts 仍共用本 case，读宽/共享度按 attention_kind 分派。
+    case "qsa_sparse_attention":
+    case "dsa_sparse_mla":
+    case "dsv4_sparse_mla": {
       const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
       const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
       const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
       const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
-      const selected = Math.min(keyTokens, config?.indexerBudget || keyTokens);
+      const budget = (effectiveOperatorId === "qsa_sparse_attention"
+        ? config?.qsaIndexerBudget
+        : config?.dsaIndexTopk) ?? config?.indexerBudget ?? keyTokens;
+      const selected = Math.min(keyTokens, budget || keyTokens);
       // M11-P0-8（方案 A）：F2 整体访存（cost_counts.md F2 融合注意力行：
       // S=indexerBudget、kvHeads 按变体矩阵）。三种 attention_kind 共用本
       // case，读宽/共享度分派：
@@ -444,7 +544,7 @@ export function countsForNode(node, env = {}) {
       // 记此）；top-k 索引由 qsa_indexer 的 topk actOut 写、此处读
       // （tokens·selected，int32 按 2B 计）。取证：/tmp/m11-formulas/qsa.md
       //（16 模型探针明细 + 双计对账）。
-      const scores = tokens * heads * selected;
+      const scores = heads * scoredPairs({ phase, queryTokens: tokens, keyTokens: selected });
       const context = tokens * heads * valueDim;
       const latentRead = kind !== "qsa" && (config?.kvLoraRank || 0) > 0;
       const kvHeads = latentRead ? 1 : config?.kvHeads || heads;
@@ -460,17 +560,24 @@ export function countsForNode(node, env = {}) {
         ? kvHeads * Math.min(options.sequence || 1, config?.slidingWindow || 128) * headDim
         : 0;
       return {
-        matrix: tokens * heads * selected * (headDim + valueDim),
+        matrix: scores * (headDim + valueDim),
         vector: 0,
         sfu: 0,
         bytes: {
           weights: 0,
+          // W5 防双计：latentRead 时 K/V 是同一份 latent（cache 只存一份），
+          // 读宽取 max(kWidth, vWidth) 而非相加 —— 与 dense 分解链里
+          // scores/context 两叶的同一处修正对齐（KV 读下界报表实证）。
           actIn: (tokens * heads * headDim
-            + kvHeads * selected * (kWidth + vWidth)
+            + kvHeads * selected * (latentRead ? Math.max(kWidth, vWidth) : kWidth + vWidth)
             + tokens * selected
             + dsv4Window
             + 2 * scores) * bytesPerElement,
           actOut: (2 * scores + context + kvWrite + dsv4Window) * bytesPerElement,
+          // W6：cache 读的那部分（选中的 KV + dsv4 的原始滑窗），不含 Q / top-k
+          // 索引 / scores 中间量。
+          kvRead: (kvHeads * selected * (latentRead ? Math.max(kWidth, vWidth) : kWidth + vWidth)
+            + dsv4Window) * bytesPerElement,
         },
       };
     }
@@ -479,10 +586,12 @@ export function countsForNode(node, env = {}) {
       const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
       const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
       const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
-      void keyTokens;
       const selectedTokens = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
       const size = config?.sparseBlockSize || 1;
-      const selected = selectedTokens * size;
+      // W3：选中块的 token 总数必须夹到实际可见长度——上下文短于块预算时
+      // （如 S=128 而 17 块 x 128 = 2176）不存在那么多 key，否则打分对数虚高。
+      // 与 qsa/dsa/dsv4 三个 sparse case 的 Math.min 口径对齐。
+      const selected = Math.min(keyTokens, selectedTokens * size);
       // M11 bytes 补齐（F2 口径，与 dense 分解链的 scores/softmax/context
       // 三节点合计同构）：Q 读 + 选中 KV 读 + scores/probs 中间量读写 +
       // O 写 + KV cache 写回（M3 稀疏注意力为融合算子，cache 写回在
@@ -491,18 +600,22 @@ export function countsForNode(node, env = {}) {
       // modeling，取证件存 models/MiniMaxAI/MiniMax-M3/）+ config sparse_*；
       // 选块 per query token、per KV 组（index_heads=kv_heads）。
       const kvHeads = config?.kvHeads || heads;
+      // W3-①因果：块稀疏同样只在实际可见的位置上打分（prefill 三角、decode 全长）
+      const scores = heads * scoredPairs({ phase, queryTokens: tokens, keyTokens: selected });
       return {
-        matrix: tokens * heads * selectedTokens * size * (headDim + valueDim),
+        matrix: scores * (headDim + valueDim),
         vector: 0,
         sfu: 0,
         bytes: {
           weights: 0,
           actIn: (heads * tokens * headDim
             + kvHeads * selected * (headDim + valueDim)
-            + 2 * heads * tokens * selected) * bytesPerElement,
-          actOut: (2 * heads * tokens * selected
+            + 2 * scores) * bytesPerElement,
+          actOut: (2 * scores
             + heads * tokens * valueDim
             + kvHeads * tokens * (headDim + valueDim)) * bytesPerElement,
+          // W6：cache 读那部分 = 选中块的 K/V。
+          kvRead: kvHeads * selected * (headDim + valueDim) * bytesPerElement,
         },
       };
     }
@@ -526,9 +639,10 @@ export function countsForNode(node, env = {}) {
       const keyTokens = ratio === 0
         ? Math.min(sequence, config?.slidingWindow || sequence)
         : Math.ceil(sequence / Math.max(ratio, 1));
-      const scores = heads * queryTokens * keyTokens;
+      // W3-①因果：滑窗/压缩层的打分对数同样分相位
+      const scores = heads * scoredPairs({ phase, queryTokens, keyTokens });
       return {
-        matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }),
+        matrix: scores * (headDim + valueDim),
         vector: 0,
         sfu: 0,
         bytes: {
@@ -537,6 +651,8 @@ export function countsForNode(node, env = {}) {
           actIn: (heads * queryTokens * headDim + kvHeads * keyTokens * headDim + 2 * scores) * bytesPerElement,
           // scores/probs（2·scores）+ context 写 + 新 token KV 写回 cache（T·kvH·D）
           actOut: (2 * scores + heads * queryTokens * valueDim + kvHeads * queryTokens * headDim) * bytesPerElement,
+          // W6：cache 读那部分 = 窗口内（或压缩后）的 KV latent。
+          kvRead: kvHeads * keyTokens * headDim * bytesPerElement,
         },
       };
     }
@@ -570,6 +686,8 @@ export function countsForNode(node, env = {}) {
           weights: 0,
           actIn: (heads * queryTokens * headDim + 2 * kvHeads * keyTokens * headDim + kvHeads * windowTokens * headDim + 2 * scores) * bytesPerElement,
           actOut: (2 * scores + heads * queryTokens * valueDim + kvHeads * queryTokens * headDim) * bytesPerElement,
+          // W6：cache 读那部分 = 压缩历史（K/V 各一份）+ 未压缩滑窗。
+          kvRead: (2 * kvHeads * keyTokens * headDim + kvHeads * windowTokens * headDim) * bytesPerElement,
         },
       };
     }
@@ -577,19 +695,35 @@ export function countsForNode(node, env = {}) {
       const dims = attentionShapePatterns(config);
       void dims;
       const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
-      const keyTokens = vision ? config?.visionTokens || 1 : phase === "decode" ? options.sequence ?? 1 : options.sequence ?? 1;
+      const keyTokens = vision ? config?.visionTokens || 1 : options.sequence ?? 1;
       const queryTokens = tokens;
-      return softmaxCounts({ elements: heads * queryTokens * keyTokens, bytesPerElement });
+      // W3-①因果：softmax 只作用在实际打分的位置上，与 scores/context 同口径。
+      return softmaxCounts({ elements: heads * scoredPairs({ phase, queryTokens, keyTokens }), bytesPerElement });
     }
     case "rope": {
       const factor = node?.attributes?.partial_rotary_factor ?? config?.partialRotaryFactor ?? 1;
-      return ropeCounts({ tokens, ropeDims: (config?.headDim || 0) * factor, bytesPerElement });
+      // W5：原来只传单头 head_dim，等于只算了一个头的 rope。实际 q 的全部头与
+      // k 的全部 kv 头都要旋转 → 每 token 元素数 = (heads + kvHeads)·D_rope。
+      // 视觉塔按 ViT 的 MHA（kvHeads = heads）。
+      const ropeHeads = vision
+        ? 2 * (config?.visionAttentionHeads || 0)
+        : (config?.attentionHeads || 0) + (config?.kvHeads || config?.attentionHeads || 0);
+      const ropeDim = (vision ? config?.visionHeadDim || 0 : config?.headDim || 0) * factor;
+      return ropeCounts({ tokens, ropeDims: ropeHeads * ropeDim, bytesPerElement });
     }
     case "rmsnorm":
     case "gemma_rmsnorm":
-      return rmsnormCounts({ tokens, hidden: staticWidth(node?.input_shape) || 0, bytesPerElement, weightOne: operatorId === "gemma_rmsnorm" });
+      return rmsnormCounts({
+        tokens, hidden: staticWidth(node?.input_shape) || 0, bytesPerElement,
+        weightOne: operatorId === "gemma_rmsnorm",
+        weightWidth: normWeightWidth(node?.input_shape) || undefined,
+        affineBias: node?.attributes?.affine_bias === true,
+      });
     case "gated_rmsnorm":
-      return rmsnormCounts({ tokens, hidden: staticWidth(node?.input_shape) || 0, bytesPerElement, gated: true });
+      return rmsnormCounts({
+        tokens, hidden: staticWidth(node?.input_shape) || 0, bytesPerElement, gated: true,
+        weightWidth: normWeightWidth(node?.input_shape) || undefined,
+      });
     case "attention_output_gate":
     case "mla_output_gate":
     case "linear_attention_gate":
@@ -623,11 +757,27 @@ export function countsForNode(node, env = {}) {
       // 矩阵维持 T·k·3·EH·EI 公式；激活段（vector/sfu/bytes）走 F5 共享实现
       // 补齐流量（此前 bytes 恒 0）。tokens·k 与 per-expert 激活同构。
       const activation = swigluCounts({ tokens: tokens * topk, intermediate: expertIntermediate, bytesPerElement });
+      // W3-④MoE 专家权重流量。此前 bytes.weights 恒 0 —— routed 专家的
+      // gate/up/down 三段 GEMM 权重完全没进访存侧，而这正是 MoE decode 的
+      // 第一瓶颈项（44/59 模型）。独立证据：bound 期望断言里 swiglu 两相位
+      // 都被误判为 matrix-bound（15 个结构类）。
+      // 被触达的专家数 = min(k·T, E)：
+      //   - prefill 大 T（k·T >= E）→ 全部 E 份权重都要读一遍
+      //   - decode T=1 → 只读 k 份
+      // 形式上与相位无关，相位差异由 tokens 自然涌现（这是「T=1 自然涌现」
+      // 真正成立的情形）。每专家 3 段 GEMM，各 EH x EI。
+      const experts = config?.experts || 0;
+      const touchedExperts = experts > 0 ? Math.min(topk * tokens, experts) : topk;
+      const expertWeightBytes = 3 * touchedExperts * expertHidden * expertIntermediate * bytesPerElement;
       return {
         matrix: tokens * 3 * expertHidden * expertIntermediate * topk,
         vector: activation.vector,
         sfu: activation.sfu,
-        bytes: activation.bytes,
+        bytes: {
+          weights: expertWeightBytes,
+          actIn: activation.bytes.actIn,
+          actOut: activation.bytes.actOut,
+        },
       };
     }
     case "causal_conv1d": {
@@ -635,11 +785,21 @@ export function countsForNode(node, env = {}) {
       const kernel = config?.linearConvKernelSize || 0;
       // M11-P0-5：一阶访存——读输入窗口宽度、写同宽输出
       const width = 2 * keyProjection + valueProjection;
+      // W3-⑥：补两项此前恒 0 的分量。
+      // (a) 卷积核权重每次前向读一遍（registry F7a 一直声明有，运行时丢了——
+      //     文档 G2 登记的双轨差之一）。depthwise：width x kernel。
+      // (b) decode 相位独有的 conv state：每步要读回前 kernel-1 个 token 的
+      //     通道值并写回滚动窗口。prefill 的窗口在片上滑动，不额外落 HBM。
+      const convStateElements = phase === "decode" ? width * Math.max(kernel - 1, 0) : 0;
       return {
         matrix: tokens * width * kernel,
         vector: 0,
         sfu: 0,
-        bytes: { weights: 0, actIn: tokens * width * bytesPerElement, actOut: tokens * width * bytesPerElement },
+        bytes: {
+          weights: width * kernel * bytesPerElement,
+          actIn: (tokens * width + convStateElements) * bytesPerElement,
+          actOut: (tokens * width + convStateElements) * bytesPerElement,
+        },
       };
     }
     case "linear_attention": {
@@ -657,18 +817,21 @@ export function countsForNode(node, env = {}) {
         };
       }
       if (/state|recurrent/.test(idPath)) {
-        return stateUpdateCounts(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }, bytesPerElement);
+        return stateUpdateCounts(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }, bytesPerElement, String(node?.attributes?.model_kind || ""));
       }
       return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
     }
     case "gated_delta_attention":
-      return stateUpdateCounts(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }, bytesPerElement);
+      return stateUpdateCounts(config, { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase }, bytesPerElement, String(node?.attributes?.model_kind || ""));
     case "topk":
       return topkCounts({ tokens, experts: config?.experts || 0, topk: config?.expertsPerToken || 0, bytesPerElement, normTopkProb: config?.normTopkProb ?? true });
     case "moe_dispatch":
       return moeDispatchCounts({ tokens, hidden: staticWidth(node?.input_shape) || config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
     case "moe_combine":
       return moeCombineCounts({ tokens, hidden: staticWidth(node?.input_shape) || config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
+    case "residual_add":
+      // W4：每层两处残差加。hidden 取输出宽（与 moe_add 同口径）。
+      return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || H, bytesPerElement });
     case "moe_add":
       return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement });
     case "dsv4_hash_route":
@@ -712,13 +875,68 @@ export function countsForNode(node, env = {}) {
             bytesPerElement,
           },
         }),
+        // W2：四种 indexer 各自一个 operator_id，共用 sparseIndexerCounts 的
+        // 参数化实现。参数矩阵见 modules.js sparseIndexerCounts 的 doc。
         qsa_indexer: () => ({
-          score: { heads: config?.indexerNHeads || 0, queryTokens: tokens, keyTokens: options.sequence ?? 1, headDim: config?.indexerHeadDim || 0, valueDim: config?.indexerHeadDim || 0, bytesPerElement },
-          topk: { tokens, experts: options.sequence ?? 1, topk: config?.indexerBudget || 0, bytesPerElement },
+          heads: config?.qsaIndexerHeads ?? config?.indexerNHeads ?? 0,
+          dim: config?.qsaIndexerHeadDim ?? config?.indexerHeadDim ?? 0,
+          queryTokens: tokens,
+          keyTokens: options.sequence ?? 1,
+          budget: config?.qsaIndexerBudget ?? config?.indexerBudget ?? 0,
+          pool: config?.qsaIndexerCompressRatio ?? 1,
+          poolStage: (config?.qsaIndexerCompressRatio ?? 1) > 1 ? "key" : "none",
+          perHeadWeights: false,
+          phase,
+          b: bytesPerElement,
+        }),
+        dsa_indexer: () => ({
+          heads: config?.dsaIndexHeads ?? config?.indexerNHeads ?? 0,
+          dim: config?.dsaIndexHeadDim ?? config?.indexerHeadDim ?? 0,
+          queryTokens: tokens,
+          keyTokens: options.sequence ?? 1,
+          budget: config?.dsaIndexTopk ?? config?.indexerBudget ?? 0,
+          pool: 1,
+          poolStage: "none",
+          perHeadWeights: true,
+          phase,
+          b: bytesPerElement,
+        }),
+        dsa_kpool_indexer: () => ({
+          heads: config?.dsaIndexHeads ?? config?.indexerNHeads ?? 0,
+          dim: config?.dsaIndexHeadDim ?? config?.indexerHeadDim ?? 0,
+          queryTokens: tokens,
+          keyTokens: options.sequence ?? 1,
+          budget: config?.dsaIndexTopk ?? config?.indexerBudget ?? 0,
+          pool: config?.dsaIndexKpool ?? 1,
+          poolStage: "key",
+          perHeadWeights: true,
+          phase,
+          b: bytesPerElement,
+        }),
+        dsv4_indexer: () => ({
+          heads: config?.dsaIndexHeads ?? config?.indexerNHeads ?? 0,
+          dim: config?.dsaIndexHeadDim ?? config?.indexerHeadDim ?? 0,
+          queryTokens: tokens,
+          keyTokens: options.sequence ?? 1,
+          budget: config?.dsaIndexTopk ?? config?.indexerBudget ?? 0,
+          pool: 1,
+          poolStage: "none",
+          perHeadWeights: true,
+          phase,
+          b: bytesPerElement,
         }),
         minimax_sparse_indexer: () => ({
-          score: { heads: config?.sparseIndexHeads || 0, queryTokens: tokens, keyTokens: options.sequence ?? 1, headDim: config?.sparseIndexDim || 0, valueDim: config?.sparseIndexDim || 0, bytesPerElement },
-          topk: { tokens, experts: options.sequence ?? 1, topk: config?.sparseTopkBlocks || 0, bytesPerElement },
+          heads: config?.sparseIndexHeads || 0,
+          dim: config?.sparseIndexDim || 0,
+          queryTokens: tokens,
+          keyTokens: options.sequence ?? 1,
+          // 预算按 token 计：选中块数 x 块大小（含 init/local 常驻块）
+          budget: ((config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0)) * (config?.sparseBlockSize || 1),
+          pool: config?.sparseBlockSize || 1,
+          poolStage: "score",
+          perHeadWeights: false,
+          phase,
+          b: bytesPerElement,
         }),
         attention_residual: () => ({
           norms: { tokens, hidden: H, bytesPerElement },
@@ -726,13 +944,25 @@ export function countsForNode(node, env = {}) {
           aggregate: { elements: H * tokens, bytesPerElement },
           mix: { tokens, hidden: H, bytesPerElement },
         }),
-        hyper_connection: () => ({
-          grouped: { tokens, hidden: H, bytesPerElement },
-          mix: { tokens, intermediate: H, bytesPerElement },
-          mixers: { logicalShape: [H, H], tokens, bytesPerElement },
-          gate: { tokens, width: H, bytesPerElement },
-          combine: { tokens, hidden: H, bytesPerElement },
-        }),
+        hyper_connection: () => {
+          // 形状全部来自 vLLM GatedResidual（hyperconnection.py:140-193）：
+          // hyper_hidden = hc_count·hidden；norm 覆盖整个 HC×H 布局。
+          const streams = config?.hyperConnectionCount || 1;
+          const lowrank = config?.hyperConnectionLowrank || 0;
+          const hyperHidden = streams * H;
+          return {
+            grouped: { tokens, hidden: hyperHidden, weightOne: true, bytesPerElement },
+            mixDown: { logicalShape: [lowrank, hyperHidden], tokens, bytesPerElement },
+            silu: { tokens, width: lowrank, bytesPerElement },
+            mixUp: { logicalShape: [hyperHidden, lowrank], tokens, bytesPerElement },
+            gate: { tokens, width: hyperHidden, bytesPerElement },
+            // use_combine=false 的相位（最终 mixer）没有 block_inject_weight。
+            inject: node?.attributes?.hc_use_combine === false
+              ? { logicalShape: [streams, hyperHidden], tokens: 0, bytesPerElement, weightsShared: true }
+              : { logicalShape: [streams, hyperHidden], tokens, bytesPerElement },
+            combine: { tokens, hidden: hyperHidden, bytesPerElement },
+          };
+        },
         ple: () => ({
           embed: { tokens, topk: 1, tableRows: 0, bytesPerElement },
           kv: { logicalShape: [2 * (config?.pleEmbedDim || 0), H], tokens, bytesPerElement },
@@ -740,20 +970,42 @@ export function countsForNode(node, env = {}) {
           conv: { tokens: tokens, channels: config?.pleEmbedDim || 0, kernel: config?.pleNgramSize || 1, bytesPerElement },
           add: { tokens, hidden: H, bytesPerElement },
         }),
+        // mHC 的混合矩阵形状取自 vLLM deepseek_v4/amd/model.py:709-752：
+        //   mix_hc = (2 + hc_mult)·hc_mult   hc_dim = hc_mult·hidden
+        //   hc_{attn,ffn}_fn   : [mix_hc, hc_dim]   （attn 侧归 mhc_pre、
+        //   hc_{attn,ffn}_base : [mix_hc]            ffn 侧归 mhc_fused_post_pre）
+        //   hc_{attn,ffn}_scale: [3]
+        // 此前两处都写成 [H, hc_mult]（28,672），比真值 mix_hc·hc_dim 小 24 倍
+        //（V4-Pro 每层少 1,318,910 参数，2026-09-09 权重字节逐层归因抓出）。
+        // 注意：上游这些张量是 fp32；本工具统一按激活字节宽计，dtype 差异单列登记。
         mhc_pre: () => ({
           mix: { tokens, width: H, bytesPerElement },
-          matrix: { logicalShape: [H, config?.mhcNumResidualStreams || 1], tokens, bytesPerElement },
+          // bias=true 承载 hc_attn_base（mix_hc 个）；scale 是 hc_attn_scale 的 3 个
+          // 标量，tokens=0 表示只读权重不产生逐 token 计算。
+          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement, bias: true },
+          scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement },
+          // attn_norm 的 RMSNorm 权重被融进 mhc_pre 内核（vLLM
+          // deepseek_v4/amd/model.py:704、816-818 把 attn_norm.weight 传进去），
+          // 结构树里没有独立的 input_layernorm 叶 —— 权重记在这里。
+          norm: { tokens, hidden: H, bytesPerElement },
           merge: { tokens, hidden: H, bytesPerElement },
         }),
         mhc_post: () => ({
-          combine: { logicalShape: [H, config?.mhcNumResidualStreams || 1], tokens, bytesPerElement },
+          // 最终的 hc_post 复用**最后一层**的 hc_ffn_* 参数再算一遍，然后对
+          // hc_mult 条流取均值（vLLM deepseek_v4/amd/model.py:1074-1097：
+          // `layer.hc_post(...)` + `.mean(dim=-2)`），没有自己的参数。
+          // weightsShared=true：算力照计、权重字节不重复计。
+          combine: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement, weightsShared: true },
           inject: { tokens, hidden: H, bytesPerElement },
         }),
         mhc_fused_post_pre: () => ({
           post: { tokens, width: H, bytesPerElement },
           inject: { tokens, hidden: H, bytesPerElement },
           pre: { tokens, width: H, bytesPerElement },
-          matrix: { logicalShape: [H, config?.mhcNumResidualStreams || 1], tokens, bytesPerElement },
+          matrix: { logicalShape: [mhcMixRows(config), mhcDim(config, H)], tokens, bytesPerElement, bias: true },
+          scale: { logicalShape: [3, 1], tokens: 0, bytesPerElement },
+          // 同理，ffn_norm 的权重融进 fused post+pre（model.py:705）。
+          norm: { tokens, hidden: H, bytesPerElement },
         }),
         mhc_contract: () => ({
           contract: { tokens, hidden: H, bytesPerElement },

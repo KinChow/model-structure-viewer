@@ -79,46 +79,79 @@ export function linearStateBytesPerSequence(config = {}, bytesPerElement = 2) {
   return linearStateElementsPerSequence(config) * bytesPerElement;
 }
 
-// 来源：llm-analysis 的 LLMAnalysis.get_memory_kv_cache_per_layer。
-export function kvBytesPerToken(config, kvBytes = 2) {
+/**
+ * 逐层 KV cache 字节明细（每 token）。拆成两支是因为**读法不同**：
+ * - `main`：主注意力读的那份（GQA 的 K/V、MLA/QSA 的 latent、DSV4 的滑窗 + 压缩态）。
+ *   稀疏模型只读 indexer 选中的位置，所以乘子是 min(S, 稀疏预算)。
+ * - `index`：indexer 自己那份 index-k cache（单头、宽 index_head_dim）。
+ *   indexer 每次都要扫**全长** S 才能选出 top-k，乘子是 S。
+ * 混成一个标量后这两个乘子无法同时对上，KV 读恒等式就只能留松量 —— 这是
+ * 把它收到容差 0 的前置条件（plan §四）。
+ *
+ * 来源：llm-analysis 的 LLMAnalysis.get_memory_kv_cache_per_layer + 各家 vLLM
+ * cache spec（DeepseekV4Attention / CompressorStateCache / MLAAttentionSpec 等）。
+ */
+export function kvBytesPerTokenBreakdown(config, kvBytes = 2) {
   const layers = config?.layers || 0;
   const heads = config?.kvHeads || config?.attentionHeads || 0;
   const headDim = config?.headDim || 0;
   const mlaRank = config?.kvLoraRank;
   const ropeDim = config?.qkRopeHeadDim;
-  if (Array.isArray(planOf(config).attentionSchedule) && planOf(config).attentionSchedule.length && layers) {
-    let perLayer = 0;
-    for (let index = 0; index < layers; index += 1) {
-      const kind = planOf(config).attentionSchedule[index] || "gqa";
+  const schedule = planOf(config).attentionSchedule;
+  const main = [];
+  const index = [];
+  if (Array.isArray(schedule) && schedule.length && layers) {
+    for (let i = 0; i < layers; i += 1) {
+      const kind = schedule[i] || "gqa";
+      let m = 0;
+      let x = 0;
+      // index-k cache 的宽度（单头）。**判据是字段存在性，不再挂在 MLA 条件下面** ——
+      // 原来只有 `(mla|qsa) && kv_lora_rank && rope_dim` 那一支才加 index 项，于是
+      // 无 kv_lora 的 QSA（qwen4_exp）与 DSV4 的 indexer cache 整片没算进容量，
+      // KV 读恒等式里表现为「indexer 读量 > 容量 0」（2026-09-09 抓出）。
+      const indexDim = config?.dsaIndexHeadDim ?? config?.qsaIndexerHeadDim ?? config?.indexerHeadDim ?? null;
       if (kind === "linear") {
-        // KDA state is request-scoped and is returned separately below.
-        perLayer += 0;
+        // KDA state 是 request 级的，单独由 linearStateBytesPerSequence 返回。
+        m = 0;
       } else if (kind === "dsv4") {
-        // 来源：vLLM DeepseekV4Attention / CompressorStateCache。
-        // 每层始终有一份 sliding-window MQA KV；压缩层另有 state_dim / compress_ratio。
-        const ratio = config.compressRatios?.[index] ?? 0;
-        perLayer += headDim;
-        if (ratio > 1) perLayer += (2 * (ratio === 4 ? 2 : 1) * headDim) / ratio;
+        const ratio = config.compressRatios?.[i] ?? 0;
+        m = headDim;
+        if (ratio > 1) m += (2 * (ratio === 4 ? 2 : 1) * headDim) / ratio;
+        // DeepSeek V4 的 indexer 只挂在 compress_ratio=4 的层上
+        //（与 derivedWeights.deepseekV4AttentionParameters 的 indexer 项同判据）。
+        if (ratio === 4 && indexDim != null) x = indexDim;
       } else if (kind === "sparse" && config?.modelType === "minimax_m3_vl") {
-        perLayer += 2 * heads * headDim;
+        m = 2 * heads * headDim;
         if (config.sparseIndexHeads != null && config.sparseIndexDim != null) {
-          perLayer += config.sparseIndexHeads * config.sparseIndexDim;
+          x = config.sparseIndexHeads * config.sparseIndexDim;
         }
       } else if ((kind === "mla" || kind === "qsa") && mlaRank != null && ropeDim != null) {
-        perLayer += mlaRank + ropeDim;
-        if (kind === "qsa" && config?.indexerHeadDim != null) perLayer += config.indexerHeadDim;
+        m = mlaRank + ropeDim;
+        if (kind === "qsa" && indexDim != null) x = indexDim;
       } else {
-        perLayer += 2 * heads * headDim;
+        m = 2 * heads * headDim;
+        // 逐头 QSA（qwen4_exp：无 kv_lora，K/V 照 GQA 存）同样有一份 index-k cache。
+        if (kind === "qsa" && indexDim != null) x = indexDim;
       }
+      main.push(m * kvBytes);
+      index.push(x * kvBytes);
     }
-    return perLayer * kvBytes;
+    return { main, index };
   }
-  if (mlaRank != null && ropeDim != null) {
-    // 来源：vLLM MLAAttentionSpec.head_size_v = 0；MLA 每 token 只存一个 latent，不分离 K/V。
-    return layers * (mlaRank + ropeDim) * kvBytes;
-  }
-  return 2 * layers * heads * headDim * kvBytes;
+  const perLayer = mlaRank != null && ropeDim != null
+    // 来源：vLLM MLAAttentionSpec.head_size_v = 0；MLA 每 token 只存一个 latent。
+    ? (mlaRank + ropeDim) * kvBytes
+    : 2 * heads * headDim * kvBytes;
+  for (let i = 0; i < layers; i += 1) { main.push(perLayer); index.push(0); }
+  return { main, index };
 }
+
+// 来源：llm-analysis 的 LLMAnalysis.get_memory_kv_cache_per_layer。
+export function kvBytesPerToken(config, kvBytes = 2) {
+  const { main, index } = kvBytesPerTokenBreakdown(config, kvBytes);
+  return main.reduce((s, x) => s + x, 0) + index.reduce((s, x) => s + x, 0);
+}
+
 
 function activationPeakBytes({ activationPeak = 1.5 * 1024 ** 3 } = {}) {
   return activationPeak;

@@ -11,6 +11,7 @@ import {
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts,
 } from "./counts.js";
+import { sparseIndexerCounts } from "./modules.js";
 
 const sumCounts = (...parts) => parts.reduce((total, part) => ({
   matrix: total.matrix + part.matrix,
@@ -170,6 +171,19 @@ export const FORMULAS = {
     outputs: ["y"],
     counts: moeCombineCounts,
   },
+  residual_add: {
+    title: "Residual Add",
+    // ref: 一等 aten 锚点（aten.add，逐元素）+ 二等实现对照：vLLM 用
+    //      RMSNorm(x, residual) 把 add 融进 norm 的 prologue、SGLang 另有
+    //      srt/layers/attn_residual.py。W4 补齐：此前每层两处 h = x + sublayer(x)
+    //      完全没有算子位（docs/details/operators_reference.md B-layer-res
+    //      已自登记「2TH·b x2/层未计」）。
+    formula: "h = x + sublayer(x)",
+    explanation: "残差加：每个 decoder 层在 attention 与 FFN 子块之后各一次逐元素加。",
+    inputs: ["x", "sublayer(x)"],
+    outputs: ["h"],
+    counts: addCounts,
+  },
   moe_add: {
     title: "MoE Branch Add",
     // ref: 一等 aten::add（routed/shared 分支合并，vector = TH）。
@@ -231,7 +245,7 @@ export const FORMULAS = {
     explanation: "vLLM MHCPreOp：从多 residual streams 计算 post mix、comb mix，并合成为 attention 输入。",
     inputs: ["residual streams", "hc function", "hc scale", "hc base"],
     outputs: ["post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), addCounts(ctx.merge)),
+    counts: (ctx) => sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), addCounts(ctx.merge)),
   },
   mhc_fused_post_pre: {
     title: "mHC Fused Post + Pre",
@@ -241,7 +255,7 @@ export const FORMULAS = {
     explanation: "vLLM 在相邻 decoder layer 间融合上一层 post 与当前层 pre，并可同时执行 RMSNorm。",
     inputs: ["block output", "residual streams", "post mix", "comb mix", "hc function"],
     outputs: ["residual streams", "post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix)),
+    counts: (ctx) => sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix), linearCounts(ctx.scale), rmsnormCounts(ctx.norm)),
   },
   mhc_post: {
     title: "mHC Post",
@@ -264,15 +278,18 @@ export const FORMULAS = {
   },
   mla_query_compress: {
     title: "MLA Query Compression",
-    // ref: 三等分解声明 = F1(q_a 投影) + F3(norm)；对照 models/deepseek-ai/
-    //      DeepSeek-V3.1/modeling_deepseek.py q_a_proj（:661）/ q_a_layernorm（:664）/
-    //      q_b_proj（:769 调用点）；q_b 由独立 q_b_proj 叶计——2026-09-07 审计防双计。
+    // ref: 三等分解声明 = F1(q_a 投影)；对照 models/deepseek-ai/DeepSeek-V3.1/
+    //      modeling_deepseek.py q_a_proj（:661）。
+    //      **norm 与 q_b 都不在本叶内**：q_a_layernorm 是独立的 `q_a_norm` 叶、
+    //      q_b_proj 是独立的 linear 叶；算进来就是双计。
+    //      —— q_b 双计 2026-09-07 审计已修（Kimi/GLM 各 +19M/+25M 参数每层）；
+    //      norm 双计 2026-09-09 由权重字节逐层归因抓出（Kimi-K2 每层 +1,536，
+    //      61 层 = 93,696；DeepSeek 系同源）。
     formula: "c^q_t = W_{qa} x_t; q_t = W_{qb} RMSNorm(c^q_t)",
-    explanation: "将 query 压缩到低秩 latent 后恢复多头 query。",
-    inputs: ["x", "W_qa", "W_qb"],
-    outputs: ["q"],
-    // q_b 由独立 q_b_proj 叶计；组合含 qb 会与叶双计（2026-09-07 审计）
-    counts: (ctx) => sumCounts(linearCounts(ctx.qa), rmsnormCounts(ctx.norm)),
+    explanation: "将 query 压缩到低秩 latent 后恢复多头 query。本叶只计 q_a 投影本身。",
+    inputs: ["x", "W_qa"],
+    outputs: ["c_q"],
+    counts: (ctx) => linearCounts(ctx.qa),
   },
   mla_kv_compress: {
     title: "MLA KV Compression",
@@ -315,18 +332,38 @@ export const FORMULAS = {
     explanation: "Kimi-K3 在 attention 前和 MLP 前从 snapshot bank 与当前 prefix 中按 RMSNorm 后的投影分数聚合 residual stream；block 写层额外保存新的 snapshot。",
     inputs: ["residual_states", "score_projection", "score_norm", "output_norm"],
     outputs: ["y"],
-    counts: (ctx) => sumCounts(rmsnormCounts(ctx.norms), linearCounts(ctx.scoreProj), softmaxCounts(ctx.aggregate), addCounts(ctx.mix)),
+    // 本叶只负责**聚合**（对 prev_valid_blocks 打分归一化后加权求和）。
+    // 两个 norm 与两个 [hidden→1] 打分投影是**独立叶**
+    //（self_attention_res_norm / mlp_res_norm / self_attention_res_proj /
+    //  mlp_res_proj，vLLM kimi_k3/amd/linear.py:562-580），算进来就是双计
+    //（K3 每层 +14,336，2026-09-09 权重字节逐层归因抓出）。
+    counts: (ctx) => sumCounts(softmaxCounts(ctx.aggregate), addCounts(ctx.mix)),
   },
   hyper_connection: {
     title: "Hyper Connection",
-    // ref: 三等分解声明 = F3(grouped) + F5(mix silu) + F1(W_down/W_up) + F4(gate)
-    //      + add(combine)；Qwen4Exp delayed HyperConnection（layers/hybrid.js；
-    //      Qwen modeling 未入库，离线取证）；A7。
-    formula: "x_n=GroupedRMSNorm(H); l=SiLU(W_down x_n); gate=W_up l; block_input=GateMix(x_n,gate); H'=Combine(H,block_output,injection)",
-    explanation: "Qwen4Exp 的 delayed HyperConnection：attention 前执行 mix，下一边界先 combine 上一层输出再 mix；最终 mixer 只 materialize 多流状态并输出单流 hidden。",
-    inputs: ["hidden_streams", "block_output", "injection", "W_down", "W_up"],
-    outputs: ["hidden_streams", "block_input", "injection"],
-    counts: (ctx) => sumCounts(rmsnormCounts(ctx.grouped), swigluCounts(ctx.mix), linearCounts(ctx.mixers), gateCounts(ctx.gate), addCounts(ctx.combine)),
+    // ref: 二等 modeling 对照 —— vLLM `qwen4_exp/common/hyperconnection.py`
+    //      `GatedResidual`（:140）。逐项出处：
+    //        hc_norm = GroupedGemmaRMSNorm(hc_count·hidden)          :166-172
+    //        input_mix_weight_down = Linear(hyper_hidden → lowrank)  :176-181
+    //        input_mix_weight_up   = Linear(lowrank → hyper_hidden)  :182-187
+    //        block_inject_weight   = Linear(hyper_hidden → hc_count) :189-193
+    //        mix() = norm → down → SiLU(/hc) → up → sigmoid → 门控均值 :205-221
+    //        combine() = 2·sigmoid(inject/hc) 注回每条流               :224-240
+    //      原实现用 `mixers: [H, H]` 占位（数值上碰巧接近 2·lowrank·hyper_hidden），
+    //      权重字节恒等式因此每层差 97,376（Flash-Next 48 层 = 4.67M）。
+    formula: "x_n=GroupedRMSNorm(H_{hc}); l=SiLU(W_{down} x_n / hc); g=σ(W_{up} l); block\\_input=mean(g ⊙ x_n); H'=H + 2σ(W_{inj} x_n / hc) ⊙ block\\_output",
+    explanation: "Qwen4Exp 的 delayed HyperConnection：hc_count 条残差流先做逐流 GroupedGemmaRMSNorm，再经低秩 down/up 得到门控权重混成单流 block 输入；block 输出按 per-stream injection 权重注回每条流。",
+    inputs: ["hidden_streams", "block_output", "W_down", "W_up", "W_inject"],
+    outputs: ["hidden_streams", "block_input"],
+    counts: (ctx) => sumCounts(
+      rmsnormCounts(ctx.grouped),
+      linearCounts(ctx.mixDown),
+      gateCounts(ctx.silu),
+      linearCounts(ctx.mixUp),
+      gateCounts(ctx.gate),
+      linearCounts(ctx.inject),
+      addCounts(ctx.combine),
+    ),
   },
   ple: {
     title: "Position Learning Enhancement",
@@ -350,26 +387,97 @@ export const FORMULAS = {
     counts: gateCounts,
   },
   qsa_indexer: {
-    title: "QSA Indexer",
-    // ref: 二等 modeling 对照（DSA/QSA indexer：vLLM.SparseAttnIndexer /
-    //      DeepseekV4Indexer，ops/index.js:393-405；V3.2/V4/Qwen3.8 modeling 未
-    //      入库——离线取证）；三等分解 = F2(indexer 打分) + F8(topk)；
-    //      bytes 结论 /tmp/m11-formulas/qsa.md §2.3-2.4。
-    formula: "I = topk((W_q x) (W_k K)^T / sqrt(d_i), budget)",
-    explanation: "用独立 indexer 对历史 token 打分并选择 sparse attention 的候选位置。",
-    inputs: ["x", "K_cache", "W_q", "W_k", "budget"],
-    outputs: ["selected_indices"],
-    counts: (ctx) => sumCounts(attentionCounts(ctx.score), topkCounts(ctx.topk)),
+    title: "QSA Indexer (Qwen Sparse Attention)",
+    // ref: 二等 modeling 对照 models/Qwen/Qwen3.8-Flash-Next/modeling_qwen4_exp.py
+    //      Qwen4ExpTextQSAIndexer（:683-687 单个 index_qk_proj 出 (H_i+1)·d_i；
+    //      :741 key 按 indexer_compress_ratio mean 池化；:753 relu(scores).sum(-1)
+    //      /sqrt(d)；:682/:755-761 block_topk = budget/ratio 后展开 + tail）；
+    //      上游 vLLM 类名 QSAIndexer（models/qwen4_exp/nvidia/indexer_qsa.py:90）。
+    //      W2：**仅 qwen4_exp 使用**；DSA/DSV4 已拆出独立条目。
+    formula: "s_t = Σ_h ReLU(q_{t,h}·pool(k)) / sqrt(d_i); I = topk_blocks(s_t, budget/ratio)",
+    explanation: "Qwen 的 QSA indexer：index_qk 单投影出 4 个 query 头 + 1 个共享 key 头，key 先按 compress_ratio 均值池化成块，ReLU 打分跨头求和后选块再展开为 token 预算。无 value 通路、无 softmax。",
+    inputs: ["x", "index_k_cache", "W_{index_qk}", "compress_ratio", "budget"],
+    outputs: ["selected_token_indices"],
+    counts: sparseIndexerCounts,
   },
-  qsa_attention: {
-    title: "QSA Sparse Attention",
-    // ref: 二等 modeling 对照（qsa / dsa_sparse_mla / dsv4_sparse_mla 三 kind 共用：
-    //      FlashMLA-sparse 吸收式核按 latent 读宽、逐头变体按 kvHeads——变体矩阵见
-    //      cost_counts.md F2 表）；F2 整体访存 S = indexerBudget；kvWrite 取舍与
-    //      公式 /tmp/m11-formulas/qsa.md §2.4/§4.3（A2 的 4·scores 记本节点）。
+  dsa_indexer: {
+    title: "DSA Indexer (DeepSeek Sparse Attention)",
+    // ref: 二等 modeling 对照 models/zai-org/GLM-5.3-Flash/modeling_glm5_next.py
+    //      的 indexer（:764-767 wq_b/wk/k_norm/weights_proj，wk 输出仅
+    //      index_head_dim 即 **index k 单头**；:826-833 scores=matmul(q,k).float()
+    //      + F.relu + weights_proj 逐头加权求和；无 value、无 softmax）；
+    //      上游 vLLM 类名 SparseAttnIndexer
+    //      （model_executor/layers/sparse_attn_indexer.py:729）。
+    //      适用 deepseek_v32 / glm_moe_dsa（index_kpool 缺省或 =1）。
+    formula: "s_t = Σ_h w_{t,h}·ReLU(q_{t,h}·k_s)/sqrt(d_i); I = topk(s_t, index_topk)",
+    explanation: "DeepSeek Sparse Attention 的 lightning indexer：q 取自 q_latent，k 为单头独立小 cache，逐头 ReLU 打分后用 weights_proj 的逐头权重求和，top-k 选 token。",
+    inputs: ["q_latent", "index_k_cache", "W_{q_b}", "W_k", "W_{weights}", "index_topk"],
+    outputs: ["topk_indices"],
+    counts: sparseIndexerCounts,
+  },
+  dsa_kpool_indexer: {
+    title: "DSA Indexer (k-pool variant)",
+    // ref: 二等 modeling 对照 modeling_glm5_next.py：:770-774 index_kpool /
+    //      index_kpool_compress_ape / index_kpool_compress_gate；:826 get_pooled_states
+    //      先把 key 池化成 pool 再打分（"Key difference: Score across pools, not
+    //      on a per token basis"）；:850 select_k = index_topk // index_kpool；
+    //      :870 index_kpool_always_select_tail 追加尾部可见 token。
+    //      上游 vLLM 类名 SparseAttnIndexerKpool
+    //      （model_executor/layers/sparse_attn_indexer_kpool.py:880）。
+    formula: "s_t = Σ_h w_{t,h}·ReLU(q_{t,h}·pool(k))/sqrt(d_i); I = topk(s_t, index_topk/kpool)·kpool + tail",
+    explanation: "GLM-5.3-Flash 的 DSA 变体：key 先按 index_kpool 压缩成 pool 再打分，top-k 在 pool 粒度上做，选中后展开回 token 并追加尾部。",
+    inputs: ["q_latent", "index_k_cache", "W_{weights}", "index_kpool", "index_topk"],
+    outputs: ["topk_indices"],
+    counts: sparseIndexerCounts,
+  },
+  dsv4_indexer: {
+    title: "DeepSeek V4 C4 Sparse Indexer",
+    // ref: 二等 modeling 对照（DeepSeek V4 C4 压缩层 indexer；上游 vLLM 类名
+    //      DeepseekV4Indexer，models/deepseek_v4/attention.py:866，配套
+    //      DeepseekV4IndexerCache:821）。与 DSA 同骨架（ReLU + 逐头加权 + top-k、
+    //      无 value 无 softmax），差异在打分对象是压缩后的 latent 历史。
+    formula: "s_t = Σ_h w_{t,h}·ReLU(q_{t,h}·k^{c}_s)/sqrt(d_i); I = topk(s_t, index_topk)",
+    explanation: "DeepSeek V4 compress_ratio=4 的 C4 层 indexer：在压缩 KV latent 上打分选块，供 C4 sparse MLA 使用。",
+    inputs: ["q_latent", "compressed_index_k", "W_{weights}", "index_topk"],
+    outputs: ["topk_indices"],
+    counts: sparseIndexerCounts,
+  },
+  qsa_sparse_attention: {
+    title: "QSA Sparse Attention (Qwen)",
+    // ref: 二等 modeling 对照 modeling_qwen4_exp.py（indexer 产出的 token 掩码
+    //      喂给逐头 GQA 主注意力）；上游 vLLM 类名 Qwen4ExpQSAAttention
+    //      （models/qwen4_exp/nvidia/qsa.py:164，继承 Qwen3NextAttention）。
+    //      逐头 GQA 读宽：K/V 按实际 kv 头数；paged cache 写回在模板内无叶承担
+    //      → 计 kvWrite。S = indexer_budget。
     formula: "O = softmax(Q K_I^T / sqrt(d)) V_I",
-    explanation: "只在 QSA indexer 选择的候选位置上执行 paged sparse attention。",
-    inputs: ["Q", "K_selected", "V_selected", "selected_indices"],
+    explanation: "Qwen QSA 的主注意力：只在 indexer 选出的 token 位置上做逐头 GQA。",
+    inputs: ["Q", "K_selected", "V_selected", "selected_token_indices"],
+    outputs: ["O"],
+    counts: attentionCounts,
+  },
+  dsa_sparse_mla: {
+    title: "DSA Sparse MLA Attention",
+    // ref: 二等 modeling 对照（DSA 主注意力 = MLA 在选中位置上的吸收式核；
+    //      上游 vLLM 形态类 SparseMLAAttention，
+    //      model_executor/layers/attention/sparse_mla_attention.py:496
+    //      SparseMLACommonImpl）。latent 共享（kvHeads=1，K 读宽 kv_lora+rope、
+    //      V 读宽 kv_lora）；latent cache 写回由 kv_a_proj 计费，本叶不加 kvWrite
+    //      防双计。S = index_topk。
+    formula: "O = softmax(Q W_{kv_b} C_I^T / sqrt(d)) C_I W_{v_b}",
+    explanation: "DeepSeek V3.2 / GLM-5 系的 DSA 主注意力：在 indexer 选中的位置上执行吸收式 MLA，KV 只读 latent。",
+    inputs: ["q", "kv_latent_cache", "topk_indices"],
+    outputs: ["O"],
+    counts: attentionCounts,
+  },
+  dsv4_sparse_mla: {
+    title: "DeepSeek V4 C4 Sparse MLA Attention",
+    // ref: 二等 modeling 对照（V4 C4 层 = 压缩历史 + 原始滑窗混合读，
+    //      fc99269；上游 vLLM DeepseekV4FlashMLAAttention）。config 无
+    //      kv_lora_rank → 退 F2 MQA 行（num_key_value_heads=1）；压缩态写回由
+    //      compressor（mla_kv_compress）计费，滑窗单列，本叶不加 kvWrite。
+    formula: "O = softmax(Q [K^{c}_I ; K_{t-w:t}]^T / sqrt(d)) [V^{c}_I ; V_{t-w:t}]",
+    explanation: "DeepSeek V4 compress_ratio=4 层的主注意力：读 indexer 选中的压缩 KV 与滑窗内的原始 KV。",
+    inputs: ["Q", "compressed_KV_selected", "sliding_window_KV", "topk_indices"],
     outputs: ["O"],
     counts: attentionCounts,
   },
@@ -405,16 +513,21 @@ export const FORMULAS = {
     counts: gateCounts,
   },
   minimax_sparse_indexer: {
-    title: "MiniMax M3 Block Indexer",
+    title: "MSA Block Indexer (MiniMax Sparse Attention)",
     // ref: 二等 modeling 对照 models/MiniMaxAI/MiniMax-M3/modeling_minimax_m3_vl.py
-    //      MiniMaxM3VLIndexer（:492：index_block_size=128 池化打分 +
-    //      topk_blocks=16 选块；index-value 路径 checkpoint 显式关闭）；
-    //      三等分解 = F2(块打分) + F8(topk blocks)。
-    formula: "B = topk_blocks(score_type((Q_i K_i^T) / sqrt(d_i)), k)",
-    explanation: "MiniMax M3 的稀疏层用独立 index q/k 分支按 block 打分，选出 sparse_topk_blocks 个 KV blocks，并保留 init/local blocks。",
-    inputs: ["index_Q", "index_K", "index weights", "topk blocks"],
+    //      MiniMaxM3VLIndexer（:548 k_proj 输出仅 index_head_dim → **index k 单头**；
+    //      :574 scores=matmul(idx_q.float(), idx_k.float().T) 逐 token 打分；
+    //      :580-582 view+amax 把逐 token 分数 **max 池化**成 block_size=128 的块，
+    //      再 topk 选块；:519-521 docstring 明示 "purely a selection branch: it has
+    //      no value projection"）；上游 vLLM 类名 MiniMaxM3Indexer
+    //      （models/minimax_m3/common/indexer.py:546）。
+    //      W2 改判：与 DSA/QSA 共用一份参数化实现（poolStage="score"），但
+    //      operator_id 独立——原理不同不共用条目。
+    formula: "B = topk_blocks(amax_block(ReLU-free scores(Q_i K_i^T)/sqrt(d_i)), topk_blocks) ∪ local",
+    explanation: "MiniMax M3 稀疏层的块 indexer：单头 index key 逐 token 打分，按 128 token 一块取 max 池化后选 topk_blocks 个块，并保留 init/local 块。无 value 通路、无 softmax。",
+    inputs: ["index_Q", "index_K", "block_size", "topk_blocks"],
     outputs: ["selected block ids"],
-    counts: (ctx) => sumCounts(attentionCounts(ctx.score), topkCounts(ctx.topk)),
+    counts: sparseIndexerCounts,
   },
   minimax_sparse_attention: {
     title: "MiniMax M3 Block-Sparse GQA",

@@ -29,6 +29,11 @@ export function hyperConnectionModule(id, normalized, phase = "branch") {
       hc_phase: phase,
       hc_count: normalized.hyperConnectionCount,
       hc_lowrank: normalized.hyperConnectionLowrank,
+      // GatedResidual 的 use_combine（vLLM qwen4_exp/common/hyperconnection.py:157-158、
+      // 188-193）：最终 mixer 只做 mix（把多流收成单流），没有 combine，因此
+      // **没有** block_inject_weight（hc_count × hyper_hidden）。此前一律按有
+      // combine 记，Flash-Next 多算 40,960 参数（2026-09-09 权重字节逐层归因）。
+      hc_use_combine: phase !== "final",
     }, { input: dims.hidden, output: dims.hidden })],
   ), dims.hidden, dims.hidden);
 }

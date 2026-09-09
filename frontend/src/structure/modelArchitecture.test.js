@@ -138,7 +138,10 @@ test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks",
   const cases = [
     ["Qwen/Qwen3.6-27B", "multimodal-gqa-decoder", false],
     ["moonshotai/Kimi-K2.5", "multimodal-mla-moe-decoder", true],
-    ["deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", "multimodal-mla-moe-decoder", false],
+    // 扁平 vision 配置（顶层 vision_*）同样有投影器：视觉塔输出 1024 与文本
+    // hidden 4096 不同宽，必然有一层视觉→文本投影。此前判成「无投影器」，
+    // 结构树整层缺失，权重字节恒等式差 1024×4096（2026-09-09 逐层归因）。
+    ["deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", "multimodal-mla-moe-decoder", true],
   ];
   for (const [modelId, canonicalArchitecture, hasProjector] of cases) {
     const config = JSON.parse(fs.readFileSync(path.join(repoRoot, `models/${modelId}/config.json`), "utf8"));
@@ -168,8 +171,12 @@ test("keeps inferred architecture diagnostics in the IR", () => {
   const network = buildNetwork(resolved, normalized);
   const ir = createStructureIr({ network, normalized, resolved });
 
-  assert.equal(ir.resolved.canonicalArchitecture, "gqa-decoder");
-  assert.equal(ir.diagnostics.resolution, "model-type");
+  // W5 语义变更：config 没有 architectures 时**不再**用 model_type 子串猜家族
+  // （原来 "qwen3" 会被 probe.includes("qwen") 猜成 gqa-decoder）。现在退到
+  // field-inference —— 由 layers/hidden/heads 等结构字段建通用 decoder，
+  // 并照旧出 architecture-inferred 告警。判定与猜测的区别就在这里。
+  assert.equal(ir.resolved.canonicalArchitecture, "generic-decoder");
+  assert.equal(ir.diagnostics.resolution, "field-inference");
   assert.equal(ir.diagnostics.warnings[0].code, "architecture-inferred");
 });
 
@@ -328,12 +335,22 @@ test("maps GLM-5.3-Flash KDA, DSA, and mHC to the published layer layout", () =>
   const firstLayer = decoder.children[0];
   const firstAttention = firstLayer.children.find((node) => node.type === "attention");
   assert.equal(firstLayer.children[0].name, "mHC attention pre");
-  assert.equal(firstLayer.children[2].name, "mHC fused post + FFN pre");
+  // W4：每层新增两处 residual add 叶（attention 后 / FFN 后），位置断言改按名字
+  // 查找，避免再被结构增删打中。
+  assert.ok(firstLayer.children.some((node) => node.name === "mHC fused post + FFN pre"));
+  assert.deepEqual(
+    firstLayer.children.filter((node) => node.attributes?.operator_id === "residual_add").map((node) => node.attributes.residual_of),
+    ["attention", "feed-forward"],
+  );
   assert.ok(firstLayer.children.every((node) => !["input layernorm", "post attention layernorm"].includes(node.name)));
   assert.deepEqual(firstAttention.children.map((node) => node.name), [
     "QKV projection",
-    "beta projection",
-    "forget/decay gate projection",
+    // W3.5：glm5_next 的 decay 与 kimi_k3 同为低秩（融合 qkvbfg_a 含 f_a，
+    // 独立叶只有 f_b: head_dim→qkv_dim），叶名随之从全宽 decay 改为 f_b。
+    // W6：beta 也在融合 qkvbfg_a 里（无独立叶），输出门是低秩 → 多一片 g_b
+    //（vLLM glm5next/nvidia/kda.py:179-254；此前 beta 双计）。
+    "decay low-rank projection",
+    "output gate low-rank projection",
     "qkv causal short convolution",
     "KDA recurrent state",
     "gated RMSNorm",
@@ -371,9 +388,11 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
   const decoder = structure.root.children.find((node) => node.id === "decoder");
   const kdaLayer = decoder.children[0];
   const attention = kdaLayer.children.find((node) => node.type === "attention");
+  // beta 没有独立叶：K3 的融合投影 in_proj_qkvgfab = [q,k,v,g,f_a,b]
+  // （vLLM kimi_k3/amd/kda.py:110-127），b 就在里面；输出门是全秩 g，也在里面，
+  // 所以既没有 beta 叶也没有 g_b 叶。2026-09-09 权重字节逐层归因抓出双计。
   assert.deepEqual(attention.children.map((node) => node.name), [
     "QKV projection",
-    "beta projection",
     "decay low-rank projection",
     "qkv causal short convolution",
     "KDA recurrent state",
@@ -438,8 +457,9 @@ test("maps DeepSeek V4 compression variants and hash MoE without duplicating fra
   const sparseLayer = decoder.children.find((node) => node.attributes.range === "2..2");
   const sparseAttention = sparseLayer.children.find((node) => node.type === "attention");
   assert.equal(sparseAttention.attributes.compress_ratio, 4);
-  assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse indexer").attributes.implementation[0], "vLLM.SparseAttnIndexer");
-  assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse MLA attention").attributes.formula_id, "qsa_attention");
+  assert.equal(sparseAttention.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer").attributes.implementation[0], "vLLM.DeepseekV4Indexer");
+  assert.equal(sparseAttention.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer").attributes.formula_id, "dsv4_indexer");
+  assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse MLA attention").attributes.formula_id, "dsv4_sparse_mla");
 
   const compressedLayer = decoder.children.find((node) => node.attributes.range === "3..3");
   const compressedAttention = compressedLayer.children.find((node) => node.type === "attention");
@@ -468,11 +488,14 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   }));
   const decoder = structure.root.children.find((node) => node.id === "decoder");
   const firstLayer = decoder.children[0];
+  // W4：attention 与 FFN 之后各补一处 residual add 叶。
   assert.deepEqual(firstLayer.children.map((node) => node.name), [
     "HyperConnection attention mix",
     "LINEAR Attention",
+    "attention residual add",
     "HyperConnection MLP combine + mix",
     "Routed MoE",
+    "feed-forward residual add",
   ]);
   const linear = firstLayer.children.find((node) => node.type === "attention");
   assert.equal(linear.children.length, 8);

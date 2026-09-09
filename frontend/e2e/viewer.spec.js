@@ -97,7 +97,10 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       await visionLayer.locator("button").first().click();
       await expect(page.getByTestId("rf__node-root.0.2.3").getByText("vision attention scores", { exact: true })).toBeVisible();
       const hasInternalMerger = /^(Qwen\/Qwen3\.5|Qwen\/Qwen3\.6|Qwen\/Qwen3\.8-|zai-org\/GLM-5\.3-Flash)/.test(modelId);
-      const hasExternalProjector = /^(MiniMaxAI\/|moonshotai\/Kimi)/.test(modelId);
+      // DeepSeek V4 Flash Vision 用的是**扁平** vision 配置（顶层 vision_*），
+      // 视觉塔输出 1024 与文本 hidden 4096 不同宽，必然有一层视觉→文本投影。
+      // 此前判成「无投影器」，结构树里整层缺失（权重字节恒等式差 1024×4096）。
+      const hasExternalProjector = /^(MiniMaxAI\/|moonshotai\/Kimi|deepseek-ai\/DeepSeek-V4-Flash-Vision)/.test(modelId);
       const hasMerger = await page.getByText("Vision Merger", { exact: true }).count() > 0;
       const hasProjector = await page.getByText("Multi-modal Projector", { exact: true }).count() > 0;
       expect(hasMerger).toBe(hasInternalMerger);

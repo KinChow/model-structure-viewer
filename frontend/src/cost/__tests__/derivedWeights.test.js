@@ -5,7 +5,11 @@ import { aggregateCost } from "../aggregate.js";
 
 test("dense decoder fallback 计算 embedding、attention、MLP、norm 和 tied head", () => {
   const config = { layers: 1, hiddenSize: 4, attentionHeads: 2, kvHeads: 1, headDim: 2, valueHeadDim: 2, intermediateSize: 8, vocabSize: 10, tieWordEmbeddings: true };
-  assert.equal(derivedWeightParameters(config), 40 + 48 + 8 + 96 + 4);
+  // 40 = embedding(10×4) · 48 = attention 四个投影 H·(hq+hk+hv+ho) = 4·(4+2+2+4)
+  // · 4 = 逐头 QK-norm 2·head_dim（2026-09-09 补：`RMSNorm(head_dim)` 跨头共享，
+  //   出处见 derivedWeights.js 的 qkNorm 注释）· 8 = 层内两个 RMSNorm 2·H
+  // · 96 = MLP 3·H·I · 4 = final norm。tied head 不额外计参数。
+  assert.equal(derivedWeightParameters(config), 40 + 48 + 4 + 8 + 96 + 4);
 });
 
 test("无 checkpoint 和节点权重时使用 derived fallback", () => {

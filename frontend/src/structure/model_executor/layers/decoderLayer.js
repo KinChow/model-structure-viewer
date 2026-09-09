@@ -7,6 +7,7 @@ import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 import { attentionResidualModule } from "./residual.js";
 import { hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
+import { residualAddSpec } from "../ops/index.js";
 
 export function decoderLayerModule(id, normalized, { layerKind, attentionKind, layerIndex = 0 }) {
   const shapes = tensorShapes(normalized);
@@ -17,8 +18,10 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
   const children = isMhc ? [
     multiHyperConnectionModule(`${id}.mhc_attn_pre`, normalized, "pre"),
     attentionModule(`${id}.self_attn`, normalized, attentionKind, layerIndex),
+    residualAddSpec(`${id}.attn_residual_add`, normalized, "attention"),
     multiHyperConnectionModule(`${id}.mhc_ffn_pre`, normalized, "fused_post_pre"),
     layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
+    residualAddSpec(`${id}.ffn_residual_add`, normalized, "feed-forward"),
     ...(isLastLayer ? [
       multiHyperConnectionModule(`${id}.mhc_final_post`, normalized, "post"),
       multiHyperConnectionModule(`${id}.mhc_contract`, normalized, "contract"),
@@ -27,13 +30,17 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     ...(normalized.pleLayerIds?.includes(layerIndex + 1) ? [pleModule(`${id}.ple`, normalized)] : []),
     hyperConnectionModule(`${id}.attn_hyper_connection`, normalized, "attn_mix"),
     attentionModule(`${id}.self_attn`, normalized, attentionKind, layerIndex),
+    residualAddSpec(`${id}.attn_residual_add`, normalized, "attention"),
     hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized, "mlp_combine_mix"),
     layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
+    residualAddSpec(`${id}.ffn_residual_add`, normalized, "feed-forward"),
   ] : [
     rmsNormModule(`${id}.input_layernorm`, "input layernorm", normalized, "attn_norm"),
     attentionModule(`${id}.self_attn`, normalized, attentionKind, layerIndex),
+    residualAddSpec(`${id}.attn_residual_add`, normalized, "attention"),
     rmsNormModule(`${id}.post_attention_layernorm`, "post attention layernorm", normalized, "ffn_norm"),
     layerKind === "moe" ? moeModule(`${id}.moe`, normalized, { layerIndex }) : mlpModule(`${id}.mlp`, normalized),
+    residualAddSpec(`${id}.ffn_residual_add`, normalized, "feed-forward"),
     ...(normalized.pleLayerIds?.includes(layerIndex + 1) ? [pleModule(`${id}.ple`, normalized)] : []),
     ...(normalized.hyperConnectionCount ? [
       hyperConnectionModule(`${id}.attn_hyper_connection`, normalized),

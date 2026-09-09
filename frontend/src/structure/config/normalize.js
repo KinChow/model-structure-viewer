@@ -89,6 +89,11 @@ function visionMergeSize(config) {
 }
 
 function visionTokenCount(config) {
+  // 扁平 vision 配置（DeepSeek V4 Flash Vision 的 vision_* 顶层字段）没有
+  // image_size，无法从 patch 网格推 token 数，但直接给了送进 LLM 的**上限**
+  // vision_max_n_token（已过 downsample，不再除 merge²）。优先用它。
+  const declared = firstNumber(config, ["max_n_token"]);
+  if (declared) return declared;
   const patchTokens = visionPatchTokenCount(config);
   const merge = visionMergeSize(config);
   return patchTokens ? Math.floor(patchTokens / (merge * merge)) : undefined;
@@ -109,6 +114,10 @@ export function normalizeConfig(config) {
       num_attention_heads: firstNumber(config, ["vision_n_heads"]),
       intermediate_size: firstNumber(config, ["vision_inter_dim"]),
       patch_size: firstNumber(config, ["vision_patch_size"]),
+      // downsample_ratio 就是空间合并因子；max_n_token 是合并后送进 LLM 的
+      // 视觉 token 上限 —— 两者都只在扁平配置里出现。
+      spatial_merge_size: firstNumber(config, ["vision_downsample_ratio"]),
+      max_n_token: firstNumber(config, ["vision_max_n_token"]),
     }
     : null;
   const visionConfig = nestedVisionConfig || flatVisionConfig;
@@ -150,7 +159,12 @@ export function normalizeConfig(config) {
     textConfig,
     visionConfig,
     hasVision,
-    hasVisionProjector: Boolean(nestedVisionConfig),
+    // 只要视觉塔输出宽 ≠ 文本 hidden，就**必然**有一层视觉→文本投影；扁平
+    // vision 配置（顶层 vision_*，如 DeepSeek V4 Flash Vision）没有嵌套
+    // vision_config，此前一律判成「无投影器」，结构树里整层缺失（权重字节
+    // 恒等式因此差 visionOutput·hidden = 4,194,304，2026-09-09 逐层归因抓出）。
+    hasVisionProjector: Boolean(nestedVisionConfig)
+      || (hasVision && (visionConfig?.hidden_size ?? 0) !== hiddenSize),
     layers,
     visionLayers,
     hiddenSize,
@@ -174,6 +188,25 @@ export function normalizeConfig(config) {
     linearConvKernelSize: pick(["linear_conv_kernel_dim", "linear_conv_kernel_size"], { source: linearAttentionConfig, keys: ["short_conv_kernel_size"] }),
     linearLowerBound: pick(["linear_lower_bound"], { source: linearAttentionConfig, keys: ["gate_lower_bound"] }),
     linearUseFullRankGate: Boolean(textConfig?.linear_attn_config?.use_full_rank_gate ?? config?.linear_attn_config?.use_full_rank_gate),
+    // 稀疏选择分支的字段分族（W2）。此前 index_* 与 indexer_* 被合并成同一组
+    // indexer* 字段，导致 DSA（DeepSeek/GLM，index_* 键族）与 QSA（Qwen
+    // qwen4_exp，indexer_* 键族）在下游无法区分——四种 indexer 原理不同却共用
+    // 一个 operator_id 的根因就在这里。分族后判据变成纯字段存在性：
+    //   index_topk + kv_lora_rank        -> DSA over MLA
+    //   + index_kpool > 1                -> DSA k-pool 变体（glm5_next）
+    //   indexer_budget + indexer_kv_heads-> QSA（qwen4_exp）
+    //   sparse_attention_config.*        -> MiniMax 块稀疏（下方 sparse* 字段）
+    dsaIndexHeads: pick(["index_n_heads", "index_heads"]),
+    dsaIndexHeadDim: pick(["index_head_dim"]),
+    dsaIndexTopk: pick(["index_topk"]),
+    dsaIndexKpool: pick(["index_kpool"]),
+    dsaIndexKpoolSelectTail: Boolean(textConfig?.index_kpool_always_select_tail ?? config?.index_kpool_always_select_tail),
+    qsaIndexerHeads: pick(["indexer_n_heads"]),
+    qsaIndexerKVHeads: pick(["indexer_kv_heads"]),
+    qsaIndexerHeadDim: pick(["indexer_head_dim"]),
+    qsaIndexerBudget: pick(["indexer_budget"]),
+    qsaIndexerCompressRatio: pick(["indexer_compress_ratio"]),
+    // 合并口径的兼容字段（下游未迁移的消费者仍读这些；迁完即删）
     indexerNHeads: pick(["index_n_heads", "indexer_n_heads", "index_heads"]),
     indexerKVHeads: pick(["indexer_kv_heads"]),
     indexerHeadDim: pick(["indexer_head_dim", "index_head_dim"]),
@@ -288,6 +321,10 @@ export function normalizeConfig(config) {
     mhcEps: pick(["hc_eps", "mhc_eps"]),
     mhcPostMultValue: pick(["mhc_post_mult_value"])
       ?? (modelTypeProbe.includes("deepseek_v4") ? 2 : undefined),
+    // W4：MTP 模块数。三种键名分别来自 DeepSeek/GLM 系、Qwen 系、MiniMax 系；
+    // use_mtp 为布尔开关（MiniMax-M2 用），命中时按 1 个模块计。
+    mtpModules: pick(["num_nextn_predict_layers", "mtp_num_hidden_layers", "num_mtp_modules"])
+      ?? ((textConfig?.use_mtp ?? config?.use_mtp) ? 1 : undefined),
     contextLength: pick(CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
   };

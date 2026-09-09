@@ -8,9 +8,6 @@ function withVision(normalized, canonicalArchitecture) {
 }
 
 export function resolveArchitecture(normalized, options = {}) {
-  if (normalized.visionConfig && normalized.architecture === "Qwen4ExpForConditionalGeneration") {
-    return { canonicalArchitecture: "multimodal-gqa-moe-decoder", architecture: normalized.architecture, resolution: "architecture-alias" };
-  }
   if (normalized.architecture && ARCHITECTURE_ALIASES[normalized.architecture]) {
     return {
       canonicalArchitecture: withVision(normalized, ARCHITECTURE_ALIASES[normalized.architecture]),
@@ -19,19 +16,12 @@ export function resolveArchitecture(normalized, options = {}) {
     };
   }
 
-  const probe = `${normalized.architecture || ""} ${normalized.modelType || ""} ${options.modelId || ""}`.toLowerCase();
-  if (probe.includes("minimax")) {
-    return { canonicalArchitecture: "multimodal-sparse-moe-decoder", architecture: normalized.architecture, resolution: "model-type" };
-  }
-  if (probe.includes("deepseek") || probe.includes("glm_moe_dsa") || probe.includes("glmmoedsa")) {
-    return { canonicalArchitecture: withVision(normalized, "mla-moe-decoder"), architecture: normalized.architecture, resolution: "model-type" };
-  }
-  if (probe.includes("qwen") && normalized.experts) {
-    return { canonicalArchitecture: withVision(normalized, "gqa-moe-decoder"), architecture: normalized.architecture, resolution: "model-type" };
-  }
-  if (probe.includes("qwen")) {
-    return { canonicalArchitecture: withVision(normalized, "gqa-decoder"), architecture: normalized.architecture, resolution: "model-type" };
-  }
+  // W5：删除原「architecture + model_type + modelId 拼串做 includes」的家族兜底。
+  // 该兜底会把任何 id 里带 "qwen"/"deepseek"/"minimax" 的模型硬塞进某个模板，
+  // 属于猜测而非判定；vLLM 的做法是 `_raise_for_unsupported` —— 精确表认不出
+  // 就报 unsupported，由 collectDiagnostics 出前端告警，绝不伪造结构。
+  // 实测：删除前 57/59 走 architecture-alias，仅 Qwen3_5MoeForCausalLM 系 2 个
+  // 落兜底，已补进 aliases.js 精确表。
   if (normalized.layers) {
     return { canonicalArchitecture: "generic-decoder", architecture: normalized.architecture, resolution: "field-inference" };
   }

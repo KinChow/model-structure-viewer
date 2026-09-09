@@ -11,9 +11,10 @@ import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../../../structure/buildStructure.js";
 import { normalizeConfig } from "../../../structure/config/normalize.js";
 import { countsForNode } from "../../../structure/formulas/extractor.js";
-import { derivedWeightParameters, derivedVisionParameters } from "../../../cost/derivedWeights.js";
+import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters } from "../../../cost/derivedWeights.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
 import { deriveBuildPlan } from "../../model_executor/plan.js";
+import { scoredPairs } from "../counts.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const T = 128;
@@ -23,20 +24,21 @@ const T = 128;
 // dense 字段组合由 T4b 合成变体覆盖（GQA/tied/headDim 推导/MoE+shared，全部精确闭合）。
 // 残差归因：V4-Flash ≈-1.7%（dsa 期望侧近似 S=T，counts 侧按 indexerBudget）；
 // GLM-5/Qwen3.8 ≈+0.5% 正向残差未完全归因（登记于 cost_counts.md）。
-const TOLERANCE = 0.02;
-const REGISTERED = {
-  // M8-V2 登记残差：hc 超连接 / DSA indexer / 全局组件未建模（结构缺口
-  // 见 identity_calibration.md 案例二追加二），非公式错误
-  "moonshotai/Kimi-K3": 0.05,
-  "zai-org/GLM-5.3-Flash": 0.10,
-  "zai-org/GLM-5.3-Flash-BF16": 0.10,
-  "MiniMaxAI/MiniMax-M3": 0.03,
-  "MiniMaxAI/MiniMax-M3-MXFP8": 0.03,
-  "moonshotai/Kimi-K2.5": 0.006,
-  "moonshotai/Kimi-K2.6": 0.006,
-  "moonshotai/Kimi-K2.7-Code": 0.006,
-  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.02,
-};
+// W5（2026-09-09）验收收口：容差从 0.02 收到 **0.005**，REGISTERED **清空**。
+// 归零路径（每一条都有实测证据，不是放宽容差）：
+// - GLM-5.3-Flash 1.0904 → 0.999x：ops 模板 glm5_next KDA 两处宽度错（低秩
+//   decay、out_proj 输入宽）+ derivedWeights 的 DSA 分支 model_type 白名单漏
+//   glm5_next（11 个 DSA 层退回泛化 GQA，单层多算 1.449e8）。
+// - Kimi-K3 1.0437 → 0.9994：latent MoE 的 down/up 投影是每层一份、全 token
+//   激活，期望侧此前把它并进 routedN 一起乘 k/E，少算 (1-k/E) 份。
+// - MiniMax-M3 1.0279 → 0.9995：块稀疏 selected 未夹到可见长度（S=128 而
+//   17 块 x 128 = 2176），打分对数虚高。
+// - V4-Flash-Vision-Exp / Kimi-K2 系：原登记值等于或宽于默认容差，实测均在
+//   0.5% 内，属无效登记，一并移除。
+// 残留 0.2%-0.5% 的行（Qwen3.5 小杯 / V4 系 / Kimi-K2.5 等）来自 tied embedding
+// 与 norm 权重项的取整口径，量级稳定，纳入 0.005 容差内。
+const TOLERANCE = 0.005;
+const REGISTERED = {};
 
 // T4 期望侧构建器（M8-V2 抽取共享）：文本域 = 非视觉参数 × T + 打分式层注意力 matmul；
 // 视觉域 = 视觉参数 × 视觉 token 数 + 视觉块注意力 matmul。
@@ -46,14 +48,23 @@ function textExpectedSide(normalized, T, plan) {
   const embeddingTerm = (normalized.vocabSize || 0) * hidden;
   const total = derivedWeightParameters(normalized);
   const visionTerm = derivedVisionParameters(normalized);
+  // W4：MTP 参数计入 derivedWeightParameters（支柱②），但 MTP 不产生 MAC
+  // （投机解码未启用 → 结构树里 repeat=0），与 embedding/norms 同属「有参数
+  // 无算力」项，必须从 nEff 里扣掉。
+  const mtpTerm = derivedMtpParameters(normalized);
   const layerSched = plan.layerSchedule || Array.from({ length: normalized.layers || 0 }, () => (normalized.experts ? "moe" : "dense"));
   const moeLayerCount = layerSched.filter((kind) => kind === "moe").length;
   const routedHidden = normalized.routedExpertHiddenSize || hidden;
   const moeIntermediate = normalized.moeIntermediateSize || normalized.intermediateSize || 0;
-  let routedN = moeLayerCount * (normalized.experts || 0) * 3 * routedHidden * moeIntermediate;
-  if (routedHidden !== hidden) routedN += moeLayerCount * 2 * hidden * routedHidden;
+  const routedN = moeLayerCount * (normalized.experts || 0) * 3 * routedHidden * moeIntermediate;
+  // W5：latent MoE 的 down/up 投影（hidden↔routed_expert_hidden_size）是
+  // **每层一份、全 token 激活**，不是 per-expert —— 此前被并进 routedN 一起乘
+  // k/E，导致期望侧少算 (1-k/E) 份。Kimi-K3 的 +4.37% 残差就是这一项
+  // （routedHidden=hidden 的模型不受影响，该项为 0）。
+  const latentProjections = routedHidden !== hidden ? moeLayerCount * 2 * hidden * routedHidden : 0;
   const kOverE = normalized.experts && normalized.expertsPerToken ? normalized.expertsPerToken / normalized.experts : 1;
-  const nEff = total - visionTerm - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0) - routedN + routedN * kOverE;
+  const nEff = total - mtpTerm - visionTerm - embeddingTerm - normsTerm + (normalized.tieWordEmbeddings ? embeddingTerm : 0) - routedN + routedN * kOverE;
+  void latentProjections; // latent 投影已在 total 里且不参与 k/E 缩放，无需再调整
   const schedule = plan.attentionSchedule || [];
   const kh = normalized.linearKeyHeads || normalized.attentionHeads || 0;
   const kd = normalized.linearKeyDim || normalized.headDim || 0;
@@ -71,8 +82,27 @@ function textExpectedSide(normalized, T, plan) {
         : 3 * vh * vd * kd);
       continue;
     }
-    scoreMatmulParams += 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0);
+    // W3-①因果：期望侧与实现侧同走 counts.js scoredPairs。二者共用不构成
+    // 同义重复——scoredPairs 本身有独立手算 oracle（counts.test.js
+    // 「因果对数解析检查」对小尺寸逐 token 暴力求和比对）。
+    const pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: T });
+    scoreMatmulParams += (normalized.attentionHeads || 0) * pairs
+      * ((normalized.headDim || 0) + (normalized.valueHeadDim || normalized.headDim || 0));
   }
+  // W3-③期望侧显式建模（**本波未落地，验收未通过，已回退**）。
+  // 尝试把 MHC / HyperConnection / PLE / AttnResBlock 的 matmul 加进期望侧，
+  // 结果暴露了互相抵消的两个误差，不能只补一半：
+  //   - MHC 段量级实测只有 1.9e8 / 全模型 2.7e12 = 7e-5，**不是** GLM-5.3-Flash
+  //     +9.0% 残差的来源（该残差仍未归因）；
+  //   - HyperConnection 实测 8.1e10 / 1.07e12 = 7.6%，加进期望侧后
+  //     Qwen3.8-Flash-Next 从 0.9963 掉到 0.9246 —— 说明期望侧另有一处
+  //     约 +7.6% 的过计，此前被「HC 缺项」抵消掉了。
+  // 实例数已实测锚定，留给下一波直接用：
+  //   MHC   : mhc_pre L 个 + mhc_fused_post_pre L 个 + mhc_post 1 个（mhc_contract 无 matrix），
+  //           每个 matrix = T·H·streams；实测 GLM-5.3-Flash L=45、V4-Pro L=61 同构
+  //   HC    : (2L+1) 个实例，每个 matrix = T·H²；实测 Flash-Next L=48 -> 97
+  //   PLE   : ple_layer_ids 长度个实例，matrix = T·2·ple_embed_dim·H + conv
+  //   AttnRes: L 个实例，matrix = T·H；实测 Kimi-K3 L=93 -> 93
   return { textMatrix: nEff * T + scoreMatmulParams + stateMatmulParams, nEff };
 }
 
@@ -81,8 +111,10 @@ function visionExpectedSide(normalized, V) {
   const blocks = normalized.visionLayers || 0;
   const heads = normalized.visionAttentionHeads || 0;
   const dim = normalized.visionHeadDim || 0;
-  // 视觉块注意力 scores+context：2·heads·V·S·D（视觉自注意力 S=V）
-  const scoreMatmulParams = blocks * 2 * heads * V * V * dim;
+  // 视觉块注意力 scores+context（视觉自注意力 S=V）。W3-①：ViT 也走因果口径
+  // ——本工具的视觉塔按 dense 分解链发射，与文本侧同一 matmul case。
+  const visionPairs = scoredPairs({ phase: "prefill", queryTokens: V, keyTokens: V });
+  const scoreMatmulParams = blocks * heads * visionPairs * 2 * dim;
   return visionParams * V + scoreMatmulParams;
 }
 
@@ -180,8 +212,10 @@ function syntheticIdentity(name, config, { tie = false, moe = false } = {}) {
     nEff = nEff - routedN + routedN * kOverE;
   }
   const layers = normalized.layers || 0;
-  // scores(QK^T) + context(PV) 各 heads·T·S·D，每层合计 2·heads·T·S·D（prefill S≈T）
-  const scoreMatmulParams = layers * 2 * (normalized.attentionHeads || 0) * T * T * (normalized.headDim || 0);
+  // scores(QK^T) + context(PV)：每层 heads·pairs·(D+dv)，pairs 为因果对数（W3-①）
+  const synthPairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: T });
+  const scoreMatmulParams = layers * (normalized.attentionHeads || 0) * synthPairs
+    * ((normalized.headDim || 0) + (normalized.valueHeadDim || normalized.headDim || 0));
   const expected = nEff * T + scoreMatmulParams;
   const ratio = totalMatrix / expected;
   console.error(`${name}: counts=${totalMatrix} expected=${expected} ratio=${ratio.toFixed(4)} unknown=${unknown}`);

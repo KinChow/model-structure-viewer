@@ -12,6 +12,42 @@
 
 import { SUFFIX_ROLES } from "../model_executor/roles.js";
 
+// ===========================================================================
+// ARCH_RECIPES —— 「模型 → 配方」声明表（W5，§8.1 认可的"一处数据文件"）。
+//
+// 这里放的是**写不出 config 字段判据**的配方位。判据能用字段表达的一律不进来
+// （逐层调度走 layer_types / moe_layer_freq / first_k_dense_replace /
+// compress_ratios / sparse_attention_freq；kernel 变体走 index_topk /
+// index_kpool / indexer_budget / sparse_attention_config 的存在性；输出门走
+// attn_output_gate）。剩下这四位在 config 里没有对应字段，属于必须人工登记的
+// 家族知识 —— 显式声明比藏在 `model_type.includes(...)` 里诚实（用户原则：
+// 不把人工适配当自动推断）。
+//
+// key = `architectures[0]` 原字符串（vLLM `_MODELS` 的键形态），不做子串匹配。
+// 反例证据：`use_gemma_norm` 全库仅 2/59 命中，却有 35 个模型实际走 gemma
+// norm —— 这就是「没有字段判据」的实证，只能登记。
+export const ARCH_RECIPES = {
+  DeepseekV3ForCausalLM: {},
+  DeepseekV32ForCausalLM: {},
+  DeepseekV4ForCausalLM: {},
+  Glm4MoeForCausalLM: {},
+  GlmMoeDsaForCausalLM: {},
+  Glm5NextForConditionalGeneration: { linearAttentionMode: "glm5_next", visionInternalMerger: true },
+  KimiK25ForConditionalGeneration: { linearAttentionMode: "kimi" },
+  KimiK3ForConditionalGeneration: { linearAttentionMode: "kimi_k3", sharedExpertsAreFused: true },
+  MiniMaxM2ForCausalLM: {},
+  MiniMaxM3SparseForConditionalGeneration: { normMode: "gemma_rmsnorm" },
+  Qwen3_5ForConditionalGeneration: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5", visionInternalMerger: true },
+  Qwen3_5MoeForCausalLM: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5" },
+  Qwen3_5MoeForConditionalGeneration: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5", visionInternalMerger: true },
+  Qwen4ExpForConditionalGeneration: { linearAttentionMode: "qwen4_exp", visionInternalMerger: true },
+};
+
+/** 取某架构的配方；未登记的架构返回空配方（走各位的默认值）。 */
+export function archRecipe(architecture) {
+  return ARCH_RECIPES[String(architecture || "")] || {};
+}
+
 const WRAPPERS = new Set(["model", "language_model", "model_tower"]);
 const BID_MARKERS = new Set(["layers", "blocks", "h", "layer"]);
 const EXPERT_MARKERS = new Set(["experts", "expert"]);

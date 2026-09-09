@@ -45,11 +45,14 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
     ["expert_mlp", "combine"],
     ["combine", "routed_expert_norm"],
     ["routed_expert_norm", "routed_expert_up_proj"],
-    ["combine", "shared_expert_add"],
     ["shared_experts", "shared_expert_add"],
     ["shared_expert_gate", "shared_expert_add"],
   ];
   const childSuffixes = new Set(children.map((child) => String(child.id || "").split(".").at(-1)));
+  // 路由分支汇入 shared_expert_add 的那条边：K3 的潜空间 MoE 在 combine 之后还有
+  // routed_expert_norm → routed_expert_up_proj（3584 → 7168），必须从 up_proj 出边，
+  // 否则 combine 的 3584 直接对上 add 的 7168，末维不连续（形状连续性检查抓出）。
+  declaredEdges.push([childSuffixes.has("routed_expert_up_proj") ? "routed_expert_up_proj" : "combine", "shared_expert_add"]);
   const filteredEdges = declaredEdges.filter(([source, target]) => childSuffixes.has(source) && childSuffixes.has(target));
   return withShapeDims(moduleSpec(
     id,

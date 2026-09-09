@@ -13,16 +13,23 @@ FAIL=0
 # 度量口径（W1 修订）：剥除纯注释行（注释不可能构成分派）；豁免
 # structure/formulas/index.js —— 它是 §8.1 认可的"一处数据文件"
 # （operatorId → 公式 → counts），explanation 中的模型名是条目文档而非分派。
-# plan.js 同理豁免：家族探测自 normalizeConfig 逐字搬迁（W3-C），待配方表接管后随 archs/ 下调。
-# 基线（2026-09-07，W0 测得）= 16。W0.5 / W3 / W4.5 / W5（compute.js 与
-# extractor.js legacy 镜像删除）完成后应下调此数。
+# formulas/modules.js 同类豁免（W5）：命中全在 source.ref / notes 的出处标注里，
+# 是证据链而非分派逻辑。
+# W5（2026-09-09）：plan.js 的豁免已**摘掉** —— 它的 modelTypeProbe.includes 全部
+# 换成 config 字段判据，四个无字段判据的配方位迁到 structure/archs/index.js 的
+# ARCH_RECIPES。豁免随之转移给 archs/index.js（§8.1 认可的「一处数据文件」：
+# 模型 → 配方声明表，key 是 architectures[0] 原字符串，不做子串匹配）。
+# 基线沿革：W0（2026-09-07）测得 16 → W5（2026-09-09）删 resolveArchitecture 的
+# 家族名子串兜底得 15 → plan.js 的 modelTypeProbe 全换成 config 字段判据、四个
+# 无字段判据的配方位迁进 archs/ARCH_RECIPES 后得 14（plan.js 只剩 attention kind
+# 的**标签** "qwen35_full"，是值不是分派）。
 FAMILY_PATTERN='kimi|qwen4_?exp|qwen3_?5|glm5_?next|glm4_?moe|minimax_?m2|minimax_?m3|deepseek_?v32|deepseek_?v4|glm_?moe_?dsa'
-FAMILY_BASELINE=16
+FAMILY_BASELINE=14
 
 FAMILY_COUNT=0
 FAMILY_FILES=""
 for f in $(grep -rliE "$FAMILY_PATTERN" frontend/src --include='*.js' --include='*.jsx' \
-    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/formulas/index.js' | grep -v 'model_executor/plan.js' | sort); do
+    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/formulas/index.js' | grep -v 'structure/formulas/modules.js' | grep -v 'structure/archs/index.js' | sort); do
   n=$(grep -iE "$FAMILY_PATTERN" "$f" | grep -cvE '^[[:space:]]*(//|\*|/\*)')
   if [ "$n" -gt 0 ]; then
     FAMILY_COUNT=$((FAMILY_COUNT + 1))
@@ -101,6 +108,21 @@ if [ "$REF_COUNT" -lt "$ENTRY_COUNT" ]; then
   FAIL=1
 else
   echo "§3.1d 来源标注: ${REF_COUNT} / ${ENTRY_COUNT} 条（≥ 条目数）"
+fi
+
+# ---------- §3.5b 文档不得新增 /tmp 取证引用（棘轮，只许下降） ----------
+# operators_reference.md 里还有一批历史 `/tmp/m11-formulas/*` 引用：那是早期会话的
+# 临时取证文件，多数已不在盘（文中已标注），结论都已内联到各节。探针本身已收回仓库
+#（gen-operators-reference.mjs 的 --json）。这条棘轮只做一件事：**不许再新增**。
+# 新证据的去处 = models/<org>/<id>/ 证据库（fetch-evidence.mjs + manifest），
+# 或者「跑生成器就能复现」。
+TMP_CITE_BASELINE=15
+TMP_CITE_COUNT=$(grep -c "/tmp/m11-formulas" docs/details/operators_reference.md || true)
+if [ "$TMP_CITE_COUNT" -gt "$TMP_CITE_BASELINE" ]; then
+  echo "✗ §3.5b 违反：/tmp 取证引用 ${TMP_CITE_COUNT} 处 > 基线 ${TMP_CITE_BASELINE}——新证据请落 models/<org>/<id>/ 证据库或改成可复现命令。"
+  FAIL=1
+else
+  echo "§3.5b /tmp 取证引用: ${TMP_CITE_COUNT} / 基线 ${TMP_CITE_BASELINE}（只许下降）"
 fi
 
 exit $FAIL

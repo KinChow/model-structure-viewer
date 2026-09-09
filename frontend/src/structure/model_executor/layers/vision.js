@@ -21,7 +21,10 @@ export function visionDimensions(normalized) {
   return {
     hidden, heads, headDim, intermediate, channels, patch, temporalPatch, tokens, qkvHiddenSize,
     visual: [-1, tokens, hidden],
-    patchInput: [-1, tokens, channels, temporalPatch * patch * patch],
+    // patch embedding 摊平成一次 GEMM：vLLM qwen2_5_vl.py:557-561 先 view 再 Conv3d，
+    // stride == kernel，等价 [L, C·T_p·P²] × [C·T_p·P², hidden]。输入维必须给**摊平后的
+    // 单一宽度**，否则 derivedLinearShape 只取最后一维（少了 channels），权重与 MAC 都算错。
+    patchInput: [-1, tokens, channels * temporalPatch * patch * patch],
     qkv: [-1, tokens, 3 * qkvHiddenSize],
     q: [-1, tokens, heads, headDim],
     scores: [-1, heads, tokens, tokens],

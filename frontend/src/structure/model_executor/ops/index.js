@@ -154,7 +154,19 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
   const stateShape = `[batch, value heads=${valueHeads}, state value dimension=${valueDim}, state key dimension=${keyDim}]`;
   const qkvDims = qwen ? [-1, -1, qkvFlat] : [-1, -1, fusedFlat];
   const qkvConvDims = qwen ? [-1, -1, qkvConvFlat] : [-1, -1, 3 * keyProjection];
-  const outputDims = qwen ? [-1, -1, valueHeads, valueDim] : qkvDims;
+  // W3.5 修正：非 qwen 的 KDA，state_update 的输出宽是 value 投影宽
+  // （valueHeads·valueDim），**不是**融合输入宽 fusedFlat。此前 glm5_next 的
+  // output_gate_norm / out_proj 都按 fusedFlat=24896 计，out_proj 单层多算
+  // 6.84e7 元素 x 34 层 = 2.33e9。kimi_k3 早有特判、glm5_next 漏了，现统一。
+  // state 的输出是**逐头**的 [.., valueHeads, valueDim]（qwen 与非 qwen 同形；
+  // 摊平写法只是同一张量的另一种视图，但会让下游逐头 norm/投影的形状连续性断裂）。
+  const outputDims = [-1, -1, valueHeads, valueDim];
+  // gated 输出归一化是**逐头**的：`FusedRMSNormGated(self.head_dim)`
+  //（vLLM kimi_gdn_linear_attn.py:304、qwen_gdn_linear_attn.py:487-488），
+  // 权重只有 valueDim 那么长。声明成四维，normWeightWidth 才能取到最后一维；
+  // 摊平成 [-1,-1,valueProjection] 会把权重放大 valueHeads 倍
+  //（K3 每层 12,288 而真值 128，2026-09-09 权重字节逐层归因抓出）。
+  const gateNormDims = [-1, -1, valueHeads, valueDim];
   const betaDims = [-1, -1, valueHeads];
   const fullRank = modelKind === "kimi_k3";
   const implementation = fullRank
@@ -195,26 +207,48 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       split_sizes: [keyProjection, keyProjection, valueProjection, valueProjection],
       implementation: ["vLLM.QwenGatedDeltaNetAttention.fix_query_key_value_ordering", "SGLang.Qwen3_5GatedDeltaNet.fix_query_key_value_ordering"],
     }, { input: qkvDims, output: qkvConvDims })] : []),
-    operatorSpec(`${prefix}.beta_projection`, "beta projection", "linear", {
+    // beta（delta rule 的步长）**只有 qwen GDN 才是独立 GEMM**（in_proj_ba.b）。
+    // GLM5-Next 与 K3 的 b 已经在融合投影里：
+    //   glm5next/nvidia/kda.py:179-196 in_proj_qkvbfg_a = [q,k,v,b,f_a,g_a]
+    //   kimi_k3/amd/kda.py:110-127     in_proj_qkvgfab  = [q,k,v,g,f_a,b]
+    // 再发一片独立 beta 叶就是双计（GLM 每层 262,144、K3 每层 688,128 —— 2026-09-09
+    // 权重字节逐层归因抓出）。
+    ...(qwen ? [operatorSpec(`${prefix}.beta_projection`, "beta projection", "linear", {
       ...shapeFlow(shapes.hidden, betaShape),
       semantic_role: "delta_beta",
       implementation: implementation.beta_projection,
       activation: "sigmoid_in_kda_kernel",
-    }, { input: dims.hidden, output: betaDims }),
+    }, { input: dims.hidden, output: betaDims })] : []),
     // M8-V2（源码 modeling_kimi_linear.py）：kimi_k3 的 decay 走低秩
     // f_a（在融合 qkvgfab 内）+ f_b（独立 head_dim→projection_size）——
     // 独立全宽 decay 叶会与融合内 f_a 重复计数（88M vs 真值 2.5M/层）。
-    ...(modelKind !== "kimi_k3" ? [operatorSpec(`${prefix}.decay_projection`, "forget/decay gate projection", "linear", {
+    // W3.5 修正：**glm5_next 同为低秩**（derivedWeights 的
+    // glm5NextLinearAttentionParameters 依 modeling_glm5_next.py 取证：融合
+    // qkvbfg_a 已含 b/f_a/g_a，独立叶只有 f_b、g_b，各 head_dim→qkv_dim）。
+    // 此前只给 kimi_k3 特判，glm5_next 仍发全宽 hidden×qkv_dim decay 叶，
+    // 单层多算 3.2e7 元素 x 34 层 = 1.09e9 —— 权重字节恒等式 decode 1.0958
+    // 的主要来源之一。判据改为「非 qwen 的 KDA」。
+    ...(qwen ? [operatorSpec(`${prefix}.decay_projection`, "forget/decay gate projection", "linear", {
       ...shapeFlow(shapes.hidden, gateShape),
       semantic_role: "forget_gate_logits",
       implementation: implementation.decay_projection,
       gate_lower_bound: normalized.linearLowerBound,
       projection_size: valueHeads,
     }, { input: dims.hidden, output: qwen ? betaDims : [-1, -1, keyHeads, keyDim] })] : []),
-    ...(modelKind === "kimi_k3" ? [operatorSpec(`${prefix}.f_b_proj`, "decay low-rank projection", "linear", {
+    ...(!qwen ? [operatorSpec(`${prefix}.f_b_proj`, "decay low-rank projection", "linear", {
       ...shapeFlow(`[batch, sequence, head dimension=${keyDim}]`, qkvShape),
       semantic_role: "forget_gate_low_rank_restore",
       implementation: "f_b_proj",
+    }, { input: [-1, -1, keyDim], output: [-1, -1, keyProjection] })] : []),
+    // 输出门：K3 是**全秩**（g 直接占融合投影的第 4 个 projection_size 分片，
+    // kimi_k3/amd/kda.py:110 `qkvg_output_sizes = [projection_size] * 4`），
+    // GLM5-Next 是**低秩**（融合内只有 g_a=head_dim，另有独立 g_b_proj
+    // head_dim→projection_size，glm5next/nvidia/kda.py:248-254）。
+    // 此前 g_b 整片缺失，GLM 每层少 head_dim×projection_size。
+    ...(!qwen && !fullRank ? [operatorSpec(`${prefix}.g_b_proj`, "output gate low-rank projection", "linear", {
+      ...shapeFlow(`[batch, sequence, head dimension=${keyDim}]`, qkvShape),
+      semantic_role: "output_gate_low_rank_restore",
+      implementation: "g_b_proj",
     }, { input: [-1, -1, keyDim], output: [-1, -1, keyProjection] })] : []),
     operatorSpec(`${prefix}.short_conv`, "qkv causal short convolution", "causal_conv1d", {
       ...shapeFlow(convShape, convShape),
@@ -247,12 +281,12 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       implementation: implementation.output_gate,
       gate_shape: gateShape,
       activation: normalized.outputGateType || "sigmoid",
-    }, { input: modelKind === "kimi_k3" ? [-1, -1, keyProjection] : outputDims, output: modelKind === "kimi_k3" ? [-1, -1, keyProjection] : outputDims }),
+    }, { input: gateNormDims, output: gateNormDims }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", {
       ...shapeFlow(gateShape, shapes.hidden),
       semantic_role: "attention_output_projection",
       communication_role: "tp_attention_output",
-    }, { input: modelKind === "kimi_k3" ? [-1, -1, keyProjection] : outputDims, output: dims.hidden }),
+    }, { input: outputDims, output: dims.hidden }),
   ];
   return specs;
 }
@@ -396,15 +430,15 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       ...shapeFlow(qLatent, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
       implementation: ["vLLM.DeepseekV4Indexer.wq_b", "SGLang.C4Indexer"],
     }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }));
-    specs.push(operatorSpec(`${prefix}.indexer`, "C4 sparse indexer", "qsa_indexer", {
+    specs.push(operatorSpec(`${prefix}.indexer`, "DeepSeek V4 C4 sparse indexer", "dsv4_indexer", {
       ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, selected=${budget}]`),
       indexer_heads: indexHeads,
       indexer_head_dim: indexDim,
       budget,
       compress_ratio: ratio,
-      implementation: ["vLLM.SparseAttnIndexer", "SGLang.C4Indexer"],
+      implementation: ["vLLM.DeepseekV4Indexer", "SGLang.C4Indexer"],
     }, { input: dims.hidden, output: [-1, -1, budget] }));
-    specs.push(operatorSpec(`${prefix}.attention`, "C4 sparse MLA attention", "qsa_attention", {
+    specs.push(operatorSpec(`${prefix}.attention`, "C4 sparse MLA attention", "dsv4_sparse_mla", {
       ...shapeFlow(`${query}, selected compressed KV`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
       selected_tokens: budget,
       compress_ratio: ratio,
@@ -463,12 +497,26 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
     return dsaAttentionOperatorSpecs(prefix, normalized, layerIndex);
   }
   const { shapes, dims } = shapesAndDims(normalized);
-  const indexerHeads = normalized.indexerNHeads || 0;
-  const indexerKVHeads = normalized.indexerKVHeads || 0;
-  const indexerDim = normalized.indexerHeadDim || 0;
-  const budget = normalized.indexerBudget || 0;
+  const indexerHeads = normalized.qsaIndexerHeads ?? normalized.indexerNHeads ?? 0;
+  const indexerKVHeads = normalized.qsaIndexerKVHeads ?? normalized.indexerKVHeads ?? 0;
+  const indexerDim = normalized.qsaIndexerHeadDim ?? normalized.indexerHeadDim ?? 0;
+  const budget = normalized.qsaIndexerBudget ?? normalized.indexerBudget ?? 0;
+  // 融合 QKV 的宽度：vLLM qwen4_exp/nvidia/qsa.py:233-241
+  //   QKVParallelLinear(hidden, head_dim, total_num_heads*(1+attn_output_gate), total_num_kv_heads)
+  // ⇒ head_dim·(heads·(1+gate) + 2·kv_heads)。此前只声明了 q 的宽度（heads·head_dim），
+  // k/v 两份权重整层漏计（Flash-Next 每 QSA 层少 2·kv_heads·head_dim·hidden = 2,621,440）。
+  const heads = normalized.attentionHeads || 0;
+  const kvHeads = normalized.kvHeads || heads;
+  const headDim = normalized.headDim || 0;
+  const gateFactor = normalized.attentionOutputGate ? 2 : 1;
+  const fusedWidth = headDim * (heads * gateFactor + 2 * kvHeads);
+  const fusedShape = `[batch, sequence, fused qkv${normalized.attentionOutputGate ? " + output gate" : ""}=${fusedWidth}]`;
   return [
-    operatorSpec(`${prefix}.qkv_proj`, "QSA qkv and output-gate projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.qkv_proj`, "QSA qkv and output-gate projection", "linear", {
+      ...shapeFlow(shapes.hidden, fusedShape),
+      projection_layout: normalized.attentionOutputGate ? ["q", "gate", "k", "v"] : ["q", "k", "v"],
+      implementation: ["vLLM.Qwen4ExpQSAAttention.qkv_proj", "SGLang.qwen4_exp qkv_proj"],
+    }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
     operatorSpec(`${prefix}.q_norm`, "Q attention norm", "rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), { input: dims.attentionQuery, output: dims.attentionQuery }),
     operatorSpec(`${prefix}.k_norm`, "K attention norm", "rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), { input: dims.attentionKey, output: dims.attentionKey }),
     operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
@@ -482,12 +530,14 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
       indexer_kv_heads: indexerKVHeads,
       indexer_head_dim: indexerDim,
       budget,
-      compress_ratio: normalized.indexerCompressRatio,
+      compress_ratio: normalized.qsaIndexerCompressRatio ?? normalized.indexerCompressRatio,
+      implementation: ["vLLM.QSAIndexer", "SGLang.qwen4_exp indexer"],
     }, { input: dims.hidden, output: [-1, -1, budget] }),
-    operatorSpec(`${prefix}.sparse_attention`, "QSA sparse attention", "qsa_attention", {
+    operatorSpec(`${prefix}.sparse_attention`, "QSA sparse attention", "qsa_sparse_attention", {
       ...shapeFlow(`${shapes.attentionQuery}, selected K/V`, shapes.attentionContext),
       selected_tokens: budget,
       attention_kind: "qsa",
+      implementation: ["vLLM.Qwen4ExpQSAAttention", "SGLang.qwen4_exp qsa"],
     }, { input: dims.attentionQuery, output: dims.attentionContext }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
   ];
@@ -504,8 +554,17 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
   const indexDim = normalized.sparseIndexDim || headDim;
   const indexProjection = indexHeads * indexDim;
   const disableIndexValue = normalized.sparseDisableIndexValue?.[layerIndex] ?? true;
-  const indexValueProjection = disableIndexValue ? 0 : indexProjection;
-  const fusedWidth = qProjection + 2 * kvProjection + (sparse ? 2 * indexProjection + indexValueProjection : 0);
+  // index_k 是**单头共享**的（每 rank 复制一份），不是 index_heads 份：
+  //   vLLM linear.py:1405-1414  output_sizes = [q, kv, kv, iq=heads·dim, ik=index_head_size]
+  //   vLLM minimax_m3/amd/model.py:983  index_k = qkv[:, start : start + self.idx_head_dim]
+  //   SGLang minimax_m3.py:632-639  index_qkv_proj = QKVParallelLinear(..., total_num_kv_heads=1,
+  //                                   v_head_size=(0 if disable_index_value else idx_head_dim))
+  // index_v 同为单头，且只在该层 sparse_disable_index_value=0 时才存在。
+  const indexKeyProjection = indexDim;
+  const indexValueProjection = disableIndexValue ? 0 : indexDim;
+  const indexKvShape = `[batch, sequence, index kv heads=1, index head dimension=${indexDim}]`;
+  const fusedWidth = qProjection + 2 * kvProjection
+    + (sparse ? indexProjection + indexKeyProjection + indexValueProjection : 0);
   const fusedShape = `[batch, sequence, fused main QKV + index QKV=${fusedWidth}]`;
   const indexShape = `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`;
   const specs = [
@@ -518,8 +577,8 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
       disable_index_value: disableIndexValue,
     }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
     operatorSpec(`${prefix}.qkv_index_split`, sparse ? "main/index QKV split" : "QKV split", "split", {
-      ...shapeFlow(fusedShape, sparse ? `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}, ${indexShape}, ${indexShape}` : `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`),
-      split_sizes: sparse ? [qProjection, kvProjection, kvProjection, indexProjection, indexProjection, ...(disableIndexValue ? [] : [indexValueProjection])] : [qProjection, kvProjection, kvProjection],
+      ...shapeFlow(fusedShape, sparse ? `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}, ${indexShape}, ${indexKvShape}` : `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`),
+      split_sizes: sparse ? [qProjection, kvProjection, kvProjection, indexProjection, indexKeyProjection, ...(disableIndexValue ? [] : [indexValueProjection])] : [qProjection, kvProjection, kvProjection],
     }, { input: [-1, -1, fusedWidth], output: [-1, -1, qProjection] }),
     operatorSpec(`${prefix}.q_norm`, "Q Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), { input: dims.attentionQuery, output: dims.attentionQuery }),
     operatorSpec(`${prefix}.k_norm`, "K Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), { input: dims.attentionKey, output: dims.attentionKey }),
@@ -532,13 +591,15 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         implementation: ["vLLM.MiniMaxM3Attention.rotary_emb", "SGLang.MiniMaxM3Attention.rotary_emb"],
       }, { input: dims.attentionQuery, output: dims.attentionQuery }),
       operatorSpec(`${prefix}.index_q_norm`, "index Q Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(indexShape, indexShape), { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
-      operatorSpec(`${prefix}.index_k_norm`, "index K Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(indexShape, indexShape), { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
+      // index_k / index_rope 的 k 侧都是那颗**单头共享** index-k（vLLM
+      // MiniMAXGemmaRMSNorm(self.idx_head_dim) 作用在 1 x idx_head_dim 上）。
+      operatorSpec(`${prefix}.index_k_norm`, "index K Gemma RMSNorm", "gemma_rmsnorm", shapeFlow(indexKvShape, indexKvShape), { input: [-1, -1, 1, indexDim], output: [-1, -1, 1, indexDim] }),
       operatorSpec(`${prefix}.index_rope`, "index partial rotary position embedding", "rope", {
-        ...shapeFlow(`${indexShape}, ${indexShape}`, `${indexShape}, ${indexShape}`),
+        ...shapeFlow(`${indexShape}, ${indexKvShape}`, `${indexShape}, ${indexKvShape}`),
         partial_rotary_factor: normalized.partialRotaryFactor,
       }, { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
       operatorSpec(`${prefix}.indexer`, "MiniMax M3 block indexer", "minimax_sparse_indexer", {
-        ...shapeFlow(`${indexShape}, ${indexShape}`, `[batch, sequence, selected blocks=${normalized.sparseTopkBlocks}]`),
+        ...shapeFlow(`${indexShape}, ${indexKvShape}`, `[batch, sequence, selected blocks=${normalized.sparseTopkBlocks}]`),
         index_heads: indexHeads,
         index_head_dim: indexDim,
         topk_blocks: normalized.sparseTopkBlocks,
@@ -636,9 +697,10 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const ropeDim = normalized.qkRopeHeadDim || 0;
   const qkDim = qkNope + ropeDim;
   const valueDim = normalized.valueHeadDim || normalized.headDim || 0;
-  const indexHeads = normalized.indexerNHeads || 0;
-  const indexDim = normalized.indexerHeadDim || 0;
-  const budget = normalized.indexerBudget || 0;
+  const indexHeads = normalized.dsaIndexHeads ?? normalized.indexerNHeads ?? 0;
+  const indexDim = normalized.dsaIndexHeadDim ?? normalized.indexerHeadDim ?? 0;
+  const budget = normalized.dsaIndexTopk ?? normalized.indexerBudget ?? 0;
+  const kpool = normalized.dsaIndexKpool ?? 1;
   const indexerMode = deriveBuildPlan(normalized.raw ?? normalized).indexerSchedule?.[layerIndex] || "compute";
   const qLatentShape = `[batch, sequence, q latent=${qRank}]`;
   const kvLatentShape = `[batch, sequence, kv latent=${kvRank}, rope=${ropeDim}]`;
@@ -690,16 +752,19 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       ...shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
       implementation: ["vLLM.Indexer.k_norm", "SGLang.Indexer.k_norm"],
     }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
-    operatorSpec(`${prefix}.indexer`, "DSA indexer", "qsa_indexer", {
+    operatorSpec(`${prefix}.indexer`, kpool > 1 ? "DSA indexer (k-pool)" : "DSA indexer", kpool > 1 ? "dsa_kpool_indexer" : "dsa_indexer", {
       ...shapeFlow(shapes.hidden, `[batch, sequence, selected=${budget}]`),
       indexer_heads: indexHeads,
       indexer_head_dim: indexDim,
       budget,
+      index_kpool: kpool > 1 ? kpool : undefined,
       indexer_mode: indexerMode,
       reuse_previous_indices: indexerMode === "reuse",
-      implementation: ["vLLM.SparseAttnIndexer", "SGLang.dsa_indexer"],
+      implementation: kpool > 1
+        ? ["vLLM.SparseAttnIndexerKpool", "SGLang.dsa_indexer kpool"]
+        : ["vLLM.SparseAttnIndexer", "SGLang.dsa_indexer"],
     }, { input: dims.hidden, output: [-1, -1, budget] }),
-    operatorSpec(`${prefix}.sparse_attention`, "DSA sparse MLA attention", "qsa_attention", {
+    operatorSpec(`${prefix}.sparse_attention`, "DSA sparse MLA attention", "dsa_sparse_mla", {
       ...shapeFlow(`${qShape}, selected ${kShape}, selected ${vShape}`, `[batch, sequence, attention heads=${heads}, value head dimension=${valueDim}]`),
       selected_tokens: budget,
       attention_kind: "dsa_sparse_mla",
@@ -712,6 +777,19 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       communication_role: "tp_attention_output",
     }, { input: [-1, -1, heads, valueDim], output: dims.hidden }),
   ];
+}
+
+// W4：残差加。此前每层两处 `h = x + sublayer(x)` 完全没有算子位——文档
+// B-layer-res 已自登记「2TH·b x2/层未计」。上游对应 SGLang
+// `srt/layers/attn_residual.py` 与各 model 文件里的 `hidden_states + residual`
+// 融合入口（vLLM 走 RMSNorm 的 residual 形参做 add+norm 融合）。
+export function residualAddSpec(id, normalized, label) {
+  const { shapes, dims } = shapesAndDims(normalized);
+  return operatorSpec(id, `${label} residual add`, "residual_add", {
+    ...shapeFlow(`${shapes.hidden}, ${shapes.hidden}`, shapes.hidden),
+    residual_of: label,
+    implementation: ["vLLM.RMSNorm(residual=...) 融合 add", "SGLang.attn_residual"],
+  }, { input: dims.hidden, output: dims.hidden });
 }
 
 export function mlpOperatorSpecs(prefix, normalized, roleScope = undefined) {

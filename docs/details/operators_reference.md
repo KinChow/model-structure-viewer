@@ -1606,9 +1606,22 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       机制：MoE 模板的专家 GEMM（gate/up/down 三矩阵 [moeI, EH]）融合在
       swiglu 叶的 counts 里（3·E·EH·EI），`QUANTIZABLE_OPS` 枚举只认 linear
       族叶 → 该块留在 bf16 桶。
-      落法：`quantizedMatrixBytes` 对 swiglu 叶扩展 3 矩阵枚举
-      （[EI,EH] 取叶形状，×experts 折叠）；**验收锚** = 枚举元素数 ×2B 必须
-      等于叶 counts 的 bytes.weights（单源锚定，专家折叠不允许第二套推导）。
+      落法（2026-09-09 定稿，待执行）：
+      ① **拆 operator id 而不是拆叶子**：MoE 专家融合叶现在与纯激活共用
+        `swiglu` 这个 id——这正是 QSA/DSA/MSA 同类问题的翻版（一个 id 两种
+        算法出处）。给融合专家 MLP 独立 id（对标 vLLM `FusedMoE` 模块），
+        counts 原样迁移 + 增加机器可读的权重矩阵声明
+        （attributes: {matrices: 3, out: EI, in: EH, expertFold: E}）；
+      ② `quantizedMatrixBytes` 消费该声明枚举 3×E 矩阵，**不再自行推导
+        E-folding**（派生侧第二套折叠已实测会错——模拟器手算出负容量的
+        直接教训）；dense MLP 的 swiglu（纯激活无权重）保持现 id；
+      ③ **验收锚** = 枚举元素数 ×2B 必须等于叶 counts 的 bytes.weights
+        （该值已被权重字节恒等式锚定，单源）。
+      成熟方案对照：vLLM/SGLang 量化按**模块**应用（FusedMoE 模块持有
+      w13/w2 打包权重，ignore list 按模块名）——模块即单位，叶子自描述；
+      HF/llm-analysis 类显存工具走 per-tensor checkpoint 元数据（msv 的
+      checkpoint 路径 parameters_by_dtype 已是该方案且正确），缺口仅在
+      无 checkpoint 的派生路径。
 - [x] **量化容量 per-matrix 精确化**（`cost/quantBytes.js`，2026-09-09）：
       无 checkpoint 时不再用标量 `quantizationBytesPerParameter` 一刀切 ——
       枚举树上全部线性族叶子的 [out,in]（output/input 正维积），按方案精确计：

@@ -12,6 +12,13 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- 并行与权重分片协议定稿（步骤 1）：`details/parallel_protocol.md` 为协议唯一住址——逻辑轴定义、约束等式（专家域闭合 moe_ep×moe_tp=ep×tp）、九项裁决、三类成本口径。
+- 声明覆盖率护栏与全量覆盖（步骤 3）：P2 棘轮（缺声明带权叶，只许下降）13166→0；norm/linear/router/lm_head/MLA/KDA/conv1d/mHC/HC/PLE/embedding 全部声明；锚 1 升级 dtype-aware（param_dtype 引用 paramDtypes）。
+- 删除权重分片与量化枚举回退（步骤 3 收口）：weightMatrices 是权重归属唯一入口，无声明带权叶 = unknown；router 分片轴修正为 replicated（vLLM GateLinear extends ReplicatedLinear）。
+- fused shared expert 判定单源化（步骤 5）：删 normalize 的 model_type 子串第二判定源，归 archs 配方；原"双组声明"假设经 checkpoint 取证作废。
+- 并行计划 schema 单源（步骤 4）：cost/parallelPlan.js；协议校验执法（专家域闭合/整除/moe_tp=tp）；UI 第四消费者（MoE TP/EP、词表并行、world_size 只读）。
+- 后端 Transformers evidence 对账（步骤 6）：/api/verify 与 CLI verify --graph 返回 per-module evidence 与 only_transformers/only_msv/mismatch 三分类，区分构造通过与结构一致。
+- 通信成本扩展（步骤 9）：interNode 开关、PD 传输时间、per-stage HBM roofline、AllToAll dp>1、KV keep-ratio、overlap 静态上限标注（overlapUpperBound）。
 - 未知架构统一 `unsupported`（执行路线步骤 2）：删除 `generic-decoder` 字段推断兜底与 `generic-config` 分支，alias 精确表未命中的架构以空网络走完管线并枚举支持项；诊断 code 改名 `unsupported-architecture`，`models/generic.js` 删除。
 - 后端 introspection 改为通过 `GraphDraft` 直接生成 Graph IR v2，`StructureNode` 只作为兼容投影和旧调用入口。
 - 前端搜索、节点选择、祖先展开、面包屑和顶层模块列表优先从 Graph IR 稳定路径读取，新增 graph selector 单测。

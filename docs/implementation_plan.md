@@ -42,16 +42,23 @@ framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
    [`details/parallel_protocol.md`](details/parallel_protocol.md)。
 2. ~~**结构正确性收口**：未知架构统一 `unsupported`，删除
    `generic-decoder` 的未知架构兜底。~~ ✅ 已完成（2026-09-10）。
-3. **权重协议收口**：补齐所有带权重叶的 `weightMatrices`，明确
+3. ~~**权重协议收口**：补齐所有带权重叶的 `weightMatrices`，明确
    `tp`、`ep`、`vocab`、`replicated` 和 shared expert 语义，删除
-   分片、量化和容量计算 fallback。
-4. **并行计划实现**：按成熟框架证据统一 attention/MoE 的逻辑轴和物理
-   rank 约束，完善 `moe_tp`、`moe_ep`、`moe_dp`、DP/EP/ETP 校验。
+   分片、量化和容量计算 fallback。~~ ✅ 已完成（2026-09-10，P2-P5：
+   18399/18399 带权叶全声明，WEIGHT_PROJECTION_RULES 与 QUANTIZABLE_OPS
+   回退删除，无声明带权叶 = unknown）。
+4. ~~**并行计划实现**：按成熟框架证据统一 attention/MoE 的逻辑轴和物理
+   rank 约束，完善 `moe_tp`、`moe_ep`、`moe_dp`、DP/EP/ETP 校验。~~
+   ✅ 已完成（2026-09-10，P6：parallelPlan.js 单源 + 协议 Q2/Q4 校验执法 +
+   UI 第四消费者；moe_dp 按 Q3 登记不做）。
 5. **fused shared expert 闭合**：贯通 recipe、builder、operator、
    `weightMatrices`、sharding、derived weights、communication 和测试。
-6. **后端对账**：后端输出带路径、class 和参数信息的 Transformers
+6. ~~**后端对账**：后端输出带路径、class 和参数信息的 Transformers
    evidence，返回 `only_transformers`、`only_msv`、class/path/shape
-   mismatch；区分构造通过和结构一致。
+   mismatch；区分构造通过和结构一致。~~ ✅ 已完成（2026-09-10，P7）。
+9. ~~**通信成本扩展**：在上述协议稳定后，再实现 AllToAll `dp > 1`、
+   inter-node/PD 时间、KV keep-ratio、overlap 和 per-stage roofline。~~
+   ✅ 已完成（2026-09-10，P10；overlap 为静态上限口径 Q7③）。
 7. **Graph/root 收口**：迁移所有 root 消费者，删除 `root`、
    graph-to-tree projection 及仅为兼容层保留的代码。
 8. **版本和文档治理**：统一版本字段，从 registry 自动生成公式、

@@ -27,6 +27,11 @@ export function operatorSpec(id, name, operatorId, attributes = {}, numericShape
       inputs: formula?.inputs,
       outputs: formula?.outputs,
       ...attributes,
+      // P4：归一化族与线性族的权重声明由本工厂按形状自动产出（约 60 处调用点不
+      // 逐一手写，出处 = sharding_matrix.md「统一助手按现有形状自动产出」）。
+      // 显式传 weightMatrices 的调用点覆盖自动值。
+      ...normWeightMatrices(operatorId, numericShapes.input, attributes),
+      ...linearWeightMatrices(operatorId, id, numericShapes, attributes),
     }),
   };
 }
@@ -58,8 +63,51 @@ function dimWidth(d) {
 }
 
 /** 一组权重矩阵声明。count/matrices 缺省为 1（单矩阵组，attention/dense 的线性叶）。 */
-export function weightMatrixDecl(klass, { out, in: inDim, count = 1, matrices = 1 }) {
-  return { class: klass, out, in: inDim, count, matrices };
+export function weightMatrixDecl(klass, { out, in: inDim, count = 1, matrices = 1, quantizable = true }) {
+  return { class: klass, out, in: inDim, count, matrices, ...(quantizable ? {} : { quantizable: false }) };
+}
+
+// 归一化族：权重是**最后一维**那么长、跨其余维度共享（RMSNorm 沿最后一维归一）。
+// 逐头 norm（q_norm/k_norm = RMSNorm(head_dim)、GDN 输出门 = RMSNormGated(head_v_dim)）
+// 因此不能用正维乘积，否则放大 heads 倍 —— 与 formulas/extractor.js 的
+// normWeightWidth 同判据（该函数是 counts 侧的同一知识，此处不能各写一遍公式，
+// 但两侧都从同一个 input_shape 取最后一维，声明与 counts 逐位可对账，锚 1 执法）。
+const NORM_OPS = new Set(["rmsnorm", "gemma_rmsnorm", "gated_rmsnorm"]);
+
+/** 归一化族叶的自动声明（replicated：norm 权重每卡各持一份，不切）。 */
+function normWeightMatrices(operatorId, inputShape, attributes) {
+  if (!NORM_OPS.has(operatorId) || attributes?.weightMatrices) return null;
+  const width = Array.isArray(inputShape)
+    ? [...inputShape].reverse().find((value) => Number.isFinite(value) && value > 0)
+    : undefined;
+  if (!width) return null;
+  // LayerNorm（affine_bias）有 bias，权重 2×宽度 —— 与 rmsnormCounts 同口径。
+  const matrices = attributes?.affine_bias === true ? 2 : 1;
+  // norm 的 scale/bias 不是 Linear 权重，量化方案不作用于它（vLLM/SGLang 的
+  // quant config targets: ["Linear"]）。
+  return { weightMatrices: [weightMatrixDecl("replicated", { out: width, in: 1, matrices, quantizable: false })] };
+}
+
+// 线性族：ColumnParallel/RowParallel 都按 tp 切，唯一例外是 lm_head/embed（vocab
+// 轴，受 vocabParallel 开关支配）与 MoE router（每卡各算一份完整门控，vLLM/SGLang
+// 的 gate 不切 —— replicated）。判据用**结构化 id 末段**，不用 display name（§3.2）。
+const VOCAB_LINEAR = /(^|\.)(lm_head|output)(\.linear)?$/;
+const REPLICATED_LINEAR = /(^|\.)(router|hash_router)$/;
+
+/** 线性叶的自动声明：out/in 取正维乘积（与 extractor 的 derivedLinearShape 同口径）。 */
+function linearWeightMatrices(operatorId, id, numericShapes, attributes) {
+  if (operatorId !== "linear" || attributes?.weightMatrices) return null;
+  // 文本 token 嵌入走 embedding 类型节点，不经本工厂；此处只处理 linear 叶。
+  const out = dimWidth(numericShapes?.output);
+  const inDim = dimWidth(numericShapes?.input);
+  if (!(out > 0) || !(inDim > 0)) return null;
+  const path = String(id || "");
+  const klass = VOCAB_LINEAR.test(path) ? "vocab" : REPLICATED_LINEAR.test(path) ? "replicated" : "tp";
+  // bias 也是权重（out 个），与 linearCounts 同口径 —— 用第二组 [out, 1] 表达；
+  // bias 不参与量化（quant config targets: ["Linear"] 只覆盖权重矩阵）。
+  const groups = [weightMatrixDecl(klass, { out, in: inDim })];
+  if (attributes?.bias === true) groups.push(weightMatrixDecl(klass, { out, in: 1, quantizable: false }));
+  return { weightMatrices: groups };
 }
 
 /**

@@ -332,7 +332,7 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
 // 棘轮：MAINTENANCE.md「P2 声明覆盖」条目。**只许下降**，新增带权算子若不声明
 // 会顶破基线立即红。
 // ---------------------------------------------------------------------------
-const WEIGHT_DECLARATION_BASELINE = 13166;
+const WEIGHT_DECLARATION_BASELINE = 2338;
 
 test("P2 护栏：带权重叶的 weightMatrices 声明覆盖（棘轮，只许下降）", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));

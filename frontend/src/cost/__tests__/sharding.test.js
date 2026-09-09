@@ -125,27 +125,45 @@ function routedDeclaredBytes(normalized, plan) {
   return moeLayers * experts * 3 * eh * ei * 2;
 }
 
-test("锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 其余÷tp（聚合投影与闭式分解一致）", () => {
+/** MoE 门控（router）与归一化族的复制字节：从投影本身取 replicated 类总量。
+ *  P4：router 是 **replicated**（每卡各算一份完整门控，不切）——出处
+ *  vLLM `qwen3_moe.py:167` `self.gate = ReplicatedLinear(...)` 与
+ *  `fused_moe/router/gate_linear.py:18` `class GateLinear(ReplicatedLinear)`；
+ *  norm 的 scale 同为复制。声明覆盖前二者都落在规则表第 4 条（tp>1 即 ÷tp，
+ *  norm 靠路径正则第 2 条免除），router 属分片轴归属错误。
+ *  这里用 tp=1 与 tp=N 的差额反解复制量，避免把 norm 闭式公式在测试里抄一遍
+ *  （同义重复；norm 宽度知识已由锚 1 锁定）。 */
+function replicatedBytes(structure, config) {
+  const one = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 1, ep: 1 } }).stages[0].weightBytes;
+  const two = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 2, ep: 1 } }).stages[0].weightBytes;
+  // tp=2 时非复制类全部减半：two = replicated + (one − replicated)/2 ⇒ replicated = 2·two − one
+  return 2 * two - one;
+}
+
+test("锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其余÷tp（聚合投影与闭式分解一致）", () => {
   const { normalized, structure } = buildMiniMaxM27();
   const config = { ...normalized, layers: normalized.layers, experts: normalized.experts };
   const base = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 1, ep: 1 } });
   const natural = base.stages[0].weightBytes; // tp=1/ep=1 → 全复制，即树的声明驻留总量
   const routed = routedDeclaredBytes(normalized, deriveBuildPlan(normalized.raw ?? normalized));
+  const replicated = replicatedBytes(structure, config); // router + norm 族（P4 声明后不再 ÷tp）
+  const rest = natural - routed - replicated;
+  assert.ok(replicated > 0 && rest > 0, "复制类与其余类都应为正（分解口径检查）");
 
-  // {tp:4, ep:2}：专家块 ÷moe_ep=2、其余（attention/dense GEMM）÷tp=4
+  // {tp:4, ep:2}：专家块 ÷moe_ep=2、复制类不切、其余（attention/dense GEMM）÷tp=4
   const projected = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 4, ep: 2 } });
-  const expected = routed / 2 + (natural - routed) / 4;
+  const expected = routed / 2 + replicated + rest / 4;
   assert.ok(Math.abs(projected.stages[0].weightBytes - expected) < 1e-6 * natural,
-    `每卡权重 ${projected.stages[0].weightBytes} 与 专家块÷ep+其余÷tp ${expected} 不一致`);
+    `每卡权重 ${projected.stages[0].weightBytes} 与 专家块÷ep+复制类+其余÷tp ${expected} 不一致`);
 
   // 无 EP 的 DP：专家集合 ÷dp、矩阵 ÷tp（DP attention 复制其余）
   const dpPlan = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 2, dp: 2 } });
-  const expectedDp = routed / (2 * 2) + (natural - routed) / 2;
+  const expectedDp = routed / (2 * 2) + replicated + rest / 2;
   assert.ok(Math.abs(dpPlan.stages[0].weightBytes - expectedDp) < 1e-6 * natural);
 
   // EP + DP attention（vLLM 组合语义 ep_size = tp×dp）：专家 ÷4、attention 复制
   const epDpPlan = projectNodePlan({ root: structure.root, graph: structure.graph, config, plan: { tp: 2, dp: 2, ep: 4, attnMode: "dp" } });
-  const expectedEpDp = routed / 4 + (natural - routed) / 2;
+  const expectedEpDp = routed / 4 + replicated + rest / 2;
   assert.ok(Math.abs(epDpPlan.stages[0].weightBytes - expectedEpDp) < 1e-6 * natural);
 });
 

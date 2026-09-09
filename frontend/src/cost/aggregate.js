@@ -41,6 +41,12 @@ function quantizedMatrixBytes(root, graph, quant) {
       // linear 族同一判定（isQuantizedPath），分桶与枚举同源。
       if (!isQuantizedPath(path, quant)) return;
       for (const group of declaration) {
+        // 量化方案只作用于 **Linear 权重矩阵**（vLLM/SGLang 的 quant config
+        // targets: ["Linear"]，量化 norm scale 与 bias 都不在其中）。声明用显式
+        // quantizable=false 标记这类参数，不用维度大小猜——K3 的
+        // attn_residual res_proj 就是 out=1 的真 GEMM（[1, 7168] 打分投影），
+        // 按"维度>1"过滤会误伤它。
+        if (group.quantizable === false) continue;
         const matrixBytes = quantLinearWeightBytes({ out: group.out, inn: group.in, quant });
         // 无法计算的 quant 方案留在基桶（诚实缺项，不伪造 1B 标量宽）
         if (matrixBytes == null) continue;

@@ -169,23 +169,36 @@ total/experts × ceil(experts/ep)），声明体的 count 即 experts 语义。
 首跑：**带权叶 18399，已声明 5233（linear tp 组 4271 + fused_moe_mlp ep 组 962），
 缺声明 13166**。
 
-| operator_id / type | 缺声明叶 | 典型 path | 目标 class |
-|---|---|---|---|
-| linear | 5966 | `lm_head.linear`、`moe.router`、`self_attn.qkv_proj`、projector | vocab（lm_head）/ tp（其余） |
-| gemma_rmsnorm | 2402 | `norm.rmsnorm` | replicated |
-| rmsnorm | 2027 | `input_layernorm` | replicated |
-| mla_kv_compress | 475 | `self_attn.kv_a_proj` | tp |
-| gated_rmsnorm | 433 | `self_attn.output_gate_norm` | replicated（逐头宽度取最后一维） |
-| gated_delta_attention | 433 | `self_attn.state_update`（KDA 衰减/门参数） | tp |
-| causal_conv1d | 433 | `self_attn.short_conv`（卷积核） | tp |
-| mhc_fused_post_pre | 299 | `mhc_ffn_pre.fused_post_pre` | tp（fn 为 fp32，见 paramDtypes） |
-| mhc_pre | 299 | `mhc_attn_pre.pre` | tp |
-| mla_query_compress | 230 | `self_attn.q_a_proj` | tp |
-| hyper_connection | 110 | `hyper_connection_mixer.final`（down/up/inject） | tp |
-| embedding | 57 | `embed_tokens` | vocab |
-| ple | 2 | `decoder.1.ple.inject` | tp |
+P4 提交 1 后：**已声明 16061，缺声明 2338**（归一化族与线性族由 `operatorSpec`
+工厂按形状自动声明）。剩余缺口见下表标注。
 
-覆盖推进顺序（P4 两个提交）：先规则化族（norm 三类 + embed/lm_head + router +
-shared_expert_gate），再长尾族（MLA / KDA / conv1d / mhc / hyper_connection /
-ple / vision / hash_route）。**锚 1 判据需同步升级为「声明元素 ×
+| operator_id / type | 缺声明叶（首跑） | P4 提交 1 后 | 典型 path | 目标 class |
+|---|---|---|---|---|
+| linear | 5966 | **0** | `lm_head.linear`、`moe.router`、`self_attn.qkv_proj`、projector | vocab（lm_head/output）/ replicated（router）/ tp（其余） |
+| gemma_rmsnorm | 2402 | **0** | `norm.rmsnorm` | replicated |
+| rmsnorm | 2027 | **0** | `input_layernorm` | replicated |
+| gated_rmsnorm | 433 | **0** | `self_attn.output_gate_norm` | replicated（逐头宽度取最后一维） |
+| mla_kv_compress | 475 | 475 | `self_attn.kv_a_proj` | tp |
+| gated_delta_attention | 433 | 433 | `self_attn.state_update`（KDA 衰减/门参数） | tp |
+| causal_conv1d | 433 | 433 | `self_attn.short_conv`（卷积核） | tp |
+| mhc_fused_post_pre | 299 | 299 | `mhc_ffn_pre.fused_post_pre` | tp（fn 为 fp32，见 paramDtypes） |
+| mhc_pre | 299 | 299 | `mhc_attn_pre.pre` | tp |
+| mla_query_compress | 230 | 230 | `self_attn.q_a_proj` | tp |
+| hyper_connection | 110 | 110 | `hyper_connection_mixer.final`（down/up/inject） | tp |
+| embedding | 57 | 57 | `embed_tokens` | vocab |
+| ple | 2 | 2 | `decoder.1.ple.inject` | tp |
+
+P4 提交 1 的三处口径修正（都由锚 1/锚 2/golden 三条护栏抓出，非事后发现）：
+1. **router 是 replicated 而非 ÷tp**：vLLM `qwen3_moe.py:167`
+   `self.gate = ReplicatedLinear(...)`、`fused_moe/router/gate_linear.py:18`
+   `class GateLinear(ReplicatedLinear)`。声明前 router 落在规则表第 4 条
+   （tp>1 即 ÷tp），M2.7 每卡权重因此少算 7.3e7 B。
+2. **lm_head 是 vocab 类**：`ParallelLMHead`（vLLM `qwen3_moe.py:571`）——
+   受 `vocabParallel` 开关支配，与普通 tp 叶不同（关闭时复制而非切分）。
+3. **声明需要 `quantizable` 标记**：量化方案只作用于 Linear 权重矩阵
+   （vLLM/SGLang quant config `targets: ["Linear"]`），norm scale 与 bias 不在
+   其中。**不能用"维度>1"当判据** —— K3 的 `attn_residual.res_proj` 是
+   out=1 的真 GEMM（[1, 7168] 打分投影），会被误伤（实测 K3 容量差 1.97e6 B）。
+
+后续提交 2（长尾族）注意：**锚 1 判据需同步升级为「声明元素 ×
 paramDtypeBytes」**——mHC 的 base/scale 与 fn 为 fp32，恒 2B 对不上。

@@ -377,6 +377,41 @@ const MODULE_LIST = [
       "inject 在最终 mixer（use_combine=false）由运行时置零，模块层按有 combine 的常规形态声明",
     ],
   },
+  {
+    // Qwen4Exp 指定层的 PLE（Position Learning Enhancement）：ngram 查表
+    // （tid2eid 同类——ngram 嵌入表是 buffer，不进权重字节）→ KV 投影 →
+    // grouped norm → 短卷积（silu 融合）→ 注回多流状态。
+    id: "ple",
+    title: "Position Learning Enhancement",
+    source: { framework: "vLLM", symbol: "Qwen4Exp PLE", ref: "models/qwen4_exp/（Qwen modeling 未入库，离线取证）" },
+    fused: (p) => sumCounts(
+      hashRouteCounts({ tokens: p.tokens, topk: 1, bytesPerElement: p.b }),
+      linearCounts({ logicalShape: [2 * p.embedDim, p.hidden], tokens: p.tokens, bytesPerElement: p.b }),
+      rmsnormCounts({ tokens: p.tokens, hidden: p.embedDim, bytesPerElement: p.b }),
+      causalConvCounts({ tokens: p.tokens, channels: p.embedDim, kernel: p.ngram, bytesPerElement: p.b }),
+      addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+    ),
+    decompose: (p) => [
+      { atom: "gather", args: { rows: p.tokens, width: 1, bytesPerElement: p.b } },
+      ...linearDecompose({ tokens: p.tokens, inDim: p.hidden, out: 2 * p.embedDim, b: p.b }),
+      ...rmsnormDecompose({ tokens: p.tokens, hidden: p.embedDim, b: p.b }),
+      { atom: "conv1d", args: { tokens: p.tokens, channels: p.embedDim, kernel: p.ngram, bytesPerElement: p.b } },
+      { atom: "silu", args: { elements: p.tokens * p.embedDim, bytesPerElement: p.b } },
+      { atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
+    ],
+    residentIntermediates: (p) => [
+      { name: "卷积输出的 silu 中间量", elements: p.tokens * p.embedDim },
+    ],
+    compulsoryBytes: (p) => {
+      const convWeights = p.embedDim * p.ngram * p.b;
+      const kvWeights = 2 * p.embedDim * p.hidden * p.b;
+      return (p.tokens * p.hidden * 2 + p.tokens * p.embedDim * 2) * p.b + kvWeights + convWeights;
+    },
+    notes: [
+      "ngram 嵌入表是 buffer（与 tid2eid 同类），容量不在本模块（取证待 Qwen modeling 入库）",
+      "conv 的 silu 融合段 = conv1d + silu 两原子（bytes 落夹逼）",
+    ],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -654,6 +689,5 @@ export const DECOMPOSE_PENDING = {
   mhc_post: "同上",
   mhc_fused_post_pre: "同上",
   mhc_contract: "同上",
-  ple: "ngram 查表 + short conv 组合，W4",
 };
 

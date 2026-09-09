@@ -24,14 +24,34 @@ function positiveWidth(shape) {
  * 的按 quantLinearWeightBytes 精确计（权重 + scale + zeros），返回
  * 「被量化矩阵的元素数」与「它们的精确字节」。其余参数（norm/embed/mtp/vision
  * 与未命中量化的矩阵）仍按派生标量字节宽计。
+ *
+ * N2-4 W-B：带 weightMatrices 声明的叶子优先按声明组枚举（feature flag =
+ * 声明存在，无声明叶逐位走原路径）。这补上了此前最大的枚举缺口——MoE 专家
+ * 融合叶（fused_moe_mlp）的 gate/up/down 3×E 个矩阵不在 linear 族内，整块
+ * 留在 bf16 桶（25 个量化 MoE 模型实测容量 ≈2× 偏高）。
  */
 function quantizedMatrixBytes(root, graph, quant) {
   let elements = 0;
   let bytes = 0;
   walkStructure(root, ({ node, multiplier }) => {
+    const path = String(node?.canonical_id ?? node?.id ?? "");
+    const declaration = node?.attributes?.weightMatrices;
+    if (Array.isArray(declaration) && declaration.length > 0) {
+      // 排除矩阵（modules_to_not_convert / dynamic 命中）留 bf16 基桶，与
+      // linear 族同一判定（isQuantizedPath），分桶与枚举同源。
+      if (!isQuantizedPath(path, quant)) return;
+      for (const group of declaration) {
+        const matrixBytes = quantLinearWeightBytes({ out: group.out, inn: group.in, quant });
+        // 无法计算的 quant 方案留在基桶（诚实缺项，不伪造 1B 标量宽）
+        if (matrixBytes == null) continue;
+        const instances = (group.count ?? 1) * (group.matrices ?? 1) * multiplier;
+        elements += group.out * group.in * instances;
+        bytes += matrixBytes * instances;
+      }
+      return;
+    }
     const op = String(node?.attributes?.operator_id || "").toLowerCase();
     if (!QUANTIZABLE_OPS.has(op)) return;
-    const path = String(node?.canonical_id ?? node?.id ?? "");
     if (!isQuantizedPath(path, quant)) return;
     const out = positiveWidth(node?.output_shape);
     const inn = positiveWidth(node?.input_shape);

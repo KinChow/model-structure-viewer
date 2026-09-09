@@ -5,6 +5,7 @@ import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeight
 import { childRepeatMultiplier, graphNodeToNode, walkStructure } from "./traverse.js";
 import { deriveBuildPlan } from "../structure/config/plan.js";
 import { LAYER_INDEX_RE } from "../structure/formulas/extractor.js";
+import { declaredWeightBytesPerCard, declaredWeightElements, expertShardDivisor } from "./sharding.js";
 const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 function positiveInteger(value) {
@@ -22,18 +23,34 @@ export function validatePlan(plan = {}, config = {}) {
     pp: plan.pp ?? plan.PP ?? 1,
     ep: plan.ep ?? plan.EP ?? 1,
     dp: plan.dp ?? plan.DP ?? 1,
+    // N2-4 W-B：混合 ETP 轴（TRT-LLM 语义）。缺省 undefined——组合语义由
+    // sharding.js expertShardDivisor 按 EP 状态取缺省（EP 启用 moe_tp=1 完整
+    // 专家、未启用 moe_tp=tp 矩阵切分），不在此处伪造数值。
+    moeTp: plan.moeTp ?? plan.moe_tp,
+    moeEp: plan.moeEp ?? plan.moe_ep,
     worldSize: plan.worldSize ?? plan.world_size,
     attnMode: plan.attnMode ?? plan.attn_mode ?? "tp",
     vocabParallel: plan.vocabParallel ?? plan.vocab_parallel ?? true,
   };
   const errors = [];
   for (const key of ["tp", "pp", "ep", "dp"]) if (!positiveInteger(normalized[key])) errors.push(`${key} 必须是正整数`);
+  for (const key of ["moeTp", "moeEp"]) {
+    if (normalized[key] != null && !positiveInteger(normalized[key])) errors.push(`${key} 必须是正整数`);
+  }
   const expectedWorld = normalized.tp * normalized.pp * normalized.dp;
   if (normalized.worldSize != null && normalized.worldSize !== expectedWorld) {
     errors.push(`world_size 应为 TP×PP×DP=${expectedWorld}`);
   }
   if (!["tp", "dp"].includes(normalized.attnMode)) errors.push("attn_mode 只能是 tp 或 dp");
   if (config?.experts && normalized.ep > config.experts) errors.push("EP 不能大于专家总数");
+  if (config?.experts && normalized.moeEp > config.experts) errors.push("moe_ep 不能大于专家总数");
+  // vLLM 组合语义（AMD playbook / DP 文档核实）：EP 启用时 ep_size = tp × dp
+  // （DP attention + EP 是 DeepSeek 系标准部署）。仅在依赖 ep 缺省（未显式声明
+  // moe_ep 的混合 ETP 不受此约束）且 DP attention 时硬校验。
+  if (normalized.ep > 1 && normalized.attnMode === "dp" && normalized.moeEp == null
+    && normalized.ep !== normalized.tp * normalized.dp) {
+    errors.push(`EP 启用时 ep 应为 TP×DP=${normalized.tp * normalized.dp}（vLLM：EP_SIZE = TP_SIZE × DP_SIZE）`);
+  }
   return { ok: errors.length === 0, errors, plan: { ...normalized, worldSize: normalized.worldSize ?? expectedWorld } };
 }
 
@@ -81,10 +98,17 @@ function isRoutedExpertPath(path) {
 
 /** 按模块类别计算权重在单卡上的 TP/EP 投影；PP 只负责 stage 归属。 */
 // 单卡投影规则表（顺序敏感，首条命中生效）。来源：llm-analysis TP/EP 投影
-// 语义——① 路由专家 EP>1 按 EP 切；② norm 复制；③ 词表并行关闭时
-// embed/lm_head 复制；④ 其余 TP>1 按 TP 切；⑤ 默认复制。新增规则加表项。
+// 语义——① 路由专家按 sharding.js 的组合语义切（EP 启用 ÷moe_ep、未启用
+// ÷moe_tp×dp——vLLM DP-shards-experts，N2-4 W-B）；② norm 复制；③ 词表并行
+// 关闭时 embed/lm_head 复制；④ 其余 TP>1 按 TP 切；⑤ 默认复制。新增规则加表项。
+// 有 weightMatrices 声明的叶子不走本表（weightBytesPerCard 声明优先，sharding.js
+// declaredClassDivisor 与本表逐条同义——锚 3）。
 const WEIGHT_PROJECTION_RULES = [
-  { axis: "ep", when: (path, ctx) => isRoutedExpertPath(path) && ctx.ep > 1, divisor: (ctx) => ctx.ep },
+  {
+    axis: "ep",
+    when: (path, ctx) => isRoutedExpertPath(path) && (ctx.ep > 1 || ctx.dp > 1 || (ctx.moeEp ?? 1) > 1 || (ctx.moeTp ?? 1) > 1),
+    divisor: (ctx) => expertShardDivisor(ctx).divisor,
+  },
   { axis: "replicated", when: (path) => /(^|\.)[^.]*norm[^.]*($|\.)/.test(path), divisor: () => 1 },
   { axis: "replicated", when: (path, ctx) => /(embed|lm_head|output)/.test(path) && !ctx.vocabParallel, divisor: () => 1 },
   { axis: "tp", when: (path, ctx) => ctx.tp > 1, divisor: (ctx) => ctx.tp },
@@ -92,10 +116,20 @@ const WEIGHT_PROJECTION_RULES = [
 ];
 
 export function weightBytesPerCard(totalBytes, node, plan = {}) {
+  // N2-4 W-B：声明优先（feature flag = weightMatrices 存在，无声明叶逐位走
+  // 规则表回退）。组级 class 投影见 sharding.js；axis/divisor 取主导组，
+  // 供 nodeCostPerCard 分摊 compute。
+  const declaration = node?.attributes?.weightMatrices;
+  if (Array.isArray(declaration) && declaration.length > 0) {
+    return declaredWeightBytesPerCard(totalBytes, declaration, plan);
+  }
   const path = modulePath(node);
   const ctx = {
     tp: plan.tp ?? plan.TP ?? 1,
     ep: plan.ep ?? plan.EP ?? 1,
+    dp: plan.dp ?? plan.DP ?? 1,
+    moeTp: plan.moeTp ?? plan.moe_tp,
+    moeEp: plan.moeEp ?? plan.moe_ep,
     vocabParallel: plan.vocabParallel ?? plan.vocab_parallel ?? true,
   };
   const rule = WEIGHT_PROJECTION_RULES.find((candidate) => candidate.when(path, ctx));
@@ -206,11 +240,18 @@ export function projectPlan({ root, graph, weightBytes = 0, kvBytes = 0, stateBy
 /**
  * 根据 IR 节点路径把权重归属到 PP stage，避免 embedding/lm_head 被平均摊薄。
  * 来源：llm-analysis 的 get_memory_weight_per_stage；具体模块切分复用本文件的 TP/EP 规则。
+ * N2-4 W-B：无 weight_shapes 的声明叶（内置模型默认路径）按 weightMatrices
+ * 声明计驻留字节（bf16）——此前派生路径全零，专家/非专家的 EP/TP 切分塌缩，
+ * 树投影整体死路（stages 恒 0 → 退平摊）。
  */
+function nodeResidentWeightBytes(node) {
+  return nodeWeightBytes(node) || declaredWeightElements(node?.attributes?.weightMatrices) * 2;
+}
+
 function treeWeightBytes(root, graph) {
   let total = 0;
   walkStructure(root, ({ node, multiplier }) => {
-    total += nodeWeightBytes(node) * multiplier;
+    total += nodeResidentWeightBytes(node) * multiplier;
   }, graph);
   return total;
 }
@@ -221,22 +262,30 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
   const { pp, dp } = checked.plan;
   const naturalWeightBytes = treeWeightBytes(root, graph);
   const weightScale = positiveNumber(targetWeightBytes) && naturalWeightBytes > 0 ? targetWeightBytes / naturalWeightBytes : 1;
-  const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, stateBytes: 0, dpRanks: dp, expertWeightBytes: 0 }));
+  const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, stateBytes: 0, dpRanks: dp, expertWeightBytes: 0, expertCount: null }));
   function accountNode(node, inheritedRepeat, inheritedLayerSpan, children, visitChild) {
     const nodeForScope = children.length ? { ...node, children } : node;
     const path = String(node?.id || "").toLowerCase();
     const ownLayerSpan = layerSpanForNode(nodeForScope);
     const layerSpan = ownLayerSpan || inheritedLayerSpan;
-    const rawWeight = nodeWeightBytes(node) * inheritedRepeat * weightScale;
+    const rawWeight = nodeResidentWeightBytes(node) * inheritedRepeat * weightScale;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
     const isExpert = isRoutedExpertPath(path);
+    // N2-4 W-B：expertWeightRange 的专家数接声明的 count（声明即语义——不再
+    // 从 config 反推）；无声明的专家叶保持 config.experts。
+    const declaredCount = Array.isArray(node?.attributes?.weightMatrices)
+      ? node.attributes.weightMatrices.filter((group) => group.class === "ep").reduce((sum, group) => sum + (group.count ?? 1), 0)
+      : null;
     if (layerSpan && config.layers) {
       for (const stage of stages) {
         const bounds = stageLayerBounds(stage.stage, config.layers, pp);
         const overlap = Math.max(0, Math.min(layerSpan.end, bounds.end) - Math.max(layerSpan.start, bounds.start) + 1);
         if (overlap > 0) {
           stage.weightBytes += projected * overlap;
-          if (isExpert) stage.expertWeightBytes += rawWeight * overlap;
+          if (isExpert) {
+            stage.expertWeightBytes += rawWeight * overlap;
+            if (declaredCount) stage.expertCount = declaredCount;
+          }
         }
       }
     } else {
@@ -244,7 +293,10 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
       if (/(lm_head|output_head|language_model_head)/.test(path)) stage = pp - 1;
       else if (/(final_norm|norm$)/.test(path) && pp > 1) stage = pp - 1;
       stages[stage].weightBytes += projected;
-      if (isExpert) stages[stage].expertWeightBytes += rawWeight;
+      if (isExpert) {
+        stages[stage].expertWeightBytes += rawWeight;
+        if (declaredCount) stages[stage].expertCount = declaredCount;
+      }
     }
     const layerRepeatHandled = Boolean(ownLayerSpan);
     const childMultiplier = childRepeatMultiplier(nodeForScope, inheritedRepeat, { repeatHandled: layerRepeatHandled });
@@ -286,7 +338,10 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
     stage.stateBytes = config.layers
       ? state.bytes == null ? null : state.bytes * (stateBytesForLayerRange(stateBytes, config, bounds.start, bounds.end) / Math.max(stateBytes, 1))
       : (state.bytes || 0) / pp;
-    const expertRange = expertWeightRange(stage.expertWeightBytes, config.experts, checked.plan.ep);
+    // N2-4 W-B：不均衡区间的集合切分度来自组合语义（EP 启用 = epSize，未启用 =
+    // dp——DP 也切专家集合）；专家数优先用声明的 count，缺省回 config.experts。
+    const sharding = expertShardDivisor(checked.plan);
+    const expertRange = expertWeightRange(stage.expertWeightBytes, stage.expertCount ?? config.experts, sharding.setDegree);
     stage.expertWeightAverageBytes = expertRange.averageBytes;
     stage.expertWeightWorstBytes = expertRange.worstBytes;
     stage.weightAverageBytes = stage.weightBytes;
@@ -294,6 +349,7 @@ export function projectNodePlan({ root, graph, targetWeightBytes, kvBytes = 0, s
       ? stage.weightBytes - expertRange.averageBytes + expertRange.worstBytes
       : stage.weightBytes;
     delete stage.expertWeightBytes;
+    delete stage.expertCount;
   }
   return { ok: true, errors: [], plan: checked.plan, stages, kvShardFactor: kv.shardFactor };
 }

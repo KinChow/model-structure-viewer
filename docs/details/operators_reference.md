@@ -1609,7 +1609,12 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
       weightMatrixDecl）；锚 1（声明元素数 ×2B == 叶 counts.bytes.weights）
       全目录 5233 个声明叶容差 0 全绿；golden 经 HEAD worktree 对审，
       diff 仅 weightMatrices / operator_id / formula / source_fields 四类。
-      W-B（消费者接线）/ W-C（覆盖推进 + 销案）待做。
+      **W-B 已落地（同日）**：计划轴 moe_tp/moe_ep（validatePlan 校验，
+      EP=TP×DP 组合硬校验）+ sharding.js 组合语义纯函数（EP 启用完整专家、
+      无 EP 时 DP 切专家、混合 ETP）+ 三消费者接线（量化枚举/逐卡投影/
+      容量分桶，声明优先、规则表回退）；锚 2 M2.7 三方一致绿，量化 MoE
+      容量回落（M2.7 4.77e11→2.52e11 等 21 模型，基线重生成审阅）。
+      W-C（覆盖推进 + 销案）待做。
       机制：MoE 模板的专家 GEMM（gate/up/down 三矩阵 [moeI, EH]）融合在
       swiglu 叶的 counts 里（3·E·EH·EI），`QUANTIZABLE_OPS` 枚举只认 linear
       族叶 → 该块留在 bf16 桶。

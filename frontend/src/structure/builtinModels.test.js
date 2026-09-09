@@ -12,7 +12,7 @@ import { formulaForOperator } from "./formulas/index.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";
 import { aggregateCost } from "../cost/aggregate.js";
-import { deriveBuildPlan } from "./model_executor/plan.js";
+import { deriveBuildPlan } from "./config/plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 

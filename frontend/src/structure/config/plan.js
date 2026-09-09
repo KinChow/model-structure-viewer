@@ -9,7 +9,7 @@
 import {
   LAYER_KEYS,
   firstNumber,
-} from "../config/normalize.js";
+} from "./normalize.js";
 import { archRecipe } from "../archs/index.js";
 
 const PLAN_CACHE = new WeakMap();

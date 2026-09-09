@@ -8,7 +8,7 @@ import { resolveArchitecture } from "../../structure/registry/resolveArchitectur
 import { buildNetwork } from "../../structure/model_executor/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/toStructureNode.js";
-import { deriveBuildPlan } from "../../structure/model_executor/plan.js";
+import { deriveBuildPlan } from "../../structure/config/plan.js";
 import { aggregateCost } from "../aggregate.js";
 import { planCommunicationBytes } from "../comm.js";
 import { classifyRoofline } from "../roofline.js";

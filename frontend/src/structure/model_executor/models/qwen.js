@@ -8,7 +8,7 @@ import { networkSpec } from "./common.js";
 import { outputAttentionResidualModule } from "../layers/residual.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { hyperConnectionModule } from "../layers/hybrid.js";
-import { deriveBuildPlan } from "../plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 
 export function buildGqaDecoderNetwork(resolved, normalized) {
   return textDecoderNetwork(resolved, normalized, {

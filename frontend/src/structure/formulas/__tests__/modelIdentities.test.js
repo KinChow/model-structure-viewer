@@ -21,7 +21,7 @@ import { childRepeatMultiplier } from "../../../cost/traverse.js";
 import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters, derivedDecoderLayerBreakdown } from "../../../cost/derivedWeights.js";
 import { kvBytesPerToken, kvBytesPerTokenBreakdown } from "../../../cost/memory.js";
 import { classifyRoofline } from "../../../cost/roofline.js";
-import { deriveBuildPlan } from "../../model_executor/plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const B = 2;

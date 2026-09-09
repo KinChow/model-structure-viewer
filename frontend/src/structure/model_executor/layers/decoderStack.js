@@ -3,7 +3,7 @@ import { decoderLayerModule } from "./decoderLayer.js";
 import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
-import { deriveBuildPlan } from "../plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 
 export function decoderStackNetwork(id, normalized, options = {}) {
   const shapes = tensorShapes(normalized);

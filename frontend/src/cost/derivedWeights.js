@@ -1,7 +1,7 @@
 // 离线或无 checkpoint 时的模型级权重参数量 fallback；结果必须标记为 derived。
 // 来源：llm-analysis 的 get_num_params_* 公式形态；不包含架构特有 bias/额外 head。
 
-import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+import { deriveBuildPlan } from "../structure/config/plan.js";
 import { paramBytes } from "../structure/formulas/paramDtypes.js";
 
 export function derivedWeightParameters(config = {}) {

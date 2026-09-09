@@ -3,7 +3,7 @@
 
 import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeightBytes } from "./memory.js";
 import { childRepeatMultiplier, graphNodeToNode, walkStructure } from "./traverse.js";
-import { deriveBuildPlan } from "../structure/model_executor/plan.js";
+import { deriveBuildPlan } from "../structure/config/plan.js";
 import { LAYER_INDEX_RE } from "../structure/formulas/extractor.js";
 const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 

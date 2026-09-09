@@ -8,7 +8,7 @@
 // 参数含义：给定 (normalized config, phase) 返回该模块在这个结构类下的代表参数；
 // 返回 null 表示该结构类不含此模块（调用方跳过，不算不闭合）。
 
-import { deriveBuildPlan } from "../model_executor/plan.js";
+import { deriveBuildPlan } from "../config/plan.js";
 
 /** 操作符 id -> 模块 id。只登记「算子就是模块」的那些；一对多/多对一的不登记。 */
 export const OPERATOR_TO_MODULE = Object.freeze({

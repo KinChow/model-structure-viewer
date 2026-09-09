@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { buildNormalizeMap, buildPlanFromDerive, hashJson, PLAN_FIELDS } from "./normalizeGoldenLib.js";
-import { deriveBuildPlan } from "../../model_executor/plan.js";
+import { deriveBuildPlan } from "../plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const goldenPath = path.join(repoRoot, "frontend/src/structure/config/__tests__/normalize.golden.json");

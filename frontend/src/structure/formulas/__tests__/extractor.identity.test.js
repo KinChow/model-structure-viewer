@@ -13,7 +13,7 @@ import { normalizeConfig } from "../../../structure/config/normalize.js";
 import { countsForNode } from "../../../structure/formulas/extractor.js";
 import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters } from "../../../cost/derivedWeights.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";
-import { deriveBuildPlan } from "../../model_executor/plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 import { scoredPairs } from "../counts.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");

@@ -6,11 +6,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeConfig } from "../../config/normalize.js";
-import { deriveBuildPlan } from "../../model_executor/plan.js";
+import { deriveBuildPlan } from "../plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
-// W3-C 迁移的方案类字段（决策逻辑 → model_executor/plan.js）
+// W3-C 迁移的方案类字段（决策逻辑 → config/plan.js）
 export const PLAN_FIELDS = [
   "attentionSchedule",
   "layerSchedule",

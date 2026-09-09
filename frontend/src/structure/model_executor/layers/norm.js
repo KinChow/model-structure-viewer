@@ -2,7 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../dims.js";
-import { deriveBuildPlan } from "../plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 
 export function rmsNormModule(id, name = "RMSNorm", normalized = null, role = undefined) {
   const shapes = normalized ? tensorShapes(normalized) : null;

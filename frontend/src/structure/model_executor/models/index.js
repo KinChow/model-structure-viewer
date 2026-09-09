@@ -4,7 +4,7 @@ import { buildMiniMaxM3Network } from "./minimax.js";
 import { buildGqaDecoderNetwork, buildGqaMoeDecoderNetwork, buildHybridMultimodalNetwork, buildMlaMultimodalNetwork, buildQwenMultimodalNetwork } from "./qwen.js";
 import { networkSpec } from "./common.js";
 import { mtpModule, mtpModuleCount } from "../layers/mtp.js";
-import { deriveBuildPlan } from "../plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 
 const MODEL_BUILDERS = {
   "gqa-decoder": buildGqaDecoderNetwork,

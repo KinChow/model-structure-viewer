@@ -2,7 +2,7 @@ import { formulaForOperator } from "../../formulas/index.js";
 import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../dims.js";
 import { resolveOperatorRole } from "../roles.js";
-import { deriveBuildPlan } from "../plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 
 function cleanAttributes(attributes) {
   return Object.fromEntries(

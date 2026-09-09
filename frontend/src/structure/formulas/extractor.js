@@ -32,7 +32,7 @@ import { paramBytes } from "./paramDtypes.js";
 import { formulaForOperator } from "./index.js";
 import { tensorDims } from "../model_executor/dims.js";
 import { visionDimensions } from "../model_executor/layers/vision.js";
-import { deriveBuildPlan } from "../model_executor/plan.js";
+import { deriveBuildPlan } from "../config/plan.js";
 const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 // 路径正则全仓统一处（旧 compute.js/parallel.js 三种变体收敛于此）

@@ -1,4 +1,4 @@
-import { deriveBuildPlan } from "../plan.js";
+import { deriveBuildPlan } from "../../config/plan.js";
 export function compactRanges(kinds) {
   if (!Array.isArray(kinds) || kinds.length === 0) return [];
   const ranges = [];

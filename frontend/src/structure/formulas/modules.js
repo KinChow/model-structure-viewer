@@ -45,6 +45,7 @@ import {
   linearAttentionStateCounts,
   rmsnormCounts,
   ropeCounts,
+  sinkhornCounts,
   softmaxCounts,
   swigluCounts,
   topkCounts,
@@ -81,10 +82,10 @@ export function scoreDensity(phase, queryTokens, keyTokens) {
 // 而不是把 linear/rmsnorm 的分解体抄第二遍 —— 抄一遍就会漂移一次。
 // ===========================================================================
 
-/** linear 的原子分解（p: {tokens, inDim, out, b, bias, expertFraction}）。 */
+/** linear 的原子分解（p: {tokens, inDim, out, b, bias, expertFraction, weightBytesPerElement}）。 */
 function linearDecompose(p) {
   return [
-    { atom: "matmul", args: { batch: 1, m: p.tokens * (p.expertFraction ?? 1), k: p.inDim, n: p.out, bytesPerElement: p.b, rhs: "weight", outElements: p.tokens * p.out } },
+    { atom: "matmul", args: { batch: 1, m: p.tokens * (p.expertFraction ?? 1), k: p.inDim, n: p.out, bytesPerElement: p.b, weightBytesPerElement: p.weightBytesPerElement, rhs: "weight", outElements: p.tokens * p.out } },
     ...(p.bias ? [{ atom: "add", args: { elements: p.tokens * p.out, bytesPerElement: p.b, weightElements: p.out } }] : []),
   ];
 }
@@ -426,6 +427,58 @@ const MODULE_LIST = [
     compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
     notes: ["HCHeadOp 的 hc_head_fn/base/scale 是模型级参数，不在本模块"],
   },
+  {
+    // mHC 的 pre 段（DeepSeek V4）。2026-09-09 kernel 取证（vLLM
+    // deepseek_v4 tilelang/torch 实现）后落齐三块此前缺失/待定的词汇：
+    // ① hc_*_fn [mix_hc, hc_dim] 是**密读 fp32 GEMM 操作数**（fp32 参数 +
+    //    bf16 激活 upcast），matmul 原子以 weightBytesPerElement=4 表达；
+    // ② base[mix_hc] + scale[3] 逐 sublayer 全读（fp32 标量）；
+    // ③ comb/Sinkhorn 段（scale[2] 分支）：hc_mult×hc_mult tile 逐 token 的
+    //    softmax + sinkhorn_iters-1 轮行/列归一化 —— Sinkhorn 是**运行时**
+    //    逐 token 计算，不是离线预计算（推翻 W4 待办注释里的猜测），
+    //    由 sinkhornCounts（softmax/div/add 原子）承载。
+    id: "mhc_pre",
+    title: "mHC Pre",
+    source: { framework: "vLLM", symbol: "MHCPreOp", ref: "models/deepseek_v4/amd/model.py:754 + tilelang_kernels.py:92-142" },
+    fused: (p) => sumCounts(
+      gateCounts({ tokens: p.tokens, width: p.hidden, bytesPerElement: p.b }),
+      linearCounts({ logicalShape: [p.mixRows, p.hcDim], tokens: p.tokens, bytesPerElement: p.b, weightBytesPerElement: 4 }),
+      linearCounts({ logicalShape: [p.mixRows, 1], tokens: 0, bytesPerElement: 4 }),
+      linearCounts({ logicalShape: [3, 1], tokens: 0, bytesPerElement: 4 }),
+      rmsnormCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+      sinkhornCounts({ tokens: p.tokens, streams: p.streams, iterations: p.iterations, bytesPerElement: p.b }),
+      addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
+    ),
+    decompose: (p) => {
+      const mixElements = p.tokens * p.hidden;
+      return [
+        { atom: "sigmoid", args: { elements: mixElements, bytesPerElement: p.b } },
+        { atom: "mul", args: { elements: mixElements, bytesPerElement: p.b } },
+        ...linearDecompose({ tokens: p.tokens, inDim: p.hcDim, out: p.mixRows, b: p.b, weightBytesPerElement: 4 }),
+        ...linearDecompose({ tokens: 0, inDim: 1, out: p.mixRows, b: 4 }),
+        ...linearDecompose({ tokens: 0, inDim: 1, out: 3, b: 4 }),
+        ...rmsnormDecompose({ tokens: p.tokens, hidden: p.hidden, b: p.b }),
+        { atom: "softmax", args: { elements: p.tokens * p.streams * p.streams, bytesPerElement: p.b } },
+        ...Array.from({ length: Math.max(p.iterations - 1, 0) * 2 }, () => [
+          { atom: "div", args: { elements: p.tokens * p.streams * p.streams, bytesPerElement: p.b } },
+          { atom: "add", args: { elements: p.tokens * p.streams * p.streams, bytesPerElement: p.b } },
+        ]).flat(),
+        { atom: "add", args: { elements: mixElements, bytesPerElement: p.b } },
+      ];
+    },
+    residentIntermediates: (p) => [
+      { name: "hc_norm 中间量组", elements: p.tokens * p.hidden },
+      { name: "comb/Sinkhorn 的 fp32 tile 状态", elements: p.tokens * p.streams * p.streams },
+    ],
+    compulsoryBytes: (p) => {
+      const weights = (p.mixRows * p.hcDim + p.mixRows + 3) * 4;
+      return (4 * p.tokens * p.hidden) * p.b + weights;
+    },
+    notes: [
+      "fn/base/scale 是 requires_grad=False 的 fp32 buffer，但为密读 GEMM 操作数 → 走权重字节恒等式",
+      "pre 的逐 token mix 管线（rsqrt + ~48 FMA）未单列，量级 T×50，登记为已知近似",
+    ],
+  },
 ];
 
 // ---------------------- 注意力形态与稀疏选择分支 ----------------------
@@ -699,7 +752,6 @@ export const MODULES = Object.fromEntries([...MODULE_LIST, ...ATTENTION_MODULES]
 
 /** 已登记但尚未声明分解的模块（W1 清单；报表逐条打印，W2-W4 消化）。 */
 export const DECOMPOSE_PENDING = {
-  mhc_pre: "Sinkhorn 段的原子词汇待定（softmax-on-streams），W4",
   mhc_post: "同上",
   mhc_fused_post_pre: "同上",
 };

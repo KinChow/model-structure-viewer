@@ -49,15 +49,19 @@ export function sumActions(...list) {
 //   按稠密形状推导。rhs="weight" 时右操作数计入 bytes.weights。
 // ---------------------------------------------------------------------------
 export function matmul({
-  batch = 1, m, k, n, bytesPerElement, density = 1, rhs = "activation",
+  batch = 1, m, k, n, bytesPerElement, weightBytesPerElement, density = 1, rhs = "activation",
   lhsElements, rhsElements, outElements,
 }) {
+  // weightBytesPerElement：权重操作数的字节宽可以不同于激活（fp32 的 mHC
+  // 混合矩阵等，paramDtypes 登记）；置 0 表达「复用别处已计过的同一份权重」
+  //（weightsShared 语义的原子侧落点）。未传则跟随激活字节宽。
+  const wb = weightBytesPerElement ?? bytesPerElement;
   const lhs = lhsElements ?? batch * m * k;
   const right = rhsElements ?? (rhs === "weight" ? k * n : batch * k * n);
   const out = outElements ?? batch * m * n * density;
   return actions({
     matrix: batch * m * k * n * density,
-    weights: rhs === "weight" ? right * bytesPerElement : 0,
+    weights: rhs === "weight" ? right * wb : 0,
     actIn: (lhs + (rhs === "weight" ? 0 : right)) * bytesPerElement,
     actOut: out * bytesPerElement,
   });

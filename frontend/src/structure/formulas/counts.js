@@ -178,6 +178,29 @@ export function causalConvCounts({ tokens, channels, kernel, bytesPerElement }) 
 }
 
 /**
+ * mHC 的 comb/Sinkhorn 段（DeepSeek V4，2026-09-09 kernel 取证后落词汇）。
+ * hc_{attn,ffn}_scale[2] 分支在 pre kernel 内对 hc_mult×hc_mult 的 comb tile
+ * 逐 token 计算：logits-softmax + (iterations-1) 轮行/列归一化（每轮两方向
+ * 各一次除法遍 + 归一化求和）。出处：vLLM deepseek_v4 tilelang_kernels.py@92-142
+ * （scale 分支选择）与 torch.py@62-98（comb/softmax/Sinkhorn fp32 全程）；
+ * hc_sinkhorn_iters=20 时每 token ≈16 exp + 640 div + ~750 reduce/add，
+ * 全部发生在 4×4 寄存器驻留 tile 上，相对 24×hc_dim 的 GEMM 可忽略但非零。
+ * exp/div/reduce 分别由 softmax/div/add 原子承载。
+ */
+export function sinkhornCounts({ tokens, streams, iterations, bytesPerElement }) {
+  const comb = tokens * streams * streams;
+  const rounds = Math.max(iterations - 1, 0);
+  const soft = softmaxCounts({ elements: comb, bytesPerElement });
+  const divOnce = { matrix: 0, vector: 0, sfu: comb, bytes: { weights: 0, actIn: 2 * comb * bytesPerElement, actOut: comb * bytesPerElement } };
+  const addOnce = { matrix: 0, vector: comb, sfu: 0, bytes: { weights: 0, actIn: 2 * comb * bytesPerElement, actOut: comb * bytesPerElement } };
+  let vector = soft.vector + rounds * 2 * addOnce.vector;
+  let sfu = soft.sfu + rounds * 2 * divOnce.sfu;
+  let actIn = soft.bytes.actIn + rounds * 2 * (divOnce.bytes.actIn + addOnce.bytes.actIn);
+  let actOut = soft.bytes.actOut + rounds * 2 * (divOnce.bytes.actOut + addOnce.bytes.actOut);
+  return { matrix: 0, vector, sfu, bytes: { weights: 0, actIn, actOut } };
+}
+
+/**
  * F7b 线性注意力递推状态（覆盖全部 linearAttentionMode 变体：
  * generic=plain；qwen3_5/qwen4_exp/kimi/kimi_k3/glm5_next=delta）。
  * keyDim/valueDim 为**每头**维度；heads 显式给出（state = heads·dk·dv，

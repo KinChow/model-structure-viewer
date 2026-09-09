@@ -26,6 +26,7 @@ import {
   hashRouteCounts,
   rearrangeCounts,
   scoredPairs,
+  sinkhornCounts,
 } from "./counts.js";
 import { paramBytes } from "./paramDtypes.js";
 import { formulaForOperator } from "./index.js";
@@ -1007,6 +1008,9 @@ export function countsForNode(node, env = {}) {
           // deepseek_v4/amd/model.py:704、816-818 把 attn_norm.weight 传进去），
           // 结构树里没有独立的 input_layernorm 叶 —— 权重记在这里。
           norm: { tokens, hidden: H, bytesPerElement },
+          // comb/Sinkhorn 段（scale[2] 分支）：hc_mult×hc_mult tile 逐 token
+          // 的 softmax + hc_sinkhorn_iters-1 轮行/列归一化（kernel 取证 2026-09-09）。
+          sinkhorn: { tokens, streams: config?.mhcNumResidualStreams || 0, iterations: config?.mhcSinkhornIterations || 0, bytesPerElement },
           merge: { tokens, hidden: H, bytesPerElement },
         }),
         mhc_post: () => ({

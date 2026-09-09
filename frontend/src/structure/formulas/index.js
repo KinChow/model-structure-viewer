@@ -9,7 +9,7 @@
 import {
   linearCounts, attentionCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts,
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
-  moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts,
+  moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
 } from "./counts.js";
 import { sparseIndexerCounts } from "./modules.js";
 
@@ -245,7 +245,7 @@ export const FORMULAS = {
     explanation: "vLLM MHCPreOp：从多 residual streams 计算 post mix、comb mix，并合成为 attention 输入。",
     inputs: ["residual streams", "hc function", "hc scale", "hc base"],
     outputs: ["post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), addCounts(ctx.merge)),
+    counts: (ctx) => sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), sinkhornCounts(ctx.sinkhorn), addCounts(ctx.merge)),
   },
   mhc_fused_post_pre: {
     title: "mHC Fused Post + Pre",

@@ -7,6 +7,10 @@
 // 纯函数；入参只含结构化 shape 参数，禁止 node / 显示名（principles §3.2）。
 // 全局假设 A1-A4 见 cost_counts.md，逐条在注释里引用。
 
+// M11.5 子项 3：与原子逐位同构的 counts 直接委托 atoms.js 实现（单处化，
+// 防抄写漂移）。方向向下（counts → atoms），无反向依赖（layering.test.js 护栏）。
+import { add, softmax, gather } from "./atoms.js";
+
 const product = (values) => values.reduce((total, value) => total * value, 1);
 
 // ---------------------------------------------------------------------------
@@ -49,7 +53,7 @@ export function linearCounts({ logicalShape, tokens, bytesPerElement, weightByte
     sfu: 0,
     bytes: {
       // bias 也是要从 HBM 读的权重（out 个）。此前只记权重矩阵，与本模块自己的
-      // 原子分解（modules.js linearDecompose 的 add 原子带 weightElements: out）
+      // 原子分解（下方 linearAtomSteps().decompose 的 add 原子带 weightElements: out）
       // 及 compulsoryBytes 口径不一致。
       // weightsShared：这次 GEMM 复用**别处已计过**的同一份权重（如 mHC 的
       // 最终 hc_post 复用最后一层的 hc_ffn_fn），算力照计、权重字节不重复计
@@ -265,13 +269,13 @@ export function moeCombineCounts({ tokens, hidden, topk, bytesPerElement }) {
   };
 }
 
+/**
+ * 逐元素加。与 add 原子逐位同构（scratch 证明 120/120 组全字段 Object.is 相等；
+ * 护栏 __tests__/countsAtomsConsistency.test.js 固化为永久法则）→ 直接委托，
+ * 公式单处化，防抄写漂移（M11.5 子项 3）。
+ */
 export function addCounts({ tokens, hidden, bytesPerElement }) {
-  return {
-    matrix: 0,
-    vector: tokens * hidden,
-    sfu: 0,
-    bytes: { weights: 0, actIn: 2 * tokens * hidden * bytesPerElement, actOut: tokens * hidden * bytesPerElement },
-  };
+  return add({ elements: tokens * hidden, bytesPerElement });
 }
 
 /** dsv4 hash 路由：纯查表。tableRows = 哈希表条目数（按参数计 weights）。 */
@@ -281,21 +285,16 @@ export function addCounts({ tokens, hidden, bytesPerElement }) {
 // 所以 bytes.weights = 0（与 embedding 表同待遇：不进权重字节恒等式），
 // 流量按 gather 的真实拷贝计：每 token 读 topk 个专家 id、写 topk 个。
 // 表本身的常驻容量（vocab·k·4B int32）由 derivedBufferBytes 单独计入显存。
+// 流量与 gather 原子逐位同构（scratch 证明 100/100 组：读=写=tokens·topk）
+// → 直接委托（M11.5 子项 3）。
 export function hashRouteCounts({ tokens, topk, bytesPerElement }) {
-  return {
-    matrix: 0, vector: 0, sfu: 0,
-    bytes: { weights: 0, actIn: tokens * topk * bytesPerElement, actOut: tokens * topk * bytesPerElement },
-  };
+  return gather({ rows: tokens, width: topk, bytesPerElement });
 }
 
-/** 独立 softmax 算子（融合注意力条目用 F2 内含版，这个给独立节点）。A2：单遍。 */
+/** 独立 softmax 算子（融合注意力条目用 F2 内含版，这个给独立节点）。A2：单遍。
+ *  与 softmax 原子逐位同构（scratch 证明 28/28 组）→ 直接委托（M11.5 子项 3）。 */
 export function softmaxCounts({ elements, bytesPerElement }) {
-  return {
-    matrix: 0,
-    vector: 3 * elements,
-    sfu: 2 * elements,
-    bytes: { weights: 0, actIn: elements * bytesPerElement, actOut: elements * bytesPerElement },
-  };
+  return softmax({ elements, bytesPerElement });
 }
 
 /**
@@ -308,6 +307,79 @@ export function rearrangeCounts({ copy = false, inElements, outElements, bytesPe
     matrix: 0, vector: 0, sfu: 0,
     bytes: { weights: 0, actIn: inElements * bytesPerElement, actOut: outElements * bytesPerElement },
   };
+}
+
+// ---------------------------------------------------------------------------
+// 共享 bytes 助手（M11.5 子项 3）：linear / rmsnorm 的原子分解、驻留中间量与
+// compulsory 下界的**单处实现**。这六个片段原先住在 modules.js（linearDecompose
+// 等私有函数），与本文件的 F1/F3 闭式公式互为镜像 —— 改一边另一边就悄悄漂移。
+// 现在模块层（modules.js）统一消费下方导出；函数体为纯搬运，逐字节未改。
+// ---------------------------------------------------------------------------
+
+/** linear 的原子分解（p: {tokens, inDim, out, b, bias, expertFraction, weightBytesPerElement}）。 */
+function linearDecompose(p) {
+  return [
+    { atom: "matmul", args: { batch: 1, m: p.tokens * (p.expertFraction ?? 1), k: p.inDim, n: p.out, bytesPerElement: p.b, weightBytesPerElement: p.weightBytesPerElement, rhs: "weight", outElements: p.tokens * p.out } },
+    ...(p.bias ? [{ atom: "add", args: { elements: p.tokens * p.out, bytesPerElement: p.b, weightElements: p.out } }] : []),
+  ];
+}
+function linearResident(p) {
+  return p.bias ? [{ name: "GEMM 输出在 epilogue 内加 bias", elements: p.tokens * p.out }] : [];
+}
+function linearCompulsory(p) {
+  return (p.tokens * p.inDim + p.tokens * p.out) * p.b + (p.out * p.inDim + (p.bias ? p.out : 0)) * p.b;
+}
+
+/** rmsnorm 的原子分解（p: {tokens, hidden, b, weightOne, gated}）。 */
+function rmsnormDecompose(p) {
+  const e = p.tokens * p.hidden;
+  return [
+    { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
+    { atom: "reduce_sum", args: { elements: e, groups: p.tokens, bytesPerElement: p.b } },
+    { atom: "rsqrt", args: { elements: p.tokens, bytesPerElement: p.b } },
+    { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
+    { atom: "mul", args: { elements: e, bytesPerElement: p.b, weightElements: p.hidden } },
+    ...(p.weightOne ? [{ atom: "add", args: { elements: e, bytesPerElement: p.b } }] : []),
+    ...(p.gated ? [
+      { atom: "sigmoid", args: { elements: e, bytesPerElement: p.b } },
+      { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
+    ] : []),
+  ];
+}
+function rmsnormResident(p) {
+  const e = p.tokens * p.hidden;
+  return [
+    { name: "x 的平方", elements: e },
+    { name: "均方和", elements: p.tokens },
+    { name: "rstd", elements: p.tokens },
+    { name: "x·rstd", elements: e },
+    ...(p.weightOne ? [{ name: "(1+w) 缩放中间态", elements: e }] : []),
+    ...(p.gated ? [{ name: "sigmoid(gate)", elements: e }] : []),
+  ];
+}
+function rmsnormCompulsory(p) {
+  return (2 * p.tokens * p.hidden + (p.gated ? p.tokens * p.hidden : 0)) * p.b + p.hidden * p.b;
+}
+
+/**
+ * linear 三件套入口：{ decompose, resident, compulsory }。
+ * modules.js 的 linear 与复合模块（mla_query_compress / mla_kv_compress /
+ * hyper_connection / ple / mhc_pre / mhc_fused_post_pre）统一走这里，不再各自
+ * 持有片段拷贝。调用方形状注意：mhc 的 base/scale 投影传 tokens: 0、b: 4，
+ * mhc_fn 传 weightBytesPerElement: 4（分解据此把权重操作数按 fp32 计）。
+ */
+export function linearAtomSteps(p) {
+  return { decompose: linearDecompose(p), resident: linearResident(p), compulsory: linearCompulsory(p) };
+}
+
+/**
+ * rmsnorm 三件套入口：{ decompose, resident, compulsory }。
+ * p: {tokens, hidden, b, weightOne, gated, weightWidth, affineBias} —— 其中
+ * weightWidth / affineBias 是与 rmsnormCounts 对齐的签名占位：当前分解/驻留/
+ * 下界不消费（与搬运前的 modules.js 片段行为一致），现有调用方也未传。
+ */
+export function rmsnormAtomSteps(p) {
+  return { decompose: rmsnormDecompose(p), resident: rmsnormResident(p), compulsory: rmsnormCompulsory(p) };
 }
 
 export { product };

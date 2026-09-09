@@ -41,8 +41,10 @@ import {
   gateCounts,
   hashRouteCounts,
   rearrangeCounts,
+  linearAtomSteps,
   linearCounts,
   linearAttentionStateCounts,
+  rmsnormAtomSteps,
   rmsnormCounts,
   ropeCounts,
   sinkhornCounts,
@@ -76,56 +78,12 @@ export function scoreDensity(phase, queryTokens, keyTokens) {
 // ===========================================================================
 
 // ===========================================================================
-// 可复用的原子分解片段
-//
-// 复合模块（mla_query_compress = linear + rmsnorm 等）直接拼这些片段，
-// 而不是把 linear/rmsnorm 的分解体抄第二遍 —— 抄一遍就会漂移一次。
+// linear / rmsnorm 的原子分解片段已单处化到 counts.js（M11.5 子项 3）：
+// linearDecompose / linearResident / linearCompulsory / rmsnormDecompose /
+// rmsnormResident / rmsnormCompulsory 六个私有片段与其闭式公式（F1/F3）互为
+// 镜像，放两处必然漂移 —— 现统一经 linearAtomSteps / rmsnormAtomSteps 消费。
+// 复合模块仍直接拼片段返回的 decompose 序列，不抄第二遍。
 // ===========================================================================
-
-/** linear 的原子分解（p: {tokens, inDim, out, b, bias, expertFraction, weightBytesPerElement}）。 */
-function linearDecompose(p) {
-  return [
-    { atom: "matmul", args: { batch: 1, m: p.tokens * (p.expertFraction ?? 1), k: p.inDim, n: p.out, bytesPerElement: p.b, weightBytesPerElement: p.weightBytesPerElement, rhs: "weight", outElements: p.tokens * p.out } },
-    ...(p.bias ? [{ atom: "add", args: { elements: p.tokens * p.out, bytesPerElement: p.b, weightElements: p.out } }] : []),
-  ];
-}
-function linearResident(p) {
-  return p.bias ? [{ name: "GEMM 输出在 epilogue 内加 bias", elements: p.tokens * p.out }] : [];
-}
-function linearCompulsory(p) {
-  return (p.tokens * p.inDim + p.tokens * p.out) * p.b + (p.out * p.inDim + (p.bias ? p.out : 0)) * p.b;
-}
-
-/** rmsnorm 的原子分解（p: {tokens, hidden, b, weightOne, gated}）。 */
-function rmsnormDecompose(p) {
-  const e = p.tokens * p.hidden;
-  return [
-    { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
-    { atom: "reduce_sum", args: { elements: e, groups: p.tokens, bytesPerElement: p.b } },
-    { atom: "rsqrt", args: { elements: p.tokens, bytesPerElement: p.b } },
-    { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
-    { atom: "mul", args: { elements: e, bytesPerElement: p.b, weightElements: p.hidden } },
-    ...(p.weightOne ? [{ atom: "add", args: { elements: e, bytesPerElement: p.b } }] : []),
-    ...(p.gated ? [
-      { atom: "sigmoid", args: { elements: e, bytesPerElement: p.b } },
-      { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
-    ] : []),
-  ];
-}
-function rmsnormResident(p) {
-  const e = p.tokens * p.hidden;
-  return [
-    { name: "x 的平方", elements: e },
-    { name: "均方和", elements: p.tokens },
-    { name: "rstd", elements: p.tokens },
-    { name: "x·rstd", elements: e },
-    ...(p.weightOne ? [{ name: "(1+w) 缩放中间态", elements: e }] : []),
-    ...(p.gated ? [{ name: "sigmoid(gate)", elements: e }] : []),
-  ];
-}
-function rmsnormCompulsory(p) {
-  return (2 * p.tokens * p.hidden + (p.gated ? p.tokens * p.hidden : 0)) * p.b + p.hidden * p.b;
-}
 
 const MODULE_LIST = [
   {
@@ -133,19 +91,19 @@ const MODULE_LIST = [
     title: "Linear Projection",
     source: { framework: "vLLM", symbol: "ColumnParallelLinear / RowParallelLinear / QKVParallelLinear", ref: "model_executor/layers/linear.py" },
     fused: (p) => linearCounts({ logicalShape: [p.out, p.inDim], tokens: p.tokens, bytesPerElement: p.b, bias: p.bias, expertFraction: p.expertFraction ?? 1 }),
-    decompose: linearDecompose,
-    residentIntermediates: linearResident,
-    compulsoryBytes: linearCompulsory,
+    decompose: (p) => linearAtomSteps(p).decompose,
+    residentIntermediates: (p) => linearAtomSteps(p).resident,
+    compulsoryBytes: (p) => linearAtomSteps(p).compulsory,
   },
   {
     id: "rmsnorm",
     title: "RMSNorm",
     source: { framework: "vLLM", symbol: "RMSNorm / GemmaRMSNorm", ref: "model_executor/layers/layernorm.py" },
     fused: (p) => rmsnormCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b, weightOne: p.weightOne, gated: p.gated }),
-    decompose: rmsnormDecompose,
-    residentIntermediates: rmsnormResident,
+    decompose: (p) => rmsnormAtomSteps(p).decompose,
+    residentIntermediates: (p) => rmsnormAtomSteps(p).resident,
     notes: ["F3 的 vector = 4·T·H 是取整口径；逐原子分解为 4·T·H − T（reduce 每组少一次加法）"],
-    compulsoryBytes: rmsnormCompulsory,
+    compulsoryBytes: (p) => rmsnormAtomSteps(p).compulsory,
   },
   {
     id: "rope",
@@ -222,9 +180,9 @@ const MODULE_LIST = [
     title: "MLA Query Compression",
     source: { framework: "vLLM", symbol: "MLAModules.q_a_proj", ref: "model_executor/layers/mla.py" },
     fused: (p) => linearCounts({ logicalShape: [p.rank, p.hidden], tokens: p.tokens, bytesPerElement: p.b }),
-    decompose: (p) => linearDecompose({ tokens: p.tokens, inDim: p.hidden, out: p.rank, b: p.b }),
-    residentIntermediates: (p) => linearResident({ tokens: p.tokens, out: p.rank, b: p.b }),
-    compulsoryBytes: (p) => linearCompulsory({ tokens: p.tokens, inDim: p.hidden, out: p.rank, b: p.b }),
+    decompose: (p) => linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: p.rank, b: p.b }).decompose,
+    residentIntermediates: (p) => linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: p.rank, b: p.b }).resident,
+    compulsoryBytes: (p) => linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: p.rank, b: p.b }).compulsory,
     notes: ["q_a_layernorm 与 q_b_proj 都是独立叶，不在本模块内，否则双计"],
   },
   {
@@ -234,9 +192,9 @@ const MODULE_LIST = [
     title: "MLA KV Compression",
     source: { framework: "vLLM", symbol: "MLAModules.kv_a_proj_with_mqa", ref: "model_executor/layers/mla.py" },
     fused: (p) => linearCounts({ logicalShape: [p.out, p.hidden], tokens: p.tokens, bytesPerElement: p.b }),
-    decompose: (p) => linearDecompose({ tokens: p.tokens, inDim: p.hidden, out: p.out, b: p.b }),
-    residentIntermediates: (p) => linearResident({ tokens: p.tokens, out: p.out, b: p.b }),
-    compulsoryBytes: (p) => linearCompulsory({ tokens: p.tokens, inDim: p.hidden, out: p.out, b: p.b }),
+    decompose: (p) => linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: p.out, b: p.b }).decompose,
+    residentIntermediates: (p) => linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: p.out, b: p.b }).resident,
+    compulsoryBytes: (p) => linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: p.out, b: p.b }).compulsory,
     notes: ["latent/rope 的拆分是视图（mla_kv_split 零流量），不进分解"],
   },
   {
@@ -353,13 +311,13 @@ const MODULE_LIST = [
       const e = p.tokens * hyperHidden;
       const el = p.tokens * p.lowrank;
       return [
-        ...rmsnormDecompose({ tokens: p.tokens, hidden: hyperHidden, weightOne: true, b: p.b }),
-        ...linearDecompose({ tokens: p.tokens, inDim: hyperHidden, out: p.lowrank, b: p.b }),
+        ...rmsnormAtomSteps({ tokens: p.tokens, hidden: hyperHidden, weightOne: true, b: p.b }).decompose,
+        ...linearAtomSteps({ tokens: p.tokens, inDim: hyperHidden, out: p.lowrank, b: p.b }).decompose,
         { atom: "silu", args: { elements: el, bytesPerElement: p.b } },
-        ...linearDecompose({ tokens: p.tokens, inDim: p.lowrank, out: hyperHidden, b: p.b }),
+        ...linearAtomSteps({ tokens: p.tokens, inDim: p.lowrank, out: hyperHidden, b: p.b }).decompose,
         { atom: "sigmoid", args: { elements: e, bytesPerElement: p.b } },
         { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
-        ...linearDecompose({ tokens: p.tokens, inDim: hyperHidden, out: p.streams, b: p.b }),
+        ...linearAtomSteps({ tokens: p.tokens, inDim: hyperHidden, out: p.streams, b: p.b }).decompose,
         { atom: "add", args: { elements: e, bytesPerElement: p.b } },
       ];
     },
@@ -394,8 +352,8 @@ const MODULE_LIST = [
     ),
     decompose: (p) => [
       { atom: "gather", args: { rows: p.tokens, width: 1, bytesPerElement: p.b } },
-      ...linearDecompose({ tokens: p.tokens, inDim: p.hidden, out: 2 * p.embedDim, b: p.b }),
-      ...rmsnormDecompose({ tokens: p.tokens, hidden: p.embedDim, b: p.b }),
+      ...linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: 2 * p.embedDim, b: p.b }).decompose,
+      ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.embedDim, b: p.b }).decompose,
       { atom: "conv1d", args: { tokens: p.tokens, channels: p.embedDim, kernel: p.ngram, bytesPerElement: p.b } },
       { atom: "silu", args: { elements: p.tokens * p.embedDim, bytesPerElement: p.b } },
       { atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
@@ -454,10 +412,10 @@ const MODULE_LIST = [
       return [
         { atom: "sigmoid", args: { elements: mixElements, bytesPerElement: p.b } },
         { atom: "mul", args: { elements: mixElements, bytesPerElement: p.b } },
-        ...linearDecompose({ tokens: p.tokens, inDim: p.hcDim, out: p.mixRows, b: p.b, weightBytesPerElement: 4 }),
-        ...linearDecompose({ tokens: 0, inDim: 1, out: p.mixRows, b: 4 }),
-        ...linearDecompose({ tokens: 0, inDim: 1, out: 3, b: 4 }),
-        ...rmsnormDecompose({ tokens: p.tokens, hidden: p.hidden, b: p.b }),
+        ...linearAtomSteps({ tokens: p.tokens, inDim: p.hcDim, out: p.mixRows, b: p.b, weightBytesPerElement: 4 }).decompose,
+        ...linearAtomSteps({ tokens: 0, inDim: 1, out: p.mixRows, b: 4 }).decompose,
+        ...linearAtomSteps({ tokens: 0, inDim: 1, out: 3, b: 4 }).decompose,
+        ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.hidden, b: p.b }).decompose,
         { atom: "softmax", args: { elements: p.tokens * p.streams * p.streams, bytesPerElement: p.b } },
         ...Array.from({ length: Math.max(p.iterations - 1, 0) * 2 }, () => [
           { atom: "div", args: { elements: p.tokens * p.streams * p.streams, bytesPerElement: p.b } },
@@ -530,10 +488,10 @@ const MODULE_LIST = [
         { atom: "add", args: { elements: mixElements, bytesPerElement: p.b } },
         { atom: "sigmoid", args: { elements: mixElements, bytesPerElement: p.b } },
         { atom: "mul", args: { elements: mixElements, bytesPerElement: p.b } },
-        ...linearDecompose({ tokens: p.tokens, inDim: p.hcDim, out: p.mixRows, b: p.b, weightBytesPerElement: 4 }),
-        ...linearDecompose({ tokens: 0, inDim: 1, out: p.mixRows, b: 4 }),
-        ...linearDecompose({ tokens: 0, inDim: 1, out: 3, b: 4 }),
-        ...rmsnormDecompose({ tokens: p.tokens, hidden: p.hidden, b: p.b }),
+        ...linearAtomSteps({ tokens: p.tokens, inDim: p.hcDim, out: p.mixRows, b: p.b, weightBytesPerElement: 4 }).decompose,
+        ...linearAtomSteps({ tokens: 0, inDim: 1, out: p.mixRows, b: 4 }).decompose,
+        ...linearAtomSteps({ tokens: 0, inDim: 1, out: 3, b: 4 }).decompose,
+        ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.hidden, b: p.b }).decompose,
         { atom: "softmax", args: { elements: combElements, bytesPerElement: p.b } },
         ...Array.from({ length: Math.max(p.iterations - 1, 0) * 2 }, () => [
           { atom: "div", args: { elements: combElements, bytesPerElement: p.b } },

@@ -59,8 +59,22 @@ framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
 9. ~~**通信成本扩展**：在上述协议稳定后，再实现 AllToAll `dp > 1`、
    inter-node/PD 时间、KV keep-ratio、overlap 和 per-stage roofline。~~
    ✅ 已完成（2026-09-10，P10；overlap 为静态上限口径 Q7③）。
-7. **Graph/root 收口**：迁移所有 root 消费者，删除 `root`、
-   graph-to-tree projection 及仅为兼容层保留的代码。
+7. ~~**Graph/root 收口**：迁移所有 root 消费者，删除 `root`、
+   graph-to-tree projection 及仅为兼容层保留的代码。~~ ✅ 已完成
+   （2026-09-10，P8：grep 清零 + fold 312 case 差分勘验）。
+8. ~~**版本和文档治理**：统一版本字段，从 registry 自动生成公式、
+   architecture、operator 和模型台账，扩大 `docs:check`。~~ ✅ 已完成
+   （2026-09-10，P9：models/architectures 台账生成器并入 docs:check；
+   版本边界文档化为 IR version:3 / graph schema_version:2 两轨）。
+
+**收尾登记（下一步计划池）**：
+- `.root` 清零 grep 纳入 check_principles 棘轮（P8 建议，防"root 复活"）；
+- 折叠语义前后端双源（前端模板产 repeat vs 后端 fold.py）单源化；
+- details/models.md 的 Qwen3.5 分组漂移按 models_reference 机器段回改（P9 登记）；
+- verify 对账 diff 的 triage（linear_attn 命名/融合投影/类名后缀三类系统性
+  噪声），fixture 优先再谈规则（P7 登记）；
+- per-stage roofline 的计算路（stage 级 actions）与 evidence 的 I/O shape
+  （P10/P7 登记的诚实缺项）。
 8. **版本和文档治理**：统一版本字段，从 registry 自动生成公式、
    architecture、operator 和模型台账，扩大 `docs:check`。
 9. **通信成本扩展**：在上述协议稳定后，再实现 AllToAll `dp > 1`、

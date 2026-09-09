@@ -8,9 +8,9 @@
 | # | 命令（cwd） | 守护什么 | 基线 |
 |---|---|---|---|
 | 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b 运行时接线、§3.1d 来源标注、§3.5b /tmp 引用棘轮 | §8.1 ≤14/16 |
-| 2 | `cd frontend && npm test` | 335 例单测：四条恒等式**容差 0**（融合分解 382 组逐位+夹逼 / 权重字节逐字节 / KV 读分桶夹逼 / 激活流形状连续性）、N2-4 锚 1（weightMatrices 声明单源，全目录逐叶）+ 锚 2（EP 组合语义三方一致）、四种量化方案 per-matrix 手算（fp8/mxfp8/gptq/compressed-tensors）、19+ 原子手算 exact、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路、内存侧基线、TF32 费率行 | 全绿 |
+| 2 | `cd frontend && npm test` | 341 例单测：四条恒等式**容差 0**（融合分解 382 组逐位+夹逼 / 权重字节逐字节 / KV 读分桶夹逼 / 激活流形状连续性）、N2-4 锚 1（weightMatrices 声明单源，全目录逐叶）+ 锚 2（EP 组合语义三方一致）、四种量化方案 per-matrix 手算（fp8/mxfp8/gptq/compressed-tensors）、19+ 原子手算 exact、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路、内存侧基线、TF32 费率行 | 全绿 |
 | 3 | `cd frontend && npm run verify:models` | 59 内置模型结构可构建 | `"failed": 0` |
-| 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照 | 158 passed |
+| 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照与 evidence 对账 | 169 passed |
 | 5 | `cd frontend && npm run test:e2e` | 浏览器端：图渲染、边 evidence 契约、成本交互（全量内置模型回归仅桌面跑） | 9 passed + 1 skipped |
 
 e2e 注：59 模型重用例（"每个内置模型都能展开父节点"）在 desktop+mobile 双
@@ -33,7 +33,7 @@ project 并行时会资源竞争超时（2026-09-10 实测：并行 fail、单�
 | 语义边登记（形状连续性） | 只许缩短 | 未登记的不连续边即失败 |
 | `graph_ambiguous_truth_matches` | 0 | 任何模型非 0 即绑定回归 |
 | 未知算子（unknown 叶子） | 0 | 新模型接入时允许临时 >0，须登记 |
-| N2-4 声明单源（锚 1） | 18399 声明叶，违例 **0** | 声明元素 × (param_dtype ? paramDtypes 字节宽 : 2B) == 叶 counts.bytes.weights，全目录逐叶容差 0；embedding 走登记例外（声明=驻留，gather 流量按行计） |
+| N2-4 声明单源（锚 1） | 18399 声明叶（dtype-aware），违例 **0** | 声明元素 × (param_dtype ? paramDtypes 字节宽 : 2B) == 叶 counts.bytes.weights，全目录逐叶容差 0；embedding 走登记例外（声明=驻留，gather 流量按行计） |
 | N2-4 EP 组合自洽（锚 2） | M2.7 三方一致 | 专家块÷moe_ep + 其余÷tp 与聚合投影、expertWeightRange 闭式互证（DP 切专家 / EP+DP attention / 混合 ETP） |
 | P2 声明覆盖（缺声明带权叶） | **0** / 带权叶 18399 | 判据：counts.bytes.weights>0 或 weight_shapes 非空或 type=embedding ⇒ 必须有 weightMatrices。**只许下降**；新增带权算子不声明即顶破基线。缺口台账见 details/sharding_matrix.md 附录；归零后方可删 WEIGHT_PROJECTION_RULES |
 

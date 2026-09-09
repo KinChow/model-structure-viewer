@@ -16,6 +16,9 @@ function normalizeActions(cost = {}) {
     const a = cost.actions;
     return {
       matrix: a.matrix ?? null,
+      // computeDtype 桶（N2-1）：声明为其它精度的 matrix 子集（actions.matrix
+      // 是总量）。matrixTime 据此拆两段费率；未声明时为 0、行为不变。
+      matrixTf32: a.matrixTf32 ?? 0,
       vector: a.vector ?? null,
       sfu: a.sfu ?? null,
       bytes: {
@@ -74,7 +77,22 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
     return quantity / rate;
   };
 
-  const matrixTime = time(actions.matrix, rates.matrixPerSecond, { quantity: "matrix", rate: `peak_flops.${dtype}` });
+  // 矩阵时间 = 非 tf32 部分按全局 dtype 费率 + tf32 桶按 peak_flops.tf32
+  //（Hopper/Blackwell + DeepGEMM 的 mHC pre-GEMM 在 TF32 tensor core 运行，
+  // N2-1）。芯片无 tf32 行时**整段回退全局费率**——tf32 桶只是算力档位缺失，
+  // 不是数量未知，不得制造伪 missing 阻断 bound 分类。
+  let matrixTime;
+  if (actions.matrixTf32 > 0 && positive(chip?.peak_flops?.tf32)) {
+    const restTime = time(
+      (actions.matrix ?? 0) - actions.matrixTf32,
+      rates.matrixPerSecond,
+      { quantity: "matrix", rate: `peak_flops.${dtype}` },
+    );
+    const tf32Time = (actions.matrixTf32 * eta.flops) / (chip.peak_flops.tf32 / 2);
+    matrixTime = restTime == null ? null : restTime + tf32Time;
+  } else {
+    matrixTime = time(actions.matrix, rates.matrixPerSecond, { quantity: "matrix", rate: `peak_flops.${dtype}` });
+  }
   const vectorTime = time(actions.vector, rates.vectorPerSecond, { quantity: "vector", rate: "vector_flops" });
   const sfuTime = time(actions.sfu, rates.sfuPerSecond, { quantity: "sfu", rate: "sfu_ops" });
   const memoryTime = time(bytesMoved, rates.bytesPerSecond, { quantity: "bytes_moved", rate: "memory_bandwidth" });

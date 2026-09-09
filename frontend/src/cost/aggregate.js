@@ -85,6 +85,12 @@ function summarizeActions(nodes, computeComplete) {
   return nodes.reduce((acc, row) => {
     if (!row.actions) return acc;
     acc.matrix += row.actions.matrix ?? 0;
+    // computeDtype 桶（N2-1）：声明了非默认精度的 matrix 单列——actions.matrix
+    // 仍是**总量**（含该桶），roofline 据此把矩阵时间拆成两段费率。
+    if (row.actions.computeDtype) {
+      acc.computeDtypes = acc.computeDtypes || {};
+      acc.computeDtypes[row.actions.computeDtype] = (acc.computeDtypes[row.actions.computeDtype] || 0) + (row.actions.matrix ?? 0);
+    }
     acc.vector += row.actions.vector ?? 0;
     acc.sfu += row.actions.sfu ?? 0;
     acc.weights += row.actions.bytes.weights ?? 0;

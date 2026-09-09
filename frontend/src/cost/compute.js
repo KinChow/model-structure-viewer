@@ -49,6 +49,10 @@ export function computeNodeCosts(root, config, options = {}) {
       matrix: scale(counts.matrix),
       vector: scale(counts.vector),
       sfu: scale(counts.sfu),
+      // computeDtype：该叶的矩阵计算运行的精度（如 mHC 的 TF32 pre-GEMM，
+      // paramDtypes/来源见 formulas/index.js 的 mhc 条目）。roofline 据此把
+      // 这份 matrix 从默认 dtype 费率里拆出来单算。未声明 = 跟随全局 dtype。
+      computeDtype: counts.computeDtype,
       bytes: {
         weights: scale(counts.bytes.weights),
         actIn: scale(counts.bytes.actIn),

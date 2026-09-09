@@ -245,7 +245,10 @@ export const FORMULAS = {
     explanation: "vLLM MHCPreOp：从多 residual streams 计算 post mix、comb mix，并合成为 attention 输入。",
     inputs: ["residual streams", "hc function", "hc scale", "hc base"],
     outputs: ["post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), sinkhornCounts(ctx.sinkhorn), addCounts(ctx.merge)),
+    // mHC 的 pre-GEMM 在 Hopper/Blackwell + DeepGEMM 上跑 **TF32** tensor
+    // core（bf16 激活 upcast，2026-09-09 kernel 取证 tilelang_kernels.py:686-711）。
+    // computeDtype 声明进动作向量，roofline 把这份 matrix 按 tf32 费率计。
+    counts: (ctx) => ({ ...sumCounts(gateCounts(ctx.mix), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), sinkhornCounts(ctx.sinkhorn), addCounts(ctx.merge)), computeDtype: "tf32" }),
   },
   mhc_fused_post_pre: {
     title: "mHC Fused Post + Pre",
@@ -255,7 +258,8 @@ export const FORMULAS = {
     explanation: "vLLM 在相邻 decoder layer 间融合上一层 post 与当前层 pre，并可同时执行 RMSNorm。",
     inputs: ["block output", "residual streams", "post mix", "comb mix", "hc function"],
     outputs: ["residual streams", "post mix", "comb mix", "layer input"],
-    counts: (ctx) => sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), sinkhornCounts(ctx.sinkhorn)),
+    // 同 mhc_pre：fused 的 pre 半在 TF32 tensor core 上运行（Hopper/Blackwell + DeepGEMM）
+    counts: (ctx) => ({ ...sumCounts(gateCounts(ctx.post), addCounts(ctx.inject), gateCounts(ctx.pre), linearCounts(ctx.matrix), linearCounts(ctx.base), linearCounts(ctx.scale), rmsnormCounts(ctx.norm), sinkhornCounts(ctx.sinkhorn)), computeDtype: "tf32" }),
   },
   mhc_post: {
     title: "mHC Post",

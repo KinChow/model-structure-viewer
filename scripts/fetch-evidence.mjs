@@ -61,21 +61,39 @@ if (process.argv.includes("--headers")) {
   const weightMap = JSON.parse(fs.readFileSync(indexPath, "utf8")).weight_map || {};
   const shards = [...new Set(Object.values(weightMap))];
   console.log(`分片 ${shards.length} 个，逐个取头部（Range 206）…`);
-  const tensors = [];
-  for (const [tensorName, shard] of Object.entries(weightMap)) {
+  // 按分片缓存头部——weight_map 循环是按张量的，同一分片会被几十个张量
+  // 命中，逐张量重复下载头部是 O(张量数) 次大请求（初版真 bug，agent 取证
+  // 建议单次大额 Range：一次拿 8B+完整头部再截断，K3 96 分片 = 96 次请求）。
+  const shardHeaders = new Map();
+  async function shardHeader(shard) {
+    if (shardHeaders.has(shard)) return shardHeaders.get(shard);
     const url = HF(shard);
-    try {
-      // 与 frontend/src/cost/safetensorsReader.js 同一格式协议（8B u64le + JSON）
-      const lenRes = await fetch(url, { headers: { Range: "bytes=0-7" } });
-      if (!lenRes.ok || lenRes.status !== 206) throw new Error(`HTTP ${lenRes.status}`);
-      const lenBuf = new Uint8Array(await lenRes.arrayBuffer());
-      let headerLen = 0n;
-      for (let i = 7; i >= 0; i--) headerLen = (headerLen << 8n) | BigInt(lenBuf[i]);
-      const jsonLen = Number(headerLen);
-      if (!Number.isSafeInteger(jsonLen) || jsonLen <= 0 || jsonLen > 100 * 1024 * 1024) throw new Error(`头长非法 ${jsonLen}`);
+    // 单次大额 Range：头部通常 < 8MB；超限时按实际头长二次精取
+    let res = await fetch(url, { headers: { Range: "bytes=0-8388607" } });
+    if (!res.ok || res.status !== 206) throw new Error(`HTTP ${res.status}`);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.length < 8) throw new Error("range response too short");
+    let headerLen = 0n;
+    for (let i = 7; i >= 0; i--) headerLen = (headerLen << 8n) | BigInt(buf[i]);
+    const jsonLen = Number(headerLen);
+    if (!Number.isSafeInteger(jsonLen) || jsonLen <= 0 || jsonLen > 100 * 1024 * 1024) throw new Error(`头长非法 ${jsonLen}`);
+    let header;
+    if (buf.length >= 8 + jsonLen) {
+      header = JSON.parse(new TextDecoder().decode(buf.slice(8, 8 + jsonLen)));
+    } else {
       const jsonRes = await fetch(url, { headers: { Range: `bytes=8-${8 + jsonLen - 1}` } });
       if (!jsonRes.ok || jsonRes.status !== 206) throw new Error(`HTTP ${jsonRes.status}`);
-      const header = JSON.parse(new TextDecoder().decode(new Uint8Array(await jsonRes.arrayBuffer())));
+      header = JSON.parse(new TextDecoder().decode(new Uint8Array(await jsonRes.arrayBuffer())));
+    }
+    const result = { header, fetchedAt: shard };
+    shardHeaders.set(shard, result);
+    return result;
+  }
+
+  const tensors = [];
+  for (const [tensorName, shard] of Object.entries(weightMap)) {
+    try {
+      const { header } = await shardHeader(shard);
       const info = header[tensorName];
       if (info) tensors.push({ name: tensorName, dtype: info.dtype, shape: info.shape });
     } catch (error) {

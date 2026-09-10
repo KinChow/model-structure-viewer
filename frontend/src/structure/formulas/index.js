@@ -8,7 +8,7 @@
 // 每条注明单位换算与 A1-A7 全局假设引用（docs/details/cost_counts.md）。
 import {
   linearCounts, attentionCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts,
-  ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
+  ropeCounts, causalConvCounts, causalShortConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
   fusedMoeMlpCounts,
 } from "./counts.js";
@@ -73,7 +73,7 @@ export const FORMULAS = {
     explanation: "对模型声明的 q/k/v 分支执行 causal short convolution，并维护卷积历史状态。",
     inputs: ["x history", "conv weight", "conv state"],
     outputs: ["x'", "conv state"],
-    counts: causalConvCounts,
+    counts: (ctx) => causalShortConvCounts(ctx),
   },
   rope: {
     title: "RoPE",

@@ -171,13 +171,40 @@ export function ropeCounts({ tokens, ropeDims, bytesPerElement }) {
   };
 }
 
-/** F7a 因果短卷积（Conv1D，kernel = w）+ SiLU。 */
+/** F7a 因果短卷积旧规格（**仅 PLE 复合分解在用**）：含 SiLU（sigmoid=2 SFU + mul）。
+ *  Qwen4Exp PLE 的 conv 支路按离线取证含 SiLU（modeling 未入库）；与 GDN 家族的
+ *  causal_conv1d 叶（下函数）是不同算子的不同口径，非双源。 */
 export function causalConvCounts({ tokens, channels, kernel, bytesPerElement }) {
   return {
     matrix: tokens * channels * kernel,
     vector: tokens * channels,
     sfu: 2 * tokens * channels, // silu = sigmoid(2 SFU) + mul
     bytes: { weights: channels * kernel * bytesPerElement, actIn: tokens * channels * bytesPerElement, actOut: tokens * channels * bytesPerElement },
+  };
+}
+
+/**
+ * F7a 因果短卷积（GDN/KDA 家族的 q/k/v 分支卷积）——运行时权威口径。
+ *
+ * P0 单源化：本函数此前是含 SiLU 的旧规格（vector=TC、sfu=2TC），与
+ * extractor `causal_conv1d` case 的运行时实现构成双源（G2 双轨差）。
+ * 统一为 extractor 口径（恒等式与 KV 对账锁定的版本）：
+ * - vector/sfu = 0：conv 的 SiLU 不在本叶（归属后续激活路径）；
+ * - weights = channels·kernel（卷积核权重读，P2 覆盖判据内）；
+ * - decode 相位额外读写 conv state（kernel−1 个历史 token 的通道值，
+ *   W3-⑥ 补齐；prefill 的窗口在片上滑动不落 HBM）。
+ */
+export function causalShortConvCounts({ tokens, channels, kernel, bytesPerElement, phase = "prefill" }) {
+  const convStateElements = phase === "decode" ? channels * Math.max(kernel - 1, 0) : 0;
+  return {
+    matrix: tokens * channels * kernel,
+    vector: 0,
+    sfu: 0,
+    bytes: {
+      weights: channels * kernel * bytesPerElement,
+      actIn: (tokens * channels + convStateElements) * bytesPerElement,
+      actOut: (tokens * channels + convStateElements) * bytesPerElement,
+    },
   };
 }
 

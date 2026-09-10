@@ -17,7 +17,6 @@ import {
   gateCounts,
   swigluCounts,
   ropeCounts,
-  causalConvCounts,
   linearAttentionStateCounts,
   topkCounts,
   moeDispatchCounts,
@@ -122,39 +121,14 @@ function attentionShapePatterns(config) {
   };
 }
 
-// ---------- 旧链镜像（W5 切换后随旧链删除） ----------
+// ---------- 注意力/线性注意力的 matrix 权威实现（活代码，非旧链镜像） ----------
+// W5 时本区是新旧双轨的"镜像"区；P0 单源化盘点后：4 个 legacy*Macos 包装
+//（旧全量口径）无调用方已删除；余下函数全部被活 case 引用（:396-400 注意力
+// 模块解析、dsv4 sparse case、KDA state case、mhc ctx）——它们是权威实现，
+// "legacy" 字样仅保留在 deepseekV4 的历史命名里。
 
-// 旧 attentionMacs：batch·heads·lengthTerm·(D+dv)；不含 vision tokens（旧链现状）。
-function legacyAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const heads = config?.attentionHeads || 0;
-  const qk = config?.headDim || 0;
-  const value = config?.valueHeadDim || qk;
-  const lengthTerm = phase === "decode" ? sequence : sequence ** 2;
-  return batch * heads * lengthTerm * (qk + value);
-}
-
-// 旧 qsaAttentionMacs。
-function legacyQsaAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const heads = config?.attentionHeads || 0;
-  const qk = config?.headDim || 0;
-  const value = config?.valueHeadDim || qk;
-  const selected = Math.min(sequence, config?.indexerBudget || sequence);
-  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  return queryTokens * heads * selected * (qk + value);
-}
-
-// 旧 minimaxSparseAttentionMacs。
-function legacyMinimaxSparseAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const heads = config?.attentionHeads || 0;
-  const headDim = config?.headDim || 0;
-  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  const selectedBlocks = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
-  const selectedTokens = selectedBlocks * (config?.sparseBlockSize || 1);
-  return queryTokens * heads * selectedTokens * (headDim + headDim);
-}
-
-// 旧 deepseekV4AttentionMacs（layerIndex 来自节点路径）。
-function legacyDeepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill", layerIndex = 0 } = {}) {
+// deepseekV4AttentionMacs：DSV4 压缩/滑窗/滑窗预算的 matrix 权威实现（dsv4 sparse case 与注意力模块节点解析在用——"legacy" 前缀是历史遗留，非镜像）。
+function deepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill", layerIndex = 0 } = {}) {
   const heads = config?.attentionHeads || 0;
   const headDim = config?.headDim || 0;
   const ratio = config?.compressRatios?.[layerIndex] ?? 0;
@@ -168,20 +142,6 @@ function legacyDeepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase 
   return queryTokens * heads * visible * (headDim + headDim);
 }
 
-// 旧 linearAttentionMacs（含各 mode 变体的逐字镜像）。
-function legacyLinearAttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  if (planOf(config).linearAttentionMode === "glm5_next") return glm5NextLinearStateMacs(config, { batch, sequence, phase });
-  if (planOf(config).linearAttentionMode === "kimi_k3") return kimiK3LinearStateMacs(config, { batch, sequence, phase });
-  if (planOf(config).linearAttentionMode === "qwen4_exp") return qwen4ExpLinearStateMacs(config, { batch, sequence, phase });
-  if (planOf(config).linearAttentionMode === "qwen3_5") return qwen35LinearStateMacs(config, { batch, sequence, phase });
-  const tokens = batch * (phase === "decode" ? 1 : sequence);
-  const hidden = config?.hiddenSize || 0;
-  const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
-  const valueHeads = config?.linearValueHeads || config?.attentionHeads || 0;
-  const keyDim = config?.linearKeyDim || config?.headDim || 0;
-  const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
-  return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
-}
 // 旧 linearShortConvolutionMacs。
 // 旧 linearAttentionDimensions。
 
@@ -391,13 +351,13 @@ export function countsForNode(node, env = {}) {
 
   // 注意力模块节点（type === "attention"）：own 值 = 注意力核心公式（投影由独立叶子计费）
   if (type === "attention") {
-    const legacyOptions = { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase };
+    const macsOptions = { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase };
     let matrix = null;
-    if (kind === "linear") matrix = linearAttentionCoreMacs(config, legacyOptions);
-    else if (kind === "qsa") matrix = qsaCoreMacs(config, legacyOptions);
-    else if (kind === "sparse" && config?.modelType === "minimax_m3_vl") matrix = minimaxSparseCoreMacs(config, legacyOptions);
-    else if (kind === "dsv4") matrix = legacyDeepseekV4AttentionMacs(config, { ...legacyOptions, layerIndex: layerIndexOf(node?.id || path) ?? 0 });
-    else matrix = attentionCoreMacs(config, legacyOptions);
+    if (kind === "linear") matrix = linearAttentionCoreMacs(config, macsOptions);
+    else if (kind === "qsa") matrix = qsaCoreMacs(config, macsOptions);
+    else if (kind === "sparse" && config?.modelType === "minimax_m3_vl") matrix = minimaxSparseCoreMacs(config, macsOptions);
+    else if (kind === "dsv4") matrix = deepseekV4AttentionMacs(config, { ...macsOptions, layerIndex: layerIndexOf(node?.id || path) ?? 0 });
+    else matrix = attentionCoreMacs(config, macsOptions);
     return { matrix, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
   }
 
@@ -626,7 +586,7 @@ export function countsForNode(node, env = {}) {
     }
     case "dsv4_swa_attention": {
       // M11 bytes 补齐：F2 一阶访存——MQA（num_key_value_heads=1）+ 滑窗。
-      // matrix 维持 legacyDeepseekV4AttentionMacs 镜像（含 decode available=1
+      // matrix 维持 deepseekV4AttentionMacs 镜像（含 decode available=1
       // 的 legacy 行为，本波不动）。swa 缓存每 token 一份 headDim 宽的 KV
       // latent（K/V 共享，依据 memory.js dsv4 分支 + 权重表无 V 扩展投影），
       // 故 KV 读/写宽 = D 而非 2D。取证：/tmp/m11-formulas/dsv4.md
@@ -684,7 +644,7 @@ export function countsForNode(node, env = {}) {
       // 一份未压缩滑窗 KV；新 token 的窗口写入与 swa 层同口径。
       const windowTokens = Math.min(sequence, config?.slidingWindow || 128);
       return {
-        matrix: legacyDeepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }),
+        matrix: deepseekV4AttentionMacs(config, { batch, sequence, phase, layerIndex }),
         vector: 0,
         sfu: 0,
         bytes: {
@@ -810,6 +770,9 @@ export function countsForNode(node, env = {}) {
         const { keyProjection, valueProjection } = linearAttentionDimensions(config);
         const kernel = config?.linearConvKernelSize || 0;
         const width = 2 * keyProjection + valueProjection;
+        // linear_attention 是 0/59 的通用保留槽位（GDA 家族走 gated_delta_attention
+        // /causal_conv1d）：本分支 weights=0 为占位口径——若未来家族的 plain
+        // linear-attention 带独立卷积核，权重读在此计并按 P2 判据补声明。
         return {
           matrix: tokens * width * kernel,
           vector: 0,

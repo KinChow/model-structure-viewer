@@ -10,7 +10,7 @@
 config.json + checkpoint header -> registry/trie -> truth merge -> Graph IR v2 -> cost lens/UI/export
 ```
 
-后端主要负责本地配置读取、Hugging Face 配置读取和 Graph IR introspection；`root` 仅作为兼容投影输出。
+后端主要负责本地配置读取、Hugging Face 配置读取和 Graph IR introspection；Graph IR 是唯一结构载荷（执行路线步骤 7 后 root 投影已退役，树视图仅能经 selectors 按需从图重建）。
 仓库内置模型配置可以直接作为静态资源使用，适合部署到 GitHub Pages 这类静态站点。
 
 ## 项目边界
@@ -105,7 +105,7 @@ npm run dev
 ### 页面使用
 
 1. 选择 `builtin`、`hf`、`local` 或 `config`，填写模型 ID 或配置并点击 `Generate`。
-2. 顶部“理论成本估算”调整 Prefill/Decode、B、T、权重/KV dtype 假设以及 TP/PP/EP/DP；结果只用于定性分析，不是仿真或性能预测。
+2. 顶部“理论成本估算”调整 Prefill/Decode、B、T、权重/KV dtype 假设以及 TP/PP/EP/DP、MoE TP/MoE EP、词表并行（world size 由前三者派生只读）；结果只用于定性分析，不是仿真或性能预测。
 3. Architecture 的 Lens 可切换芯片、阶段、TP、EP、Attention 模式和三个效率因子。
 4. “芯片”对比固定并行方案，只改变芯片；“方案”对比固定芯片，只改变 TP/EP/Attention，发生瓶颈翻转的节点会单独突出。
 5. 公式按钮、Architecture 节点、搜索和 Inspector 共享节点路径，点击后可联动查看详情。

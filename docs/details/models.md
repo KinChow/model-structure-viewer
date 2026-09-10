@@ -80,7 +80,7 @@
 
 当前 `models/catalog.json` 收录 59 个内置模型。下表按运行时 `resolveArchitecture` 得到的 canonical architecture 分组；这些模型均可通过 `builtin` 入口读取仓库配置并进入前端结构生成链路，模型列表以 catalog 为准。
 
-### `gqa-decoder`：15 个
+### `multimodal-gqa-decoder`：15 个
 
 - `Qwen/Qwen3.5-0.8B`
 - `Qwen/Qwen3.5-0.8B-Base`

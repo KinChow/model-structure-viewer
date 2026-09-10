@@ -547,9 +547,9 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 确需偏离本文档时，在 `implementation_plan.md` 中登记：**违反哪条、为什么、
 何时收口、收口的判据**。未登记的偏离视为缺陷。
 
-已登记偏离的三态快照（2026-09-08，W0-W6 收官复核）：
+已登记偏离的三态快照（2026-09-10 复核；上次 2026-09-08）：
 
-**已清账**（原偏离已修复，验收见各波提交）：
+**已清账**（原偏离已修复，验收见各波提交；2026-09-10 复核新增两条，见"仍偏离"节的销账线）：
 - ~~§2.1/§2.2（声明）~~：decoderLayer/decoderStack/网络层 `sequence: true` 显式声明 +
   执法测试；evidence 三值全非空且 UI 三轴展示（W3-D2/W6-2）。
 - ~~§3.1（counts 注册表）~~：42 条目全量动作向量，主链查表（W5-1）。
@@ -569,13 +569,17 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 - §2.5：残差以并列节点表达，无跨层级捷径边。业界（ONNX/torch.fx）用 back-edge；
   本工具成本模型不含残差流量，属展示层增强——持有，不入里程碑。
 - §5.x：`source_ref` 未实现（旁路 B 收窄版范围）。
-- §6.2/§6.3/§6.4：后端保留为验证 oracle（2026-09-08 裁决），/api/verify
-  强化与 source_ref 采集对齐后再评估；前后端来源解析策略仍两套。
+- §6.2/§6.3：后端 evidence 对账已在线（P7/步骤 6，2026-09-10）：/api/verify
+  返回 per-module evidence 与三分类 diff（renaming/nonparam/fold/divergence
+  四桶 triage，unclassified=0 才算 structurally_consistent）；两端 triage 后
+  剩余为登记的真分歧。前后端来源解析策略仍两套（§6.4 契约精神，共享样例
+  不共享代码——verification/fixtures/canonical_path_contract.json）。
 - §8.1：14/16 文件含家族名——compute.js/extractor 镜像已随 W5 退出，
   剩余随配方表接管 plan.js 后进一步下降（带债项触发点见 refactor_plan.md）。
-- 恒等式残差：counts 侧 kv_b 宽度（R1 −255.9M/token）、GLM-5/Qwen3.8 +0.5%
-  正向残差——登记于 `details/cost_counts.md`，kv_b 随 M8-V1 dims 批次修。
-- vision 域：真值绑定走路径兜底、恒等式未覆盖（M8-V1/V2 清账中）。
+- ~~恒等式残差~~：kv_b 宽度与 GLM-5/Qwen3.8 +0.5% 均已清（2026-09-09 六波收官，
+  权重字节 32/32 逐字节、REGISTERED 空；MAINTENANCE 已销）。
+- ~~vision 域~~：M8 收官后 REGISTERED 清空（59 模型 matrix 容差 0.005），恒等式
+  覆盖 vision 域（2026-09-10 复核销账）。
 
 **带债项**（触发点见 refactor_plan.md）：
 - 家族知识 5 住址收口（触发：接新模型家族）。

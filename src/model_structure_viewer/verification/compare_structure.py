@@ -17,6 +17,9 @@ tests/fixtures/canonical_path_contract.json（前后端共享样例、不共享�
 """
 from __future__ import annotations
 
+import json
+import re
+from pathlib import Path
 from typing import Any
 
 
@@ -42,6 +45,21 @@ def compare_structure_summary(
         "errors": errors,
         "warnings": warnings,
     }
+
+
+_RULES_FIXTURE = Path(__file__).parent / "fixtures" / "canonical_path_contract.json"
+
+
+def load_reconciliation_rules() -> dict[str, Any]:
+    """读包内契约 fixture 的 reconciliation_rules（P0-2）。
+
+    规则是**生产逻辑输入**（triage 决定 diff 分桶），所以随包分发而非留在
+    tests/；路径对样部分仍是前后端共享样例、不共享代码（§6.4）。
+    """
+    try:
+        return json.loads(_RULES_FIXTURE.read_text(encoding="utf-8")).get("reconciliation_rules") or {}
+    except (OSError, ValueError):
+        return {}
 
 
 # wrapper 段集合：与前端 graphTruth.js:1 PATH_WRAPPERS 对样（fixture 锚定，
@@ -84,6 +102,7 @@ def diff_module_evidence(
     *,
     transformers_modules: list[dict[str, Any]],
     msv_graph: Any,
+    rules: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """三分类 diff。输入后端 evidence 模块列表与前端 Graph。
 
@@ -92,26 +111,109 @@ def diff_module_evidence(
     ``canonical_reconciliation_path``；空键不入 diff——整树节点的差异由
     summary.backbone_class ↔ canonical_architecture 承载，不在这里制造
     命名噪音。同键重复（折叠组头 + 模式组头折到同键）保留首见。
+
+    P0-2 triage（规则词汇取自成熟方案，fixture 驱动）：
+    - ``renaming``：vLLM WeightsMapper 的段级改名（linear_attn↔self_attn）；
+    - **nonparam_drop**：前端无 ``weightMatrices`` 声明的计算叶整体排除出
+      only_msv——P5「声明即权重归属」的直接推论：无声明 = 无 checkpoint
+      对应物（scores/softmax/rope/split 等纯计算叶），对应 vLLM WeightsMapper
+      的 None-drop 语义；
+    - ``fold_frontend_suffixes``：前端两级 norm 粒度（norm 容器 + rmsnorm 算子
+      叶）上提到父键参与对账——HF ``MergeModulelist`` 的反向同款；
+    - ``known_divergences``：ignore-list（逐条带出处的真粒度/构造差异：
+      MTP 构造差异、tied lm_head、GDN 融合拆分粒度、vision 层级），显式列出
+      ≠ 静默吞——输出按 ``classified`` 分桶，``unclassified`` 为空才算
+      ``structurally_consistent``。
     """
+    renaming = [(str(rule.get("backend", "")), str(rule.get("frontend", "")))
+                for rule in (rules or {}).get("renaming", [])]
+
+    def _apply_renaming(key: str) -> str:
+        if not renaming:
+            return key
+        segments = [renaming_map.get(segment, segment) for segment in key.split(".")]
+        return ".".join(segments)
+
+    renaming_map = dict(renaming)
+    fold_suffixes = set((rules or {}).get("fold_frontend_suffixes", []))
+    divergences = [
+        (str(rule.get("pattern", "")), str(rule.get("reason", "")),
+         tuple(rule.get("apply_to", ("only_transformers", "only_msv", "mismatches"))))
+        for rule in (rules or {}).get("known_divergences", [])
+    ]
+
     backend_by_key: dict[str, dict[str, Any]] = {}
+    renamed_hits = 0
     for module in transformers_modules or []:
         key = canonical_reconciliation_path(module.get("path"))
-        if key:
-            backend_by_key.setdefault(key, module)
+        if not key:
+            continue
+        renamed = _apply_renaming(key) != key
+        key = _apply_renaming(key)
+        if renamed:
+            renamed_hits += 1
+        backend_by_key.setdefault(key, module)
     frontend_by_key: dict[str, dict[str, Any]] = {}
+    # 分类计数桶在前端循环前定义（循环内计 nonparam_drop/fold）。
+    classified: dict[str, int] = {"renaming": renamed_hits, "nonparam_drop": 0, "fold_frontend_suffixes": 0, "known_divergences": 0}
     for node in _msv_nodes(msv_graph):
         path = _msv_field(node, "canonical_id") or _msv_field(node, "id")
         key = canonical_reconciliation_path(path)
-        if key:
-            frontend_by_key.setdefault(key, node)
+        if not key:
+            continue
+        # nonparam_drop：**仅限算子叶**（type=operator）——无 weightMatrices 声明的
+        # 计算叶 = 纯计算过程（P5 推论：无声明 = 无 checkpoint 对应物）。容器
+        # 模块节点（type=module）本就无声明，必须参与对账（它们是模块树的骨干）。
+        declaration = _msv_field(node, "weightMatrices")
+        is_operator = str(node.get("type") or "").lower() == "operator"
+        if is_operator and not (isinstance(declaration, list) and declaration):
+            classified["nonparam_drop"] += 1
+            continue
+        # fold_frontend_suffixes：两级 norm 粒度上提——末段是 fold 后缀且父键
+        # 存在后端对手方时，以父键参与对账（class/shape 比较对象是后端单级模块）。
+        folded = False
+        if fold_suffixes:
+            parent_key = key.rsplit(".", 1)[0] if "." in key else ""
+            if key.rsplit(".", 1)[-1] in fold_suffixes and parent_key:
+                key = parent_key
+                folded = True
+        if folded and key in backend_by_key:
+            classified["fold_frontend_suffixes"] += 1
+        entry = dict(node)
+        entry["_folded_frontend_leaf"] = folded
+        frontend_by_key.setdefault(key, entry)
+
+    unclassified: list[str] = []
+
+    def _classify(side_keys: set[str], bucket: str, label: str) -> list[str]:
+        remaining: list[str] = []
+        for key in sorted(side_keys):
+            if any(re.search(pattern, key) and bucket in apply_to
+                   for pattern, _reason, apply_to in divergences):
+                classified["known_divergences"] += 1
+                continue
+            unclassified.append(f"{label}:{key}")
+            remaining.append(key)
+        return remaining
+
+    only_transformers = _classify(backend_by_key.keys() - frontend_by_key.keys(), "only_transformers", "backend")
+    only_msv = _classify(frontend_by_key.keys() - backend_by_key.keys(), "only_msv", "frontend")
 
     mismatches: list[dict[str, Any]] = []
+    unclassified_mismatches: list[dict[str, Any]] = []
     for key in sorted(backend_by_key.keys() & frontend_by_key.keys()):
-        mismatches.extend(_module_mismatches(key, backend_by_key[key], frontend_by_key[key]))
+        for mismatch in _module_mismatches(key, backend_by_key[key], frontend_by_key[key]):
+            if any(re.search(pattern, key) and "mismatches" in apply_to
+                   for pattern, _reason, apply_to in divergences):
+                classified["known_divergences"] += 1
+                continue
+            unclassified_mismatches.append(mismatch)
+    mismatches = unclassified_mismatches
     return {
-        "only_transformers": sorted(backend_by_key.keys() - frontend_by_key.keys()),
-        "only_msv": sorted(frontend_by_key.keys() - backend_by_key.keys()),
+        "only_transformers": only_transformers,
+        "only_msv": only_msv,
         "mismatches": mismatches,
+        "classified": classified,
     }
 
 
@@ -178,8 +280,12 @@ def _classes_consistent(backend_class: str, frontend_label: str) -> bool:
     """class 词汇两侧不同源：后缀容忍 + 大小写不敏感。前端通用标签通常是
     后端专有类名的尾部（RMSNorm ⊂ Qwen3_5RMSNorm）；两端都对不上才算
     mismatch——那是真实的命名/形态分歧信号，不静默吞掉。"""
-    backend = backend_class.lower()
-    frontend = frontend_label.lower()
+    # P0-2：先剥下划线/空格再比后缀——torch 类名的下划线版本段
+    #（Qwen3_5RMSNorm）与前端 CamelCase 标签（GemmaRMSNorm）经 _ 归零后
+    # 才落在同一字母序列上（qwen35rmsnorm ⊃ gemmarmsnorm）。同款手法 =
+    # transformers 对 architectures 的 ForCausalLM 后缀剥离。
+    backend = re.sub(r"[^a-z0-9]", "", backend_class.lower())
+    frontend = re.sub(r"[^a-z0-9]", "", frontend_label.lower())
     return backend == frontend or backend.endswith(frontend) or frontend.endswith(backend)
 
 

@@ -331,10 +331,13 @@ def test_verify_transformers_structure_constructed_but_structurally_inconsistent
     msv_graph = {
         "nodes": [
             # 前端多了后端没有的模块
-            {"id": "root.4", "canonical_id": "lm_head", "type": "output", "attributes": {"class": "Linear"}},
+            # P0-2：带声明且不命中 known_divergences（^lm_head 是 tied 专属登记），
+            # 才能表达"构造通过但结构不一致"——unclassified 只剩未登记分歧。
+            {"id": "root.4", "canonical_id": "decoder.custom_head", "type": "output", "attributes": {"class": "Linear", "weightMatrices": [{"class": "tp", "out": 1, "in": 1}]}},
             # path 命中但 weight_shapes 正维分歧
             {"id": "root.5", "canonical_id": "decoder.0.self_attn.q_proj", "type": "operator",
-             "attributes": {"class": "Linear"}, "weight_shapes": {"weight": [64, 128]}},
+             "attributes": {"class": "Linear", "weightMatrices": [{"class": "tp", "out": 64, "in": 128}]},
+             "weight_shapes": {"weight": [64, 128]}},
         ]
     }
 
@@ -346,7 +349,7 @@ def test_verify_transformers_structure_constructed_but_structurally_inconsistent
 
     assert result.ok is True
     assert result.status == "passed"
-    assert result.evidence.diff.only_msv == ["lm_head"]
+    assert result.evidence.diff.only_msv == ["decoder.custom_head"]
     assert [
         (entry.path, entry.kind, entry.transformers, entry.msv)
         for entry in result.evidence.diff.mismatches

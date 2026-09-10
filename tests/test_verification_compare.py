@@ -7,7 +7,8 @@ from model_structure_viewer.verification.compare_structure import (
     diff_module_evidence,
 )
 
-_FIXTURE = Path(__file__).parent / "fixtures" / "canonical_path_contract.json"
+# fixture 是生产规则输入，随包分发（verification/fixtures/）；tests 只是消费者。
+_FIXTURE = Path(__file__).parent.parent / "src" / "model_structure_viewer" / "verification" / "fixtures" / "canonical_path_contract.json"
 
 
 def test_compare_structure_summary_passes_matching_layers_and_architecture():
@@ -91,7 +92,7 @@ def _msv_graph():
                 "id": "root.0",
                 "canonical_id": "decoder.0.self_attn.q_proj",
                 "type": "operator",
-                "attributes": {"class": "Linear", "operator_id": "linear"},
+                "attributes": {"class": "Linear", "operator_id": "linear", "weightMatrices": [{"class": "tp", "out": 4096, "in": 1024}]},
                 "weight_shapes": {"weight": [4096, 1024]},
             },
             # class mismatch：path 命中但 class/operator_id 都对不上
@@ -99,7 +100,7 @@ def _msv_graph():
                 "id": "root.1",
                 "canonical_id": "decoder.0.mlp.down_proj",
                 "type": "operator",
-                "attributes": {"class": "Conv1d", "operator_id": "conv1d"},
+                "attributes": {"class": "Conv1d", "operator_id": "conv1d", "weightMatrices": [{"class": "tp", "out": 1024, "in": 3584}]},
                 "weight_shapes": {"weight": [1024, 3584]},
             },
             # shape mismatch：path/class 命中但正维分歧（4096 vs 2048）
@@ -107,11 +108,12 @@ def _msv_graph():
                 "id": "root.2",
                 "canonical_id": "decoder.0.self_attn.k_proj",
                 "type": "operator",
-                "attributes": {"class": "Linear", "operator_id": "linear"},
+                "attributes": {"class": "Linear", "operator_id": "linear", "weightMatrices": [{"class": "tp", "out": 512, "in": 2048}]},
                 "weight_shapes": {"weight": [512, 2048]},
             },
-            # only_msv：后端无
-            {"id": "root.3", "canonical_id": "lm_head", "type": "output", "attributes": {"class": "Linear"}},
+            # only_msv：后端无（P0-2：须带声明才参与对账；且不得命中
+            # known_divergences——^lm_head 是 tied 专属登记，这里用假想模块）
+            {"id": "root.3", "canonical_id": "decoder.custom_head", "type": "output", "attributes": {"class": "Linear", "weightMatrices": [{"class": "tp", "out": 1, "in": 1}]}},
         ]
     }
 
@@ -120,7 +122,7 @@ def test_diff_module_evidence_classifies_three_way():
     diff = diff_module_evidence(transformers_modules=_backend_modules(), msv_graph=_msv_graph())
 
     assert diff["only_transformers"] == ["norm"]
-    assert diff["only_msv"] == ["lm_head"]
+    assert diff["only_msv"] == ["decoder.custom_head"]
     assert {(entry["path"], entry["kind"]) for entry in diff["mismatches"]} == {
         ("decoder.mlp.down_proj", "class"),
         ("decoder.self_attn.k_proj", "shape"),

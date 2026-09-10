@@ -1,0 +1,148 @@
+{
+  "contract": "canonical_path",
+  "model": "Qwen/Qwen3.5-0.8B",
+  "comment": [
+    "前后端共享样例、不共享代码（§6.4 契约精神）。",
+    "本文件是对账路径规范化（verification/compare_structure.py canonical_reconciliation_path）",
+    "的契约样例：backend 侧来自 transformers meta introspect 折叠图节点的 canonical_id",
+    "（introspect 的原始 module path），frontend 侧来自前端模板 Graph 节点的 canonical_id。",
+    "两侧路径 resolver 各自独立实现；样例锁定『同一路径对规范化后必须同键』。",
+    "样例来源：Qwen/Qwen3.5-0.8B（多模态 + 混合线性注意力，覆盖 wrapper 剥离 /",
+    "首段别名 / 实例索引与折叠伪段三类规则）。",
+    "前端 canonical 词汇或后端折叠行为变化时，先更新样例、双方各自改实现，",
+    "对样单测即契约谈判桌。已知不桥接的命名分歧（如后端 linear_attn ↔ 前端",
+    "self_attn、norm1 ↔ input_norm）故意不入样例——它们应作为对账 diff 的真实信号浮出，",
+    "而不是被规范化规则静默吞掉。"
+  ],
+  "pairs": [
+    {
+      "backend": "root.language_model.embed_tokens",
+      "frontend": "embed_tokens",
+      "note": "language_model 包装剥离"
+    },
+    {
+      "backend": "root.language_model.layers.3",
+      "frontend": "decoder.3",
+      "note": "layers→decoder 首段别名 + 实例索引折叠"
+    },
+    {
+      "backend": "root.language_model.layers.3.self_attn",
+      "frontend": "decoder.3.self_attn",
+      "note": "同名子树"
+    },
+    {
+      "backend": "root.language_model.layers.3.self_attn.o_proj",
+      "frontend": "decoder.3.self_attn.o_proj",
+      "note": "算子级叶子"
+    },
+    {
+      "backend": "root.language_model.layers.3.input_layernorm",
+      "frontend": "decoder.3.input_layernorm",
+      "note": "层内 norm"
+    },
+    {
+      "backend": "root.language_model.layers.3.mlp",
+      "frontend": "decoder.3.mlp",
+      "note": "mlp 容器"
+    },
+    {
+      "backend": "root.language_model.layers.0.mlp.gate_proj",
+      "frontend": "decoder.0.mlp.gate_proj",
+      "note": "线性注意力层(0)的 mlp 叶子"
+    },
+    {
+      "backend": "root.language_model.norm",
+      "frontend": "norm",
+      "note": "顶层 final norm"
+    },
+    {
+      "backend": "root.visual.patch_embed",
+      "frontend": "vision_tower.patch_embed",
+      "note": "visual→vision_tower 别名"
+    },
+    {
+      "backend": "root.visual.merger",
+      "frontend": "vision_tower.merger",
+      "note": "视觉 merger"
+    },
+    {
+      "backend": "root.language_model.layers.0.group0.pattern0",
+      "frontend": "decoder",
+      "note": "后端折叠伪段(groupN/patternN) ↔ 前端模板栈节点"
+    }
+  ],
+  "reconciliation_rules": {
+    "comment": [
+      "对账 triage 规则集（P0-2）。词汇取自成熟方案，不自研格式：",
+      "vLLM WeightsMapper（vllm/model_executor/models/utils.py:47）的 renaming/None-drop；",
+      "HF transformers conversion_mapping 的声明式转换原语与 ignore-list 惯例。",
+      "规则分四类：renaming（段级改名）、nonparam_drop（前端无 weightMatrices 声明的",
+      "计算叶——P5『声明即权重归属』的直接推论：无声明=无 checkpoint 对应物）、",
+      "fold_frontend_suffix（前端两级 norm 粒度上提，HF MergeModulelist 反向同款）、",
+      "known_divergences（ignore-list：逐条带出处的真粒度/构造差异，显式列出≠静默吞）。"
+    ],
+    "renaming": [
+      {
+        "backend": "linear_attn",
+        "frontend": "self_attn",
+        "source": "Qwen3.5 GDA 层：modeling_kimi_linear.py KimiSparseMoeBlock 的 linear_attn 模块在前端模板栈叫 self_attn（decoder.0 是 linear-attention 层）"
+      }
+    ],
+    "fold_frontend_suffixes": [
+      "rmsnorm"
+    ],
+    "known_divergences": [
+      {
+        "pattern": "^(mtp|mtp\\..*)",
+        "reason": "transformers Qwen3_5ForConditionalGeneration 构造不含 MTP；前端按 vLLM registry（DeepseekV32MTPModel 等）建模 MTP 模块",
+        "source": "P8 MTP 注释：vLLM registry 独立注册项"
+      },
+      {
+        "pattern": "^lm_head",
+        "reason": "tie_word_embeddings=true：后端无独立 lm_head 模块（与 embed 共享），前端恒建 lm_head 计算叶",
+        "source": "models/Qwen/Qwen3.5-0.8B/config.json tie_word_embeddings"
+      },
+      {
+        "pattern": "^decoder\\.self_attn\\.(in_proj_(qkv|z|a|b)|conv1d|norm|q_proj|k_proj|v_proj)$",
+        "apply_to": [
+          "only_transformers"
+        ],
+        "reason": "GDA 后端 in_proj_* 组 + MLA 层独立 q/k/v/v_proj ↔ 前端融合叶（qkv_gate_proj），同源不同拆法",
+        "source": "modeling_kimi_linear.py:760-800 vs 前端 hybrid.js GDA 模板"
+      },
+      {
+        "pattern": "^decoder\\.self_attn\\.(qkv_projection|qkv_gate_proj|qkv_gate_split|beta_projection|decay_projection|output_gate_norm|output_gate|short_conv|state_update)$",
+        "apply_to": [
+          "only_msv"
+        ],
+        "reason": "前端融合/拆分叶粒度（GDA）",
+        "source": "前端 hybrid.js GDA 模板"
+      },
+      {
+        "pattern": "^vision_tower($|\\.)",
+        "reason": "vision 层级粒度：后端 blocks.N.attn/mlp 容器层级 ↔ 前端扁平模板（qkv_proj/fc1/fc2/merger.*）；class 命名 Qwen3_5* 系",
+        "source": "后端 introspect blocks 层级 vs 前端 vision.js 模板"
+      },
+      {
+        "pattern": "^decoder\\.(input|post_attention)_layernorm$|^norm$|^decoder\\.self_attn\\.(q|k)_norm$",
+        "reason": "两级 norm 粒度：前端 norm 容器 + rmsnorm 算子叶 ↔ 后端单级 Qwen3_5RMSNorm 模块（fold_frontend_suffixes 上提后 class 后缀容忍收敛）",
+        "source": "P4 norm 声明（replicated 组）+ 后缀容忍同款 transformers architectures 后缀剥离"
+      },
+      {
+        "pattern": "^decoder\\.self_attn$",
+        "reason": "混合层实例折叠 artifact：Qwen3.5 层 0 是 GDA（后端 linear_attn）+ 层 3+ 是 MLA（后端 self_attn），实例索引折叠后同键取首见 class，混合类不可比",
+        "source": "modeling_kimi_linear.py 混合层调度"
+      },
+      {
+        "pattern": "^rotary_emb$",
+        "reason": "后端顶层 rotary_emb 模块 ↔ 前端逐层 rope 算子叶（无声明，已 nonparam_drop）",
+        "source": "Qwen3_5 模型顶层 rotary_emb"
+      },
+      {
+        "pattern": "^(decoder\\.mlp|decoder\\.self_attn)\\.act_fn$|act_fn$",
+        "reason": "backend 把激活函数当 nn.Module（act_fn），前端是算子叶（swiglu，无声明已 drop）",
+        "source": "torch nn.SiLU 模块化 vs 前端算子建模"
+      }
+    ]
+  }
+}

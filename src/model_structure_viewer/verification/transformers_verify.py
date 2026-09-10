@@ -5,7 +5,7 @@ from typing import Any
 
 from ..schemas import ModelStructure, VerifyEvidence, VerifyEvidenceDiff, VerifyResponse
 from ..structure.recovery import MetaRecoveryError, MetaRecoveryOutcome, build_meta_model_with_recovery
-from .compare_structure import diff_module_evidence
+from .compare_structure import diff_module_evidence, load_reconciliation_rules
 from .summary import minimal_summary
 
 
@@ -85,7 +85,10 @@ def _build_evidence(outcome: MetaRecoveryOutcome, *, msv_graph: Any) -> VerifyEv
         diff = VerifyEvidenceDiff(note="msv_graph not provided")
         structurally_consistent = None
     else:
-        diff = VerifyEvidenceDiff(**diff_module_evidence(transformers_modules=modules, msv_graph=msv_graph))
+        rules = load_reconciliation_rules()
+        diff = VerifyEvidenceDiff(**diff_module_evidence(transformers_modules=modules, msv_graph=msv_graph, rules=rules))
+        # P0-2：triage 后的口径——renaming/fold/known_divergences 已分类的项不算
+        # 不一致；only_transformers/only_msv 输出的只剩 unclassified。
         structurally_consistent = not (diff.only_transformers or diff.only_msv or diff.mismatches)
     return VerifyEvidence(
         modules=modules,

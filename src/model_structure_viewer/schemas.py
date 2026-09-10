@@ -113,6 +113,9 @@ class VerifyEvidenceDiff(BaseModel):
     mismatches: list[VerifyEvidenceMismatch] = Field(default_factory=list)
     # msv_graph 缺省时置 "msv_graph not provided"，三分类为空不等于对账通过。
     note: str | None = None
+    # P0-2 triage 分桶计数：renaming / nonparam_drop / fold_frontend_suffixes /
+    # known_divergences。only_* 与 mismatches 输出的是**未分类**残余。
+    classified: dict[str, int] = Field(default_factory=dict)
 
 
 class VerifyEvidence(BaseModel):

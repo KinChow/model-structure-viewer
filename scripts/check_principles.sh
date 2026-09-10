@@ -125,4 +125,24 @@ else
   echo "§3.5b /tmp 取证引用: ${TMP_CITE_COUNT} / 基线 ${TMP_CITE_BASELINE}（只许下降）"
 fi
 
+# ---------- P0：legacy root 复活棘轮（步骤 7 收口，基线 0） ----------
+# P8（2026-09-10）删除 root 与 graph-to-tree projection 后，`.root` 活引用必须
+# 保持为零：selectors.graphViewNode/graphRoot 是**按需树视图出口**（root 从协议
+# 层降级为视图层），任何人把它的输出写回 structure 就会造出第二个 root
+# （P8 报告未决取舍 5：靠约定维持的清零会在第一个人偷懒时失效，故机械化）。
+# 豁免：`\.root\b` 天然不匹配 root_id（下划线无词边界，契约字段安全）；注释行
+# 不计（与 §8.1 同口径：注释不构成事实）。
+ROOT_BASELINE=0
+ROOT_HITS=$(grep -rnE '\.root\b' frontend/src src --include='*.js' --include='*.jsx' --include='*.py' 2>/dev/null \
+  | grep -vE ':[0-9]+:[[:space:]]*(//|#|\*|/\*)' \
+  | grep -vE 'args\.root|model_root|--root' || true)
+ROOT_COUNT=$(printf '%s' "$ROOT_HITS" | grep -c . || true)
+if [ "$ROOT_COUNT" -gt "$ROOT_BASELINE" ]; then
+  echo "✗ P0 违反：legacy root 活引用 ${ROOT_COUNT} 处 > 基线 ${ROOT_BASELINE}——root 已退役（执行路线步骤 7），树视图只能经 selectors.graphViewNode 按需构造，禁止写回 structure。"
+  printf '%s\n' "$ROOT_HITS" | sed 's/^/  /'
+  FAIL=1
+else
+  echo "P0 legacy root 活引用: ${ROOT_COUNT} / 基线 ${ROOT_BASELINE}（棘轮，保持 0）"
+fi
+
 exit $FAIL

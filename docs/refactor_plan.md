@@ -135,14 +135,12 @@ MAINTENANCE.md 棘轮已回写。
 5. 触发型债项维持原登记：家族知识 5 住址收口（接新家族）、§8.1 清零
   （随配方表接管）、§2.5 back-edge（展示需求）、国产芯片（字段需求）、
   后端生产化（部署需求）、catalog/证据库扩展（内容工程，按需）。
-6. **operators_reference 手写段机器段化**（2026-09-10 文档对账发现）：手写段
-  无执法、已成第二个规格漂移源（mla_query_compress 旧表述与机器段/探针矛盾、
-  linear 触发数落后）——把总览表 ✓/触发数列并入生成器机器段（P9 手法现成），
-  手写段只留叙事。
-7. **counts 双源小项**（同轮发现，登记待裁决）：causalConvCounts（注册表）与
-  extractor causal_conv1d case 的 vector/sfu 口径不一致（运行时走 extractor）；
-  extractor 旧链镜像块死活混杂；linear_attention 的 short_conv 子叶
-  bytes.weights=0 与 causal_conv1d 叶计核权重的分工无注释。三项合并一次小波。
+6. ~~**operators_reference 手写段机器段化**~~ ✅ 已完成（2026-09-10，463fd94）：
+   手写总览表删除改叙事指针，生成段为唯一事实源；G2 节按单源化后现状更新。
+7. ~~**counts 双源小项**~~ ✅ 已完成（2026-09-10，c6caee1）：causal_conv1d 单源
+   （extractor 权威口径提升为 counts.causalShortConvCounts）；旧链镜像区 4 个
+   死包装删除、活权威正名；linear_attention 保留槽位注释。剩余登记：
+   causalConvCounts 仅供 PLE 复合（不同算子，非双源）。
 
 ### M12 之后的收口工作
 

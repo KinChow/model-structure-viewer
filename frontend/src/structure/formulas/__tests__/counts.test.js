@@ -251,12 +251,12 @@ test("fused_moe_mlp：触达专家数 min(k·T, E) 的相位语义", () => {
   assert.equal(dec.bytes.actIn, 2 * 1 * 2 * 6 * B);
 });
 
-test("注册表完整性：49 个条目全部终止于 counts（无白名单，§3.1）", () => {
+test("注册表完整性：51 个条目全部终止于 counts（无白名单，§3.1）", () => {
   // W2：单一 qsa_indexer / qsa_attention 拆成四 indexer + 三 sparse attention
   // （算法出处不同不共用条目，见 formulas/index.js 各条 ref）。
   // N2-4 W-A：携带专家 GEMM 的路由专家叶从 swiglu 拆出独立条目 fused_moe_mlp。
   // 清单必须与 FORMULAS 键集逐键一致（W4 的 residual_add 曾漏登记，此处补齐）。
-  const live = ["linear","matmul","softmax","split","causal_conv1d","rope","vision_position","vision_merge","vision_activation","rmsnorm","gemma_rmsnorm","swiglu","fused_moe_mlp","topk","moe_dispatch","moe_combine","moe_add","residual_add","linear_attention","linear_attention_gate","gated_delta_attention","gated_rmsnorm","mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","mla_kv_split","mla_output_gate","attention_residual","hyper_connection","ple","shared_expert_gate","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","qsa_sparse_attention","dsa_sparse_mla","dsv4_sparse_mla","qwen_qkvz_split","attention_qkv_split","attention_output_gate","minimax_sparse_indexer","minimax_sparse_attention","dsv4_hash_route","dsv4_swa_attention","dsv4_compressed_attention"];
+  const live = ["linear","matmul","softmax","sdpa_attention","split","causal_conv1d","rope","vision_position","vision_merge","vision_activation","rmsnorm","gemma_rmsnorm","swiglu","fused_moe_mlp","topk","moe_dispatch","moe_combine","moe_add","residual_add","identity","linear_attention","linear_attention_gate","gated_delta_attention","gated_rmsnorm","mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","mla_kv_split","mla_output_gate","attention_residual","hyper_connection","ple","shared_expert_gate","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","qsa_sparse_attention","dsa_sparse_mla","dsv4_sparse_mla","qwen_qkvz_split","attention_qkv_split","attention_output_gate","minimax_sparse_indexer","minimax_sparse_attention","dsv4_hash_route","dsv4_swa_attention","dsv4_compressed_attention"];
   // 复合节点的 ctx 是嵌套结构，数值由各自的复合用例覆盖（如 mla_query_compress）
   const composites = new Set(["mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","attention_residual","hyper_connection","ple","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","minimax_sparse_indexer"]);
   // 防漂移（双向）：本清单与 FORMULAS 键集逐键一致，新增条目必须同步登记。

@@ -56,6 +56,18 @@ export const FORMULAS = {
     outputs: ["probabilities"],
     counts: softmaxCounts,
   },
+  sdpa_attention: {
+    title: "SDPA Attention Kernel",
+    // ref: 一等 aten::scaled_dot_product_attention；vLLM Attention / SGLang
+    //      FlashAttentionBackend / TRT-LLM GPTAttention。FlashAttention 是实现。
+    //      matrix = QKᵀ + PV（F2 attentionCounts）；vector 含 scale + softmax；
+    //      scores 不落 HBM（A2 融合单遍）。不含 q/k/v/o 投影、不含 RoPE。
+    formula: "O = softmax(Q K^T / sqrt(d)) V",
+    explanation: "缩放点积注意力核：QKᵀ、softmax、PV。GQA/MHA/MQA 与 MLA 打分段共用此核，shape 由 heads/T/S/headDim/valueDim/kvHeads 区分。",
+    inputs: ["Q", "K", "V"],
+    outputs: ["O"],
+    counts: attentionCounts,
+  },
   split: {
     title: "Fused Projection Split",
     // ref: 一等 aten::split（视图语义，flop_counter 无成本条目）；A1 拆分零计算零流量。
@@ -197,6 +209,16 @@ export const FORMULAS = {
     inputs: ["x", "sublayer(x)"],
     outputs: ["h"],
     counts: addCounts,
+  },
+  identity: {
+    title: "Identity",
+    // ref: 一等 aten::alias / 视图语义（flop_counter 无成本条目）；A1 零计算零流量。
+    //      Decoder Layer 残差 skip 的主干入口（layer_in），不是计算算子。
+    formula: "y = x",
+    explanation: "残差主干入口：把层输入接到 skip 与 PreNorm，本身不做计算。",
+    inputs: ["x"],
+    outputs: ["y"],
+    counts: rearrangeCounts,
   },
   moe_add: {
     title: "MoE Branch Add",

@@ -93,6 +93,64 @@ test("Graph IR 父节点只做汇总，不能把父级 attention 再计一次", 
   assert.equal(result.nodes.find((row) => row.path === "root.0").compute_macs, 0);
 });
 
+test("父有 counts 用父、子孙不进账（§2.4 计费主语）", () => {
+  const graph = {
+    root_id: "root",
+    nodes: [
+      { id: "root", canonical_id: "root", parent_id: null, order: 0, type: "model", name: "model" },
+      {
+        id: "root.0",
+        canonical_id: "decoder.0.self_attn.sdpa",
+        parent_id: "root",
+        order: 0,
+        type: "operator",
+        name: "SDPA attention",
+        attributes: { operator_id: "sdpa_attention", attention_kind: "gqa" },
+      },
+      {
+        id: "root.0.0",
+        canonical_id: "decoder.0.self_attn.sdpa.scores",
+        parent_id: "root.0",
+        order: 0,
+        type: "operator",
+        name: "attention scores",
+        attributes: { operator_id: "matmul" },
+        input_shape: [-1, -1, 2, 4],
+        output_shape: [-1, 2, -1, -1],
+      },
+      {
+        id: "root.0.1",
+        canonical_id: "decoder.0.self_attn.sdpa.context",
+        parent_id: "root.0",
+        order: 1,
+        type: "operator",
+        name: "weighted value",
+        attributes: { operator_id: "matmul" },
+        input_shape: [-1, 2, -1, -1],
+        output_shape: [-1, -1, 2, 6],
+      },
+    ],
+    edges: [],
+  };
+  const result = aggregateCost({
+    graph,
+    config: { attentionHeads: 2, headDim: 4, valueHeadDim: 6, kvHeads: 2 },
+    batch: 1,
+    sequence: 3,
+    activationPeak: 0,
+    runtimeConst: 0,
+  });
+  const parent = result.nodes.find((row) => row.path === "root.0");
+  const scores = result.nodes.find((row) => row.path === "root.0.0");
+  const context = result.nodes.find((row) => row.path === "root.0.1");
+  // 融合主语：12 对 × (4+6) = 120，与拆叶相加相同；子孙 compute 必须为 0。
+  assert.equal(parent.compute_macs, 120);
+  assert.equal(parent.macs_source, "formula");
+  assert.equal(scores.compute_macs, 0);
+  assert.equal(context.compute_macs, 0);
+  assert.equal(result.totalMacs, 120);
+});
+
 test("参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度公式", () => {
   const root = {
     children: [

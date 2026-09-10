@@ -1,5 +1,5 @@
 import { moduleSpec, withShapeDims } from "./base.js";
-import { operatorSpec } from "../ops/index.js";
+import { operatorSpec, sdpaAttentionModule } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { deriveBuildPlan } from "../../config/plan.js";
 import { visionDimensions } from "../../config/visionDims.js";
@@ -22,13 +22,26 @@ function visionLayerModule(id, normalized) {
       split_sizes: [d.heads * d.headDim, d.heads * d.headDim, d.heads * d.headDim],
       modality: "vision",
     }, { input: d.qkv, output: d.q }),
-    operatorSpec(`${id}.scores`, "vision attention scores", "matmul", {
-      ...shapeFlow(`${q}, ${q}`, scores), formula: "S = Q K^T / sqrt(d)", attention_kind: "vision", modality: "vision",
-    }, { input: d.q, output: d.scores }),
-    operatorSpec(`${id}.softmax`, "vision attention probabilities", "softmax", { ...shapeFlow(scores, scores), modality: "vision" }, { input: d.scores, output: d.scores }),
-    operatorSpec(`${id}.context`, "vision weighted value", "matmul", {
-      ...shapeFlow(`${scores}, ${q}`, context), formula: "O = P V", attention_kind: "vision", modality: "vision",
-    }, { input: d.scores, output: d.context }),
+    sdpaAttentionModule(id, {
+      attentionQuery: q,
+      attentionKey: q,
+      attentionValue: q,
+      attentionScores: scores,
+      attentionProbabilities: scores,
+      attentionContext: context,
+    }, {
+      attentionQuery: d.q,
+      attentionKey: d.q,
+      attentionValue: d.q,
+      attentionScores: d.scores,
+      attentionProbabilities: d.scores,
+      attentionContext: d.context,
+    }, {
+      scoresName: "vision attention scores",
+      scores: { attention_kind: "vision" },
+      context: { attention_kind: "vision" },
+      modality: "vision",
+    }),
     operatorSpec(`${id}.out_proj`, "vision output projection", "linear", {
       ...shapeFlow(context, visual), modality: "vision", semantic_role: "vision_attention_output_projection",
     }, { input: d.context, output: d.visual }),
@@ -58,8 +71,8 @@ function visionLayerModule(id, normalized) {
     intermediate_size: d.intermediate,
     modality: "vision",
     dataflow_edges: [
-      ["input_norm", "qkv_proj"], ["qkv_proj", "qkv_split"], ["qkv_split", "scores"],
-      ["scores", "softmax"], ["softmax", "context"], ["context", "out_proj"],
+      ["input_norm", "qkv_proj"], ["qkv_proj", "qkv_split"], ["qkv_split", "sdpa"],
+      ["sdpa", "out_proj"],
       ["out_proj", "post_norm"], ...mlpEdges,
     ],
   }, children), d.visual, d.visual);

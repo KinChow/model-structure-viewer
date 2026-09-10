@@ -226,7 +226,8 @@ test("builds network modules and materializes operator formulas", () => {
   assert.equal(treeView(structure).children[1].children[1].attributes.range, "1..3");
 
   const attention = treeView(structure).children[1].children[1].children.find((node) => node.type === "attention");
-  const softmax = attention.children.find((node) => node.attributes.operator_id === "softmax");
+  const sdpa = attention.children.find((node) => node.attributes.operator_id === "sdpa_attention");
+  const softmax = sdpa.children.find((node) => node.attributes.operator_id === "softmax");
   assert.equal(softmax.attributes.formula, formulaForOperator("softmax").formula);
 });
 
@@ -262,16 +263,22 @@ test("adds readable tensor shapes to modules and operators", () => {
   const rope = attention.children.find((node) => node.name === "rotary position embedding");
   assert.equal(rope.attributes.input_shape, "[batch, sequence, attention heads=8, head dimension=256], [batch, sequence, key value heads=2, head dimension=256]");
   assert.equal(rope.attributes.position_shape, "[batch, sequence]");
-  const scores = attention.children.find((node) => node.name === "attention scores");
+  const sdpa = attention.children.find((node) => node.attributes?.operator_id === "sdpa_attention");
+  assert.ok(sdpa, "GQA 必须有可折叠 SDPA 核");
+  const scores = sdpa.children.find((node) => node.name === "attention scores");
   assert.equal(scores.attributes.input_shape, "[batch, sequence, attention heads=8, head dimension=256], [batch, sequence, key value heads=2, head dimension=256]");
   assert.equal(scores.attributes.output_shape, "[batch, attention heads, query sequence, key sequence]");
   assert.equal(scores.attributes.formula, "S = Q K^T / sqrt(d)");
   assert.deepEqual(scores.attributes.inputs, ["Q", "K"]);
-  const weighted = attention.children.find((node) => node.name === "weighted value");
+  const weighted = sdpa.children.find((node) => node.name === "weighted value");
   assert.equal(weighted.attributes.input_shape, "[batch, attention heads, query sequence, key sequence], [batch, sequence, key value heads=2, value head dimension=256]");
   assert.equal(weighted.attributes.output_shape, "[batch, sequence, attention heads=8, value head dimension=256]");
   assert.equal(weighted.attributes.formula, "O = P V");
   assert.deepEqual(weighted.attributes.inputs, ["probabilities", "V"]);
+  assert.deepEqual(layer.attributes.dataflow_edges.filter((edge) => edge[1] === "attn_residual_add"), [
+    ["self_attn", "attn_residual_add"],
+    ["layer_in", "attn_residual_add"],
+  ]);
 });
 
 test("multi-input MLP and MoE operators expose complete shape flows", () => {
@@ -691,9 +698,7 @@ test("maps MiniMax M2 fused QKV, QK norms, and partial RoPE", () => {
     "Q RMSNorm",
     "K RMSNorm",
     "partial rotary position embedding",
-    "attention scores",
-    "attention probabilities",
-    "weighted value",
+    "SDPA attention",
     "output projection",
   ]);
   assert.equal(attention.children.find((node) => node.name === "QKV split").attributes.formula_id, "attention_qkv_split");

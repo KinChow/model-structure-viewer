@@ -19,7 +19,7 @@ import { computeNodeCosts } from "../compute.js";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 // view 语义（无拷贝）：显式豁免清单。新增豁免必须在此登记并写明理由。
-const VIEW_OPS = new Set(["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split"]);
+const VIEW_OPS = new Set(["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split", "identity"]);
 
 // 未建模登记（照 identity REGISTERED 惯例）：新算子接入时允许临时登记，
 // 必须写明跟踪位置并尽快补齐。2026-09-08 方案 A 落地后此前登记的

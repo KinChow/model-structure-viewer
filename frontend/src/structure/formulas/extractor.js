@@ -477,9 +477,36 @@ export function countsForNode(node, env = {}) {
       }
       return null;
     }
+    case "sdpa_attention": {
+      const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
+      const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
+      const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
+      const queryTokens = tokens;
+      const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
+      const latentShared = !vision && kind.includes("mla") && (config?.kvLoraRank || 0) > 0;
+      const kvHeads = vision ? heads : (latentShared ? 1 : (config?.kvHeads || heads));
+      const kReadWidth = latentShared ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
+      const vReadWidth = latentShared ? (config?.kvLoraRank || 0) : valueDim;
+      const fused = attentionCounts({
+        heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement, kvHeads, phase,
+      });
+      // 核边界：scores 不落 HBM（§2.4）。MLA 的 K/V 是同一份 latent，读宽取 max。
+      const q = heads * queryTokens * headDim;
+      const kRead = kvHeads * keyTokens * kReadWidth;
+      const vRead = latentShared ? 0 : kvHeads * keyTokens * vReadWidth;
+      const context = heads * queryTokens * valueDim;
+      const kvWrite = latentShared ? 0 : kvHeads * queryTokens * (headDim + valueDim);
+      fused.bytes = {
+        weights: 0,
+        actIn: (q + kRead + vRead) * bytesPerElement,
+        actOut: (context + kvWrite) * bytesPerElement,
+        kvRead: (kRead + vRead) * bytesPerElement,
+      };
+      return fused;
+    }
+    case "qsa_sparse_attention":
     // W2：单一 qsa_attention 条目拆成三个 operator_id（算法出处不同不共用条目）。
     // 三者的 counts 仍共用本 case，读宽/共享度按 attention_kind 分派。
-    case "qsa_sparse_attention":
     case "dsa_sparse_mla":
     case "dsv4_sparse_mla": {
       const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
@@ -795,7 +822,9 @@ export function countsForNode(node, env = {}) {
       return moeCombineCounts({ tokens, hidden: staticWidth(node?.input_shape) || config?.hiddenSize || 0, topk: config?.expertsPerToken || 0, bytesPerElement });
     case "residual_add":
       // W4：每层两处残差加。hidden 取输出宽（与 moe_add 同口径）。
-      return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || H, bytesPerElement });
+      return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement });
+    case "identity":
+      return rearrangeCounts({ copy: false });
     case "moe_add":
       return addCounts({ tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement });
     case "dsv4_hash_route":

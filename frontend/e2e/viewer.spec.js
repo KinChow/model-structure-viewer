@@ -95,7 +95,11 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       if (await visionExpand.count()) await visionExpand.click();
       const visionLayer = page.locator('.react-flow__node[data-id="root.0.2"]').first();
       await visionLayer.locator("button").first().click();
-      await expect(page.getByTestId("rf__node-root.0.2.3").getByText("vision attention scores", { exact: true })).toBeVisible();
+      await expect(page.locator(".react-flow__node").filter({ hasText: "SDPA attention" }).first()).toBeVisible();
+      const sdpa = page.locator(".rf-node-content").filter({ hasText: "SDPA attention" }).first();
+      const sdpaExpand = sdpa.getByRole("button", { name: "展开", exact: true });
+      if (await sdpaExpand.count()) await sdpaExpand.click();
+      await expect(page.locator(".react-flow__node").filter({ hasText: "vision attention scores" }).first()).toBeVisible();
       const hasInternalMerger = /^(Qwen\/Qwen3\.5|Qwen\/Qwen3\.6|Qwen\/Qwen3\.8-|zai-org\/GLM-5\.3-Flash)/.test(modelId);
       // DeepSeek V4 Flash Vision 用的是**扁平** vision 配置（顶层 vision_*），
       // 视觉塔输出 1024 与文本 hidden 4096 不同宽，必然有一层视觉→文本投影。
@@ -132,6 +136,10 @@ test("父节点详情提供子模块和 Shape", async ({ page }) => {
   await page.locator(".rf-node-content").filter({ hasText: "Decoder layer group" }).first().getByRole("button", { name: "展开", exact: true }).click();
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(edgesAfterDecoder);
   await page.locator(".rf-node-content").filter({ hasText: "GQA Attention" }).first().getByRole("button", { name: "展开", exact: true }).click();
+  await expect(page.locator(".rf-node-content").filter({ hasText: "SDPA attention" }).first()).toBeVisible();
+  await expect(page.locator(".rf-node-content").filter({ hasText: "attention scores" })).toHaveCount(0);
+  await page.locator(".rf-node-content").filter({ hasText: "SDPA attention" }).first().getByRole("button", { name: "展开", exact: true }).click();
+  await expect(page.locator(".rf-node-content").filter({ hasText: "attention scores" }).first()).toBeVisible();
 
   // 展开到算子层后，builder 声明的 dataflow 边（declared）在场且与推断边类名互异
   await expect.poll(async () => page.locator('path[data-evidence="declared"]').count()).toBeGreaterThan(0);

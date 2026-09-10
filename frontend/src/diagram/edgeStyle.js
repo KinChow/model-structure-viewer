@@ -24,7 +24,7 @@ const PRESENTATION = {
  * @returns {{width: number, className: string, hint: string, evidence: string}}
  */
 export function edgePresentation(edge, source, { english = false } = {}) {
-  const evidence = String(edge?.evidence || "declared");
+  const evidence = PRESENTATION[edge?.evidence] ? edge.evidence : "module-order";
   const meta = PRESENTATION[evidence] || PRESENTATION.declared;
   let width;
   if (evidence === "module-order") {

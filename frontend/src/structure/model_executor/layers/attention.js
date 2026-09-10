@@ -46,19 +46,19 @@ const ATTENTION_COMPONENTS = [
     kind: "gqa",
     arch: "minimax_m3_vl",
     ops: (id, normalized) => minimaxDenseAttentionOperatorSpecs(id, normalized),
-    edges: () => [["qkv_index_proj", "qkv_index_split"], ["qkv_index_split", "q_norm"], ["qkv_index_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]],
+    edges: () => [["qkv_index_proj", "qkv_index_split"], ["qkv_index_split", "q_norm"], ["qkv_index_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "sdpa"], ["sdpa", "o_proj"]],
   },
   {
     kind: "gqa",
     arch: ["minimax_m2", "glm4_moe"],
     ops: (id, normalized) => minimaxM2AttentionOperatorSpecs(id, normalized, normalized.modelType === "glm4_moe" ? "glm4_moe" : "minimax_m2"),
-    edges: () => [["qkv_proj", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]],
+    edges: () => [["qkv_proj", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "sdpa"], ["sdpa", "o_proj"]],
   },
   {
     kind: "qwen35_full",
     name: () => "Qwen3.5 Full Attention",
     ops: (id, normalized) => qwen35FullAttentionOperatorSpecs(id, normalized),
-    edges: () => [["qkv_gate_proj", "qkv_gate_split"], ["qkv_gate_split", "q_norm"], ["qkv_gate_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "output_gate"], ["output_gate", "o_proj"]],
+    edges: () => [["qkv_gate_proj", "qkv_gate_split"], ["qkv_gate_split", "q_norm"], ["qkv_gate_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "sdpa"], ["sdpa", "output_gate"], ["output_gate", "o_proj"]],
   },
   {
     kind: "qsa",
@@ -86,12 +86,12 @@ const ATTENTION_COMPONENTS = [
   {
     kind: "mla",
     ops: (id, normalized) => mlaAttentionOperatorSpecs(id, normalized),
-    edges: () => [["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"], ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"], ["kv_b_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["context", "o_proj"]],
+    edges: () => [["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"], ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"], ["kv_b_proj", "rope"], ["rope", "sdpa"], ["sdpa", "o_proj"]],
   },
   {
     kind: "gqa",
     ops: (id, normalized) => attentionOperatorSpecs(id, "gqa", normalized),
-    edges: () => [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["v_proj", "context"], ["context", "o_proj"]],
+    edges: () => [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "sdpa"], ["v_proj", "sdpa"], ["sdpa", "o_proj"]],
   },
   {
     // 兜底：未列出组合的 children 走默认 GQA 链（attentionKind 透传给 scores 标注），

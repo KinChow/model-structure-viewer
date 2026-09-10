@@ -2,11 +2,11 @@
  "MiniMaxAI/MiniMax-M2.7": {
   "actions": {
    "matrix": 5432590467070,
-   "vector": 6095393280,
+   "vector": 6486225408,
    "sfu": 1562186240,
    "weights": 456149447680,
-   "actIn": 8740814848,
-   "actOut": 7122714624
+   "actIn": 7177486336,
+   "actOut": 5689409536
   },
   "memory": {
    "weightBytes": 252100017280,
@@ -17,12 +17,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 267963546752,
+   "bytesMoved": 264966913152,
    "times": {
     "matrix": 0.0497489969512,
-    "vector": 0.000312584270769,
+    "vector": 0.000332626944,
     "sfu": 0.000320448459487,
-    "memory": 0.146021223231,
+    "memory": 0.144388269387,
     "comm": 0
    }
   }
@@ -30,11 +30,11 @@
  "MiniMaxAI/MiniMax-M3": {
   "actions": {
    "matrix": 16942180663300,
-   "vector": 31228718080,
+   "vector": 38134967296,
    "sfu": 16417791488,
    "weights": 850147217920,
-   "actIn": 49269818880,
-   "actOut": 44733769728
+   "actIn": 21644822016,
+   "actOut": 17961265152
   },
   "memory": {
    "weightBytes": 866863521664,
@@ -45,12 +45,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 960867110272,
+   "bytesMoved": 906469608832,
    "times": {
     "matrix": 0.155148174572,
-    "vector": 0.00160147272205,
+    "vector": 0.00195563934851,
     "sfu": 0.0033677521001,
-    "memory": 0.523604768281,
+    "memory": 0.493961968738,
     "comm": 0
    }
   }
@@ -58,11 +58,11 @@
  "MiniMaxAI/MiniMax-M3-MXFP8": {
   "actions": {
    "matrix": 16942180663300,
-   "vector": 31228718080,
+   "vector": 38134967296,
    "sfu": 16417791488,
    "weights": 850147217920,
-   "actIn": 49269818880,
-   "actOut": 44733769728
+   "actIn": 21644822016,
+   "actOut": 17961265152
   },
   "memory": {
    "weightBytes": 455074292352,
@@ -73,12 +73,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 549077880960,
+   "bytesMoved": 494680379520,
    "times": {
     "matrix": 0.155148174572,
-    "vector": 0.00160147272205,
+    "vector": 0.00195563934851,
     "sfu": 0.0033677521001,
-    "memory": 0.299208697597,
+    "memory": 0.269565898055,
     "comm": 0
    }
   }
@@ -86,11 +86,11 @@
  "Qwen/Qwen3.5-0.8B": {
   "actions": {
    "matrix": 455584317440,
-   "vector": 611966912,
+   "vector": 642200000,
    "sfu": 244946240,
    "weights": 1702224640,
-   "actIn": 1261946880,
-   "actOut": 1436534784
+   "actIn": 1141014528,
+   "actOut": 1343127552
   },
   "memory": {
    "weightBytes": 1747934448,
@@ -101,12 +101,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 4446416112,
+   "bytesMoved": 4232076528,
    "times": {
     "matrix": 0.00417201755897,
-    "vector": 0.0000313829185641,
+    "vector": 0.0000329333333333,
     "sfu": 0.0000502453825641,
-    "memory": 0.00242298300474,
+    "memory": 0.00230618305705,
     "comm": 0
    }
   }
@@ -114,11 +114,11 @@
  "Qwen/Qwen3.5-0.8B-Base": {
   "actions": {
    "matrix": 455584317440,
-   "vector": 611966912,
+   "vector": 642200000,
    "sfu": 244946240,
    "weights": 1702224640,
-   "actIn": 1261946880,
-   "actOut": 1436534784
+   "actIn": 1141014528,
+   "actOut": 1343127552
   },
   "memory": {
    "weightBytes": 1747934448,
@@ -129,12 +129,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 4446416112,
+   "bytesMoved": 4232076528,
    "times": {
     "matrix": 0.00417201755897,
-    "vector": 0.0000313829185641,
+    "vector": 0.0000329333333333,
     "sfu": 0.0000502453825641,
-    "memory": 0.00242298300474,
+    "memory": 0.00230618305705,
     "comm": 0
    }
   }
@@ -142,11 +142,11 @@
  "Qwen/Qwen3.5-122B-A10B": {
   "actions": {
    "matrix": 4964410023940,
-   "vector": 4807357504,
+   "vector": 4929575488,
    "sfu": 1390612928,
    "weights": 243593682432,
-   "actIn": 8195702784,
-   "actOut": 7150028800
+   "actIn": 7706830848,
+   "actOut": 6745403392
   },
   "memory": {
    "weightBytes": 250181531776,
@@ -157,12 +157,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 265527263360,
+   "bytesMoved": 264633766016,
    "times": {
     "matrix": 0.0454616302558,
-    "vector": 0.000246531154051,
+    "vector": 0.000252798742974,
     "sfu": 0.000285253933949,
-    "memory": 0.144693620707,
+    "memory": 0.144206727707,
     "comm": 0
    }
   }
@@ -170,11 +170,11 @@
  "Qwen/Qwen3.5-122B-A10B-FP8": {
   "actions": {
    "matrix": 4964410023940,
-   "vector": 4807357504,
+   "vector": 4929575488,
    "sfu": 1390612928,
    "weights": 243593682432,
-   "actIn": 8195702784,
-   "actOut": 7150028800
+   "actIn": 7706830848,
+   "actOut": 6745403392
   },
   "memory": {
    "weightBytes": 129179236816,
@@ -185,12 +185,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 144524968400,
+   "bytesMoved": 143631471056,
    "times": {
     "matrix": 0.0454616302558,
-    "vector": 0.000246531154051,
+    "vector": 0.000252798742974,
     "sfu": 0.000285253933949,
-    "memory": 0.0787559088878,
+    "memory": 0.078269015888,
     "comm": 0
    }
   }
@@ -198,11 +198,11 @@
  "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4": {
   "actions": {
    "matrix": 4964410023940,
-   "vector": 4807357504,
+   "vector": 4929575488,
    "sfu": 1390612928,
    "weights": 243593682432,
-   "actIn": 8195702784,
-   "actOut": 7150028800
+   "actIn": 7706830848,
+   "actOut": 6745403392
   },
   "memory": {
    "weightBytes": 77315035264,
@@ -213,12 +213,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 92660766848,
+   "bytesMoved": 91767269504,
    "times": {
     "matrix": 0.0454616302558,
-    "vector": 0.000246531154051,
+    "vector": 0.000252798742974,
     "sfu": 0.000285253933949,
-    "memory": 0.0504935790137,
+    "memory": 0.0500066860138,
     "comm": 0
    }
   }
@@ -226,11 +226,11 @@
  "Qwen/Qwen3.5-27B": {
   "actions": {
    "matrix": 13477202976800,
-   "vector": 5272464448,
+   "vector": 5394682432,
    "sfu": 1927313856,
    "weights": 52164676096,
-   "actIn": 10719494144,
-   "actOut": 9595570176
+   "actIn": 10230622208,
+   "actOut": 9211916288
   },
   "memory": {
    "weightBytes": 55573398608,
@@ -241,12 +241,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 75888462928,
+   "bytesMoved": 75015937104,
    "times": {
     "matrix": 0.123417609677,
-    "vector": 0.000270382792205,
+    "vector": 0.000276650381128,
     "sfu": 0.000395346432,
-    "memory": 0.0413538569713,
+    "memory": 0.0408783919699,
     "comm": 0
    }
   }
@@ -254,11 +254,11 @@
  "Qwen/Qwen3.5-27B-FP8": {
   "actions": {
    "matrix": 13477202976800,
-   "vector": 5272464448,
+   "vector": 5394682432,
    "sfu": 1927313856,
    "weights": 52164676096,
-   "actIn": 10719494144,
-   "actOut": 9595570176
+   "actIn": 10230622208,
+   "actOut": 9211916288
   },
   "memory": {
    "weightBytes": 30771242912,
@@ -269,12 +269,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 51086307232,
+   "bytesMoved": 50213781408,
    "times": {
     "matrix": 0.123417609677,
-    "vector": 0.000270382792205,
+    "vector": 0.000276650381128,
     "sfu": 0.000395346432,
-    "memory": 0.0278384323644,
+    "memory": 0.0273629673631,
     "comm": 0
    }
   }
@@ -282,11 +282,11 @@
  "Qwen/Qwen3.5-27B-GPTQ-Int4": {
   "actions": {
    "matrix": 13477202976800,
-   "vector": 5272464448,
+   "vector": 5394682432,
    "sfu": 1927313856,
    "weights": 52164676096,
-   "actIn": 10719494144,
-   "actOut": 9595570176
+   "actIn": 10230622208,
+   "actOut": 9211916288
   },
   "memory": {
    "weightBytes": 28356226128,
@@ -297,12 +297,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 48671290448,
+   "bytesMoved": 47798764624,
    "times": {
     "matrix": 0.123417609677,
-    "vector": 0.000270382792205,
+    "vector": 0.000276650381128,
     "sfu": 0.000395346432,
-    "memory": 0.0265224186409,
+    "memory": 0.0260469536396,
     "comm": 0
    }
   }
@@ -310,11 +310,11 @@
  "Qwen/Qwen3.5-2B": {
   "actions": {
    "matrix": 1171430834180,
-   "vector": 1093374912,
+   "vector": 1163490240,
    "sfu": 459597632,
    "weights": 4421214976,
-   "actIn": 2238283776,
-   "actOut": 2226618368
+   "actIn": 1957822464,
+   "actOut": 2009071616
   },
   "memory": {
    "weightBytes": 4552443120,
@@ -325,12 +325,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 9017345264,
+   "bytesMoved": 8519337200,
    "times": {
     "matrix": 0.0107273885914,
-    "vector": 0.0000560705083077,
+    "vector": 0.0000596661661538,
     "sfu": 0.0000942764373333,
-    "memory": 0.0049138168296,
+    "memory": 0.00464243757833,
     "comm": 0
    }
   }
@@ -338,11 +338,11 @@
  "Qwen/Qwen3.5-2B-Base": {
   "actions": {
    "matrix": 1171430834180,
-   "vector": 1093374912,
+   "vector": 1163490240,
    "sfu": 459597632,
    "weights": 4421214976,
-   "actIn": 2238283776,
-   "actOut": 2226618368
+   "actIn": 1957822464,
+   "actOut": 2009071616
   },
   "memory": {
    "weightBytes": 4552443120,
@@ -353,12 +353,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 9017345264,
+   "bytesMoved": 8519337200,
    "times": {
     "matrix": 0.0107273885914,
-    "vector": 0.0000560705083077,
+    "vector": 0.0000596661661538,
     "sfu": 0.0000942764373333,
-    "memory": 0.0049138168296,
+    "memory": 0.00464243757833,
     "comm": 0
    }
   }
@@ -366,11 +366,11 @@
  "Qwen/Qwen3.5-35B-A3B": {
   "actions": {
    "matrix": 1809156759550,
-   "vector": 2626787392,
+   "vector": 2719587904,
    "sfu": 765468608,
    "weights": 69191097856,
-   "actIn": 4578344960,
-   "actOut": 4131866624
+   "actIn": 4207142912,
+   "actOut": 3842813952
   },
   "memory": {
    "weightBytes": 71907176480,
@@ -381,12 +381,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 80617388064,
+   "bytesMoved": 79957133344,
    "times": {
     "matrix": 0.016567369593,
-    "vector": 0.000134707045744,
+    "vector": 0.000139466046359,
     "sfu": 0.000157019201641,
-    "memory": 0.0439307874579,
+    "memory": 0.0435709952286,
     "comm": 0
    }
   }
@@ -394,11 +394,11 @@
  "Qwen/Qwen3.5-35B-A3B-Base": {
   "actions": {
    "matrix": 1809156759550,
-   "vector": 2626787392,
+   "vector": 2719587904,
    "sfu": 765468608,
    "weights": 69191097856,
-   "actIn": 4578344960,
-   "actOut": 4131866624
+   "actIn": 4207142912,
+   "actOut": 3842813952
   },
   "memory": {
    "weightBytes": 71907176480,
@@ -409,12 +409,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 80617388064,
+   "bytesMoved": 79957133344,
    "times": {
     "matrix": 0.016567369593,
-    "vector": 0.000134707045744,
+    "vector": 0.000139466046359,
     "sfu": 0.000157019201641,
-    "memory": 0.0439307874579,
+    "memory": 0.0435709952286,
     "comm": 0
    }
   }
@@ -422,11 +422,11 @@
  "Qwen/Qwen3.5-35B-A3B-FP8": {
   "actions": {
    "matrix": 1809156759550,
-   "vector": 2626787392,
+   "vector": 2719587904,
    "sfu": 765468608,
    "weights": 69191097856,
-   "actIn": 4578344960,
-   "actOut": 4131866624
+   "actIn": 4207142912,
+   "actOut": 3842813952
   },
   "memory": {
    "weightBytes": 37829740784,
@@ -437,12 +437,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 46539952368,
+   "bytesMoved": 45879697648,
    "times": {
     "matrix": 0.016567369593,
-    "vector": 0.000134707045744,
+    "vector": 0.000139466046359,
     "sfu": 0.000157019201641,
-    "memory": 0.0253609897924,
+    "memory": 0.0250011975631,
     "comm": 0
    }
   }
@@ -450,11 +450,11 @@
  "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4": {
   "actions": {
    "matrix": 1809156759550,
-   "vector": 2626787392,
+   "vector": 2719587904,
    "sfu": 765468608,
    "weights": 69191097856,
-   "actIn": 4578344960,
-   "actOut": 4131866624
+   "actIn": 4207142912,
+   "actOut": 3842813952
   },
   "memory": {
    "weightBytes": 23433986080,
@@ -465,12 +465,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 32144197664,
+   "bytesMoved": 31483942944,
    "times": {
     "matrix": 0.016567369593,
-    "vector": 0.000134707045744,
+    "vector": 0.000139466046359,
     "sfu": 0.000157019201641,
-    "memory": 0.0175163193635,
+    "memory": 0.0171565271342,
     "comm": 0
    }
   }
@@ -478,11 +478,11 @@
  "Qwen/Qwen3.5-397B-A17B": {
   "actions": {
    "matrix": 8737542987780,
-   "vector": 7463362112,
+   "vector": 7598187584,
    "sfu": 1856374208,
    "weights": 791564012800,
-   "actIn": 12242804736,
-   "actOut": 10374088704
+   "actIn": 11703502848,
+   "actOut": 9922179072
   },
   "memory": {
    "weightBytes": 806809112448,
@@ -493,12 +493,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 829426005888,
+   "bytesMoved": 828434794368,
    "times": {
     "matrix": 0.0800141299247,
-    "vector": 0.000382736518564,
+    "vector": 0.000389650645333,
     "sfu": 0.000380794709333,
-    "memory": 0.451978641975,
+    "memory": 0.451438501645,
     "comm": 0
    }
   }
@@ -506,11 +506,11 @@
  "Qwen/Qwen3.5-397B-A17B-FP8": {
   "actions": {
    "matrix": 8737542987780,
-   "vector": 7463362112,
+   "vector": 7598187584,
    "sfu": 1856374208,
    "weights": 791564012800,
-   "actIn": 12242804736,
-   "actOut": 10374088704
+   "actIn": 11703502848,
+   "actOut": 9922179072
   },
   "memory": {
    "weightBytes": 412143407952,
@@ -521,12 +521,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 434760301392,
+   "bytesMoved": 433769089872,
    "times": {
     "matrix": 0.0800141299247,
-    "vector": 0.000382736518564,
+    "vector": 0.000389650645333,
     "sfu": 0.000380794709333,
-    "memory": 0.236913683937,
+    "memory": 0.236373543606,
     "comm": 0
    }
   }
@@ -534,11 +534,11 @@
  "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4": {
   "actions": {
    "matrix": 8737542987780,
-   "vector": 7463362112,
+   "vector": 7598187584,
    "sfu": 1856374208,
    "weights": 791564012800,
-   "actIn": 12242804736,
-   "actOut": 10374088704
+   "actIn": 11703502848,
+   "actOut": 9922179072
   },
   "memory": {
    "weightBytes": 232846176128,
@@ -549,12 +549,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 255463069568,
+   "bytesMoved": 254471858048,
    "times": {
     "matrix": 0.0800141299247,
-    "vector": 0.000382736518564,
+    "vector": 0.000389650645333,
     "sfu": 0.000380794709333,
-    "memory": 0.139209345304,
+    "memory": 0.138669204974,
     "comm": 0
    }
   }
@@ -562,11 +562,11 @@
  "Qwen/Qwen3.5-4B": {
   "actions": {
    "matrix": 2379912577020,
-   "vector": 1784565696,
+   "vector": 1865187264,
    "sfu": 715515968,
    "weights": 9073263616,
-   "actIn": 3606691840,
-   "actOut": 3484663808
+   "actIn": 3284205568,
+   "actOut": 3235577856
   },
   "memory": {
    "weightBytes": 9322621472,
@@ -577,12 +577,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 16413977120,
+   "bytesMoved": 15842404896,
    "times": {
     "matrix": 0.0217940712182,
-    "vector": 0.0000915161895385,
+    "vector": 0.0000956506289231,
     "sfu": 0.000146772506256,
-    "memory": 0.00894445922293,
+    "memory": 0.00863299269577,
     "comm": 0
    }
   }
@@ -590,11 +590,11 @@
  "Qwen/Qwen3.5-4B-Base": {
   "actions": {
    "matrix": 2379912577020,
-   "vector": 1784565696,
+   "vector": 1865187264,
    "sfu": 715515968,
    "weights": 9073263616,
-   "actIn": 3606691840,
-   "actOut": 3484663808
+   "actIn": 3284205568,
+   "actOut": 3235577856
   },
   "memory": {
    "weightBytes": 9322621472,
@@ -605,12 +605,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 16413977120,
+   "bytesMoved": 15842404896,
    "times": {
     "matrix": 0.0217940712182,
-    "vector": 0.0000915161895385,
+    "vector": 0.0000956506289231,
     "sfu": 0.000146772506256,
-    "memory": 0.00894445922293,
+    "memory": 0.00863299269577,
     "comm": 0
    }
   }
@@ -618,11 +618,11 @@
  "Qwen/Qwen3.5-9B": {
   "actions": {
    "matrix": 4362611286020,
-   "vector": 2267626560,
+   "vector": 2356224576,
    "sfu": 853350848,
    "weights": 16779401728,
-   "actIn": 4599218176,
-   "actOut": 4229089280
+   "actIn": 4244826112,
+   "actOut": 3963138048
   },
   "memory": {
    "weightBytes": 19313245216,
@@ -633,12 +633,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 28141552672,
+   "bytesMoved": 27521209376,
    "times": {
     "matrix": 0.0399506528023,
-    "vector": 0.000116288541538,
+    "vector": 0.000120832029538,
     "sfu": 0.000175046327795,
-    "memory": 0.015335160303,
+    "memory": 0.0149971169833,
     "comm": 0
    }
   }
@@ -646,11 +646,11 @@
  "Qwen/Qwen3.5-9B-Base": {
   "actions": {
    "matrix": 4362611286020,
-   "vector": 2267626560,
+   "vector": 2356224576,
    "sfu": 853350848,
    "weights": 16779401728,
-   "actIn": 4599218176,
-   "actOut": 4229089280
+   "actIn": 4244826112,
+   "actOut": 3963138048
   },
   "memory": {
    "weightBytes": 19313245216,
@@ -661,12 +661,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 28141552672,
+   "bytesMoved": 27521209376,
    "times": {
     "matrix": 0.0399506528023,
-    "vector": 0.000116288541538,
+    "vector": 0.000120832029538,
     "sfu": 0.000175046327795,
-    "memory": 0.015335160303,
+    "memory": 0.0149971169833,
     "comm": 0
    }
   }
@@ -674,11 +674,11 @@
  "Qwen/Qwen3.6-27B": {
   "actions": {
    "matrix": 13477202976800,
-   "vector": 5272464448,
+   "vector": 5394682432,
    "sfu": 1927313856,
    "weights": 52164676096,
-   "actIn": 10719494144,
-   "actOut": 9595570176
+   "actIn": 10230622208,
+   "actOut": 9211916288
   },
   "memory": {
    "weightBytes": 55573398608,
@@ -689,12 +689,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 75888462928,
+   "bytesMoved": 75015937104,
    "times": {
     "matrix": 0.123417609677,
-    "vector": 0.000270382792205,
+    "vector": 0.000276650381128,
     "sfu": 0.000395346432,
-    "memory": 0.0413538569713,
+    "memory": 0.0408783919699,
     "comm": 0
    }
   }
@@ -702,11 +702,11 @@
  "Qwen/Qwen3.6-27B-FP8": {
   "actions": {
    "matrix": 13477202976800,
-   "vector": 5272464448,
+   "vector": 5394682432,
    "sfu": 1927313856,
    "weights": 52164676096,
-   "actIn": 10719494144,
-   "actOut": 9595570176
+   "actIn": 10230622208,
+   "actOut": 9211916288
   },
   "memory": {
    "weightBytes": 36931657808,
@@ -717,12 +717,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 57246722128,
+   "bytesMoved": 56374196304,
    "times": {
     "matrix": 0.123417609677,
-    "vector": 0.000270382792205,
+    "vector": 0.000276650381128,
     "sfu": 0.000395346432,
-    "memory": 0.0311954237524,
+    "memory": 0.030719958751,
     "comm": 0
    }
   }
@@ -730,11 +730,11 @@
  "Qwen/Qwen3.6-35B-A3B": {
   "actions": {
    "matrix": 1809156759550,
-   "vector": 2626787392,
+   "vector": 2719587904,
    "sfu": 765468608,
    "weights": 69191097856,
-   "actIn": 4578344960,
-   "actOut": 4131866624
+   "actIn": 4207142912,
+   "actOut": 3842813952
   },
   "memory": {
    "weightBytes": 71907176480,
@@ -745,12 +745,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 80617388064,
+   "bytesMoved": 79957133344,
    "times": {
     "matrix": 0.016567369593,
-    "vector": 0.000134707045744,
+    "vector": 0.000139466046359,
     "sfu": 0.000157019201641,
-    "memory": 0.0439307874579,
+    "memory": 0.0435709952286,
     "comm": 0
    }
   }
@@ -758,11 +758,11 @@
  "Qwen/Qwen3.6-35B-A3B-FP8": {
   "actions": {
    "matrix": 1809156759550,
-   "vector": 2626787392,
+   "vector": 2719587904,
    "sfu": 765468608,
    "weights": 69191097856,
-   "actIn": 4578344960,
-   "actOut": 4131866624
+   "actIn": 4207142912,
+   "actOut": 3842813952
   },
   "memory": {
    "weightBytes": 38273142560,
@@ -773,12 +773,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 46983354144,
+   "bytesMoved": 46323099424,
    "times": {
     "matrix": 0.016567369593,
-    "vector": 0.000134707045744,
+    "vector": 0.000139466046359,
     "sfu": 0.000157019201641,
-    "memory": 0.0256026124702,
+    "memory": 0.0252428202409,
     "comm": 0
    }
   }
@@ -786,11 +786,11 @@
  "Qwen/Qwen3.8-2.4T-A95B": {
   "actions": {
    "matrix": 48065918533600,
-   "vector": 21290770432,
+   "vector": 21484085248,
    "sfu": 4825039872,
    "weights": 4835539449090,
-   "actIn": 34088706048,
-   "actOut": 27980644352
+   "actIn": 33315446784,
+   "actOut": 27255619584
   },
   "memory": {
    "weightBytes": 4892392396860,
@@ -801,12 +801,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 4954461747260,
+   "bytesMoved": 4952963463230,
    "times": {
     "matrix": 0.440164089136,
-    "vector": 0.00109183438113,
+    "vector": 0.00110174796144,
     "sfu": 0.000989751768615,
-    "memory": 2.69983202401,
+    "memory": 2.69901556495,
     "comm": 0
    }
   }
@@ -814,11 +814,11 @@
  "Qwen/Qwen3.8-2.4T-A95B-FP8": {
   "actions": {
    "matrix": 48065918533600,
-   "vector": 21290770432,
+   "vector": 21484085248,
    "sfu": 4825039872,
    "weights": 4835539449090,
-   "actIn": 34088706048,
-   "actOut": 27980644352
+   "actIn": 33315446784,
+   "actOut": 27255619584
   },
   "memory": {
    "weightBytes": 2480340165180,
@@ -829,12 +829,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 2542409515580,
+   "bytesMoved": 2540911231550,
    "times": {
     "matrix": 0.440164089136,
-    "vector": 0.00109183438113,
+    "vector": 0.00110174796144,
     "sfu": 0.000989751768615,
-    "memory": 1.38543377232,
+    "memory": 1.38461731325,
     "comm": 0
    }
   }
@@ -842,11 +842,11 @@
  "Qwen/Qwen3.8-27B": {
   "actions": {
    "matrix": 13477202976800,
-   "vector": 5272464448,
+   "vector": 5394682432,
    "sfu": 1927313856,
    "weights": 52164676096,
-   "actIn": 10719494144,
-   "actOut": 9595570176
+   "actIn": 10230622208,
+   "actOut": 9211916288
   },
   "memory": {
    "weightBytes": 55573398608,
@@ -857,12 +857,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 75888462928,
+   "bytesMoved": 75015937104,
    "times": {
     "matrix": 0.123417609677,
-    "vector": 0.000270382792205,
+    "vector": 0.000276650381128,
     "sfu": 0.000395346432,
-    "memory": 0.0413538569713,
+    "memory": 0.0408783919699,
     "comm": 0
    }
   }
@@ -870,11 +870,11 @@
  "Qwen/Qwen3.8-27B-FP8": {
   "actions": {
    "matrix": 13477202976800,
-   "vector": 5272464448,
+   "vector": 5394682432,
    "sfu": 1927313856,
    "weights": 52164676096,
-   "actIn": 10719494144,
-   "actOut": 9595570176
+   "actIn": 10230622208,
+   "actOut": 9211916288
   },
   "memory": {
    "weightBytes": 36931657808,
@@ -885,12 +885,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "matrix",
-   "bytesMoved": 57246722128,
+   "bytesMoved": 56374196304,
    "times": {
     "matrix": 0.123417609677,
-    "vector": 0.000270382792205,
+    "vector": 0.000276650381128,
     "sfu": 0.000395346432,
-    "memory": 0.0311954237524,
+    "memory": 0.030719958751,
     "comm": 0
    }
   }
@@ -898,11 +898,11 @@
  "Qwen/Qwen3.8-Flash-Next": {
   "actions": {
    "matrix": 3507585769470,
-   "vector": 6861506624,
+   "vector": 6933294656,
    "sfu": 2001575872,
    "weights": 250179430400,
-   "actIn": 12277036032,
-   "actOut": 9618154496
+   "actIn": 11989883904,
+   "actOut": 9402665984
   },
   "memory": {
    "weightBytes": 256643788112,
@@ -913,12 +913,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 278538978640,
+   "bytesMoved": 278036338000,
    "times": {
     "matrix": 0.0321207488047,
-    "vector": 0.000351872134564,
+    "vector": 0.000355553572103,
     "sfu": 0.000410579666051,
-    "memory": 0.151784087319,
+    "memory": 0.151510183641,
     "comm": 0
    }
   }
@@ -926,11 +926,11 @@
  "Qwen/Qwen3.8-Flash-Next-FP8": {
   "actions": {
    "matrix": 3507585769470,
-   "vector": 6861506624,
+   "vector": 6933294656,
    "sfu": 2001575872,
    "weights": 250179430400,
-   "actIn": 12277036032,
-   "actOut": 9618154496
+   "actIn": 11989883904,
+   "actOut": 9402665984
   },
   "memory": {
    "weightBytes": 132875304416,
@@ -941,12 +941,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 154770494944,
+   "bytesMoved": 154267854304,
    "times": {
     "matrix": 0.0321207488047,
-    "vector": 0.000351872134564,
+    "vector": 0.000355553572103,
     "sfu": 0.000410579666051,
-    "memory": 0.0843389978443,
+    "memory": 0.084065094166,
     "comm": 0
    }
   }
@@ -954,11 +954,11 @@
  "deepseek-ai/DeepSeek-R1": {
   "actions": {
    "matrix": 19079924547600,
-   "vector": 14968472064,
+   "vector": 15993881088,
    "sfu": 3202517504,
    "weights": 1340199450620,
-   "actIn": 25197166592,
-   "actOut": 20651802624
+   "actIn": 21095530496,
+   "actOut": 16550166528
   },
   "memory": {
    "weightBytes": 694263358683,
@@ -969,12 +969,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 740112327899,
+   "bytesMoved": 731909055707,
    "times": {
     "matrix": 0.174724583769,
-    "vector": 0.000767613952,
+    "vector": 0.000820199030154,
     "sfu": 0.000656926667487,
-    "memory": 0.403308990191,
+    "memory": 0.398838785737,
     "comm": 0
    }
   }
@@ -982,11 +982,11 @@
  "deepseek-ai/DeepSeek-V3.1": {
   "actions": {
    "matrix": 19079924547600,
-   "vector": 14968472064,
+   "vector": 15993881088,
    "sfu": 3202517504,
    "weights": 1340199450620,
-   "actIn": 25197166592,
-   "actOut": 20651802624
+   "actIn": 21095530496,
+   "actOut": 16550166528
   },
   "memory": {
    "weightBytes": 694140654819,
@@ -997,12 +997,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 739989624035,
+   "bytesMoved": 731786351843,
    "times": {
     "matrix": 0.174724583769,
-    "vector": 0.000767613952,
+    "vector": 0.000820199030154,
     "sfu": 0.000656926667487,
-    "memory": 0.403242125244,
+    "memory": 0.398771920791,
     "comm": 0
    }
   }
@@ -1094,11 +1094,11 @@
  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": {
   "actions": {
    "matrix": 12276671709200,
-   "vector": 8724157952,
+   "vector": 8762004992,
    "sfu": 1345624576,
    "weights": 588422670408,
-   "actIn": 20889056256,
-   "actOut": 13400795136
+   "actIn": 20737668096,
+   "actOut": 13299738624
   },
   "memory": {
    "weightBytes": 336486855819,
@@ -1109,12 +1109,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 370776707211,
+   "bytesMoved": 370524262539,
    "times": {
     "matrix": 0.112423733601,
-    "vector": 0.000447392715487,
+    "vector": 0.000449333589333,
     "sfu": 0.000276025554051,
-    "memory": 0.202047140325,
+    "memory": 0.201909575794,
     "comm": 0
    }
   }
@@ -1178,11 +1178,11 @@
  "moonshotai/Kimi-K2-Base": {
   "actions": {
    "matrix": 16387331326000,
-   "vector": 11256667648,
+   "vector": 11769372160,
    "sfu": 2177116672,
    "weights": 2050467608580,
-   "actIn": 18947866624,
-   "actOut": 14886699008
+   "actIn": 16897048576,
+   "actOut": 12835880960
   },
   "memory": {
    "weightBytes": 1027833928930,
@@ -1193,12 +1193,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1061668494560,
+   "bytesMoved": 1057566858460,
    "times": {
     "matrix": 0.150067136685,
-    "vector": 0.00057726500759,
+    "vector": 0.000603557546667,
     "sfu": 0.000446588035282,
-    "memory": 0.578534409329,
+    "memory": 0.576299307103,
     "comm": 0
    }
   }
@@ -1206,11 +1206,11 @@
  "moonshotai/Kimi-K2-Instruct": {
   "actions": {
    "matrix": 16387331326000,
-   "vector": 11256667648,
+   "vector": 11769372160,
    "sfu": 2177116672,
    "weights": 2050467608580,
-   "actIn": 18947866624,
-   "actOut": 14886699008
+   "actIn": 16897048576,
+   "actOut": 12835880960
   },
   "memory": {
    "weightBytes": 1027833928930,
@@ -1221,12 +1221,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1061668494560,
+   "bytesMoved": 1057566858460,
    "times": {
     "matrix": 0.150067136685,
-    "vector": 0.00057726500759,
+    "vector": 0.000603557546667,
     "sfu": 0.000446588035282,
-    "memory": 0.578534409329,
+    "memory": 0.576299307103,
     "comm": 0
    }
   }
@@ -1234,11 +1234,11 @@
  "moonshotai/Kimi-K2-Instruct-0905": {
   "actions": {
    "matrix": 16387331326000,
-   "vector": 11256667648,
+   "vector": 11769372160,
    "sfu": 2177116672,
    "weights": 2050467608580,
-   "actIn": 18947866624,
-   "actOut": 14886699008
+   "actIn": 16897048576,
+   "actOut": 12835880960
   },
   "memory": {
    "weightBytes": 1027833928930,
@@ -1249,12 +1249,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1061668494560,
+   "bytesMoved": 1057566858460,
    "times": {
     "matrix": 0.150067136685,
-    "vector": 0.00057726500759,
+    "vector": 0.000603557546667,
     "sfu": 0.000446588035282,
-    "memory": 0.578534409329,
+    "memory": 0.576299307103,
     "comm": 0
    }
   }
@@ -1262,11 +1262,11 @@
  "moonshotai/Kimi-K2-Thinking": {
   "actions": {
    "matrix": 16387331326000,
-   "vector": 11256667648,
+   "vector": 11769372160,
    "sfu": 2177116672,
    "weights": 2050467608580,
-   "actIn": 18947866624,
-   "actOut": 14886699008
+   "actIn": 16897048576,
+   "actOut": 12835880960
   },
   "memory": {
    "weightBytes": 593967855616,
@@ -1277,12 +1277,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 627802421248,
+   "bytesMoved": 623700785152,
    "times": {
     "matrix": 0.150067136685,
-    "vector": 0.00057726500759,
+    "vector": 0.000603557546667,
     "sfu": 0.000446588035282,
-    "memory": 0.342108016592,
+    "memory": 0.339872914365,
     "comm": 0
    }
   }
@@ -1290,11 +1290,11 @@
  "moonshotai/Kimi-K2.5": {
   "actions": {
    "matrix": 16897174011900,
-   "vector": 12456944128,
+   "vector": 13196362240,
    "sfu": 2878031360,
    "weights": 2051399784450,
-   "actIn": 21124341760,
-   "actOut": 16819781632
+   "actIn": 18166669312,
+   "actOut": 13989511168
   },
   "memory": {
    "weightBytes": 594822027264,
@@ -1305,12 +1305,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 632766150656,
+   "bytesMoved": 626978207744,
    "times": {
     "matrix": 0.15473602575,
-    "vector": 0.00063881764759,
+    "vector": 0.000676736525128,
     "sfu": 0.000590365407179,
-    "memory": 0.344812898837,
+    "memory": 0.341658878396,
     "comm": 0
    }
   }
@@ -1318,11 +1318,11 @@
  "moonshotai/Kimi-K2.6": {
   "actions": {
    "matrix": 16897174011900,
-   "vector": 12456944128,
+   "vector": 13196362240,
    "sfu": 2878031360,
    "weights": 2051399784450,
-   "actIn": 21124341760,
-   "actOut": 16819781632
+   "actIn": 18166669312,
+   "actOut": 13989511168
   },
   "memory": {
    "weightBytes": 594822027264,
@@ -1333,12 +1333,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 632766150656,
+   "bytesMoved": 626978207744,
    "times": {
     "matrix": 0.15473602575,
-    "vector": 0.00063881764759,
+    "vector": 0.000676736525128,
     "sfu": 0.000590365407179,
-    "memory": 0.344812898837,
+    "memory": 0.341658878396,
     "comm": 0
    }
   }
@@ -1346,11 +1346,11 @@
  "moonshotai/Kimi-K2.7-Code": {
   "actions": {
    "matrix": 16897174011900,
-   "vector": 12456944128,
+   "vector": 13196362240,
    "sfu": 2878031360,
    "weights": 2051399784450,
-   "actIn": 21124341760,
-   "actOut": 16819781632
+   "actIn": 18166669312,
+   "actOut": 13989511168
   },
   "memory": {
    "weightBytes": 594822027264,
@@ -1361,12 +1361,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 632766150656,
+   "bytesMoved": 626978207744,
    "times": {
     "matrix": 0.15473602575,
-    "vector": 0.00063881764759,
+    "vector": 0.000676736525128,
     "sfu": 0.000590365407179,
-    "memory": 0.344812898837,
+    "memory": 0.341658878396,
     "comm": 0
    }
   }
@@ -1374,11 +1374,11 @@
  "moonshotai/Kimi-K3": {
   "actions": {
    "matrix": 54644985298900,
-   "vector": 25785267712,
+   "vector": 26257882624,
    "sfu": 8278140672,
    "weights": 5559621954690,
-   "actIn": 44852346880,
-   "actOut": 37098064896
+   "actIn": 42961887232,
+   "actOut": 35377474560
   },
   "memory": {
    "weightBytes": 1555064840740,
@@ -1389,12 +1389,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 1637015252510,
+   "bytesMoved": 1633404202530,
    "times": {
     "matrix": 0.500411953287,
-    "vector": 0.00132232142113,
+    "vector": 0.00134655808328,
     "sfu": 0.00169808013785,
-    "memory": 0.892057791135,
+    "memory": 0.89009002372,
     "comm": 0
    }
   }
@@ -1402,11 +1402,11 @@
  "zai-org/GLM-4.7": {
   "actions": {
    "matrix": 17118187749400,
-   "vector": 15297199104,
+   "vector": 16457088000,
    "sfu": 3617944064,
    "weights": 704043737088,
-   "actIn": 22400442368,
-   "actOut": 18423922688
+   "actIn": 17760886784,
+   "actOut": 13977305088
   },
   "memory": {
    "weightBytes": 713336298696,
@@ -1417,12 +1417,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 754160663752,
+   "bytesMoved": 745074490568,
    "times": {
     "matrix": 0.156759961075,
-    "vector": 0.000784471748923,
+    "vector": 0.000843953230769,
     "sfu": 0.000742142372103,
-    "memory": 0.410964341863,
+    "memory": 0.406013018674,
     "comm": 0
    }
   }
@@ -1598,11 +1598,11 @@
  "zai-org/GLM-5.3-Flash": {
   "actions": {
    "matrix": 8812944424960,
-   "vector": 5558009344,
+   "vector": 5570641408,
    "sfu": 1792563712,
    "weights": 626537661688,
-   "actIn": 13120049152,
-   "actOut": 10337890304
+   "actIn": 13069520896,
+   "actOut": 10312527872
   },
   "memory": {
    "weightBytes": 333584703457,
@@ -1613,12 +1613,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 357042642913,
+   "bytesMoved": 356966752225,
    "times": {
     "matrix": 0.0807046192762,
-    "vector": 0.000285026120205,
+    "vector": 0.000285673918359,
     "sfu": 0.000367705376821,
-    "memory": 0.194563044473,
+    "memory": 0.194521689404,
     "comm": 0
    }
   }
@@ -1626,11 +1626,11 @@
  "zai-org/GLM-5.3-Flash-BF16": {
   "actions": {
    "matrix": 8812944424960,
-   "vector": 5558009344,
+   "vector": 5570641408,
    "sfu": 1792563712,
    "weights": 626537661688,
-   "actIn": 13120049152,
-   "actOut": 10337890304
+   "actIn": 13069520896,
+   "actOut": 10312527872
   },
   "memory": {
    "weightBytes": 641742560737,
@@ -1641,12 +1641,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 665200500193,
+   "bytesMoved": 665124609505,
    "times": {
     "matrix": 0.0807046192762,
-    "vector": 0.000285026120205,
+    "vector": 0.000285673918359,
     "sfu": 0.000367705376821,
-    "memory": 0.362487330496,
+    "memory": 0.362445975426,
     "comm": 0
    }
   }

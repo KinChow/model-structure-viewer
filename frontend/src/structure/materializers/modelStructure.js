@@ -16,7 +16,7 @@ function structureNodeFromSpec(spec) {
       },
       source_fields: Object.keys(spec.attributes || {}),
       confidence: "high",
-      children: [],
+      children: (spec.children || []).map(structureNodeFromSpec),
       // 节点扩展字段仅在 spec 携带时透传；图边由 Structure IR 单独承载。
       params: spec.params,
       weight_shapes: spec.weight_shapes,

@@ -104,14 +104,13 @@ W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
 
 未排期项（设计已定、实现未跟上；开工前需确认，不属于任一历史波次）：
 
-- **§2.4 SDPA 核进生产图**：默认折叠为 `sdpa_attention`，展开才是 scores/softmax/context；
-  计费主语用父 counts。现状仍拆三叶。不做 fused add+RMSNorm 图节点。
-- **§2.5 残差同级 skip**：Gallery 画法（层内兄弟 + 主干→⊕ 的 skip，不扩跨层 IR）。
-  实现仍缺 skip 边，属结构债，不是"IR 能力不足"。
+- **§5 source_ref / §6.3 verify UI**：后端 evidence 对账已在；前端无校验入口，
+  节点无 `source_ref`。FlopCounterMode 矩阵抽查未接。
 - **§6.4 来源解析契约**：前后端保持两套 resolver，以支持静态前端和 Python
   服务；需要共享来源类型、revision、fallback、错误分类和 fixture 契约，
   不强行合并运行时代码。
 - **§7 国产芯片条目**：每字段必须有公开来源，缺项保持 unknown。
+- **§3.1 extractor 双轨**：手搓 switch 与 FORMULAS.counts 并存；不改画面，后置。
 
 ### 统一结构协议的生成或契约测试
 

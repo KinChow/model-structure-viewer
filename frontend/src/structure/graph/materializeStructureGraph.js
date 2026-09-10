@@ -7,8 +7,8 @@ function semanticEdges(item) {
 
 function isOutputNode(item) {
   const type = String(item?.node?.type || "").toLowerCase();
-  const name = String(item?.node?.name || "").toLowerCase();
-  return type === "output" || type === "head" || /(^|[._ -])(lm[_ -]?head|classifier|score)$/.test(name);
+  const role = String(item?.node?.role || item?.node?.attributes?.role || "").toLowerCase();
+  return type === "output" || type === "head" || role === "output";
 }
 
 function flattenTree(root) {
@@ -64,7 +64,7 @@ export function materializeStructureGraph(root) {
           source: source.path,
           target: target.path,
           kind: "dataflow",
-          evidence: orderedPairs.has(`${source.path}=>${target.path}`) ? "module-order" : undefined,
+          evidence: orderedPairs.has(`${source.path}=>${target.path}`) ? "module-order" : "shape-match",
         });
       }
     }

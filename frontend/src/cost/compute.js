@@ -30,39 +30,50 @@ export function nodeMacs(node, config, options = {}) {
   return counts ? counts.matrix : null;
 }
 
-function macsSource(node, counts) {
+function macsSource(node, counts, billingParent) {
+  if (billingParent) return "formula";
   if (node?.children?.length) return "aggregate";
   if (!counts) return "unknown";
   return counts.matrix > 0 ? "formula" : "not-compute";
+}
+
+function isBillingParent(node, counts) {
+  return Boolean(node?.children?.length && counts && node?.attributes?.operator_id);
+}
+
+function scaleActions(counts, multiplier) {
+  const scale = (value) => (value == null ? null : value * multiplier);
+  return {
+    matrix: scale(counts.matrix),
+    vector: scale(counts.vector),
+    sfu: scale(counts.sfu),
+    computeDtype: counts.computeDtype,
+    bytes: {
+      weights: scale(counts.bytes.weights),
+      actIn: scale(counts.bytes.actIn),
+      actOut: scale(counts.bytes.actOut),
+      kvRead: scale(counts.bytes.kvRead),
+      indexRead: scale(counts.bytes.indexRead),
+    },
+  };
 }
 
 // P7（步骤 7）：首参从 tree root 改为 Graph IR——walkStructure 已是图唯一遍历
 // 路径，options.graph 透传随之删除（生产消费方 aggregate/lens 均已传图）。
 export function computeNodeCosts(graph, config, options = {}) {
   const rows = [];
+  const billedAncestors = new Set();
   walkStructure(graph, ({ node, path, multiplier }) => {
     const counts = countsFor(node, config, options);
-    const computeMacs = node?.children?.length ? 0 : (counts ? counts.matrix : null);
+    const billingParent = isBillingParent(node, counts);
+    const coveredByAncestor = [...billedAncestors].some((prefix) => path.startsWith(`${prefix}.`));
+    if (billingParent) billedAncestors.add(path);
+    const useOwnCounts = billingParent || (!node?.children?.length && !coveredByAncestor);
+    const computeMacs = coveredByAncestor ? 0 : useOwnCounts ? (counts ? counts.matrix : null) : 0;
     const compute = computeMacs == null ? null : computeMacs * multiplier;
-    const scale = (value) => (value == null ? null : value * multiplier);
-    // 动作向量（§3.1）：叶子携带五单元计数，父节点不重复计费 → null。
-    // matrix=0 是精确陈述（该单元无事可做），null 是未知（§3.3）。
-    const actions = node?.children?.length || !counts ? null : {
-      matrix: scale(counts.matrix),
-      vector: scale(counts.vector),
-      sfu: scale(counts.sfu),
-      // computeDtype：该叶的矩阵计算运行的精度（如 mHC 的 TF32 pre-GEMM，
-      // paramDtypes/来源见 formulas/index.js 的 mhc 条目）。roofline 据此把
-      // 这份 matrix 从默认 dtype 费率里拆出来单算。未声明 = 跟随全局 dtype。
-      computeDtype: counts.computeDtype,
-      bytes: {
-        weights: scale(counts.bytes.weights),
-        actIn: scale(counts.bytes.actIn),
-        actOut: scale(counts.bytes.actOut),
-      },
-    };
+    const actions = coveredByAncestor || !useOwnCounts || !counts ? null : scaleActions(counts, multiplier);
     rows.push({ path, node, multiplier, compute_macs: compute,
-      macs_source: macsSource(node, counts),
+      macs_source: coveredByAncestor ? "aggregate" : macsSource(node, counts, billingParent),
       actions,
       weightBytes: nodeWeightBytes(node) * multiplier,
       estimate_status: compute == null ? "unknown" : "estimated" });

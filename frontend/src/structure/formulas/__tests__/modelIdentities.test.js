@@ -405,7 +405,7 @@ test("P2 护栏：带权重叶的 weightMatrices 声明覆盖（棘轮，只许�
 // 独立的 index-k cache（宽 index_head_dim、单头），与 kvBytesPerToken 无关，
 // 混在一起比会让稀疏模型看起来「超读」。indexer 侧单列在 INDEXER_OPS。
 const ATTENTION_OPS = new Set([
-  "matmul",
+  "matmul", "sdpa_attention",
   "qsa_sparse_attention", "dsa_sparse_mla", "dsv4_sparse_mla",
   "minimax_sparse_attention", "dsv4_swa_attention", "dsv4_compressed_attention",
 ]);

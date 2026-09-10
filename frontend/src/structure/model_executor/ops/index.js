@@ -162,13 +162,61 @@ export function routedExpertWeightMatrices(normalized) {
   return [weightMatrixDecl("ep", { shape: [expertIntermediate, expertHidden], count: normalized.experts, matrices: 3, split: "output" })];
 }
 
-// 打分式注意力的公共尾链：rope → scores → softmax → context → o_proj。
+// SDPA 核（原则 §2.3 / §2.4）：QKᵀ / softmax / PV。不含 RoPE、不含 q/k/v/o 投影。
+// FlashAttention 是这个核的实现，写进 implementation。默认折叠；展开才看到三叶。
+export function sdpaAttentionModule(prefix, shapes, dims, { scoresName = "attention scores", scores = {}, context = {}, modality } = {}) {
+  const sdpaId = `${prefix}.sdpa`;
+  const formula = formulaForOperator("sdpa_attention");
+  const children = [
+    operatorSpec(`${sdpaId}.scores`, scoresName, "matmul", {
+      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
+      formula: "S = Q K^T / sqrt(d)",
+      modality,
+      ...scores,
+    }, { input: dims.attentionQuery, output: dims.attentionScores }),
+    operatorSpec(`${sdpaId}.softmax`, "attention probabilities", "softmax", {
+      ...shapeFlow(shapes.attentionScores, shapes.attentionProbabilities),
+      modality,
+    }, { input: dims.attentionScores, output: dims.attentionProbabilities }),
+    operatorSpec(`${sdpaId}.context`, "weighted value", "matmul", {
+      ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
+      formula: "O = P V",
+      modality,
+      ...context,
+    }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
+  ];
+  return {
+    kind: "module",
+    id: sdpaId,
+    name: "SDPA attention",
+    type: "operator",
+    attributes: cleanAttributes({
+      class: "SDPAAttention",
+      operator_id: "sdpa_attention",
+      formula_id: "sdpa_attention",
+      formula: formula?.formula,
+      explanation: formula?.explanation,
+      inputs: formula?.inputs,
+      outputs: formula?.outputs,
+      attention_kind: scores.attention_kind || context.attention_kind,
+      implementation: ["vLLM.Attention", "SGLang.FlashAttentionBackend", "TRT-LLM.GPTAttention"],
+      dataflow_edges: [["scores", "softmax"], ["softmax", "context"]],
+      modality,
+      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`, shapes.attentionContext),
+    }),
+    children,
+    input_shape: dims.attentionQuery,
+    output_shape: dims.attentionContext,
+  };
+}
+
+// 打分式注意力的公共尾链：rope → SDPA 核 → o_proj。
 // 五处调用（GQA / qwen35Full / MLA / minimaxCommon dense / minimaxM2）的节点结构
 // 与数值 shape 完全一致，差异全部落在 attributes：
 //   rope: { query_shape, key_shape, position_shape, rotary_dim, partial_rotary_factor, implementation }
 //   scores: { attention_kind, formula 覆写, name 覆写（MLA "latent attention scores"）, query/key_shape, explanation 等 }
 //   context: { attention_kind, explanation 等 }
-//   preOutput: 插在 context 与 o_proj 之间的节点（MLA 的 g_proj）
+//   preOutput: 插在 SDPA 核与 o_proj 之间的节点（MLA 的 g_proj）
 //   before: 插在 tail 之前的节点（minimax sparse 的 indexer 链）
 // 真语义不同的变体（dsa、dsv4、qsa）不并入本 helper。
 function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary position embedding", rope = {}, scoresName = "attention scores", scores = {}, context = {}, preOutput = [], before = [] } = {}) {
@@ -178,17 +226,7 @@ function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary positio
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
       ...rope,
     }, { input: dims.attentionQuery, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.scores`, scoresName, "matmul", {
-      ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, shapes.attentionScores),
-      formula: "S = Q K^T / sqrt(d)",
-      ...scores,
-    }, { input: dims.attentionQuery, output: dims.attentionScores }),
-    operatorSpec(`${prefix}.softmax`, "attention probabilities", "softmax", shapeFlow(shapes.attentionScores, shapes.attentionProbabilities), { input: dims.attentionScores, output: dims.attentionProbabilities }),
-    operatorSpec(`${prefix}.context`, "weighted value", "matmul", {
-      ...shapeFlow(`${shapes.attentionProbabilities}, ${shapes.attentionValue}`, shapes.attentionContext),
-      formula: "O = P V",
-      ...context,
-    }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
+    sdpaAttentionModule(prefix, shapes, dims, { scoresName, scores, context }),
     ...preOutput,
     operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
       ...shapeFlow(shapes.attentionContext, shapes.hidden),
@@ -969,6 +1007,13 @@ export function residualAddSpec(id, normalized, label) {
     ...shapeFlow(`${shapes.hidden}, ${shapes.hidden}`, shapes.hidden),
     residual_of: label,
     implementation: ["vLLM.RMSNorm(residual=...) 融合 add", "SGLang.attn_residual"],
+  }, { input: dims.hidden, output: dims.hidden });
+}
+
+export function layerInSpec(id, normalized) {
+  const { shapes, dims } = shapesAndDims(normalized);
+  return operatorSpec(id, "layer input", "identity", {
+    ...shapeFlow(shapes.hidden, shapes.hidden),
   }, { input: dims.hidden, output: dims.hidden });
 }
 

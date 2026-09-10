@@ -35,7 +35,11 @@ export default defineConfig({
   webServer: {
     command: "npm run dev -- --host 127.0.0.1 --port 4173",
     url: baseURL,
-    reuseExistingServer: true,
+    // P0 收尾实证（2026-09-10）：长时运行 + 多轮 HMR 的 dev server 会让 React
+    // Flow 节点布局持续不稳定（"element is not stable" 耗尽 click 超时，全量
+    // 连续两轮同用例失败；杀掉 4173 旧 server 后 9/9 全绿）。每轮强制全新
+    // server，消除该变量——代价仅 ~2s 启动。
+    reuseExistingServer: false,
     timeout: 30_000,
   },
 });

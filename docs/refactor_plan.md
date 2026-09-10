@@ -115,6 +115,27 @@ MAINTENANCE.md 棘轮已回写。
    ✅ 已定稿（2026-09-10）：九项裁决落
    [`details/parallel_protocol.md`](details/parallel_protocol.md)。
 
+### 后续立项池（未排期，需触发条件——只记录，不做）
+
+2026-09-10 九步路线收官后登记。每条带**触发判据**：触发未到不动工，避免为
+清池子而做工。
+
+1. **framework execution profile 整层**（终态四行唯一未动的一层）。
+   触发：第一次需要对比 vLLM 与 SGLang 在同一模型上的有效宽度差异时。
+   最小集合草案：effective attention/MoE width、expert ownership/placement、
+   KV partition、dispatch/combine 方式（九项裁决 Q1/Q3/Q5 推迟项全部归入）。
+   载体（JSON 视图 / UI 分栏 / CLI 选项）待需求定型后裁决。
+2. **折叠语义前后端单源化**。触发：meta-introspect 与前端模板的图谱一致性
+   对账需求出现。方向：后端只产原始图，折叠交共享规则（P8 勘验确认当前
+   前端模板产 repeat 与后端 fold.py 双源并存）。
+3. **source_ref 采集**（§5.x）。触发：需要"节点 ↔ transformers 源码位置"
+   产品化展示。前置：先定采集范围（builder 生成点 vs archs 配方 vs 两者）。
+4. **per-stage roofline 计算路**（stage 级动作向量）与 **evidence 的 I/O
+   shape**（introspect 不产数值）：诚实缺项，消费需求出现时补。
+5. 触发型债项维持原登记：家族知识 5 住址收口（接新家族）、§8.1 清零
+  （随配方表接管）、§2.5 back-edge（展示需求）、国产芯片（字段需求）、
+  后端生产化（部署需求）、catalog/证据库扩展（内容工程，按需）。
+
 ### M12 之后的收口工作
 
 以下事项不属于 M12 的通信功能本身，但必须在下一轮协议收口中处理：

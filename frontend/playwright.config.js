@@ -7,6 +7,10 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
+  // P0 后收尾：59 模型重用例存在偶发失败（2026-09-10 实测一次，同日同配置两次
+  // 全量通过，根因无日志可查）。Playwright 官方重试惯例兜底：CI 两次、本地一次；
+  // retry 仍失败的用例照红，不掩盖真实回归。
+  retries: process.env.CI ? 2 : 1,
   timeout: 30_000,
   expect: { timeout: 8_000 },
   reporter: "line",

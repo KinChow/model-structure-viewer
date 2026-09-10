@@ -67,7 +67,7 @@ framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
    （2026-09-10，P9：models/architectures 台账生成器并入 docs:check；
    版本边界文档化为 IR version:3 / graph schema_version:2 两轨）。
 
-**收尾登记（下一步计划池）**：
+**收尾登记（下一步计划池；大件已迁「后续立项池」——refactor_plan.md，带触发判据）**：
 - `.root` 清零 grep 纳入 check_principles 棘轮（P8 建议，防"root 复活"）；
 - 折叠语义前后端双源（前端模板产 repeat vs 后端 fold.py）单源化；
 - details/models.md 的 Qwen3.5 分组漂移按 models_reference 机器段回改（P9 登记）；

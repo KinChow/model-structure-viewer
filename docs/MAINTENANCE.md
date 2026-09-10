@@ -13,8 +13,9 @@
 | 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照与 evidence 对账 | 169 passed |
 | 5 | `cd frontend && npm run test:e2e` | 浏览器端：图渲染、边 evidence 契约、成本交互（全量内置模型回归仅桌面跑） | 9 passed + 1 skipped |
 
-e2e 注：59 模型重用例（"每个内置模型都能展开父节点"）在 desktop+mobile 双
-project 并行时会资源竞争超时（2026-09-10 实测：并行 fail、单跑 pass）——失败先
+e2e 注：59 模型重用例存在**偶发失败**（2026-09-10 实测一次未复现，同日同配置
+两次全量通过；config 本为 workers:1 全局串行，早期"资源竞争"归因无证据已撤）。
+处置 = playwright `retries` 兜底（CI 2 / 本地 1）；仍红先
 `--project=desktop-chrome -g` 单跑复核，再定性为回归。
 
 哈希基线文件（有意变更时重生成并人工审阅 diff，流程见各测试头注释）：

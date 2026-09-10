@@ -1527,6 +1527,11 @@ label {
 .diagnostics-banner { padding: 8px 12px; border: 1px solid #3b4a61; border-radius: 6px; background: #1c2534; color: #9fb3cc; font-size: 13px; margin-bottom: 8px; }
 .diagnostics-banner-warn { border-color: #7a5b2a; background: #2b2113; color: #e0b56a; }
 .diagnostics-banner-error { border-color: #8a3a3a; background: #2b1515; color: #e0a0a0; }
+.diagnostics-banner-ok { border-color: #2a6a4a; background: #152b1f; color: #8fdbb0; }
+.diagnostics-verify { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.diagnostics-verify button { padding: 6px 12px; border: 1px solid #3b4a61; border-radius: 6px; background: #1c2534; color: #c8d4e4; cursor: pointer; font-size: 13px; }
+.diagnostics-verify button:disabled { opacity: 0.6; cursor: default; }
+.diagnostics-verify-error { color: #e08a8a; font-size: 13px; }
 .diagnostics-group { margin-bottom: 6px; border: 1px solid #2a3545; border-radius: 6px; background: #161d29; font-size: 13px; }
 .diagnostics-group summary { padding: 6px 10px; cursor: pointer; color: #9fb3cc; }
 .diagnostics-group ul { margin: 0; padding: 4px 10px 8px 26px; color: #c8d4e4; }

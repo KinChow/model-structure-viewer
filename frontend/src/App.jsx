@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Drawer from "./components/Drawer";
 import ModelEntry from "./components/ModelEntry";
 import { useSettings } from "./hooks/useSettings";
@@ -6,6 +6,7 @@ import { useBuiltinModels } from "./hooks/useBuiltinModels";
 import { useLocalModels } from "./hooks/useLocalModels";
 import { useHfSearch } from "./hooks/useHfSearch";
 import { useStructure } from "./hooks/useStructure";
+import { useVerify } from "./hooks/useVerify";
 import { useExport } from "./hooks/useExport";
 import { computeMatches } from "./diagram/match";
 import { PUBLIC_CHIPS } from "./cost/chips/public.js";
@@ -59,7 +60,9 @@ function App() {
   const { models, refresh: refreshModels } = useLocalModels();
   const hf = useHfSearch();
   const { structure, build, loading, loadingPhase, error: structureError } = useStructure();
+  const { result: verifyResult, loading: verifyLoading, error: verifyError, verify, reset: resetVerify } = useVerify();
   const exporter = useExport();
+  const lastVerifyPayload = useRef(null);
 
   const [modelId, setModelId] = useState("deepseek-ai/DeepSeek-V3.1");
   const [revision, setRevision] = useState("main");
@@ -207,6 +210,8 @@ function App() {
     };
     const data = await build(payload);
     if (data) {
+      lastVerifyPayload.current = payload;
+      resetVerify();
       exporter.reset();
       setZoom(1);
       setFitNonce((value) => value + 1);
@@ -214,6 +219,12 @@ function App() {
       setLayersExpandedPaths(new Set(["root"]));
       setSearchTerm("");
     }
+  }
+
+  function handleVerify() {
+    const base = lastVerifyPayload.current;
+    if (!base || !structure?.graph) return;
+    void verify({ ...base, msv_graph: structure.graph });
   }
 
   async function handleSaveSettings() {
@@ -311,6 +322,10 @@ function App() {
             exporter={exporter}
             loading={loading}
             loadingPhase={loadingPhase}
+            onVerify={handleVerify}
+            verifyResult={verifyResult}
+            verifyLoading={verifyLoading}
+            verifyError={verifyError}
           />
         </Suspense>
         {error && <div className="error detail-error">{error}</div>}

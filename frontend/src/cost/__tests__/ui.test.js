@@ -95,3 +95,47 @@ test("etaDisclosureModel：显式乐观上界披露", async () => {
   assert.match(etaDisclosureModel({ english: false }).short, /η=1\.0/);
   assert.match(etaDisclosureModel({ english: true }).short, /optimistic/);
 });
+
+test("verifyEvidenceModel：两态分立，未对账不是失败", async () => {
+  const { verifyEvidenceModel } = await import("../ui.js");
+  const idle = verifyEvidenceModel(null);
+  assert.equal(idle.show, false);
+  const unmatched = verifyEvidenceModel({
+    ok: true,
+    status: "passed",
+    evidence: { summary: { constructed: true, structurally_consistent: null }, diff: { note: "msv_graph not provided" }, modules: [{ path: "a" }] },
+  }, { english: false });
+  assert.equal(unmatched.show, true);
+  assert.equal(unmatched.tone, "warn");
+  assert.equal(unmatched.compared, false);
+  assert.match(unmatched.headline, /未对账/);
+  assert.equal(unmatched.note, "msv_graph not provided");
+  const match = verifyEvidenceModel({
+    ok: true,
+    status: "passed",
+    evidence: {
+      summary: { constructed: true, structurally_consistent: true, module_count: 3 },
+      diff: { classified: { renaming: 2, unclassified: 0 }, only_transformers: [], only_msv: [], mismatches: [] },
+      modules: [{}, {}, {}],
+    },
+  }, { english: false });
+  assert.equal(match.tone, "ok");
+  assert.equal(match.consistent, true);
+  assert.equal(match.residualCount, 0);
+  const diverge = verifyEvidenceModel({
+    ok: true,
+    status: "passed",
+    evidence: {
+      summary: { constructed: true, structurally_consistent: false },
+      diff: {
+        classified: { renaming: 1 },
+        only_transformers: ["model.norm"],
+        only_msv: [],
+        mismatches: [{ path: "model.layers.0", kind: "class", transformers: "LlamaAttention", msv: "GQA Attention" }],
+      },
+    },
+  }, { english: false });
+  assert.equal(diverge.tone, "error");
+  assert.equal(diverge.residualCount, 2);
+  assert.equal(diverge.classifiedEntries[0][0], "renaming");
+});

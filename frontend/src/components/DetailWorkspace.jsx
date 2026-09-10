@@ -103,6 +103,10 @@ export default function DetailWorkspace({
   exporter,
   loading = false,
   loadingPhase = "reading",
+  onVerify,
+  verifyResult = null,
+  verifyLoading = false,
+  verifyError = "",
 }) {
   const [auxView, setAuxView] = useState(null);
   const [costOpen, setCostOpen] = useState(false);
@@ -163,7 +167,7 @@ export default function DetailWorkspace({
     <main className={`detail-page theme-${theme}`}>
       <DetailHeader structure={structure} sourceLabel={sourceLabel} language={language} onLanguageChange={onLanguageChange} onThemeChange={onThemeChange} theme={theme} onBack={onBack} onSettings={onSettings} />
       <section className="detail-summary"><SummaryChips structure={structure} sourceLabel={sourceLabel} language={language} /></section>
-      <DiagnosticsPanel structure={structure} language={language} />
+      <DiagnosticsPanel structure={structure} language={language} onVerify={onVerify} verifyResult={verifyResult} verifyLoading={verifyLoading} verifyError={verifyError} />
       <section className="detail-layout">
         <div className="detail-main">
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} language={language} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>

@@ -112,3 +112,11 @@ export function buildStructureApi(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function verifyStructureApi(payload) {
+  return requestJson("/api/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}

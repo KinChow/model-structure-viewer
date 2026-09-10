@@ -635,9 +635,9 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 **仍偏离**（设计已定、代码未跟上或契约未收口）：
 
 - **§5.x**：`source_ref` 未实现（旁路 B 收窄版范围）。
-- **§6.3 / §6.4**：`/api/verify` 已返回 per-module evidence 与三分类 diff
-  （renaming / nonparam / fold / divergence 四桶 triage，`unclassified=0` 才算
-  `structurally_consistent`）。校验无前端 UI 入口；来源解析策略仍两套（共享样例
+- **§6.3 / §6.4**：`/api/verify` 已返回 per-module evidence 与三分类 diff；
+  前端 DiagnosticsPanel 有校验入口并展示构造/结构一致两态与未分类残余。
+  FlopCounterMode 矩阵抽查未接。来源解析策略仍两套（共享样例
   `verification/fixtures/canonical_path_contract.json`，不共享代码）。
 - **§8.1**：14/16 文件含家族名；剩余随配方表接管后进一步下降。
 - **§3.1 运行时双轨**：extractor 巨型 switch 手搓原子 counts，注册表对这 30+ 条

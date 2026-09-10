@@ -104,8 +104,7 @@ W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
 
 未排期项（设计已定、实现未跟上；开工前需确认，不属于任一历史波次）：
 
-- **§5 source_ref / §6.3 verify UI**：后端 evidence 对账已在；前端无校验入口，
-  节点无 `source_ref`。FlopCounterMode 矩阵抽查未接。
+- **§5 source_ref**：节点无 file/line/url。FlopCounterMode 矩阵抽查未接。
 - **§6.4 来源解析契约**：前后端保持两套 resolver，以支持静态前端和 Python
   服务；需要共享来源类型、revision、fallback、错误分类和 fixture 契约，
   不强行合并运行时代码。

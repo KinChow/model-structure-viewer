@@ -256,3 +256,55 @@ export function diagnosticsModel(diagnostics, { english = false } = {}) {
     warningCount: warnings.length,
   };
 }
+
+/**
+ * §6.3：/api/verify 响应 → 诊断面板展示。只映射后端已有字段，不伪造对账。
+ * constructed 与 structurally_consistent 两态分立；未对账（null）不是失败。
+ */
+export function verifyEvidenceModel(response, { english = false } = {}) {
+  if (!response) return { show: false };
+  const evidence = response.evidence || {};
+  const summary = evidence.summary || {};
+  const diff = evidence.diff || {};
+  const constructed = summary.constructed ?? response.ok ?? null;
+  const consistent = summary.structurally_consistent;
+  const classified = diff.classified || {};
+  const onlyTransformers = diff.only_transformers || [];
+  const onlyMsv = diff.only_msv || [];
+  const mismatches = diff.mismatches || [];
+  const residualCount = onlyTransformers.length + onlyMsv.length + mismatches.length;
+  const compared = consistent != null;
+  let tone = "warn";
+  if (response.status === "failed" || constructed === false) tone = "error";
+  else if (compared && consistent === true) tone = "ok";
+  else if (compared && consistent === false) tone = "error";
+  const constructedLabel = constructed === true
+    ? (english ? "constructed" : "构造通过")
+    : constructed === false
+      ? (english ? "construction failed" : "构造失败")
+      : (english ? "construction unknown" : "构造未知");
+  const consistentLabel = consistent === true
+    ? (english ? "structure matches" : "结构一致")
+    : consistent === false
+      ? (english ? "structure differs" : "结构不一致")
+      : (english ? "not compared" : "未对账");
+  const headline = response.error
+    ? (english ? `Verify failed: ${response.error}` : `校验失败：${response.error}`)
+    : `${constructedLabel} · ${consistentLabel}`;
+  return {
+    show: true,
+    tone,
+    headline,
+    note: diff.note || null,
+    constructed,
+    consistent,
+    compared,
+    classified,
+    classifiedEntries: Object.entries(classified).filter(([, count]) => count > 0),
+    onlyTransformers,
+    onlyMsv,
+    mismatches,
+    residualCount,
+    moduleCount: evidence.modules?.length ?? summary.module_count ?? 0,
+  };
+}

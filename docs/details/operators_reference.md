@@ -27,15 +27,13 @@
   = 768·2（T_v=576，实际拷贝 768·576 元素，**少乘 576×**；2026-09-09 验证发现，
   verify-vision-misc 登记建议 b）。裁决通过 → `rearrangeCounts({copy:true})` 调用补乘
   tokens 并更新 golden。
-- **G2 · registry/runtime 双轨差显式登记**。42 条 registry 条目与 extractor 手搓分支同名
-  双轨；**运行时为准、registry 为规格锚**。已登记双轨差 5 处：
-  ① `matmul`（registry=attentionCounts F2 融合口径 vs 运行时 scores/context 分解三叶，
-  `index.js:37-46` 死引用）；② `causal_conv1d`（registry 含 SiLU vector/sfu+weights，
-  运行时只计 matrix+actIn/actOut，`counts.js:118-125` vs `extractor.js:633-644`）；
-  ③ `gated_delta_attention`（registry F7b delta vector=`2·T·state`/sfu=`3·Nh·T` vs 运行时
-  stateUpdateCounts 精确零，`counts.js:140-152` vs `extractor.js:294-306`）；④
-  `linear_attention`（registry plain 公式 vs 运行时 `/state|recurrent/` 分支实调
-  stateUpdateCounts，`extractor.js:645-663`）；⑤ `swiglu`（routed GEMM 分支只在运行时）。
+- **G2 · registry/runtime 同名双轨——运行时为准、registry 为规格锚**（2026-09-08
+  登记 5 处；2026-09-10 P0-A 单源化后 **causal_conv1d 已消除**——extractor 权威
+  口径提升为 `counts.causalShortConvCounts`，registry 与运行时同源；其余 ①③④⑤
+  保持登记：`matmul`（F2 融合口径 vs scores/context 分解三叶）、
+  `gated_delta_attention`（registry F7b 旧 delta 规格未回写）、`linear_attention`
+  （plain 公式 vs `/state|recurrent/` 分支）、`swiglu`（routed GEMM 分支只在
+  运行时）。
 - **G3 · 融合 ≡ Σ子级 断言拟进护栏**。矩阵单元的精确恒等已核验（见 §4.3 各 kind 的
   一致性断言）：dense F2 = matmul(scores)+matmul(context)；indexer = F2+F8（sumCounts
   构造恒等）；MLA 压缩 = F1+F3。带登记差的两类：dense bytes 的 K/V 读宽（模块 kvH vs
@@ -47,70 +45,21 @@
 
 ## 0. 总览表
 
-`matrix/vector/sfu` 列：✓ = 有计费；0 = 精确零（该单元无事可做，principles §3.3）；
-0\* = 运行时精确零、registry 存在非零规格（G2 双轨差）。
-`bytes` 列：✓ = 三访存分量至少 actIn/actOut 非零；∅ = 全零（A1 view 豁免）。
-`来源`：一 = 一等 aten 锚点；二 = 二等 modeling 对照；三 = 三等分解声明（可组合如 `二+三`）。
-`触发模型`：探针发射该 operator_id 叶的模型数 / 59；括号内 节点数 / 乘数后实例数。
-`对齐`：勾选框供人工逐条核销。
+总览表（算子 × matrix/vector/sfu/bytes 形状 × 来源 × 触发模型/节点/实例 × 出现槽位）
+已由生成器产出，见下方机器段「[总览表（生成物）](#总览表生成物-48-个算子--59-个模型)」——
+探针逐 op 实测运行时形状，本节不再手写（2026-09-10 P0-A：手写版触发数与算子名
+已过期，且 causal_conv1d 单源化后 G2 双轨差清零，`0\*` 标记随之退役）。
 
-| 算子 | matrix | vector | sfu | bytes | 公式摘要 | 来源 | 触发模型（节点/实例） | 对齐 |
-|---|---|---|---|---|---|---|---|---|
-| linear | ✓ | 0\* | 0 | ✓ | `T·out·in·xf`；w `out·in·b`；a `T·in·b`/`T·out·b` | 一 | 59/59（9891/28707） | - [ ] |
-| matmul | ✓ | 0 | 0 | ✓ | `Nh·T·S·(D+dv)` 两叶 | 一 | 48/59（878/4162） | - [ ] |
-| softmax | 0 | ✓ | ✓ | ✓ | `3E`/`2E`，E=`Nh·T·S` | 一 | 48/59（439/2081） | - [ ] |
-| attention_output_gate | 0 | ✓ | ✓ | ✓ | `T·W`/`2·T·W` | 二 | 29/59（355/355） | - [ ] |
-| attention_qkv_split | 0 | 0 | 0 | ∅ | view 零流量 | 二 | 40/59（41/1147） | - [ ] |
-| mla_query_compress | ✓ | ✓ | ✓ | ✓ | F1(q_a)+F3 | 三+二 | 19/59（221/1124） | - [ ] |
-| mla_kv_compress | ✓ | 0 | 0 | ✓ | `T·outW·H` | 三+二 | 24/59（464/1369） | - [ ] |
-| mla_kv_split | 0 | 0 | 0 | ∅ | view 零流量 | 一 | 19/59（221/1124） | - [ ] |
-| mla_output_gate | 0 | ✓ | ✓ | ✓ | `T·W`/`2·T·W` | 二 | 1/59（23/24） | - [ ] |
-| qsa_indexer | ✓ | ✓ | ✓ | ✓ | F2+F8 | 二+三 | 16/59（327/698） | - [ ] |
-| qsa_attention | ✓ | 0 | 0 | ✓ | `Nh·T·S_sel·(D+dv)` | 二 | 16/59（327/698） | - [ ] |
-| minimax_sparse_indexer | ✓ | ✓ | ✓ | ✓ | F2+F8 | 二+三 | 2/59（2/114） | - [ ] |
-| minimax_sparse_attention | ✓ | 0 | 0 | ✓ | `Nh·T·(blocks·bs)·(D+dv)` | 二 | 2/59（2/114） | - [ ] |
-| dsv4_swa_attention | ✓ | 0 | 0 | ✓ | `Nh·T·W_win·(D+D)` | 二（降级） | 3/59（3/6） | - [ ] |
-| dsv4_compressed_attention | ✓ | 0 | 0 | ✓ | `Nh·T·⌈S/ratio⌉·(D+D)` | 二（降级） | 5/59（120/122） | - [ ] |
-| linear_attention | ✓ | ✓ | ✓ | ✓ | F7b plain（规格） | 二 | **0/59**（槽位保留） | - [ ] |
-| linear_attention_gate | 0 | ✓ | ✓ | ✓ | `T·W`/`2·T·W` | 二 | **0/59**（槽位保留） | - [ ] |
-| gated_delta_attention | ✓ | 0\* | 0\* | ✓ | `3·T·vh·dv·dk` | 二 | 34/59（431/1274） | - [ ] |
-| gated_rmsnorm | 0 | ✓ | ✓ | ✓ | `5·T·H_n`/`T+2·T·H_n` | 二+三 | 34/59（431/1274） | - [ ] |
-| causal_conv1d | ✓ | 0\* | 0\* | ✓（weights=0\*） | `T·width·kernel` | 一 | 34/59（431/1274） | - [ ] |
-| attention_residual | ✓ | ✓ | ✓ | ✓ | F3×2+F1+F2+add | 二+三 | 1/59（47/93） | - [ ] |
-| split | 0 | 0 | 0 | ∅ | view 零流量 | 一 | 36/59（605/726） | - [ ] |
-| qwen_qkvz_split | 0 | 0 | 0 | ∅ | view 零流量 | 二 | 31/59（383/1137） | - [ ] |
-| rmsnorm | 0 | ✓ | ✓ | ✓ | `4·T·H_n`/`T` | 三 | 57/59（1898/8633） | - [ ] |
-| gemma_rmsnorm | 0 | ✓ | ✓ | ✓ | `5·T·H_n`/`T` | 三 | 31/59（2179/4287） | - [ ] |
-| swiglu | 0（routed ✓） | ✓ | ✓ | ✓ | `2·T_eff·I`；routed `T·k·3·EH·EI` | 一 | 59/59（2161/5774） | - [ ] |
-| rope | 0 | ✓ | 0 | ✓ | `3·T·D_rope` | 三 | 59/59（1101/2393） | - [ ] |
-| topk | 0 | ✓ | ✓ | ✓ | `T·E`/`T·k` | 一 | 44/59（916/2565） | - [ ] |
-| moe_dispatch | 0 | 0 | 0 | ✓ | gather `T·W·b`→`T·k·W·b` | 一 | 44/59（926/2580） | - [ ] |
-| moe_combine | 0 | ✓ | 0 | ✓ | `2·T·k·W` | 三 | 44/59（926/2580） | - [ ] |
-| moe_add | 0 | ✓ | 0 | ✓ | `T·H` | 一 | 41/59（873/2422） | - [ ] |
-| shared_expert_gate | 0 | ✓ | ✓ | ✓ | `T·W`/`2·T·W` | 二 | 16/59（426/844） | - [ ] |
-| dsv4_hash_route | 0 | 0 | 0 | ✓ | 查表 w `tableRows·b` | 二 | 5/59（10/15） | - [ ] |
-| mhc_pre | ✓ | ✓ | ✓ | ✓ | `T·H·n` | 三 | 7/59（292/341） | - [ ] |
-| mhc_post | ✓ | ✓ | 0 | ✓ | `T·H·n` | 三 | 7/59（7/7） | - [ ] |
-| mhc_fused_post_pre | ✓ | ✓ | ✓ | ✓ | `T·H·n` | 三 | 7/59（292/341） | - [ ] |
-| mhc_contract | 0 | ✓ | 0 | ✓ | `T·H` | 三 | 7/59（7/7） | - [ ] |
-| hyper_connection | ✓ | ✓ | ✓ | ✓ | `T·H²` | 三 | 2/59（106/194） | - [ ] |
-| ple | ✓ | ✓ | ✓ | ✓ | F1+F3+F7a+hash | 三 | 2/59（2/2） | - [ ] |
-| vision_position | 0 | ✓ | 0 | ✓ | `T_v·H_v` | 三 | 38/59（38/38） | - [ ] |
-| vision_merge | 0 | 0 | 0 | ✓（G1 缺口\*\*） | copy 单 token 宽 | 三 | 31/59（31/31） | - [ ] |
-| vision_activation | 0 | ✓ | ✓ | ✓ | `2·T_v·I_v` | 一 | 36/59（65/974） | - [ ] |
-| — embedding(struct) 结构节点 | 0 | 0 | 0 | ✓ | gather `T·H·b` | 三（M11-P0-5） | 57/59（57/57） | - [ ] |
-| — attention 模块容器（type=attention） | 计费 0 | 计费 0 | 计费 0 | 计费 0 | 容器不计费 | — | 59/59（容器） | - [ ] |
+来源等级图例（生成段「来源」列）：
 
-\* linear vector：主链精确零（`T·out` 是 bias=true 的条件容量，主链不传 bias）；
-gated_delta_attention / causal_conv1d 的 vector/sfu（与 causal_conv1d weights）：运行时
-精确零，registry 存在非零规格（G2 双轨差登记，见各节）。
-\*\* vision_merge：copy 一阶访存按实际拷贝元素应乘 T_v（G1 草案违反项，已登记）。
+- `一` = 一等 aten 锚点（单条 counts 函数对应单一 aten op）；
+- `二` = 二等 modeling 对照（引用 `models/<org>/<id>/` 内入库源码证据）；
+- `三` = 三等分解声明（由 index.js counts 组合，复合节点见分解台账）。
 
-探针口径结论：59 模型共发现 **41 种 leaf 键** = 40 条 registry operatorId（42 条中
-`linear_attention`、`linear_attention_gate` 为零触发通用槽位）+ 1 个结构节点
-`embedding`。prefill（T=128）与 decode（T=1、S=4096）两相位 unknown 叶均为 **0**。
-2026-09-09 在 a4d709a 复跑触发探针（`/tmp/m11-formulas/probe-rewrite.mjs`）与冻结的
-`trigger-map.json` **双向 0 差异**（41 键 × 59 模型）。
+探针口径结论：59 模型共发现 **41 种 leaf 键** = 40 条 registry operatorId（49 条中
+部分为零触发通用槽位或复合内部分解项）+ 1 个结构节点 `embedding`。prefill（T=128）
+与 decode（T=1、S=4096）两相位 unknown 叶均为 **0**。2026-09-09 复跑触发探针与
+冻结的 `trigger-map.json` 双向 0 差异（41 键 × 59 模型）。
 
 ---
 

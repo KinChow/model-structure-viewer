@@ -238,7 +238,14 @@ checkpoint truth 在场时（`truth.skeleton` 离线骨架文件形态或 `truth
 | MTP | `layers/mtp.js` | 主干最后一层 hidden state | shared head norm 输出 | enorm/hnorm/eh_proj + decoder 层复用（repeat=0） |
 | LM head | `layers/outputHead.js` | final hidden state | logits | Linear |
 
-普通 decoder layer 的逻辑关系是 `hidden -> pre-attention norm -> attention -> residual -> pre-MLP norm -> MLP/MoE -> residual -> next layer`。残差加是显式算子叶 `attn_residual_add` / `ffn_residual_add`（`layers/decoderLayer.js:21-43`，公式 `residual_add`，formulas/index.js:188）。特殊层由 `layerSchedule`、`attentionSchedule`、`hyperConnectionCount` 和 `attnResBlockSize` 决定。
+普通 decoder layer 的**同级**逻辑关系（原则 §2.5，对标 Gallery）：
+
+```text
+layer_in → PreNorm → Attention → ⊕ → PreNorm → MLP/MoE → ⊕
+    └──── skip ─────┘              └──── skip ────┘
+```
+
+`attn_residual_add` / `ffn_residual_add` 是与 Attention / FFN 并列的兄弟节点（`layers/decoderLayer.js`，公式 `residual_add`）。skip 的源是残差主干，不是子层输出；展开 Attention / FFN 看不到 skip。**现状代码只有顺序 residual_add、尚无 skip 边**（实现债）。特殊层由 `layerSchedule`、`attentionSchedule`、`hyperConnectionCount` 和 `attnResBlockSize` 决定。
 
 结构树中的 `repeat` 用于压缩同构层。成本遍历必须传递 repeat 乘数，但子节点已有显式 repeat 时不能再次相乘。图、Layers、Inspector、公式和成本都使用同一 `root.0.1...` 节点路径。
 
@@ -392,12 +399,14 @@ operator chain 只是可解释的结构语义，不表示 MSV 会调用 vLLM/SGL
 |---|---|---|
 | MSV 语义公式 | `structure/formulas/index.js` | 页面展示公式，由 MSV 按结构语义维护 |
 | 参考实现 | `model_executor/ops/index.js` 的 `implementation` | vLLM/SGLang 类、算子或 backend 名称，不在浏览器执行 |
-| 成本方法论 | `cost/*.js` 注释和函数 | 借鉴 llm-analysis 的解析形式和效率因子，不承诺精度等价 |
+| 成本方法论 | `cost/*.js` 注释和函数 | 逐算子 counts 对标 FlopCounterMode / onnx-tool（shape → 公式）；并行、显存 fit、效率因子、roofline 下界仍借鉴 llm-analysis |
 | shape/协议事实 | safetensors、`@huggingface/hub`、模型 config | 参数量、dtype、shape、cache 和模型识别事实 |
 
 外部参考：
 
-- [llm-analysis](https://github.com/cli99/llm-analysis)：线性层/attention FLOPs、KV cache、并行和效率因子的解析模型参考。
+- [PyTorch FlopCounterMode](https://github.com/pytorch/pytorch/blob/main/torch/utils/flop_counter.py)：逐算子 shape → FLOP 公式（mm/bmm/conv/SDPA）；msv counts 的机制对标。
+- [onnx-tool](https://github.com/ThanatosShinji/onnx-tool)：ONNX shape inference + 每节点 MACs。
+- [llm-analysis](https://github.com/cli99/llm-analysis)：KV cache、并行投影、效率因子、延迟下界；**不再**作为逐算子 counts 来源。
 - [vLLM](https://github.com/vllm-project/vllm)：模型执行、KDA state、attention/MoE 算子和实现名称参考。
 - [SGLang](https://github.com/sgl-project/sglang)：模型执行、attention/MoE/backend 实现名称参考。
 - [safetensors](https://github.com/huggingface/safetensors)：header、dtype、shape、offset 和 tensor key 事实来源。
@@ -409,8 +418,10 @@ operator chain 只是可解释的结构语义，不表示 MSV 会调用 vLLM/SGL
 
 ```text
 materialized graph + normalized config + load + plan + chip
-  -> computeNodeCosts
-  -> memoryBreakdown
+  -> shape 沿 dataflow 传播（运行时维 B/S；静态维不动）
+  -> 节点公式只吃本节点 in/out/weight shape → counts
+  -> 计费主语（原则 §2.4）：父有 counts 用父，否则用叶子；禁止双计
+  -> computeNodeCosts / memoryBreakdown
   -> projectPlan / projectPdFit
   -> planCommunicationBytes
   -> classifyRoofline

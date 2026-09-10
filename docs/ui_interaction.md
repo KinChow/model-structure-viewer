@@ -104,7 +104,7 @@
 ## 明确不做
 
 - 最近模型、收藏、账号和云端同步。
-- 自动推荐最优并行方案或预测吞吐、TTFT、TPOT。
+- 自动推荐最优并行方案，或把 roofline 理论时间下界命名/展示为 TTFT、TPOT、吞吐。
 - modelmap 式运行时脉冲回放。
 - 在首页暴露内部 cache policy、repair strategy 或后端实现参数。
 

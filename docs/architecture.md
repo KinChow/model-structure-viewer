@@ -2,7 +2,7 @@
 
 ## 定位
 
-Model Structure Viewer（MSV）是一个轻量的模型结构查看和理论成本分析工具。它读取模型配置、公开元数据和 safetensors header，生成可解释的结构、公式、显存和瓶颈信息；不下载权重数据，不运行推理，也不承担在线 serving、调度或吞吐预测。
+Model Structure Viewer（MSV）是一个轻量的模型结构查看和理论成本分析工具。它读取模型配置、公开元数据和 safetensors header，生成可解释的结构、公式、显存和瓶颈信息；不下载权重数据，不运行推理，也不承担在线 serving、调度或 TTFT/TPOT/吞吐等服务指标预测。Roofline 瓶颈与理论时间下界属于估计，必须标明"下界"，不得当成服务指标。
 
 ## 总体数据流
 
@@ -45,7 +45,8 @@ CLI / HTTP request
   -> resolver / local cache / HF client
   -> config and remote-code recovery
   -> transformers meta-device introspection
-  -> Graph IR response
+  -> Transformers module evidence（非产品 Graph）
+  -> compare 与前端 Graph 对账
   -> API / CLI / export
 ```
 
@@ -81,7 +82,7 @@ compute、aggregate、通信、PP/PD projection 和导出只消费 graph。`root
 | 区域 | 负责 | 不负责 |
 |---|---|---|
 | `frontend/src/structure` | 配置归一化、架构映射、结构组网、公式和 IR | 真实 kernel、推理、调度 |
-| `frontend/src/cost` | 理论内存、MACs、roofline、并行和 PD 投影 | 性能仿真、吞吐预测、实测校准 |
+| `frontend/src/cost` | 理论内存、MACs、roofline 下界、并行和 PD 投影 | 性能仿真、TTFT/TPOT/吞吐、实测校准 |
 | `frontend/src/diagram` | React Flow 图、布局、交互和联动 | 模型结构推断 |
 | `src/model_structure_viewer` | API、CLI、本地缓存、HF 解析和 transformers 验证 | 前端交互和公网安全治理 |
 | `models/` | 内置配置、catalog 和可信后端验证所需的轻量代码 | 权重文件和推理运行 |

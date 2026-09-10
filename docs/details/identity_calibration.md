@@ -9,7 +9,7 @@
 校准期间任何一个时刻，四样输入缺一样就会退化成猜谜：
 
 1. **config 字段语义**——每个参与公式的字段"在 modeling 源码里是什么"。
-   依据源阶梯（`principles.md` §5）：checkpoint 自带 modeling_*.py →
+   依据源阶梯（`principles.md` §4.3）：checkpoint 自带 modeling_*.py →
    transformers → 原始仓库。警惕：同名字段跨家族语义不同（例：
    Kimi 的 vision_config 无 `in_channels`，缺省 RGB=3；
    `num_expert_group` 等新字段语义未知时必须查源码，不能按名字猜）。

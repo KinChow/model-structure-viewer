@@ -1,11 +1,10 @@
 # 开发原则
 
-本文档是 msv 的**强制约束**，开发时必须遵守。
+本文档是 msv 的**强制约束**。优先级：本文档 > `architecture.md` / `ui_interaction.md` / `details/*`。
+与代码冲突时视为代码缺陷，改代码或走 §10 例外登记；不得静默偏离。
 
-**文档优先级**：本文档 > `architecture.md` / `ui_interaction.md` / `details/*`。
-本文档与代码冲突时，视为代码缺陷，改代码或走 §10 例外登记；不得静默偏离。
-
-每条原则的格式为：**陈述** → **判据**（怎么算违反）→ **检查**（怎么发现违反）。
+每条原则：**陈述**（应然）→ **判据**（怎么算违反）→ **检查**（怎么发现违反）。
+过程叙事、行号考古、已清账历史不进本文；实现债只登记在 §10。
 
 ---
 
@@ -35,18 +34,22 @@ roofline 瓶颈分类与各路**理论时间下界**属于支柱④，不是服�
 
 ## 2. 结构原则：节点即图，递归至算子
 
+结构图来自**已适配的 builder**，查找键是精确表：主键 `config.architectures[0]`，
+辅键 `model_type` 别名。命中则用配方 + config 数字实例化；未命中则 `unsupported`，
+空网络走完管线，**禁止**编造完整图。运行时不做结构推断。
+
 ### 2.1 节点**可以**含图；含图的节点**必须显式声明边**
 
-模型由节点组成，节点内部可以是一张图，递归向下直到叶子节点对应算子。
-"可以"是关键——参照 MLIR（`operations **may** have regions`）与 Model Explorer
+模型由节点组成，节点内部可以是一张图，递归向下直到叶子对应算子。
+"可以"是关键——参照 MLIR（`operations may have regions`）与 Model Explorer
 （layer 可展开），普遍递归是能力而非义务。
 
 **判据**：
-- 构造了 `children` 且这些子节点之间存在真实数据流的模块，**必须**在 attributes 里
+- 构造了 `children` 且子节点之间存在真实数据流的模块，**必须**在 attributes 里
   声明 `dataflow_edges`。
 - **禁止**新增任何依赖**显示名**（`node.name`）推断拓扑的代码。
-  `materializeStructureGraph.js` 中残留的 `legacySemanticEdges` 是历史遗留，
-  已不可达，不得复活、不得参照其写法扩展。
+  `materializeStructureGraph.js` 中残留的 `legacySemanticEdges` 已不可达，
+  不得复活、不得参照其写法扩展。
 
 **检查**：新增 layer builder 的测试必须断言其 `dataflow_edges` 非空，或显式标注
 该模块为顺序执行（见 2.2）。
@@ -71,61 +74,63 @@ diagram 层测试断言 `module-order` 边的样式与 `declared` 不同。
 
 ### 2.3 算子是终结节点；融合核默认可折叠
 
-叶子节点对应模型算子，算子**不再含图**。融合核是可折叠的父节点，展开后看到的是
+叶子节点对应模型算子，算子**不再含图**。融合核是可折叠的父节点：展开后看到的是
 同一拓扑的细节（matmul / softmax / …），不是第二套结构。
 
-**默认视图跟计费主语走**（2026-09-10 定稿）：有融合 counts 的核默认折叠显示
-（账本与画面一致）；展开才看到原子叶。当前适用：
+**默认视图跟计费主语走**（主语规则见 §2.4）：有融合 `counts` 的核默认折叠显示，
+展开才看到原子叶。无融合 `counts` 的容器（MLP、整个 Attention 模块、Decoder Layer）
+仍显示子节点。
 
-- **SDPA 核**默认显示一个 `sdpa_attention` 节点；展开才看到 scores / softmax / context。
+当前适用折叠的核：
+
+- **SDPA 核**默认显示一个 `sdpa_attention` 节点，展开才看到 scores / softmax / context。
   MLA 模块仍显示压缩链；只有打分三段收进这个核。
 - `fused_moe_mlp`、KDA `state_update`、稀疏主注意力已经是单叶核，无需再折一层。
 
-无融合 counts 的容器（MLP、整个 Attention 模块、Decoder Layer）仍显示子节点。
-
-算子的实现差异（vLLM/SGLang 的 fused kernel）写进 `attributes.implementation`，
+算子的实现差异（vLLM / SGLang 的 fused kernel 名）写进 `attributes.implementation`，
 **不得**为同一语义因框架不同拆出多个节点。
 
 **判据**：出现"同一个数学操作因为框架实现不同而产生两个节点"即违反。
 
 ### 2.4 计费主语：父有 counts 才用父，否则用叶子
 
-**禁止父子同时进总量**（2026-09-10 定稿）。
+**禁止父子同时进总量。**
 
-- 节点**自己有 `counts` 且有子节点** → 融合主语。总量用该节点的计算量（`counts.matrix` 等）和访存量（`counts.bytes`：actIn + weights + actOut）。子孙公式只解释，不进账。
+- 节点**自己有 `counts` 且有子节点** → 融合主语。总量用该节点的计算量
+  （`counts.matrix` 等）和访存量（`counts.bytes`：actIn + weights + actOut）。
+  子孙公式只解释，不进账。
 - 否则 → 落到有 `counts` 的叶子；无 `counts` 的容器只聚合。
-- 不是「永远用父节点」。当前 MLP 父无 counts、四叶有 → 主语是叶子。只有父声明了融合 `counts`，才改用父。
+- 不是「永远用父节点」。MLP 父无 counts、四叶有 → 主语是叶子。
+  只有父声明了融合 `counts`，才改用父。
 
-**哪些节点该有融合 counts**（对标 vLLM / SGLang / TensorRT-LLM 的 **kernel 边界**，不是 nn.Module 类名）：
+**哪些节点该有融合 counts**：对齐 vLLM / SGLang / TensorRT-LLM 的 **kernel 边界**，
+不是 nn.Module 类名。
 
 | 该有融合 counts 的节点 | 三家对应 | 融合掉什么 |
 |---|---|---|
-| SDPA 核（QK^T / softmax / PV，不含 q/k/v/o 投影、不含 RoPE） | vLLM `Attention` 吃已投影的 Q,K,V；SGLang `FlashAttentionBackend`；TRT-LLM GPTAttention。**FlashAttention 是这个核的实现，不是另一种算法。** GQA/MHA/MQA dense、以及 MLA 里同样的 scores→softmax→context 三段，共用此核（msv 的 `scaledDotProductTail`）。 | scores 矩阵不落 HBM |
-| 路由专家 MLP（gate/up/act/down 一段） | vLLM/SGLang/TRT-LLM `fused_moe` 的 w13/w2 专家核 | 中间激活不往返 HBM |
-| KDA / GDN 状态更新 | vLLM/SGLang chunked KDA kernel | 递推状态在片上 |
-| 稀疏主注意力（QSA/DSA/MSA/DSV4 的选中位置核） | 各家 sparse / flash MLA backend | 与 SDPA 同理，S 由 indexer 决定 |
+| **SDPA 核**（QKᵀ / softmax / PV；不含 q/k/v/o 投影、不含 RoPE） | vLLM `Attention` 吃已投影的 Q,K,V；SGLang `FlashAttentionBackend`；TRT-LLM GPTAttention。**FlashAttention 是这个核的实现，不是另一种算法。** GQA / MHA / MQA dense、以及 MLA 里同样的 scores→softmax→context 三段，共用此核（`scaledDotProductTail`）。MLA **不是** SDPA：MLA 是含压缩链的模块，其中打分核是 SDPA，shape 不同（`attentionCounts` 的 `heads / T / S / headDim / valueDim / kvHeads`）。 | scores 矩阵不落 HBM |
+| 路由专家 MLP（gate/up/act/down 一段） | 三家 `fused_moe` 的 w13/w2 专家核 | 中间激活不往返 HBM |
+| KDA / GDN 状态更新 | chunked KDA kernel | 递推状态在片上 |
+| 稀疏主注意力（QSA / DSA / MSA / DSV4 的选中位置核） | 各家 sparse / flash MLA backend | 与 SDPA 同理，S 由 indexer 决定 |
 
-**不做 fused add+RMSNorm 图节点**（2026-09-10 撤销）。vLLM Llama 的融合发生在
-**下一层** `input_layernorm(hidden, residual)`（`llama.py:320-328`）：层返回未加的
-`(hidden, residual)`，下一层入口才 fused_add_rms_norm。这是跨 decoder layer 的边。
-ONNX / Gallery 没有把这种跨层 kernel 画成单节点的成熟方案。层内
-`post_attention_layernorm` 虽与 attention 残差同层，单独融一半会和 skip 汇合点、
-层边界不一致。**⊕ 与 RMSNorm 保持两叶**；kernel 名可写在 `implementation`，不占计费主语。
+**不做 fused add+RMSNorm 图节点。** vLLM 的融合发生在**下一层**
+`input_layernorm(hidden, residual)`：本层返回未加的 `(hidden, residual)`，
+下一层入口才 fused_add_rms_norm。这是跨 decoder layer 的边；ONNX / Gallery
+没有把这种跨层 kernel 画成同级单节点的成熟方案。层内 `post_attention_layernorm`
+虽与 attention 残差同层，单独融一半会和 skip 汇合点、层边界不一致。
+**⊕ 与 RMSNorm 保持两叶**；kernel 名可写在 `implementation`，不占计费主语。
 
-**不该**给整个 Attention 模块、整个 MoE 模块、整个 Decoder Layer 挂融合 counts：q/k/v/o 投影、router GEMM、RoPE、indexer 在三家里都是独立 kernel。
+**不该**给整个 Attention 模块、整个 MoE 模块、整个 Decoder Layer 挂融合 counts：
+q/k/v/o 投影、router GEMM、RoPE、indexer 在三家里都是独立 kernel。
 
-现状问题：SDPA 在图上拆成 `matmul`+`softmax`+`matmul` 三叶，`sdpa_attention` 只活在 `formulas/modules.js` 恒等式里、不进生产图——**该有融合主语的节点不在图上**。`fused_moe_mlp` 已是专家核单叶，这一处对齐。
-
-**检查**：同一子树不得既把父 `counts` 又把子 `counts` 加进模型总量。聚合测试覆盖「父有 counts 时子树不进账」和「父无 counts 时叶子相加」。
+**检查**：同一子树不得既把父 `counts` 又把子 `counts` 加进模型总量。
+聚合测试覆盖「父有 counts 时子树不进账」和「父无 counts 时叶子相加」。
 
 ### 2.5 残差是层内同级 skip，不是跨层边
 
 残差在 **Decoder Layer 这一层的同级图**里完成，不需要"从父模块入口伸进子模块之后"
-的跨层 IR。对标 LLM Architecture Gallery 的画法（Qwen3 图：PreNorm → Attention → ⊕，
-另有一条从层入口主干绕到 ⊕ 的 skip）；展开 Attention / FFN 只展示父模块内部细节，
-**不含**那条 skip。
-
-同级拓扑：
+的跨层 IR。对标 LLM Architecture Gallery（PreNorm → Attention → ⊕，另有一条从层入口
+主干绕到 ⊕ 的 skip）；展开 Attention / FFN 只展示父模块内部细节，**不含**那条 skip。
 
 ```text
 layer_in ──► PreNorm ──► Attention ──► ⊕ ──► PreNorm ──► FFN ──► ⊕
@@ -155,7 +160,7 @@ modelmap 主图把残差藏在兄弟顺序链里、micro-view 只在子层后塞
 
 ### 3.1 公式表是算子的**唯一注册点**，条目产出**动作向量**
 
-**计价机制**（2026-09-10 定稿）照抄 PyTorch `FlopCounterMode` / onnx-tool，不照抄 llm-analysis 的整层闭式：
+计价机制照抄 PyTorch `FlopCounterMode` / onnx-tool，不照抄 llm-analysis 的整层闭式：
 
 ```text
 边上传入张量 shape → 节点公式只吃本节点 in/out/weight shape → 产出 counts
@@ -165,27 +170,27 @@ modelmap 主图把残差藏在兄弟顺序链里、micro-view 只在子层后塞
 roofline 下界的参考，**不再**当逐算子 counts 的来源。Accelergy 仍是「次数 × 芯片单价」
 （§3.4）的参考。
 
-本仓在 FlopCounterMode 之上**有意多计**：flop_counter 只数矩阵系 FLOPs，softmax/norm 贡献 0；
-注册条目产出**四维动作向量**（Accelergy Action Counts 形态）：
+本仓在 FlopCounterMode 之上**有意多计**：flop_counter 只数矩阵系 FLOPs，softmax/norm
+贡献 0。注册条目产出四维动作向量（Accelergy Action Counts 形态）：
 
 ```js
 // frontend/src/structure/formulas/index.js
 softmax: {
   title, formula, explanation, inputs, outputs,
-  aten: "aten._softmax",            // 对照锚点；无对应则省略，用 counts 注释声明分解
-  // ref: torch flop_counter 明确不数 softmax（有意超越，依据 Accelergy 多单元动作模型）；
-  //      SFU 吞吐见 chip.sfu_ops（CUDA guide：16/SM/clk vs FP32 128）
-  // 假设：融合单遍实现（FlashAttention 式），logits 读 1 遍；未融合的多遍读放大不建模（§2.3）
+  aten: "aten._softmax",   // 对照锚点；无对应则省略，用 counts 注释声明分解
   counts: ({ tokens, vocab, bytesPerElement }) => ({
-    matrix: 0,                      // 精确陈述：不用矩阵单元
-    vector: 4 * tokens * vocab,     // 1 scale + 3（减 max / 累加 / 乘）；与 counts.js F2 对齐
-    sfu:    2 * tokens * vocab,     // exp + div
+    matrix: 0,                       // 精确陈述：不用矩阵单元
+    vector: 4 * tokens * vocab,      // 1 scale + 3（减 max / 累加 / 乘）
+    sfu:    2 * tokens * vocab,      // exp + div
     bytes:  { weights: 0,
               actIn:  tokens * vocab * bytesPerElement,
               actOut: tokens * vocab * bytesPerElement },
   }),
 }
 ```
+
+softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假设，§2.4）；
+未融合的多遍读放大不建模，实现差异进 `implementation`。
 
 **条目三分类**：计算+访存（matrix>0）/ 仅访存（matrix=0，vector/sfu/bytes 非零）/
 分解声明（counts 写成已知 op 的组合，分解假设显式标注）。
@@ -194,13 +199,15 @@ softmax: {
 
 **约定**：
 - `counts` 入参**只含结构化 shape 参数**，拿不到 `node` 与显示名（§3.2 在结构上不可违反）。
-- **静态维 vs 运行时维**（2026-09-10 定稿）：hidden / heads / intermediate / kv_lora 等来自
-  适配 + config，与负载无关，决定权重 shape。B / S（及由其派生的 KV 长度）来自用户负载。
+- **静态维 vs 运行时维**：hidden / heads / intermediate / kv_lora 等来自适配 + config，
+  与负载无关，决定权重 shape。B / S（及由其派生的 KV 长度）来自用户负载。
   数据流**只改运行时维**；换 batch 不得改参数量。
 - `matrix` 存 MACs；aten 公式是 FLOPs（含 2×），抄公式时显式换算并注明。
   `vector` 存 flop，`sfu` 存操作次数——单位不同，逐条注明。
-- `bytes` 是**每次前向的 compulsory traffic**（权重读一遍 + 输入 + 输出），**无 phase 分支**：
-  decode 的 memory-bound 现象由 seq=1 自然涌现（activations 与 matrix 变小、weights 不变）。
+- `bytes` 是**每次前向的 compulsory traffic**（权重读一遍 + 输入 + 输出）。
+  默认无 phase 分支：decode 的 memory-bound 由 seq=1 自然涌现
+  （activations 与 matrix 变小、weights 不变）。必须分相位的例外登记在
+  `details/cost_counts.md`，不在此处另立一套。
 
 **判据**：新增算子时，若需要在 `formulas/index.js` **之外**再改一处分派逻辑
 才能让成本生效，即违反。
@@ -275,7 +282,7 @@ softmax: {
 |---|---|---|---|
 | 矩阵 | GEMM/CONV（MACs） | `peak_flops[dtype]` | 最高，`η_flops=0.7` |
 | 向量 | elementwise、归约加法、逐元素乘（flop） | `vector_flops`（即 FP32 吞吐） | NVIDIA 64/SM/clk @sm80、128 @sm90（CUDA guide 吞吐表） |
-| SFU | `exp`/`rsqrt`/`sin`/除法（操作次数） | `sfu_ops`（新增） | 16/SM/clk（CUDA guide）；官方比值 × fp32 rate 推导，source 标注 |
+| SFU | `exp`/`rsqrt`/`sin`/除法（操作次数） | `sfu_ops` | 16/SM/clk（CUDA guide）；官方比值 × fp32 rate 推导，source 标注 |
 | 访存 | compulsory bytes | `memory_bandwidth` | — |
 
 **时间模型**：单算子时间 = `max(矩阵, 向量, SFU, 访存, 通信)` 各路除以对应 rate
@@ -285,16 +292,14 @@ softmax: {
 昇腾 910A/B/C ≈ **1:32 ~ 1:128**（Cube FP16 256/294.9/378.9 vs Vector FP32 2/9.2/11.8
 TFLOPS，arXiv 2607.20120）。同一 RMSNorm/softmax 在两类芯片上会落进不同瓶颈类
 ——这正是多芯片对比要暴露的东西。昇腾无独立 SFU（超越函数在向量单元执行），
-`sfu_ops` 缺失时可选 per-chip 单元映射（sfu→vector rate，语义映射非估算），W5 定。
+`sfu_ops` 缺失时可选 per-chip 单元映射（sfu→vector rate，语义映射非估算）。
 
-**规约的处理**：reduce = N−1 次向量加法 + 访存（读 N 写 ~0），
+**规约**：reduce = N−1 次向量加法 + 访存（读 N 写 ~0），
 强度 ≈ 1 flop / 4~8 byte，**在 roofline 分类里几乎必然落 memory-bound**——
 不发明"规约单元"，分类交给模型算出来。
-softmax 等 score 归一化按**融合单遍实现**假设（logits 读 1 遍，2026-09-07 拍板）；
-多遍未融合读放大不建模（§2.3，实现差异进 implementation 属性）。
 
-**效率因子**：矩阵沿用 `η_flops=0.7`；向量/SFU 初始 `η=1.0`（下界语义 + UI 可调 + 明示假设，
-不做校准流程，§3.6）。
+**效率因子**：矩阵沿用 `η_flops=0.7`；向量/SFU 初始 `η=1.0`
+（下界语义 + UI 可调 + 明示假设，不做校准流程，§3.6）。
 
 **缺项降级（§7）**：芯片缺 `sfu_ops` / `vector_flops` → 对应单元的时间不可判，
 `coverage.js` 关闭相应能力门控，绝不估算。
@@ -320,33 +325,25 @@ softmax 等 score 归一化按**融合单遍实现**假设（logits 读 1 遍，
 
 ### 4.3 适配产物的形态：两张表 + 一份代码
 
-结构的**骨架来自适配**（人工 / agent 对照**该模型的 modeling 文件**组织关系），不来自
-config 推导，也不来自 checkpoint 自动推断。运行时**不做结构推断**。
+结构的**骨架来自适配**（人工 / agent 对照该模型的 modeling 文件组织关系），
+不来自 config 推导，也不来自 checkpoint 自动推断。运行时**不做结构推断**。
 
-**语义标准的层级**（2026-09-07 定）：
+语义标准分三层，互不替代：
 
-1. **数学定义**——counts 的真正标准，与实现无关；
+1. **数学定义**——counts 的真正标准，与实现无关。
 2. **该模型的 modeling 文件**（版本锚定）——语义分解与执行顺序的规范参考实现。
-   多数模型 checkpoint 里**没有** model.py，定义在库内，因此按**五级来源阶梯**取源
-   （与 §7 的 confidence 阶梯同构；排序判据 = 与 msv 所读 config 的契约契合度 +
-   可锚定性 + "作者 > 转述者"；优先级 2026-09-07 定）：
-   - ① **checkpoint 自带的** `modeling_*.py`（remote code）——模型作者所写，随权重分发，
-     天然自锚定。识别方式：config.json 的 `auto_map` 字段（如 Kimi-K3：
-     `"AutoModelForCausalLM": "modeling_kimi_k3.KimiK3ForConditionalGeneration"`）；
-   - ② **transformers 库内**该架构的 `modeling_<arch>.py`——HF 收录时的转写，
-     版本钉死，首选锚为 config.json 自带的 `transformers_version` 字段（catalog 可覆盖）；
-   - ③ **原始发布仓库**（官方 GitHub 等模型作者自己的实现）——裸 commit 锚定；
-     原始配置格式与 HF config.json 的字段映射需人工桥接，映射关系入档；
-   - ④ **vLLM / SGLang 的模型实现**（`vllm/model_executor/models/*.py` 等）——引擎作者
-     的转写。必须标注引擎 + 版本；
-   - ⑤ 都没有 → 未适配（§4.5），不出语义结构。
-
-   任意两级来源之间发现**语义冲突**：记录冲突进 diagnostics，人工裁决后登记，
-   **不得静默选一**——阶梯只是执行顺序，不预设谁对。
-   `models/` 目录已 vendored 内置模型的 modeling 文件（覆盖 ①），适配离线可做；
-   版本漂移的发现机制 = 旁路 B source_ref 再生的 diff 分级（class_name 变化即上游重构告警）。
-3. **vLLM / SGLang**——下游优化实现，只提供 `implementation` 属性与融合假设的来源
-   （A2/A3），**不得作为语义标准**：融合把语义做没了，且两个引擎互相不一致。
+   多数 checkpoint 里没有 model.py，按来源阶梯取源（排序 = 与所读 config 的契约契合度
+   + 可锚定性 + 「作者 > 转述者」）：
+   - ① checkpoint 自带的 `modeling_*.py`（`config.auto_map` 指向的 remote code）
+   - ② transformers 库内 `modeling_<arch>.py`（首选锚 `transformers_version`，catalog 可覆盖）
+   - ③ 原始发布仓库（裸 commit 锚定；与 HF config 的字段映射入档）
+   - ④ 都没有时，才允许用 vLLM / SGLang 的模型实现，必须标引擎 + 版本
+   - ⑤ 仍没有 → 未适配（§4.5），不出语义结构
+   任意两级发现语义冲突：记入 diagnostics，人工裁决后登记，**不得静默选一**。
+   `models/` 已 vendored 内置模型的 modeling 文件（覆盖 ①）。版本漂移的发现机制
+   = 旁路 B `source_ref` 再生的 diff 分级（`class_name` 变化即上游重构告警）。
+3. **vLLM / SGLang 的 kernel 实现**——只提供 `implementation` 与 §2.4 融合边界，
+   **不得反过来删掉 modeling 里的语义节点**。有 modeling 文件时，引擎融合不是语义标准。
 
 形态照抄成熟方案，分三层：
 
@@ -356,6 +353,7 @@ config 推导，也不来自 checkpoint 自动推断。运行时**不做结构�
 无论 checkpoint 里叫 `input_layernorm`、`ln_1` 还是 `norm_1`，角色都是 `attn_norm`。
 
 角色与算子类型是两个维度，都要有：
+
 ```
 { role: "attn_q",    operator_id: "linear" }
 { role: "attn_norm", operator_id: "rmsnorm" }
@@ -364,8 +362,8 @@ config 推导，也不来自 checkpoint 自动推断。运行时**不做结构�
 **层 2｜per-arch checkpoint 映射表（声明式）**
 对齐 llama.cpp `gguf-py/gguf/tensor_mapping.py` 的 `block_mappings_cfg`
 （候选列表 + `{bid}` 占位）与 transformers 的 `WeightRenaming` / `WeightConverter`
-（可组合、可逆的 `ConversionOps`：`Chunk`/`Concatenate`、`MergeModulelist`/`SplitModulelist`、
-`Transpose`、`PermuteForRope`）。
+（可组合、可逆的 `ConversionOps`：`Chunk` / `Concatenate`、`MergeModulelist` /
+`SplitModulelist`、`Transpose`、`PermuteForRope`）。
 
 ```js
 attn_out:    ["model.layers.{bid}.self_attn.o_proj",
@@ -376,15 +374,14 @@ ffn_experts: { from: "model.layers.{bid}.mlp.experts.{eid}.gate_proj", op: Merge
 
 **层 3｜图构建（代码，每 arch 一份）**
 对齐 llama.cpp `src/models/<arch>.cpp`、transformers `modeling_*.py`、vLLM `models/*.py`。
-负责执行顺序、无参算子插入、条件分支。msv 现有的 `layers/*.js` + `ops/index.js` 就是这一层。
+负责执行顺序、无参算子插入、条件分支。`layers/*.js` + `ops/index.js` 就是这一层。
 
-**查找键（2026-09-10 定稿）**：运行时用精确表，不用子串猜。
-主键 `config.architectures[0]`（vLLM `_MODELS` 形态）；辅键 `model_type` 别名。
-命中 → 已适配的 builder/配方 + config 数字实例化；未命中 → `unsupported`，不编造完整图。
+**查找键**：运行时用精确表，不用子串猜。主键 `config.architectures[0]`
+（vLLM `_MODELS` 形态）；辅键 `model_type` 别名。命中 → 已适配的 builder/配方 +
+config 数字实例化；未命中 → `unsupported`，不编造完整图。
 
 **组件配方是一级概念，家族不是。** 现在的模型都是 transformer，变化只在组件选型
-（attention / norm / FFN / 位置编码 / 附加结构），不同家族会采用同一配方
-（代码内证据：`minimax_m2` 与 `glm4_moe` 共用同一条 attention 算子链，`attention.js:17-19`）。
+（attention / norm / FFN / 位置编码 / 附加结构），不同家族会采用同一配方。
 **模型 = 配方 + 数字 + 逐层调度。** 新增模型应当是"选一个已有配方 + 填数字"；
 只有发明新组件方案才写新代码。家族名只允许出现在"模型 → 配方"的薄解析层。
 
@@ -401,8 +398,7 @@ ffn_experts: { from: "model.layers.{bid}.mlp.experts.{eid}.gate_proj", op: Merge
 ### 4.4 真值缺失或冲突必须可见，禁止静默丢弃
 
 `graphTruth.bindTruthToGraph` 在同一路径匹配到多个候选时会放弃绑定并记入
-`ambiguous_truth_matches`（旧 `mergeSemantics` 已删，W3-D）；
-`template_gaps` 记录 trie 里有而适配产物未声明的含参模块。
+`ambiguous_truth_matches`；`template_gaps` 记录 trie 里有而适配产物未声明的含参模块。
 
 **判据**：这两类信号**必须**在 UI 上可见。只写进 diagnostics 而 UI 不展示，
 等于真值静默缺失——用户看到的是一个"看起来完整"的错结构。
@@ -419,7 +415,7 @@ trie（safetensors header）只做两件事：**给已适配模型提供精确�
 | **已适配** | 适配产物骨架 + trie 真值（完整） | 适配产物骨架 + config 推导数值，标 `value_source=derived` |
 | **未适配** | 仅 trie 层级与数值，**明确标注"未适配、无语义"** | **不出结构图**，提示需要适配 |
 
-"无 header"不是边缘场景：`cost/weights.js` 的文档注释已把"无 safetensors / gated / 网络"
+"无 header"不是边缘场景：`cost/weights.js` 已把"无 safetensors / gated / 网络"
 列为预期情况；`models/` 内置 catalog **只有 config.json，零 safetensors**；
 GGUF / `pytorch_model.bin` / `.pth` / MLX 格式模型永远读不到 safetensors header。
 
@@ -440,17 +436,13 @@ config 解读包含两种性质不同的工作，归属不同：
 
 - **字段归一**（别名吸收、默认值）：合法的独立层，对应 transformers 的 `Config` 类。
   终态是一个瘦的 config 视图。
-- **方案解读**（这个模型的 attention 用哪个方案、逐层怎么调度、归一化用哪种 norm）：
+- **方案解读**（attention 用哪个方案、逐层怎么调度、归一化用哪种 norm）：
   这是**骨架决策**，属于组网（builder / 配方表），**禁止**在 config 归一层预先决定。
   transformers 的分工即如此：`Config` 类管字段，`modeling_*.py` 的 `__init__` 管决定。
 
 **判据**：config 归一层出现家族条件分支、或输出"selected scheme"类字段即违反。
 
 **检查**：config 视图的输出对象不含方案类字段；逐层调度只在组网入口被消费。
-
-**存量偏离（W3b 收口）**：`normalize.js` 的 `attentionSchedule` / `layerSchedule` /
-`linearAttentionMode` / `normMode` 等方案类字段与全部家族条件分支；
-`cost/compute.js:308` 对 `layerSchedule` 的跨层消费。
 
 ---
 
@@ -470,7 +462,7 @@ source_ref: {
 }
 ```
 
-### 5.2 采集机制（参照 modelmap `src/modelmap/annotate.py:116-134`）
+### 5.2 采集机制（参照 modelmap `src/modelmap/annotate.py`）
 
 对每个 `nn.Module` 实例：
 
@@ -545,7 +537,7 @@ line = inspect.getsourcelines(cls)[1]
 
 `/api/verify` 必须返回**差异报告**。只返回 pass/fail 不构成"结构校验"。
 
-对比分两层（2026-09-10 定稿）：
+对比分两层：
 
 **结构对账（必须）**
 - `from_config` 能否在 meta 设备建起来
@@ -596,17 +588,15 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 才写新代码。"家族名硬编码的非测试文件数"是它的**可测量代理指标**，不是目标本身——
 配方表落地后，家族名只应出现在配方解析与映射表两处。
 
-**判据**：家族名文件数**不得增加**。当前基线（2026-09-07，W0 以完整 pattern 实测）为
-**16** 个文件，清单见 `scripts/check_principles.sh`；更早 review 用窄 pattern 得出的 11
-只是漏计变体（独立 `kimi`、`deepseek_v4`、`qwen3_5` 等），这是待偿债务，不是可以照抄的先例。
+**判据**：家族名文件数**不得增加**。当前基线为 **14**（相对更早完整 pattern 的 16），
+机械清单与豁免见 `scripts/check_principles.sh`。
 
-**检查**：CI 统计家族名（`kimi_k3` / `qwen4_exp` / `glm5_next` / `minimax_m3_vl` /
-`deepseek_v32` / … ）出现的**非测试文件数**，只允许下降。
+**检查**：CI 统计家族名出现的**非测试文件数**，只允许下降。
 
 ### 8.2 禁止嵌套三元链
 
-`layers/attention.js` 现存两条平行的多分支嵌套三元（children 与 declaredEdges
-条件集不一致，必然漂移），是反例。新增分派一律用查表。
+新增分派一律用查表。`layers/attention.js` 曾用两条平行的多分支嵌套三元
+（children 与 declaredEdges 条件集不一致，必然漂移），是反例，不得再引入。
 
 ---
 
@@ -617,8 +607,8 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 - [ ] 新增边带 `evidence`（§2.2）
 - [ ] Decoder Layer 含残差 skip，源是主干不是子层输出（§2.5）
 - [ ] 计费不双计：父有 counts 用父，否则用叶子（§2.4）
-- [ ] SDPA 核默认折叠为 `sdpa_attention`；未给整个 Attention/MoE 模块挂融合 counts（§2.3/§2.4）
-- [ ] 新算子只在 `formulas/index.js` 注册，含 `macs`（§3.1）
+- [ ] SDPA 核默认折叠为 `sdpa_attention`；未给整个 Attention/MoE 模块挂融合 counts（§2.3 / §2.4）
+- [ ] 新算子只在 `formulas/index.js` 注册，含 `counts` 动作向量（§3.1）
 - [ ] `cost/` 未引入显示名参与计算（§3.2）
 - [ ] 未实现成本返回 `null` 而非 `0`（§3.3）
 - [ ] 数值公式带 `// ref:`（§3.5）
@@ -640,46 +630,23 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 ## 10. 例外登记
 
 确需偏离本文档时，在 `implementation_plan.md` 中登记：**违反哪条、为什么、
-何时收口、收口的判据**。未登记的偏离视为缺陷。
+何时收口、收口的判据**。未登记的偏离视为缺陷。已清账以 Git / `CHANGELOG.md` 为准，不在本文堆积。
 
-已登记偏离的三态快照（2026-09-10 复核；上次 2026-09-08）：
+**仍偏离**（设计已定、代码未跟上或契约未收口）：
 
-**已清账**（原偏离已修复，验收见各波提交；2026-09-10 复核新增两条，见"仍偏离"节的销账线）：
-- ~~§2.1/§2.2（声明）~~：decoderLayer/decoderStack/网络层 `sequence: true` 显式声明 +
-  执法测试；evidence 三值全非空且 UI 三轴展示（W3-D2/W6-2）。
-- ~~§3.1（counts 注册表）~~：42 条目全量动作向量，主链查表（W5-1）。
-- ~~§3.1（counts 覆盖）~~：embedding gather 流量计入 counts.bytes、残差加法由
-  residual_add 算子节点覆盖（M11，2026-09-09；MAINTENANCE.md 已销账）。
-- ~~§3.2/§3.3（旧链）~~：compute.js 旧分派链删除，显示名全禁（护栏 §3.2），
-  未实现算子返回 null 与 0 可区分（W5-1/W5-2）。
-- ~~§3.4~~：ERT × counts 分离完成，chips/rates.js 费率表 + 五路 max（W5-2）。
-- ~~§4.3 层 1/层 2~~：roles.js 词表 + archs/ 映射表 + 可逆校验测试（W3-B）。
-- ~~§4.6~~：可逆校验测试常驻（roleBinding.test.js）。
-- ~~§4.7~~：normalizeConfig 纯字段归一，方案决定权在 plan.js（W3-C；
-  家族知识 5 住址收口为带债项，见 refactor_plan.md）。
-- ~~§4.5~~：未适配模型 DiagnosticsPanel banner 显式标注（W6-1）。
-- ~~§8.1/§8.2（attention.js 三元链）~~：组件表取代；家族名 14/16（W5 后）。
+- **§2.4**：SDPA 核应作为融合主语进生产图并默认折叠；现状仍拆成
+  `matmul`+`softmax`+`matmul` 三叶，`sdpa_attention` 只活在 `formulas/modules.js`
+  恒等式里。`fused_moe_mlp` 已是专家核单叶，这一处对齐。
+- **§2.5**：残差应是层内同级 skip；代码仍是顺序 `residual_add`、无 skip。
+  属结构债，不是"IR 画不出"。
+- **§5.x**：`source_ref` 未实现（旁路 B 收窄版范围）。
+- **§6.3 / §6.4**：`/api/verify` 已返回 per-module evidence 与三分类 diff
+  （renaming / nonparam / fold / divergence 四桶 triage，`unclassified=0` 才算
+  `structurally_consistent`）。来源解析策略仍两套（共享样例
+  `verification/fixtures/canonical_path_contract.json`，不共享代码）。
+- **§8.1**：14/16 文件含家族名；剩余随配方表接管后进一步下降。
 
-**仍偏离（已知不完美，继续持有）**：
-- §2.4（2026-09-10 定稿）：父有 counts 用父、否则用叶子。融合主语对齐 kernel 边界
-  （SDPA 核默认折叠 / fused_moe_mlp / KDA / 稀疏主注意力）。
-  **不做** fused add+RMSNorm 图节点（跨层，无成熟画法）。
-  现状：SDPA 仍拆三叶且不在生产图；fused_moe_mlp 已对齐。
-- §2.5（2026-09-10 重写）：设计已定为层内同级 skip（Gallery 画法）；
-  代码仍是顺序 `residual_add`、无 skip。属实现债，不再登记为"IR 画不出"。
-- §5.x：`source_ref` 未实现（旁路 B 收窄版范围）。
-- §6.2/§6.3：后端 evidence 对账已在线（P7/步骤 6，2026-09-10）：/api/verify
-  返回 per-module evidence 与三分类 diff（renaming/nonparam/fold/divergence
-  四桶 triage，unclassified=0 才算 structurally_consistent）；两端 triage 后
-  剩余为登记的真分歧。前后端来源解析策略仍两套（§6.4 契约精神，共享样例
-  不共享代码——verification/fixtures/canonical_path_contract.json）。
-- §8.1：14/16 文件含家族名——compute.js/extractor 镜像已随 W5 退出，
-  剩余随配方表接管 plan.js 后进一步下降（带债项触发点见 refactor_plan.md）。
-- ~~恒等式残差~~：kv_b 宽度与 GLM-5/Qwen3.8 +0.5% 均已清（2026-09-09 六波收官，
-  权重字节 32/32 逐字节、REGISTERED 空；MAINTENANCE 已销）。
-- ~~vision 域~~：M8 收官后 REGISTERED 清空（59 模型 matrix 容差 0.005），恒等式
-  覆盖 vision 域（2026-09-10 复核销账）。
+**带债项**（触发点见 `refactor_plan.md`）：
 
-**带债项**（触发点见 refactor_plan.md）：
 - 家族知识 5 住址收口（触发：接新模型家族）。
-- plan.js 移 config/ 与 normalize 共享解析原语（随上项）。
+- `plan.js` 移 config/ 与 normalize 共享解析原语（随上项）。

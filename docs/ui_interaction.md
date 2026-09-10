@@ -76,7 +76,7 @@
 
 - Cost Lens 支持 `None`、`VRAM`、`Compute`、`Memory` 和 `KV Cache` 多选。
 - 模式支持集中式和 PD；PD 分别保存 Prefill/Decode 的负载、节点数和并行方案。
-- 并行输入包括 TP、PP、EP、DP 和 Attention 模式。
+- 并行输入包括 TP、PP、EP、DP、MoE TP、MoE EP、Attention 模式和词表并行开关（MoE TP/EP 留空走缺省链，world size 为 tp×pp×dp 的只读派生显示——P6 第四消费者）。
 - 对比模式互斥：关闭、芯片对比、方案对比。
 - 芯片规格缺失时显示 unknown 或警告，不填入估算值伪装真值。
 - 所有成本结果必须标注为理论计算，不表示调度、流水线气泡、传输重叠或实际吞吐预测。
@@ -107,3 +107,5 @@
 - 自动推荐最优并行方案或预测吞吐、TTFT、TPOT。
 - modelmap 式运行时脉冲回放。
 - 在首页暴露内部 cache policy、repair strategy 或后端实现参数。
+
+成本假设区提供跨节点链路开关（默认关闭按节点内费率，开启后 roofline 通信时间按 inter_node 费率——P10）。PD 模式摘要展示 KV/State 传输量与估算传输时间（bytes / min(两侧带宽)，闭式不建模重叠）；分阶段行展示各 stage 权重/KV/State 字节与 HBM 估算时间（仅访存口径——stage 无逐 stage 动作向量，计算路为登记缺项）。

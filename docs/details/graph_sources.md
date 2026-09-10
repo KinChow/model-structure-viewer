@@ -37,9 +37,9 @@ PD analysis.
 
 Model builders declare stable child-id pairs in `dataflow_edges` for common
 MLP, GQA/MLA, and MoE modules. The graph materializer resolves those pairs to
-tree paths, keeping model semantics out of the canvas renderer. A legacy
-semantic matcher remains as a compatibility fallback for specialized variants
-that have not migrated to declarations yet. Parent-child containment is
+tree paths, keeping model semantics out of the canvas renderer. The legacy
+semantic matcher has been retired (P8): undeclared pairs fall back to generic
+shape-match and module-order inference edges (weaker evidence display). Parent-child containment is
 represented by React Flow `parentId` and compound frames. `react-flow-smart-edge`
 owns only the final obstacle-aware SVG path for edges between ordinary nodes.
 The dependency is MIT licensed; see its package documentation and repository:

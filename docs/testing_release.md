@@ -21,7 +21,7 @@ npm --prefix frontend install
 npm --prefix frontend test
 ```
 
-后端测试覆盖 resolver、API、repair、结构 introspection、验证和导出。前端测试覆盖配置归一化、registry、builder、shape、truth merge、cost、diagram、导出、hooks 和入口辅助逻辑。
+后端测试覆盖 resolver、API、repair、结构 introspection、验证和导出。前端测试覆盖配置归一化（golden 冻结件）、算子公式注册表与 counts、四条恒等式（容差 0）、per-op golden、truth（skeleton/roleBinding）、cost（含 sharding/parallelPlan 接缝）、diagram、导出、hooks、入口辅助逻辑与 model_executor 声明执法。
 
 通过标准：命令退出码为 0，不存在 failure、error、unexpected skip。
 
@@ -34,7 +34,10 @@ npm --prefix frontend test
 | 2026-09-07 | `npm --prefix frontend run test` | 208/208 pass，0 fail |
 | 2026-09-07 | `.venv/bin/python -m pytest -q` | 148 passed（11.7s） |
 | 2026-09-07 | `npm --prefix frontend run verify:models` | 59 个内置模型全过，`"failed": 0`（离线跑通，不依赖外网） |
-| 2026-09-07 | `npm --prefix frontend run test:e2e` | 9 passed，1 skipped（设计使然：`e2e/viewer.spec.js:61` 将"全量内置模型回归"限定为仅 desktop-chrome） |
+| 2026-09-07 | `npm --prefix frontend run test:e2e` | 9 passed，1 skipped（设计使然：`e2e/viewer.spec.js:66` 将"全量内置模型回归"限定为仅 desktop-chrome） |
+| 2026-09-10 | `npm --prefix frontend test` | 341 pass，0 fail |
+| 2026-09-10 | `.venv/bin/python -m pytest -q` | 169 passed（含 evidence 对账） |
+| 2026-09-10 | `npm --prefix frontend run test:e2e` | 9 passed，1 skipped（playwright `retries`: CI 2/本地 1；`reuseExistingServer: false` 每轮全新 dev server——长时 server 状态降级实证修复） |
 
 ## 2. 内置模型组网验证
 
@@ -94,6 +97,8 @@ chunk size warning 不等于构建失败，但应在影响首屏加载时单独�
 
 该验证只判断 transformers 是否能在 meta device 构造模型，不下载权重、不运行推理。通过标准：`ok=true`，并记录 `strategy`、repair steps 和失败分类。
 
+上行前端 Graph（CLI `msv verify --graph <file>` 或 API `msv_graph` 字段）时，响应额外携带 per-module evidence 对账：`evidence.modules`（path/class/params/weight_shapes/dtype）与 `evidence.diff` 三分类（only_transformers / only_msv / mismatch），并区分「构造通过」与「结构一致」两态——diff 经四桶 triage（renaming / nonparam_drop / fold_frontend_suffixes / known_divergences，规则随包分发于 `verification/fixtures/canonical_path_contract.json`），`unclassified` 为空才算 `structurally_consistent=true`。缺省上行时 diff 为空并标注 "msv_graph not provided"，空 diff 不等于对账通过。
+
 仓库目前没有单条 CLI 命令执行全部内置模型的后端验证；全量执行时必须记录遍历脚本、模型总数和逐模型结果，不能把单模型命令描述成全量验证。
 
 ## 6. API 验证
@@ -116,7 +121,10 @@ POST /api/verify
 POST /api/export
 GET  /api/settings
 POST /api/settings
+GET  /api/health
 ```
+
+`POST /api/verify` 的对账语义见第 5 节（上行 `msv_graph` 时返回 evidence diff）。
 
 API 验证必须包含正常请求和错误请求；响应应为合法 JSON，错误状态码和 `detail` 可读。结束后关闭服务并确认 8000 端口释放。
 

@@ -13,7 +13,7 @@ const TENSORS = [
   { name: "model.layers.1.self_attn.q_proj.weight", dtype: "BF16", shape: [512, 512] },
 ];
 
-const OPTS = { hasTemplate: false, modelName: "fixture", canonicalArchitecture: "fixture", modelType: "fixture" };
+const OPTS = { hasBuilder: false, modelName: "fixture", canonicalArchitecture: "fixture", modelType: "fixture" };
 
 test("truth.skeleton（离线文件形态）与 truth.tensors 产出等价 truth graph", () => {
   const skeleton = buildSkeleton(TENSORS);
@@ -32,13 +32,13 @@ test("truth.skeleton（离线文件形态）与 truth.tensors 产出等价 truth
   assert.equal(dtypes(viaFile.graph), dtypes(viaTensors.graph));
 });
 
-test("hasTemplate 时 skeleton 形态同样走绑定链（strategy: template+truth-file）", () => {
+test("hasBuilder 时 skeleton 形态同样走绑定链（strategy: template+truth-file）", () => {
   const skeleton = buildSkeleton(TENSORS);
   const template = {
     nodes: [{ id: "root", module_id: "model", type: "model", children: [] }],
     edges: [],
   };
   // 无绑定命中也不得崩——gaps 诊断可见（诚实降级）
-  const result = enrichGraphWithTruth(template, { skeleton, tensor_count: TENSORS.length }, { ...OPTS, hasTemplate: true });
+  const result = enrichGraphWithTruth(template, { skeleton, tensor_count: TENSORS.length }, { ...OPTS, hasBuilder: true });
   assert.equal(result.diagnostics.strategy, "template+truth-file");
 });

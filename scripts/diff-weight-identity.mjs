@@ -17,7 +17,7 @@ import { normalizeConfig } from "../frontend/src/structure/config/normalize.js";
 import { resolveArchitecture } from "../frontend/src/structure/registry/resolveArchitecture.js";
 import { buildNetwork } from "../frontend/src/structure/model_executor/models/index.js";
 import { createStructureIr } from "../frontend/src/structure/ir/createStructureIr.js";
-import { materializeModelStructure } from "../frontend/src/structure/materializers/toStructureNode.js";
+import { materializeModelStructure } from "../frontend/src/structure/materializers/modelStructure.js";
 import { graphRoot } from "../frontend/src/structure/graph/selectors.js";
 import { countsForNode } from "../frontend/src/structure/formulas/extractor.js";
 import { childRepeatMultiplier } from "../frontend/src/cost/traverse.js";

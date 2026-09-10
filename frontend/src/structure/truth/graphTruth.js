@@ -207,7 +207,7 @@ export function appendGraphGaps(graph, skeleton, usedTruthIds) {
   return { ...graph, nodes, edges };
 }
 
-export function enrichGraphWithTruth(graph, truth, { hasTemplate, modelName, canonicalArchitecture, modelType }) {
+export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, canonicalArchitecture, modelType }) {
   // 离线证据文件形态：truth.skeleton 是**已折叠**的 SkeletonNode（由
   // fetch-evidence --headers 从 safetensors 头部构建后入库，K3 原始张量
   // 表 59.7MB 折叠后小几个数量级，符合「仅轻量元数据入库」纪律）。
@@ -215,7 +215,7 @@ export function enrichGraphWithTruth(graph, truth, { hasTemplate, modelName, can
   // hasParameterCount 走 checkpoint 路径）。
   if (truth?.skeleton) {
     const truthGraph = skeletonTruthGraph(truth.skeleton);
-    if (!hasTemplate) {
+    if (!hasBuilder) {
       const root = truthGraph.nodes.find((node) => node.id === truthGraph.root_id);
       if (root) {
         root.canonical_id = "skeleton";
@@ -246,7 +246,7 @@ export function enrichGraphWithTruth(graph, truth, { hasTemplate, modelName, can
   }
   const skeleton = buildSkeleton(truth.tensors);
   const truthGraph = skeletonTruthGraph(skeleton);
-  if (!hasTemplate) {
+  if (!hasBuilder) {
     const root = truthGraph.nodes.find((node) => node.id === truthGraph.root_id);
     if (root) {
       root.canonical_id = "skeleton";

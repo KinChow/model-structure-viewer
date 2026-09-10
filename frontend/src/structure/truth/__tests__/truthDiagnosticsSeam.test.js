@@ -48,7 +48,7 @@ test("接缝：template+truth 生产出口的键被 diagnosticsModel 完整消�
   ]);
   const truth = { tensors: [T("model.layers.0.self_attn.q_proj.weight"), T("model.norm.weight")], parameterTotal: 32 };
   const enriched = enrichGraphWithTruth(graph, truth, {
-    hasTemplate: true,
+    hasBuilder: true,
     modelName: "SeamModel",
     canonicalArchitecture: "gqa-decoder",
     modelType: "seam_test",
@@ -73,7 +73,7 @@ test("接缝：skeleton-truth 策略走 banner 通路", () => {
   const graph = graphFromSpecs([{ id: "decoder.0.self_attn.q_proj", role: "attn_q" }]);
   const truth = { tensors: [T("model.layers.0.self_attn.q_proj.weight")], parameterTotal: 16 };
   const enriched = enrichGraphWithTruth(graph, truth, {
-    hasTemplate: false,
+    hasBuilder: false,
     modelName: "SeamModel",
     canonicalArchitecture: "gqa-decoder",
     modelType: "seam_test",

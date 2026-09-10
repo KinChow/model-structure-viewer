@@ -167,11 +167,11 @@ function renderArchitectures({ rows, arch0Counts, canonicalCounts }) {
   const canonicals = Object.entries(ARCHITECTURE_CATALOG);
   out.push(`## canonical architecture 目录 ARCHITECTURE_CATALOG（${canonicals.length} 条）`);
   out.push("");
-  out.push("| canonical | 有模板 | multimodal 变体 | catalog 模型数 |");
+  out.push("| canonical | 有 builder | multimodal 变体 | catalog 模型数 |");
   out.push("|---|---|---|---|");
   for (const [arch, spec] of canonicals) {
     const variant = spec.multimodalVariant ? `\`${spec.multimodalVariant}\`` : "—";
-    out.push(`| \`${arch}\` | ${spec.hasTemplate ? "✓" : "—"} | ${variant} | ${canonicalCounts.get(arch) || 0} |`);
+    out.push(`| \`${arch}\` | ${spec.hasBuilder ? "✓" : "—"} | ${variant} | ${canonicalCounts.get(arch) || 0} |`);
   }
   out.push("");
   const recipes = Object.entries(ARCH_RECIPES);

@@ -154,7 +154,7 @@ export function etaDisclosureModel({ english = false } = {}) {
 
 /**
  * M11-P1-5：checkpoint 真值获取过程的上界面模型。数据全部来自
- * structure.source（toStructureNode.js 写入），不做推断。
+ * structure.source（modelStructure.js 写入），不做推断。
  * 关键场景：请求 huggingface 失败后静默切到 modelscope——
  * checkpoint_truth 仍为 "available"，但 config_endpoint ≠
  * checkpoint_truth_endpoint 且 checkpoint_truth_error 保留真实异常文本。

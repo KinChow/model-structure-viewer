@@ -32,7 +32,7 @@ config.json + safetensors header
   -> model_executor/layers
   -> model_executor/ops + formulas
   -> Graph IR v2 (nodes + hierarchy + explicit dataflow edges)
-  -> materializers/toStructureNode
+  -> materializers/modelStructure
   -> UI / export / cost analysis
 ```
 

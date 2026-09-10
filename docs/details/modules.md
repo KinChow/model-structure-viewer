@@ -32,7 +32,7 @@ Materialized ModelStructure
         +--> memory / MACs / parallel / communication / roofline
 ```
 
-`ModelStructure` 的结构载荷只有 `graph`（Graph IR）：P8 起 legacy `root` 树字段已停产（toStructureNode.js:87-125，`root_id` 仅作为 graph 协议契约字段保留）。树形视图（Layers/Inspector 的父子层级）不持有独立数据，由 `graph/selectors.js` 的 `graphViewNode` 按 `parent_id`/`order` 按需重建（selectors.js:16-25）。
+`ModelStructure` 的结构载荷只有 `graph`（Graph IR）：P8 起 legacy `root` 树字段已停产（modelStructure.js:88-127，`root_id` 仅作为 graph 协议契约字段保留）。树形视图（Layers/Inspector 的父子层级）不持有独立数据，由 `graph/selectors.js` 的 `graphViewNode` 按 `parent_id`/`order` 按需重建（selectors.js:16-25）。
 
 边界规则：
 
@@ -43,7 +43,7 @@ Materialized ModelStructure
 - `ops` 负责算子节点、shape flow、公式 ID 和参考实现名。
 - `formulas` 负责公式文本、输入输出和解释，不执行计算。
 - `IR` 负责稳定的中间协议。
-- `materializer` 只负责把模板网络物化为 Graph IR（`materializeStructureGraph`）；checkpoint truth 合并在 `structure/truth/graphTruth.js`：`enrichGraphWithTruth = bindTruthToGraph（role/路径绑定）+ appendGraphGaps（缺口补挂）`，materializer 在物化后调用它（toStructureNode.js:76-83、graphTruth.js:210-274）。
+- `materializer` 只负责把模板网络物化为 Graph IR（`materializeStructureGraph`）；checkpoint truth 合并在 `structure/truth/graphTruth.js`：`enrichGraphWithTruth = bindTruthToGraph（role/路径绑定）+ appendGraphGaps（缺口补挂）`，materializer 在物化后调用它（modelStructure.js:77-84、graphTruth.js:210-274）。
 - `cost` 从 materialized structure 和 normalized config 计算理论成本。
 - `diagram` 只负责把结构转换成图并响应交互。
 
@@ -97,13 +97,13 @@ checkpoint truth 的获取和结构骨架分成两件事：
 model_type / architectures[0] / model id
   -> aliases
   -> canonical architecture
-  -> hasTemplate
+  -> hasBuilder
   -> model builder
 ```
 
-canonical architecture 与 `hasTemplate` 的单源是 `registry/architectureCatalog.js` 的 `ARCHITECTURE_CATALOG`（`TEMPLATE_FAMILIES` 供 materializer 判定）。当前 canonical architecture 与 builder：
+canonical architecture 与 `hasBuilder` 的单源是 `registry/architectureCatalog.js` 的 `ARCHITECTURE_CATALOG`（`BUILDER_ARCHITECTURES` 供 materializer 判定）。当前 canonical architecture 与 builder：
 
-| Canonical architecture | 模板 | Builder | 结构特征 |
+| Canonical architecture | 有 builder | Builder | 结构特征 |
 |---|---:|---|---|
 | `gqa-decoder` | 是 | `buildGqaDecoderNetwork` | dense decoder + GQA |
 | `gqa-moe-decoder` | 是 | `buildGqaMoeDecoderNetwork` | decoder + routed/shared MoE |
@@ -216,9 +216,9 @@ model
 
 ### 4.6 Generic fallback
 
-无模板时（canonical architecture = `unsupported`，`ARCHITECTURE_CATALOG` 中 hasTemplate=false）MSV 不再伪造结构：`buildNetwork` 返回只含根节点的空网络，让管线走完、诊断可达；`collectDiagnostics` 产出 `unsupported-architecture` 诊断并枚举 `SUPPORTED_MODEL_ARCHITECTURES` 支持项（vLLM `_raise_for_unsupported` 模式；models/index.js:53-62、`diagnostics/collectDiagnostics.js:22-25`），前端以 banner 告警。
+无 builder 时（canonical architecture = `unsupported`，`ARCHITECTURE_CATALOG` 中 hasBuilder=false）MSV 不再伪造结构：`buildNetwork` 返回只含根节点的空网络，让管线走完、诊断可达；`collectDiagnostics` 产出 `unsupported-architecture` 诊断并枚举 `SUPPORTED_MODEL_ARCHITECTURES` 支持项（vLLM `_raise_for_unsupported` 模式；models/index.js:53-62、`diagnostics/collectDiagnostics.js:22-25`），前端以 banner 告警。
 
-checkpoint truth 在场时（`truth.skeleton` 离线骨架文件形态或 `truth.tensors` 形态），`enrichGraphWithTruth` 的无模板分支直接以 checkpoint 骨架图作为结构：`skeletonTruthGraph` 把含参模块树转成 Graph IR，root 重写为模型名，strategy = `skeleton-truth` / `skeleton-truth-file`（graphTruth.js:216-229,249-261）；有模板时走 template+truth 绑定与缺口补挂（strategy = `template+truth` / `template+truth-file`）。fallback 不声称拥有架构特有的执行语义和公式，来源状态必须通过 `strategy` 和 `diagnostics` 暴露。
+checkpoint truth 在场时（`truth.skeleton` 离线骨架文件形态或 `truth.tensors` 形态），`enrichGraphWithTruth` 的无 builder 分支直接以 checkpoint 骨架图作为结构：`skeletonTruthGraph` 把含参模块树转成 Graph IR，root 重写为模型名，strategy = `skeleton-truth` / `skeleton-truth-file`（graphTruth.js:216-229,249-261）；有 builder 时走 template+truth 绑定与缺口补挂（strategy = `template+truth` / `template+truth-file`）。fallback 不声称拥有架构特有的执行语义和公式，来源状态必须通过 `strategy` 和 `diagnostics` 暴露。
 
 ## 5. Layer 分类与关系
 

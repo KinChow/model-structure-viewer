@@ -7,7 +7,7 @@ import { normalizeConfig } from "./config/normalize.js";
 import { resolveArchitecture } from "./registry/resolveArchitecture.js";
 import { buildNetwork } from "./model_executor/models/index.js";
 import { createStructureIr } from "./ir/createStructureIr.js";
-import { materializeModelStructure } from "./materializers/toStructureNode.js";
+import { materializeModelStructure } from "./materializers/modelStructure.js";
 import { formulaForOperator } from "./formulas/index.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";

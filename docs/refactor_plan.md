@@ -884,7 +884,7 @@ out=64，实际应为 1024/2048（模板 output_shape 本来就对，counts 侧�
    DEFAULT_EFFICIENCY（efficiency.js:4-9）无这两键。
 4. `macsSource` + `value_source` 扩到 Cost Lens 与汇总条
    （= M7 范围项 5 欠账，refactor_plan.md 原 :465 W6 第 5 项）。
-5. `checkpoint_truth_error`（toStructureNode.js:117 写入真实异常文本）与
+5. `checkpoint_truth_error`（modelStructure.js:117 写入真实异常文本）与
    config/checkpoint endpoint 展示——HF 失败静默切 ModelScope
    （loadModelArtifacts.js:112-125）用户不知情。
 6. `projectPlan.ok=false` errors 展示（现在只是 stage 行不渲染）。

@@ -1,4 +1,4 @@
-import { TEMPLATE_FAMILIES } from "../registry/architectureCatalog.js";
+import { BUILDER_ARCHITECTURES } from "../registry/architectureCatalog.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 import { enrichGraphWithTruth } from "../truth/graphTruth.js";
 
@@ -49,17 +49,18 @@ function structureNodeFromSpec(spec) {
 }
 
 export function materializeModelStructure(ir) {
-  const { network: templateNetwork, normalized, resolved, options = {}, diagnostics = {} } = ir;
+  const { network, normalized, resolved, options = {}, diagnostics = {} } = ir;
   const truth = options.truth;
 
-  const hasTemplate = TEMPLATE_FAMILIES.has(resolved?.canonicalArchitecture);
-  const network = templateNetwork;
+  const hasBuilder = BUILDER_ARCHITECTURES.has(resolved?.canonicalArchitecture);
   const truthDiagnostics = truth ? { strategy: "graph-truth" } : { strategy: "no-truth" };
   let mergedDiagnostics = { ...diagnostics, ...truthDiagnostics };
   const effectiveStrategy = truthDiagnostics.strategy === "no-truth" || !truth
     ? ir.strategy
     : truthDiagnostics.strategy;
-  const root = {
+  // 根模块即 model（transformers/vLLM 惯例）：瞬态 StructureNode 树，仅用于
+  // 物化——Graph IR 是唯一载荷（P7 步骤 7）。
+  const model = {
     id: network.id,
     name: network.name,
     type: "model",
@@ -73,10 +74,10 @@ export function materializeModelStructure(ir) {
     confidence: "high",
     children: network.children.map(structureNodeFromSpec),
   };
-  let graph = materializeStructureGraph(root);
+  let graph = materializeStructureGraph(model);
   const graphTruth = enrichGraphWithTruth(graph, truth, {
-    hasTemplate,
-    modelName: templateNetwork?.name,
+    hasBuilder,
+    modelName: network?.name,
     canonicalArchitecture: resolved?.canonicalArchitecture,
     modelType: normalized.modelType,
   });
@@ -87,7 +88,7 @@ export function materializeModelStructure(ir) {
   return {
     summary: {
       strategy: graphTruth.diagnostics.strategy === "no-truth" ? ir.strategy : graphTruth.diagnostics.strategy,
-      model_family: graphRoot?.name || templateNetwork.name,
+      model_family: graphRoot?.name || network.name,
       model_type: normalized.modelType,
       architecture: resolved.architecture || normalized.architecture || normalized.modelType,
       canonical_architecture: resolved.canonicalArchitecture,

@@ -15,7 +15,7 @@ import { normalizeConfig } from "../../config/normalize.js";
 import { resolveArchitecture } from "../../registry/resolveArchitecture.js";
 import { buildNetwork } from "../../model_executor/models/index.js";
 import { createStructureIr } from "../../ir/createStructureIr.js";
-import { materializeModelStructure } from "../../materializers/toStructureNode.js";
+import { materializeModelStructure } from "../../materializers/modelStructure.js";
 import { graphRoot } from "../../graph/selectors.js";
 import { countsForNode } from "../extractor.js";
 import { childRepeatMultiplier } from "../../../cost/traverse.js";

@@ -1,3 +1,8 @@
+// 构建链四级词汇（出处对照见 .comate/specs/naming-cleanup/doc.md 与 docs/details/modules.md）：
+//   spec    —— builder 声明式产物（本仓已定稿：networkSpec / operatorSpec / spec.kind）
+//   network —— spec 树（transformers/vLLM 惯例：模型 = nn.Module 组合树；IR v3 字段名）
+//   model   —— 瞬态 StructureNode 树根，仅用于物化（transformers/vLLM：根模块即 model）
+//   graph   —— 唯一载荷 Graph IR（llama.cpp ggml_cgraph / torch.fx Graph 先例）
 import { decoderStackNetwork } from "../layers/decoderStack.js";
 import { embeddingModule } from "../layers/embedding.js";
 import { lmHeadModule } from "../layers/outputHead.js";

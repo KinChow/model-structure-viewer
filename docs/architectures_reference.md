@@ -52,7 +52,7 @@
 
 ## canonical architecture 目录 ARCHITECTURE_CATALOG（9 条）
 
-| canonical | 有模板 | multimodal 变体 | catalog 模型数 |
+| canonical | 有 builder | multimodal 变体 | catalog 模型数 |
 |---|---|---|---|
 | `gqa-decoder` | ✓ | `multimodal-gqa-decoder` | 0 |
 | `gqa-moe-decoder` | ✓ | `multimodal-gqa-moe-decoder` | 4 |

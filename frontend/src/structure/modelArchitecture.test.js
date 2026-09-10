@@ -7,10 +7,10 @@ import { normalizeConfig } from "./config/normalize.js";
 import { resolveArchitecture } from "./registry/resolveArchitecture.js";
 import { buildNetwork } from "./model_executor/models/index.js";
 import { createStructureIr } from "./ir/createStructureIr.js";
-import { materializeModelStructure } from "./materializers/toStructureNode.js";
+import { materializeModelStructure } from "./materializers/modelStructure.js";
 import { graphRoot } from "./graph/selectors.js";
 import { formulaForOperator } from "./formulas/index.js";
-import { TEMPLATE_FAMILIES } from "./registry/architectureCatalog.js";
+import { BUILDER_ARCHITECTURES } from "./registry/architectureCatalog.js";
 
 // P7（步骤 7）：legacy structure.root 断言退役——treeView = selectors.graphRoot
 // 的图视图（与生产 layout 同一构造），节点 id / children / attributes 语义不变。
@@ -136,7 +136,7 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
   assert.equal(treeView(structure).children.some((node) => node.id === "projector"), false);
   assert.equal(structure.summary.vision_layers, 27);
   assert.equal(structure.summary.vision_output_size, 2560);
-  assert.equal(TEMPLATE_FAMILIES.has(resolved.canonicalArchitecture), true);
+  assert.equal(BUILDER_ARCHITECTURES.has(resolved.canonicalArchitecture), true);
 });
 
 test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks", () => {

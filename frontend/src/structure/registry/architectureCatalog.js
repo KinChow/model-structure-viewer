@@ -1,22 +1,22 @@
 /** Canonical architecture capabilities shared by the registry and materializer. */
 export const ARCHITECTURE_CATALOG = Object.freeze({
-  "gqa-decoder": { hasTemplate: true, multimodalVariant: "multimodal-gqa-decoder" },
-  "gqa-moe-decoder": { hasTemplate: true, multimodalVariant: "multimodal-gqa-moe-decoder" },
-  "mla-moe-decoder": { hasTemplate: true, multimodalVariant: "multimodal-mla-moe-decoder" },
-  "multimodal-gqa-decoder": { hasTemplate: true },
-  "multimodal-sparse-moe-decoder": { hasTemplate: true },
-  "multimodal-gqa-moe-decoder": { hasTemplate: true },
-  "multimodal-mla-moe-decoder": { hasTemplate: true },
-  "hybrid-multimodal-moe-decoder": { hasTemplate: true },
-  "unsupported": { hasTemplate: false },
+  "gqa-decoder": { hasBuilder: true, multimodalVariant: "multimodal-gqa-decoder" },
+  "gqa-moe-decoder": { hasBuilder: true, multimodalVariant: "multimodal-gqa-moe-decoder" },
+  "mla-moe-decoder": { hasBuilder: true, multimodalVariant: "multimodal-mla-moe-decoder" },
+  "multimodal-gqa-decoder": { hasBuilder: true },
+  "multimodal-sparse-moe-decoder": { hasBuilder: true },
+  "multimodal-gqa-moe-decoder": { hasBuilder: true },
+  "multimodal-mla-moe-decoder": { hasBuilder: true },
+  "hybrid-multimodal-moe-decoder": { hasBuilder: true },
+  "unsupported": { hasBuilder: false },
 });
 
-export const TEMPLATE_FAMILIES = new Set(
-  Object.keys(ARCHITECTURE_CATALOG).filter((name) => ARCHITECTURE_CATALOG[name].hasTemplate),
+export const BUILDER_ARCHITECTURES = new Set(
+  Object.keys(ARCHITECTURE_CATALOG).filter((name) => ARCHITECTURE_CATALOG[name].hasBuilder),
 );
 
-export function hasTemplateArchitecture(canonicalArchitecture) {
-  return Boolean(ARCHITECTURE_CATALOG[canonicalArchitecture]?.hasTemplate);
+export function hasBuilderArchitecture(canonicalArchitecture) {
+  return Boolean(ARCHITECTURE_CATALOG[canonicalArchitecture]?.hasBuilder);
 }
 
 export function multimodalVariant(canonicalArchitecture) {

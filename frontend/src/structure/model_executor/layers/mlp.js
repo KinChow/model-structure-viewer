@@ -2,6 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { mlpOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
+import { hfNamedClass } from "../../archs/index.js";
 
 export function mlpModule(id, normalized, { roleScope = undefined } = {}) {
   const shapes = tensorShapes(normalized);
@@ -11,7 +12,7 @@ export function mlpModule(id, normalized, { roleScope = undefined } = {}) {
     "MLP",
     "mlp",
     {
-      class: "MLP",
+      class: hfNamedClass(normalized, "mlpStem", "MLP"),
       hidden_size: normalized.hiddenSize,
       intermediate_size: normalized.intermediateSize,
       dataflow_edges: [["gate_proj", "swiglu"], ["up_proj", "swiglu"], ["swiglu", "down_proj"]],

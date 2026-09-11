@@ -3,6 +3,7 @@ import { operatorSpec, sdpaAttentionModule } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { deriveBuildPlan } from "../../config/plan.js";
 import { visionDimensions } from "../../config/visionDims.js";
+import { hfNamedClass } from "../../archs/index.js";
 
 function visionLayerModule(id, normalized) {
   const d = visionDimensions(normalized);
@@ -65,7 +66,7 @@ function visionLayerModule(id, normalized) {
     ? [["post_norm", "gate_proj"], ["post_norm", "up_proj"], ["gate_proj", "activation"], ["up_proj", "activation"], ["activation", "down_proj"]]
     : [["post_norm", "fc1"], ["fc1", "activation"], ["activation", "fc2"]];
   return withShapeDims(moduleSpec(id, "0 (VisionLayer)", "vision-block-group", {
-    class: "VisionLayer",
+    class: hfNamedClass(normalized, "visionBlockStem", "VisionBlock"),
     hidden_size: d.hidden,
     num_attention_heads: d.heads,
     intermediate_size: d.intermediate,
@@ -112,7 +113,7 @@ function visionMergerModule(id, normalized) {
     ? [["patch_merge", "norm"], ["norm", "proj"], ["proj", "post_norm"], ["post_norm", "gate_proj"], ["post_norm", "up_proj"], ["gate_proj", "activation"], ["up_proj", "activation"], ["activation", "down_proj"]]
     : [["patch_merge", "norm"], ["norm", "fc1"], ["fc1", "activation"], ["activation", "fc2"]];
   return withShapeDims(moduleSpec(id, "Vision Merger", "vision-merger", {
-    class: normalized.modelType === "glm5_next" ? "Glm5NextPatchMerger" : "Qwen3VisionPatchMerger",
+    class: hfNamedClass(normalized, "patchMergerStem", "VisionPatchMerger"),
     modality: "vision",
     merge_size: d.mergeSize,
     dataflow_edges: edges,
@@ -145,7 +146,7 @@ export function visionTowerModule(normalized) {
     "Vision Tower",
     "vision-encoder",
     {
-      class: "VisionTower",
+      class: hfNamedClass(normalized, "visionModelStem", "VisionModel"),
       hidden_size: normalized.visionHiddenSize,
       output_hidden_size: normalized.visionOutputSize,
       num_hidden_layers: normalized.visionLayers,

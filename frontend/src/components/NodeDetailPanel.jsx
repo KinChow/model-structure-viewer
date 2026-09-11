@@ -50,6 +50,24 @@ function FormulaSection({ node, language = "zh" }) {
   return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
 }
 
+function SourceRefSection({ node, language = "zh" }) {
+  const ref = node.source_ref;
+  if (!ref) return null;
+  const english = language === "en";
+  const versionNote = ref.versionMismatch
+    ? (english ? `line from transformers ${ref.version}` : `行号来自 transformers ${ref.version}`)
+    : (ref.version ? `transformers ${ref.version}` : null);
+  return (
+    <section className="truth-section" data-source-ref="1">
+      <h4>{english ? "Source" : "源码"}{versionNote && <span className="badge class">{versionNote}</span>}</h4>
+      {ref.url
+        ? <div className="truth-row"><b>{english ? "Definition" : "定义"}</b><a href={ref.url} target="_blank" rel="noreferrer">{ref.label}</a></div>
+        : <div className="truth-row"><b>{english ? "Definition" : "定义"}</b><code>{ref.label}</code></div>}
+      {ref.className && <div className="truth-row"><b>{english ? "Class" : "类"}</b>{ref.className}</div>}
+    </section>
+  );
+}
+
 function LensSection({ lens, activeLenses = new Set(), language = "zh" }) {
   if (!lens || activeLenses.size === 0) return null;
   const aggregateOnly = activeLenses.has("vram") || activeLenses.has("kv");
@@ -105,6 +123,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
         </button>
       </header>
       <TruthSection node={node} language={language} />
+      <SourceRefSection node={node} language={language} />
       {parameterShare != null && <div className="inspector-parameter-share" title={`${parameterShare.toFixed(2)}% ${english ? "of model parameters" : "模型参数占比"}`}><div className="inspector-parameter-track"><span style={{ width: `${Math.max(parameterShare, 0.5)}%` }} /></div><small>{parameterShare.toFixed(2)}% {english ? "of model parameters" : "模型参数占比"}</small></div>}
       <LensSection lens={costLens} activeLenses={activeLenses} language={language} />
       <FormulaSection node={node} language={language} />

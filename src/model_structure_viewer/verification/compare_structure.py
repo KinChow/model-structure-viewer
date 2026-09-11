@@ -271,8 +271,8 @@ _GENERIC_CONTAINERS = {"modulelist", "moduledict", "sequential"}
 
 
 def _is_generic_container(backend_class: str) -> bool:
-    """torch 通用容器类名不含结构语义（ModuleList 只是个列表），与前端模板
-    容器命名（DecoderStack 等）不可比，class 检查跳过。"""
+    """torch 通用容器类名不含结构语义（ModuleList 只是个列表），与前端
+    `{Prefix}Model`（transformers 的 layers 容器）不可比，class 检查跳过。"""
     return backend_class.lower() in _GENERIC_CONTAINERS
 
 

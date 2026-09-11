@@ -1,6 +1,7 @@
 import { BUILDER_ARCHITECTURES } from "../registry/architectureCatalog.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 import { enrichGraphWithTruth } from "../truth/graphTruth.js";
+import { bindSourceRefToGraph } from "../source_ref/bindSourceRef.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -82,7 +83,13 @@ export function materializeModelStructure(ir) {
     modelType: normalized.modelType,
   });
   graph = graphTruth.graph;
-  mergedDiagnostics = { ...diagnostics, ...graphTruth.diagnostics };
+  const sourceRefBound = bindSourceRefToGraph(graph, options.sourceRef);
+  graph = sourceRefBound.graph;
+  mergedDiagnostics = {
+    ...diagnostics,
+    ...graphTruth.diagnostics,
+    source_ref: sourceRefBound.diagnostics,
+  };
   const graphRoot = graph.nodes.find((node) => node.id === graph.root_id);
 
   return {

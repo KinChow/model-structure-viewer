@@ -4,6 +4,7 @@ import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
 import { mlpModule } from "./mlp.js";
 import { sharedExpertGateModule } from "./hybrid.js";
+import { hfNamedClass } from "../../archs/index.js";
 
 export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
   const shapes = tensorShapes(normalized);
@@ -59,7 +60,7 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
     isDeepseekV4 ? (isHashMoe ? "DeepSeek V4 Hash Routed MoE" : "DeepSeek V4 Routed MoE") : isKimiK3 ? "Kimi K3 Latent Routed MoE" : "Routed MoE",
     "moe",
     {
-      class: isKimiK3 ? "KimiK3LatentMoE" : "RoutedMoE",
+      class: hfNamedClass(normalized, "moeStem", "MoE"),
       hidden_size: normalized.hiddenSize,
       moe_intermediate_size: normalized.moeIntermediateSize,
       num_experts: normalized.experts,

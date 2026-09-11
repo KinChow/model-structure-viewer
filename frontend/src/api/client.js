@@ -18,17 +18,24 @@ export async function requestJson(path, options) {
     }
   }
   if (!response.ok) {
-    if (payload?.detail) throw new Error(payload.detail);
-    if (response.status >= 500 && !payload) {
-      // vite 代理转发到未启动的后端会返回空 body 的 500
-      throw new Error(
-        `HTTP ${response.status}：后端不可用或返回了非 JSON 错误。请启动后端（uvicorn），` +
-          `或改用 source=hf + endpoint=modelscope 走前端直连（无需后端）。`,
-      );
-    }
-    throw new Error(`HTTP ${response.status}`);
+    const error = new Error(describeHttpError(response.status, payload, path));
+    error.status = response.status;
+    error.path = path;
+    error.payload = payload;
+    throw error;
   }
   return payload;
+}
+
+function describeHttpError(status, payload, path) {
+  if (payload?.detail) return typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail);
+  if (status >= 500 && !payload) {
+    if (path === "/api/verify") {
+      return "后端不可用：校验需要本地 Python 服务（默认 :8000）跑 transformers meta 构型。先 `.venv/bin/msv serve --root ./models --port 8000`，再点校验。静态部署没有这条通路。";
+    }
+    return `HTTP ${status}：后端不可用或返回了非 JSON 错误。请启动后端（uvicorn），或改用 source=hf + endpoint=modelscope 走前端直连（无需后端）。`;
+  }
+  return `HTTP ${status}`;
 }
 
 export function fetchSettings() {
@@ -76,6 +83,22 @@ export async function fetchBuiltinSkeletonTruthApi({ entry, modelId }) {
   try {
     const truthDir = String(target.configPath).replace(/\\/g, "/").split("/").slice(0, -1).join("/");
     return await requestJson(staticAssetPath(`models/${truthDir}/skeleton-truth.json`));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * §5.3 离线 source_ref：models/<configPath 目录>/source-ref.json，
+ * 由 `msv dump-source-ref --model <id>` 从 transformers meta 构型采集。
+ * 文件可选——404 视为该模型未采集，返回 null，不编造链接。
+ */
+export async function fetchBuiltinSourceRefApi({ entry, modelId }) {
+  const target = entry || (await findBuiltinModelEntry(modelId));
+  if (!target) return null;
+  try {
+    const refDir = String(target.configPath).replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+    return await requestJson(staticAssetPath(`models/${refDir}/source-ref.json`));
   } catch {
     return null;
   }

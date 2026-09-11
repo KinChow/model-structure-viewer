@@ -1,9 +1,10 @@
 import {
   fetchBuiltinConfigApi,
+  fetchBuiltinSkeletonTruthApi,
+  fetchBuiltinSourceRefApi,
   fetchLocalConfigApi,
 } from "../api/client.js";
 import { fetchHfConfigDirect, resolveEndpoint } from "../api/hf.js";
-import { fetchBuiltinSkeletonTruthApi } from "../api/client.js";
 import { fetchCheckpointTruth } from "../cost/weights.js";
 
 export const CHECKPOINT_TRUTH_STATUS = {
@@ -58,6 +59,7 @@ export function createModelArtifacts({
   checkpointTruthError = null,
   configEndpoint = null,
   checkpointTruthEndpoint = null,
+  sourceRef = null,
 }) {
   if (!config || typeof config !== "object") throw new Error("Model artifacts require a config object");
   return {
@@ -70,6 +72,7 @@ export function createModelArtifacts({
     checkpointTruthError,
     configEndpoint,
     checkpointTruthEndpoint,
+    sourceRef,
   };
 }
 
@@ -85,6 +88,7 @@ export async function resolveDeferredCheckpointTruth(artifacts, { fetchTruth = f
       revision,
       fetchTruth,
       configEndpoint: artifacts.configEndpoint || "built-in",
+      sourceRef: artifacts.sourceRef || null,
     },
   );
 }
@@ -109,7 +113,7 @@ async function loadRemoteTruth({ modelId, endpoint, revision, fetchTruth }) {
   }
 }
 
-async function withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, configEndpoint = endpoint }) {
+async function withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, configEndpoint = endpoint, sourceRef = null }) {
   let checkpoint = null;
   let checkpointEndpoint = null;
   let lastError = null;
@@ -141,6 +145,7 @@ async function withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, 
     checkpointTruthError: lastError || checkpoint?.error || null,
     configEndpoint,
     checkpointTruthEndpoint: checkpointEndpoint,
+    sourceRef,
   });
 }
 
@@ -171,6 +176,7 @@ export async function loadModelArtifacts(
   {
     fetchBuiltinConfig = fetchBuiltinConfigApi,
     fetchBuiltinSkeletonTruth = fetchBuiltinSkeletonTruthApi,
+    fetchBuiltinSourceRef = fetchBuiltinSourceRefApi,
     fetchHfConfig = fetchHfConfigDirect,
     fetchLocalConfig = fetchLocalConfigApi,
     fetchTruth = fetchCheckpointTruth,
@@ -196,6 +202,7 @@ export async function loadModelArtifacts(
       const modelId = data.model_id || payload.model_id;
       const endpoint = payload.endpoint || "huggingface";
       const revision = revisionForEndpoint(endpoint, payload.revision);
+      const sourceRef = await loadBuiltinSourceRef(fetchBuiltinSourceRef, payload, modelId);
       // N2-2：离线 checkpoint 真值（skeleton-truth.json）可选接入——
       // 在场即 AVAILABLE，走既有 truth 链路；缺席保持 NOT_REQUESTED。
       if (!deferCheckpointTruth && fetchBuiltinSkeletonTruth) {
@@ -209,6 +216,7 @@ export async function loadModelArtifacts(
               source: `${data.source || "built-in config"} + skeleton-truth`,
               checkpointTruth: skeletonTruth,
               checkpointTruthStatus: statusForTruth(skeletonTruth),
+              sourceRef,
             });
             return { ...artifacts, payload };
           }
@@ -224,12 +232,13 @@ export async function loadModelArtifacts(
           source: data.source || "built-in config",
           checkpointTruthStatus: CHECKPOINT_TRUTH_STATUS.NOT_REQUESTED,
           configEndpoint: "built-in",
+          sourceRef,
         });
         onProgress?.("building");
         return { ...artifacts, deferredTruth: { modelId, endpoint, revision } };
       }
       onProgress?.("metadata");
-      return withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, configEndpoint: "built-in" });
+      return withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, configEndpoint: "built-in", sourceRef });
     } catch (error) {
       if (payload.source !== "auto") throw error;
     }
@@ -276,4 +285,13 @@ export async function loadModelArtifacts(
   }
 
   return null;
+}
+
+async function loadBuiltinSourceRef(fetchBuiltinSourceRef, payload, modelId) {
+  if (!fetchBuiltinSourceRef) return null;
+  try {
+    return await fetchBuiltinSourceRef({ entry: payload.builtin_entry, modelId }) || null;
+  } catch {
+    return null;
+  }
 }

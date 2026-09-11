@@ -4,6 +4,7 @@ import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
 import { deriveBuildPlan } from "../../config/plan.js";
+import { hfNamedClass } from "../../archs/index.js";
 
 export function decoderStackNetwork(id, normalized, options = {}) {
   const shapes = tensorShapes(normalized);
@@ -52,7 +53,7 @@ export function decoderStackNetwork(id, normalized, options = {}) {
     id,
     id === "text_decoder" ? "Text Decoder Layers" : "Decoder Layers",
     "decoder",
-    { class: "DecoderStack", num_hidden_layers: layers, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
+    { class: hfNamedClass(normalized, "modelStem", "Model"), num_hidden_layers: layers, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
     children,
     layers || undefined,
   ), dims.hidden, dims.hidden);

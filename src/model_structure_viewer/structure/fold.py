@@ -79,6 +79,7 @@ def collapse(graph: StructureGraph) -> StructureGraph:
             attributes = dict(head.attributes)
             attributes["range"] = range_label
             group_id = f"{head_id}.group{index}"
+            attributes.pop("source_ref", None)
             folded_node[group_id] = head.model_copy(
                 update={
                     "id": group_id,
@@ -218,6 +219,7 @@ def _make_pattern_group(
     head = folded_node[head_id]
     tail = folded_node[tail_id]
     attributes = dict(head.attributes)
+    attributes.pop("source_ref", None)
     attributes["range"] = _range_from_nodes(head, tail)
     attributes["pattern"] = " + ".join(_pattern_part(folded_node[child_id]) for child_id in children[:2])
     group_id = f"{head_id}.pattern{group_index}"

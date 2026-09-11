@@ -23,5 +23,6 @@ export function buildStructureFromArtifacts(artifacts) {
     checkpointTruthError: artifacts.checkpointTruthError,
     configEndpoint: artifacts.configEndpoint,
     checkpointTruthEndpoint: artifacts.checkpointTruthEndpoint,
+    sourceRef: artifacts.sourceRef || null,
   });
 }

@@ -17,8 +17,10 @@ function contentType(filePath) {
 
 function isFrontendModelAsset(filePath) {
   const name = path.basename(filePath);
-  return name === "catalog.json" || name === "config.json";
+  return name === "catalog.json" || name === "config.json" || name === "source-ref.json" || name === "skeleton-truth.json";
 }
+
+export { isFrontendModelAsset };
 
 export function isPathInside(root, candidate) {
   const relative = path.relative(root, candidate);

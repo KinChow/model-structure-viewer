@@ -138,4 +138,18 @@ test("verifyEvidenceModel：两态分立，未对账不是失败", async () => {
   assert.equal(diverge.tone, "error");
   assert.equal(diverge.residualCount, 2);
   assert.equal(diverge.classifiedEntries[0][0], "renaming");
+  const timedOut = verifyEvidenceModel({
+    ok: false,
+    status: "failed",
+    diagnostics: { failure_kind: "worker_timeout" },
+    error: "timed out after 120s",
+  }, { english: false });
+  assert.match(timedOut.headline, /校验超时/);
+  const crashed = verifyEvidenceModel({
+    ok: false,
+    status: "failed",
+    diagnostics: { failure_kind: "worker_failed" },
+    error: "RuntimeError: boom",
+  }, { english: false });
+  assert.match(crashed.headline, /校验进程失败/);
 });

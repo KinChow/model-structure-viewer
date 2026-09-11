@@ -2,6 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec, weightMatrixDecl } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
+import { hfNamedClass } from "../../archs/index.js";
 
 // P4-2：长尾复合算子的权重声明。每组的 shape/quantizable/param_dtype 与
 // formulas/index.js 对应 counts 的组成逐项同源（锚 1 执法），分片亲和按
@@ -44,7 +45,7 @@ export function hyperConnectionModule(id, normalized, phase = "branch") {
     names[phase] || names.branch,
     "hyper-connection",
     {
-      class: "GatedResidual",
+      class: hfNamedClass(normalized, "gatedResidualStem", "GatedResidual"),
       hc_phase: phase,
       hc_count: normalized.hyperConnectionCount,
       hc_lowrank: normalized.hyperConnectionLowrank,
@@ -83,7 +84,7 @@ export function pleModule(id, normalized) {
     "PLE",
     "ple",
     {
-      class: "Qwen4ExpPLELayer",
+      class: hfNamedClass(normalized, "pleStem", "PLELayer"),
       embed_dim: normalized.pleEmbedDim,
       ngram_size: normalized.pleNgramSize,
       heads_per_ngram: normalized.pleHeadsPerNgram,

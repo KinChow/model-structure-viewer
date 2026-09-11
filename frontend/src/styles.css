@@ -967,6 +967,11 @@ label {
   color: #2e6a3a;
 }
 
+.truth-section a {
+  color: #4aa3d8;
+  overflow-wrap: anywhere;
+}
+
 .truth-row {
   display: flex;
   align-items: baseline;

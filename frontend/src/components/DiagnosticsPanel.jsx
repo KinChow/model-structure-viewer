@@ -26,7 +26,7 @@ export default function DiagnosticsPanel({
       <button type="button" onClick={onVerify} disabled={verifyLoading} data-verify="1">
         {verifyLoading ? (english ? "Verifying…" : "校验中…") : (english ? "Verify with Transformers" : "用 Transformers 校验")}
       </button>
-      {verifyError && <span className="diagnostics-verify-error">{verifyError}</span>}
+      {verifyError && <span className="diagnostics-verify-error" data-verify-error="1">{verifyError}</span>}
     </div>}
     {verify.show && <div className={`diagnostics-banner${verify.tone === "error" ? " diagnostics-banner-error" : verify.tone === "ok" ? " diagnostics-banner-ok" : " diagnostics-banner-warn"}`} data-verify-result="1">
       {english ? "Transformers verify" : "Transformers 校验"}：{verify.headline}

@@ -79,6 +79,35 @@ test("resolves known vendor aliases without string inference", () => {
   }
 });
 
+test("module class follows transformers architecture prefix, not algorithm labels", () => {
+  const qwen = normalizeConfig({
+    model_type: "qwen3",
+    architectures: ["Qwen3ForCausalLM"],
+    num_hidden_layers: 2,
+    hidden_size: 1024,
+    num_attention_heads: 8,
+    num_key_value_heads: 2,
+  });
+  const qwenNet = buildNetwork(resolveArchitecture(qwen), qwen);
+  const qwenLayer = qwenNet.children.find((node) => node.id === "decoder").children[0];
+  const qwenAttn = qwenLayer.children.find((node) => node.type === "attention");
+  assert.equal(qwenAttn.attributes.class, "Qwen3Attention");
+  assert.equal(qwenAttn.attributes.attention_kind, "gqa");
+  assert.equal(qwenLayer.attributes.class, "Qwen3DecoderLayer");
+  assert.equal(qwenNet.children.find((node) => node.id === "decoder").attributes.class, "Qwen3Model");
+
+  const m3 = normalizeConfig({
+    model_type: "minimax_m3",
+    architectures: ["MiniMaxM3SparseForConditionalGeneration"],
+    text_config: { num_hidden_layers: 2, hidden_size: 4096, num_attention_heads: 32, num_local_experts: 8 },
+  });
+  const m3Net = buildNetwork(resolveArchitecture(m3), m3);
+  const m3Layer = m3Net.children.find((node) => node.id === "text_decoder" || node.id === "decoder").children[0];
+  assert.equal(m3Layer.attributes.class, "MiniMaxM3VLDecoderLayer");
+  assert.equal(m3Layer.children.find((node) => node.type === "attention").attributes.class, "MiniMaxM3VLAttention");
+  assert.equal(m3Layer.children.find((node) => node.type === "moe").attributes.class, "MiniMaxM3VLSparseMoeBlock");
+});
+
 test("selects dedicated model builders by canonical architecture", () => {
   const normalized = normalizeConfig({
     model_type: "minimax_m3",
@@ -100,7 +129,7 @@ test("selects dedicated model builders by canonical architecture", () => {
   assert.equal(network.children[0].id, "vision_tower");
   assert.equal(network.children[1].id, "projector");
   assert.equal(network.children[2].id, "text_decoder");
-  assert.equal(network.children[2].attributes.class, "DecoderStack");
+  assert.equal(network.children[2].attributes.class, "MiniMaxM3VLModel");
 });
 
 test("builds Qwen multimodal models with vision tower and projector", () => {

@@ -2,6 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttentionOperatorSpecs, minimaxDenseAttentionOperatorSpecs, minimaxM2AttentionOperatorSpecs, minimaxSparseAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs, qwen35FullAttentionOperatorSpecs } from "../ops/index.js";
 import { shapeFlow, tensorShapes } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
+import { hfNamedClass } from "../../archs/index.js";
 
 // 组件表（W3-A）：attentionKind（×modelType）→ { name, ops, edges }。
 // ops 与 edges 必须取自同一表项 —— children 改了 edges 没跟着改在结构上不可能。
@@ -128,7 +129,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     displayName,
     "attention",
     {
-      class: `${attentionKind.toUpperCase()}Attention`,
+      class: hfNamedClass(normalized, "attentionStem", "Attention", "Attention", { kind: attentionKind }),
       attention_kind: moduleKind,
       model_variant: normalized.modelType,
       hidden_size: normalized.hiddenSize,

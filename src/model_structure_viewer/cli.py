@@ -4,6 +4,8 @@ import argparse
 import json
 import sys
 
+from pathlib import Path
+
 from .exporters import export_structure
 from .resolver import ModelSourceResolver, SourceResolutionError
 from .schemas import StructureRequest, VerifyRequest
@@ -65,6 +67,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to a JSON file with the frontend Graph (msv_graph) for reconciliation.",
     )
     verify_parser.set_defaults(func=cmd_verify)
+
+    dump_parser = subparsers.add_parser(
+        "dump-source-ref",
+        help="Write catalog-side source-ref.json from a Transformers meta walk.",
+    )
+    add_common_options(dump_parser)
+    dump_parser.add_argument("--model", required=True, help="Model id, for example Qwen/Qwen3.5-0.8B.")
+    dump_parser.add_argument("--source", choices=["auto", "builtin", "local", "hf", "config"], default="builtin")
+    dump_parser.add_argument("--revision", default="main")
+    dump_parser.add_argument("--cache-policy", choices=["prefer-local", "refresh", "offline"], default="prefer-local")
+    dump_parser.add_argument(
+        "--out",
+        default=None,
+        help="Output path. Default: models/<org>/<id>/source-ref.json next to catalog config.",
+    )
+    dump_parser.set_defaults(func=cmd_dump_source_ref)
 
     serve_parser = subparsers.add_parser("serve", help="Start the FastAPI server.")
     add_common_options(serve_parser)
@@ -153,6 +171,47 @@ def cmd_verify(args: argparse.Namespace, settings: AppSettings) -> int:
     else:
         print(json.dumps(result.model_dump(), indent=2, ensure_ascii=False))
     return 0 if result.ok else 1
+
+
+def cmd_dump_source_ref(args: argparse.Namespace, settings: AppSettings) -> int:
+    """Walk Transformers meta modules and write catalog-side source-ref.json (§5.3)."""
+    payload = VerifyRequest(
+        source=args.source,
+        model_id=args.model,
+        revision=args.revision,
+        cache_policy=args.cache_policy,
+    )
+    result = verify_structure_response(payload, settings)
+    if not result.ok or result.evidence is None:
+        print(f"error: dump-source-ref failed: {result.error or result.status}", file=sys.stderr)
+        return 1
+    rows = [
+        {
+            "module_path": module.get("path"),
+            "class_name": module.get("class"),
+            "source_ref": module.get("source_ref"),
+            "has_params": bool(module.get("params")),
+        }
+        for module in (result.evidence.modules or [])
+    ]
+    document = {
+        "model_id": result.model_id or args.model,
+        "transformers_version": next(
+            (row["source_ref"].get("version") for row in rows if isinstance(row.get("source_ref"), dict) and row["source_ref"].get("framework") == "transformers" and row["source_ref"].get("version")),
+            None,
+        ),
+        "modules": rows,
+    }
+    out_path = Path(args.out) if args.out else _default_source_ref_path(args.model)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"wrote {out_path} ({len(rows)} modules)")
+    return 0
+
+
+def _default_source_ref_path(model_id: str) -> Path:
+    parts = [part for part in str(model_id).split("/") if part]
+    return Path(__file__).resolve().parents[2] / "models" / Path(*parts) / "source-ref.json"
 
 
 def cmd_serve(args: argparse.Namespace, settings: AppSettings) -> int:

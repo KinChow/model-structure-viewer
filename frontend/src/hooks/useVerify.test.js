@@ -26,7 +26,27 @@ test("verifyStructureApi 上行 /api/verify 并携带 msv_graph", async () => {
     assert.equal(calls[0].path, "/api/verify");
     assert.deepEqual(calls[0].body.msv_graph.nodes[0], { id: "root" });
     assert.equal(data.ok, true);
-    assert.equal(data.evidence.summary.constructed, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("verifyStructureApi 后端不可达时给出启动指引", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 500,
+    text: async () => "",
+  });
+  try {
+    await assert.rejects(
+      () => verifyStructureApi({ source: "builtin", model_id: "Qwen/Qwen3.5-0.8B" }),
+      (error) => {
+        assert.match(error.message, /后端不可用/);
+        assert.match(error.message, /msv serve/);
+        return true;
+      },
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

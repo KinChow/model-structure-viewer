@@ -27,25 +27,66 @@ import { SUFFIX_ROLES } from "../model_executor/roles.js";
 // 反例证据：`use_gemma_norm` 全库仅 2/59 命中，却有 35 个模型实际走 gemma
 // norm —— 这就是「没有字段判据」的实证，只能登记。
 export const ARCH_RECIPES = {
-  DeepseekV3ForCausalLM: {},
-  DeepseekV32ForCausalLM: {},
-  DeepseekV4ForCausalLM: {},
-  Glm4MoeForCausalLM: {},
-  GlmMoeDsaForCausalLM: {},
-  Glm5NextForConditionalGeneration: { linearAttentionMode: "glm5_next", visionInternalMerger: true },
-  KimiK25ForConditionalGeneration: { linearAttentionMode: "kimi" },
-  KimiK3ForConditionalGeneration: { linearAttentionMode: "kimi_k3", sharedExpertsAreFused: true },
-  MiniMaxM2ForCausalLM: {},
-  MiniMaxM3SparseForConditionalGeneration: { normMode: "gemma_rmsnorm" },
-  Qwen3_5ForConditionalGeneration: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5", visionInternalMerger: true },
-  Qwen3_5MoeForCausalLM: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5" },
-  Qwen3_5MoeForConditionalGeneration: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5", visionInternalMerger: true },
-  Qwen4ExpForConditionalGeneration: { linearAttentionMode: "qwen4_exp", visionInternalMerger: true },
+  DeepseekV3ForCausalLM: { moeStem: "MoE" },
+  DeepseekV32ForCausalLM: { moeStem: "MoE" },
+  DeepseekV4ForCausalLM: { moeStem: "MoE" },
+  Glm4MoeForCausalLM: { moeStem: "MoE" },
+  GlmMoeDsaForCausalLM: { moeStem: "MoE" },
+  Glm5NextForConditionalGeneration: { linearAttentionMode: "glm5_next", visionInternalMerger: true, moeStem: "TextMoE", decoderLayerStem: "TextDecoderLayer", mlpStem: "TextMLP", rmsNormStem: "TextRMSNorm", visionBlockStem: "VisionBlock", visionModelStem: "VisionModel", patchMergerStem: "VisionPatchMerger", attentionStemByKind: { linear: "TextLinearAttention", gqa: "TextAttention", qwen35_full: "TextAttention" } },
+  KimiK25ForConditionalGeneration: { linearAttentionMode: "kimi", moeStem: "MoE", modulePrefix: "DeepseekV3" },
+  KimiK3ForConditionalGeneration: { linearAttentionMode: "kimi_k3", sharedExpertsAreFused: true, moeStem: "SparseMoeBlock", modulePrefix: "Kimi", attentionStemByKind: { mla: "MLAAttention", linear: "DeltaAttention" } },
+  MiniMaxM2ForCausalLM: { moeStem: "SparseMoeBlock" },
+  MiniMaxM3SparseForConditionalGeneration: { normMode: "gemma_rmsnorm", moeStem: "SparseMoeBlock", modulePrefix: "MiniMaxM3VL", visionBlockStem: "VisionEncoderLayer", visionModelStem: "VisionModel" },
+  Qwen3_5ForConditionalGeneration: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5", visionInternalMerger: true, patchMergerStem: "VisionPatchMerger" },
+  Qwen3_5MoeForCausalLM: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5", moeStem: "SparseMoeBlock" },
+  Qwen3_5MoeForConditionalGeneration: { normMode: "gemma_rmsnorm", linearAttentionMode: "qwen3_5", visionInternalMerger: true, moeStem: "SparseMoeBlock", patchMergerStem: "VisionPatchMerger" },
+  Qwen4ExpForConditionalGeneration: { linearAttentionMode: "qwen4_exp", visionInternalMerger: true, moeStem: "TextSparseMoeBlock", attentionStem: "TextAttention", decoderLayerStem: "TextDecoderLayer", mlpStem: "TextMLP", rmsNormStem: "TextRMSNorm", gatedResidualStem: "TextGatedResidual", pleStem: "TextPLELayer", visionBlockStem: "VisionBlock", visionModelStem: "VisionModel", patchMergerStem: "VisionPatchMerger" },
 };
 
 /** 取某架构的配方；未登记的架构返回空配方（走各位的默认值）。 */
 export function archRecipe(architecture) {
   return ARCH_RECIPES[String(architecture || "")] || {};
+}
+
+// transformers 把入口类写成 `{Prefix}ForCausalLM` / `{Prefix}ForConditionalGeneration`，
+// 模块类写成 `{Prefix}Attention` / `{Prefix}DecoderLayer` / `{Prefix}MLP`。
+// 出处：modeling_llama.py `LlamaForCausalLM` → `LlamaAttention`；
+// modeling_minimax_m2.py `MiniMaxM2ForCausalLM` → `MiniMaxM2Attention`。
+// GQA/MLA 是 config 字段，不进类名——没有 GQAAttention 这种算法类。
+const HF_TASK_SUFFIXES = [
+  "ForConditionalGeneration",
+  "ForCausalLM",
+  "ForSequenceClassification",
+  "ForTokenClassification",
+  "ForQuestionAnswering",
+];
+
+export function hfModulePrefix(architecture) {
+  const recipe = archRecipe(architecture);
+  if (recipe.modulePrefix) return recipe.modulePrefix;
+  let name = String(architecture || "").trim();
+  if (!name) return "";
+  for (const suffix of HF_TASK_SUFFIXES) {
+    if (name.endsWith(suffix)) {
+      name = name.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return name;
+}
+
+export function hfModuleClass(architecture, stem, { fallback } = {}) {
+  const prefix = hfModulePrefix(architecture);
+  if (prefix && stem) return `${prefix}${stem}`;
+  return fallback || stem || null;
+}
+
+export function hfNamedClass(normalized, recipeKey, defaultStem, fallback, { kind } = {}) {
+  const architecture = normalized?.architecture;
+  const recipe = archRecipe(architecture);
+  const byKind = kind != null ? recipe.attentionStemByKind?.[kind] : undefined;
+  const stem = byKind || recipe[recipeKey] || defaultStem;
+  return hfModuleClass(architecture, stem, { fallback: fallback || defaultStem });
 }
 
 const WRAPPERS = new Set(["model", "language_model", "model_tower"]);

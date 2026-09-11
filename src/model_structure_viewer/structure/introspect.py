@@ -12,6 +12,7 @@ from . import semantics
 from .graph import GraphDraft, collapse_graph
 from .keys import make_extra_config
 from .repair.runtime import ConfigNormalizer, RuntimePatch
+from .source_ref import collect_source_ref
 from .summary import extract_summary, infer_model_family
 
 _LOG = logging.getLogger(__name__)
@@ -135,7 +136,11 @@ def _build_graph_draft(module: Any) -> GraphDraft:
     def visit(current: Any, *, attribute_name: str, path: str, parent_id: str | None, order: int) -> None:
         class_name = type(current).__name__
         node_type = semantics.classify(current)
-        attrs = _drop_none({**semantics.extract_attributes(current), "class": class_name})
+        attrs = _drop_none({
+            **semantics.extract_attributes(current),
+            "class": class_name,
+            "source_ref": collect_source_ref(current),
+        })
         display = semantics.display_name(attribute_name, current) if attribute_name else class_name
         metadata = _direct_parameter_metadata(current, path)
         draft.add_node(

@@ -96,6 +96,7 @@ export function materializeStructureGraph(root) {
       output_shape: item.node?.output_shape || null,
       value_source: item.node?.value_source || null,
       tensor_names: item.node?.tensor_names || null,
+      source_ref: item.node?.source_ref ?? null,
     })),
     edges: [
       ...dataflowEdges,

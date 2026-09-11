@@ -117,15 +117,18 @@ def extract_evidence_modules(structure: ModelStructure) -> list[dict[str, Any]]:
         return []
     modules: list[dict[str, Any]] = []
     for node in graph.nodes:
+        attributes = node.attributes if isinstance(node.attributes, dict) else {}
+        source_ref = None if node.type in {"layer-group", "layer-pattern-group"} else attributes.get("source_ref")
         modules.append(
             {
                 "path": node.canonical_id or node.id,
-                "class": node.attributes.get("class") if isinstance(node.attributes, dict) else None,
+                "class": attributes.get("class"),
                 "params": node.params,
                 "weight_shapes": node.weight_shapes,
                 "dtype": node.dtype,
                 "value_source": node.value_source,
                 "repeat": node.repeat,
+                "source_ref": source_ref,
             }
         )
     return modules

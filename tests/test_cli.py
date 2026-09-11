@@ -59,3 +59,18 @@ def test_cli_verify_without_graph_keeps_msv_graph_none(tmp_path, monkeypatch):
 
     assert code == 1
     assert captured["payload"].msv_graph is None
+
+
+def test_cli_dump_source_ref_parses(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_dump(args, settings):
+        captured["model"] = args.model
+        captured["out"] = args.out
+        return 0
+
+    monkeypatch.setattr(cli, "cmd_dump_source_ref", fake_dump)
+    out = tmp_path / "source-ref.json"
+    assert cli.main(["dump-source-ref", "--model", "Qwen/Qwen3.5-0.8B", "--out", str(out)]) == 0
+    assert captured["model"] == "Qwen/Qwen3.5-0.8B"
+    assert captured["out"] == str(out)

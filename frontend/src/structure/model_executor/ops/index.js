@@ -191,7 +191,7 @@ export function sdpaAttentionModule(prefix, shapes, dims, { scoresName = "attent
     name: "SDPA attention",
     type: "operator",
     attributes: cleanAttributes({
-      class: "SDPAAttention",
+      class: "SDPA",
       operator_id: "sdpa_attention",
       formula_id: "sdpa_attention",
       formula: formula?.formula,

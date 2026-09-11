@@ -634,11 +634,10 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 
 **仍偏离**（设计已定、代码未跟上或契约未收口）：
 
-- **§5.x**：`source_ref` 未实现（旁路 B 收窄版范围）。
-- **§6.3 / §6.4**：`/api/verify` 已返回 per-module evidence 与三分类 diff；
-  前端 DiagnosticsPanel 有校验入口并展示构造/结构一致两态与未分类残余。
-  FlopCounterMode 矩阵抽查未接。来源解析策略仍两套（共享样例
-  `verification/fixtures/canonical_path_contract.json`，不共享代码）。
+- **§6.3 / §6.4**：前端 DiagnosticsPanel 有校验入口。失败分三类：后端不可达 /
+  transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 矩阵抽查未接。
+  来源解析策略仍两套。catalog 旁 `source-ref.json` 尚未批量入库（采集链路已接通，
+  静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接）。
 - **§8.1**：14/16 文件含家族名；剩余随配方表接管后进一步下降。
 - **§3.1 运行时双轨**：extractor 巨型 switch 手搓原子 counts，注册表对这 30+ 条
   是死代码。护栏 §3.1b 承认「手搓可达」。不改用户看见的图，后置。

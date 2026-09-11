@@ -12,6 +12,9 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- 模块 `attributes.class` 改为 transformers 架构类名：从 `architectures[0]` 剥 `ForCausalLM`/`ForConditionalGeneration` 得到前缀，再拼 `Attention`/`DecoderLayer`/`MLP`/`MoE`。删除自研 `GQAAttention`/`DecoderStack`/`RoutedMoE`。算法身份仍在 `attention_kind`。同类型后缀差异（`MoE`/`SparseMoeBlock`、`TextAttention`）登记在 `ARCH_RECIPES`。
+- Transformers 校验失败分三类文案：后端不可达（需 `msv serve`）、worker 超时/崩溃、构造失败；未对账不是失败。
+- `source_ref` 采集照抄 modelmap annotate：`inspect.getsourcefile` + 包根前缀匹配；产物 `models/<org>/<id>/source-ref.json`；前端按对账路径绑定，版本不一致去掉 `#L`，inspect 失败留空。
 - 并行与权重分片协议定稿（步骤 1）：`details/parallel_protocol.md` 为协议唯一住址——逻辑轴定义、约束等式（专家域闭合 moe_ep×moe_tp=ep×tp）、九项裁决、三类成本口径。
 - 声明覆盖率护栏与全量覆盖（步骤 3）：P2 棘轮（缺声明带权叶，只许下降）13166→0；norm/linear/router/lm_head/MLA/KDA/conv1d/mHC/HC/PLE/embedding 全部声明；锚 1 升级 dtype-aware（param_dtype 引用 paramDtypes）。
 - 删除权重分片与量化枚举回退（步骤 3 收口）：weightMatrices 是权重归属唯一入口，无声明带权叶 = unknown；router 分片轴修正为 replicated（vLLM GateLinear extends ReplicatedLinear）。

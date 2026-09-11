@@ -280,6 +280,7 @@ def test_verify_transformers_structure_carries_per_module_evidence(monkeypatch):
         "dtype": "BF16",
         "value_source": "introspect",
         "repeat": None,
+        "source_ref": None,
     }
     # 形状类字段无值保持 None（不伪造数值），折叠节点保留 repeat
     norm = modules["root.model.norm"]

@@ -8,6 +8,7 @@ import { tensorDims } from "../../config/dims.js";
 import { attentionResidualModule } from "./residual.js";
 import { hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
 import { layerInSpec, residualAddSpec } from "../ops/index.js";
+import { hfNamedClass } from "../../archs/index.js";
 
 function ffnRef(layerKind) {
   return layerKind === "moe" ? "moe" : "mlp";
@@ -113,7 +114,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     "DecoderLayer",
     "decoder",
     {
-      class: "DecoderLayer",
+      class: hfNamedClass(normalized, "decoderLayerStem", "DecoderLayer"),
       layer_kind: layerKind,
       dataflow_edges: decoderLayerEdges({ layerKind, isMhc, isQwen4Exp, isLastLayer, hasPle, hasHyper, hasAttnRes }),
       ...shapeFlow(shapes.hidden, shapes.hidden),

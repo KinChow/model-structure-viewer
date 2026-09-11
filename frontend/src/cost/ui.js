@@ -274,6 +274,7 @@ export function verifyEvidenceModel(response, { english = false } = {}) {
   const mismatches = diff.mismatches || [];
   const residualCount = onlyTransformers.length + onlyMsv.length + mismatches.length;
   const compared = consistent != null;
+  const failureKind = response.diagnostics?.failure_kind || null;
   let tone = "warn";
   if (response.status === "failed" || constructed === false) tone = "error";
   else if (compared && consistent === true) tone = "ok";
@@ -289,7 +290,7 @@ export function verifyEvidenceModel(response, { english = false } = {}) {
       ? (english ? "structure differs" : "结构不一致")
       : (english ? "not compared" : "未对账");
   const headline = response.error
-    ? (english ? `Verify failed: ${response.error}` : `校验失败：${response.error}`)
+    ? classifyVerifyFailure(response, { english })
     : `${constructedLabel} · ${consistentLabel}`;
   return {
     show: true,
@@ -299,6 +300,7 @@ export function verifyEvidenceModel(response, { english = false } = {}) {
     constructed,
     consistent,
     compared,
+    failureKind,
     classified,
     classifiedEntries: Object.entries(classified).filter(([, count]) => count > 0),
     onlyTransformers,
@@ -307,4 +309,30 @@ export function verifyEvidenceModel(response, { english = false } = {}) {
     residualCount,
     moduleCount: evidence.modules?.length ?? summary.module_count ?? 0,
   };
+}
+
+function classifyVerifyFailure(response, { english = false } = {}) {
+  const kind = response.diagnostics?.failure_kind;
+  const raw = String(response.error || "");
+  if (kind === "worker_timeout") {
+    return english
+      ? `Verify timed out while constructing the Transformers meta model: ${raw}`
+      : `校验超时：transformers meta 构型未在时限内完成。${raw}`;
+  }
+  if (kind === "worker_failed" || kind === "worker_killed") {
+    return english
+      ? `Verify worker crashed (${kind}): ${raw}`
+      : `校验进程失败（${kind}）：${raw}`;
+  }
+  if (constructedFailed(response)) {
+    return english
+      ? `Transformers could not construct the model: ${raw}`
+      : `Transformers 无法在 meta 设备上建起该模型：${raw}`;
+  }
+  return english ? `Verify failed: ${raw}` : `校验失败：${raw}`;
+}
+
+function constructedFailed(response) {
+  const constructed = response.evidence?.summary?.constructed;
+  return constructed === false || (response.status === "failed" && constructed !== true);
 }

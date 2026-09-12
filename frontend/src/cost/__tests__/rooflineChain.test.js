@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { normalizeConfig } from "../../structure/config/normalize.js";
 import { resolveArchitecture } from "../../structure/registry/resolveArchitecture.js";
-import { buildNetwork } from "../../structure/model_executor/models/index.js";
+import { buildNetwork } from "../../structure/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/modelStructure.js";
 import { deriveBuildPlan } from "../../structure/config/plan.js";

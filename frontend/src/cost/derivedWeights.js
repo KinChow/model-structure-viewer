@@ -2,7 +2,8 @@
 // 来源：llm-analysis 的 get_num_params_* 公式形态；不包含架构特有 bias/额外 head。
 
 import { deriveBuildPlan } from "../structure/config/plan.js";
-import { paramBytes } from "../structure/formulas/paramDtypes.js";
+import { recipeLinearAttentionMode, recipeSharedExpertsAreFused, recipeVisionInternalMerger } from "../structure/archs/index.js";
+import { paramBytes } from "../structure/operators/formulas/paramDtypes.js";
 
 export function derivedWeightParameters(config = {}) {
   const hidden0 = config.hiddenSize || 0;
@@ -13,7 +14,7 @@ export function derivedWeightParameters(config = {}) {
   const outputResidual = config.attnResBlockSize ? 2 * hidden0 : 0;
   const finalHyperConnection = config.hyperConnectionCount ? hyperConnectionFinalParameters(config) : 0;
   // W4：MTP 参数占显存但不参与每次前向（投机解码默认关闭，结构树里 MTP
-  // repeat=0，见 model_executor/layers/mtp.js）。计入是为支柱②「放得下吗」——
+  // repeat=0，见 layers/mtp.js）。计入是为支柱②「放得下吗」——
   // 51/59 内置模型带 MTP 字段，此前完全不在参数量里。单模块 = enorm+hnorm+
   // shared_head_norm(3H) + eh_proj(2H²) + 一个 decoder 层（按平均层成本）。
   // 对标 vLLM：MTP 是 registry 的独立注册项，与主干同一 checkpoint。
@@ -34,6 +35,8 @@ export function derivedDecoderLayerBreakdown(config = {}) {
 
 function decoderParameters(config = {}, perLayerOut = null) {
   const plan = deriveBuildPlan(config?.raw ?? config);
+  const linearMode = recipeLinearAttentionMode(config);
+  const sharedFused = recipeSharedExpertsAreFused(config);
   const layers = config.layers || 0;
   const hidden = config.hiddenSize || 0;
   const heads = config.attentionHeads || 0;
@@ -67,13 +70,13 @@ function decoderParameters(config = {}, perLayerOut = null) {
       || (config.qLoraRank && config.kvLoraRank ? "mla" : "gqa");
     let attentionParameters = attention;
     if (attentionKind === "linear") {
-      attentionParameters = plan.linearAttentionMode === "glm5_next"
+      attentionParameters = linearMode === "glm5_next"
         ? glm5NextLinearAttentionParameters(config)
-        : plan.linearAttentionMode === "kimi_k3"
+        : linearMode === "kimi_k3"
           ? kimiK3LinearAttentionParameters(config)
-      : plan.linearAttentionMode === "qwen4_exp"
+      : linearMode === "qwen4_exp"
           ? qwen4ExpLinearAttentionParameters(config)
-            : plan.linearAttentionMode === "qwen3_5"
+            : linearMode === "qwen3_5"
               ? qwen35LinearAttentionParameters(config)
             : genericLinearAttentionParameters(config, { hidden, heads, qDim, vDim });
     } else if (attentionKind === "qwen35_full") {
@@ -117,7 +120,7 @@ function decoderParameters(config = {}, perLayerOut = null) {
     // 元素数仍留在参数量里（支柱②的参数量是纯元素计数）。
     let fp32Elements = 0;
     if (attentionKind === "linear") {
-      fp32Elements += gdnDecayElements(config, plan.linearAttentionMode);
+      fp32Elements += gdnDecayElements(config, linearMode);
     }
     if (config.multiHyperConnection) {
       const streams = config.mhcNumResidualStreams || 0;
@@ -151,7 +154,7 @@ function decoderParameters(config = {}, perLayerOut = null) {
         ? hidden * routedExpertHidden + routedExpertHidden * hidden + routedExpertHidden
         : 0;
       decoder += attentionParameters + norms + mhcParameters + hcParameters + pleParameters + routerParameters + routedExperts + latentProjection;
-      decoder += (plan.sharedExpertsAreFused ? 1 : sharedExperts) * 3 * hidden * sharedIntermediate;
+      decoder += (sharedFused ? 1 : sharedExperts) * 3 * hidden * sharedIntermediate;
     } else {
       decoder += attentionParameters + norms + mhcParameters + hcParameters + pleParameters + 3 * hidden * denseIntermediate;
     }
@@ -197,7 +200,7 @@ export function derivedMtpParameters(config = {}) {
 }
 
 export function derivedVisionParameters(config) {
-  const plan = deriveBuildPlan(config?.raw ?? config);
+  const visionInternalMerger = recipeVisionInternalMerger(config);
   // M8-V2：Kimi 系（MoonViT3dEncoder）分支——qkv 宽独立（qkv_hidden_size）、
   // MLP2 两层无 gate、patchmerger 投影（源码：details/models/kimi-k3/）。
   // 每层 = wqkv hidden·3qkv + wo qkv·hidden + MLP2 2·hidden·mlpDim + norms 2·hidden。
@@ -246,7 +249,7 @@ export function derivedVisionParameters(config) {
   const output = config.visionOutputSize || hidden;
   const mergeWidth = (config.visionMergeSize || 1) ** 2 * hidden;
   const mergerIntermediate = config.visionMergerIntermediateSize || intermediate;
-  const merger = plan.visionInternalMerger
+  const merger = visionInternalMerger
     ? config.modelType === "glm5_next"
       // GLM-5.3-Flash 的 merger（结构树逐叶实证）：norm(output) + proj(mergeWidth→output)
       // + post_norm(output) + SwiGLU 三条 output↔mergerIntermediate。

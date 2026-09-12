@@ -1,31 +1,60 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hfModulePrefix, hfNamedClass } from "./index.js";
+import { hfAttentionAttr, hfFfnAttr, hfNamedClass } from "./index.js";
 
-test("hfModulePrefix 剥 transformers 任务后缀，必要时用配方覆盖", () => {
-  assert.equal(hfModulePrefix("Qwen3ForCausalLM"), "Qwen3");
-  assert.equal(hfModulePrefix("Qwen3_5ForConditionalGeneration"), "Qwen3_5");
-  assert.equal(hfModulePrefix("MiniMaxM2ForCausalLM"), "MiniMaxM2");
-  assert.equal(hfModulePrefix("MiniMaxM3SparseForConditionalGeneration"), "MiniMaxM3VL");
-  assert.equal(hfModulePrefix("KimiK25ForConditionalGeneration"), "DeepseekV3");
-  assert.equal(hfModulePrefix("KimiK3ForConditionalGeneration"), "Kimi");
-});
-
-test("hfNamedClass 按架构前缀拼模块类，混合注意力按 kind 分 stem", () => {
-  assert.equal(hfNamedClass({ architecture: "Qwen3ForCausalLM" }, "attentionStem", "Attention"), "Qwen3Attention");
-  assert.equal(hfNamedClass({ architecture: "MiniMaxM2ForCausalLM" }, "moeStem", "MoE"), "MiniMaxM2SparseMoeBlock");
-  assert.equal(hfNamedClass({ architecture: "DeepseekV3ForCausalLM" }, "moeStem", "MoE"), "DeepseekV3MoE");
+test("hfNamedClass：配方写全名则用全名，没写用词干，不剥 architectures[0] 再拼", () => {
+  assert.equal(hfNamedClass({ architecture: "Qwen3ForCausalLM" }, "attentionClass", "Attention"), "Attention");
+  assert.equal(hfNamedClass({ architecture: "DeepseekV3ForCausalLM" }, "moeClass", "MoE"), "MoE");
+  assert.equal(hfNamedClass({ architecture: "MiniMaxM2ForCausalLM" }, "moeClass", "MoE"), "MiniMaxM2SparseMoeBlock");
   assert.equal(
-    hfNamedClass({ architecture: "KimiK3ForConditionalGeneration" }, "attentionStem", "Attention", "Attention", { kind: "mla" }),
+    hfNamedClass({ architecture: "KimiK3ForConditionalGeneration" }, "attentionClass", "Attention", "Attention", { kind: "mla" }),
     "KimiMLAAttention",
   );
   assert.equal(
-    hfNamedClass({ architecture: "KimiK3ForConditionalGeneration" }, "attentionStem", "Attention", "Attention", { kind: "linear" }),
+    hfNamedClass({ architecture: "KimiK3ForConditionalGeneration" }, "attentionClass", "Attention", "Attention", { kind: "linear" }),
     "KimiDeltaAttention",
   );
   assert.equal(
-    hfNamedClass({ architecture: "Qwen4ExpForConditionalGeneration" }, "attentionStem", "Attention"),
+    hfNamedClass({ architecture: "Qwen4ExpForConditionalGeneration" }, "attentionClass", "Attention", "Attention", { kind: "linear" }),
+    "Qwen4ExpTextGatedDeltaNet",
+  );
+  assert.equal(
+    hfNamedClass({ architecture: "Qwen4ExpForConditionalGeneration" }, "attentionClass", "Attention", "Attention", { kind: "qsa" }),
     "Qwen4ExpTextAttention",
   );
-  assert.equal(hfNamedClass({}, "attentionStem", "Attention", "Attention"), "Attention");
+  assert.equal(
+    hfNamedClass({ architecture: "Qwen3_5ForConditionalGeneration" }, "attentionClass", "Attention", "Attention", { kind: "linear" }),
+    "Qwen3_5GatedDeltaNet",
+  );
+  assert.equal(
+    hfNamedClass({ architecture: "Qwen3_5ForConditionalGeneration" }, "attentionClass", "Attention", "Attention", { kind: "qwen35_full" }),
+    "Qwen3_5Attention",
+  );
+  assert.equal(
+    hfNamedClass({ architecture: "Qwen3_5ForConditionalGeneration" }, "modelClass", "Model"),
+    "Qwen3_5TextModel",
+  );
+  assert.equal(hfNamedClass({}, "attentionClass", "Attention", "Attention"), "Attention");
+});
+
+test("hfAttentionAttr 跟随 transformers 属性名", () => {
+  assert.equal(hfAttentionAttr({ architecture: "Qwen3_5ForConditionalGeneration" }, "linear"), "linear_attn");
+  assert.equal(hfAttentionAttr({ architecture: "Qwen3_5ForConditionalGeneration" }, "qwen35_full"), "self_attn");
+  assert.equal(hfAttentionAttr({ architecture: "Qwen4ExpForConditionalGeneration" }, "linear"), "linear_attn");
+  assert.equal(hfAttentionAttr({ architecture: "Qwen4ExpForConditionalGeneration" }, "qsa"), "self_attn");
+  assert.equal(hfAttentionAttr({ architecture: "KimiK3ForConditionalGeneration" }, "linear"), "self_attn");
+  assert.equal(hfAttentionAttr({ architecture: "Glm5NextForConditionalGeneration" }, "linear"), "self_attn");
+  assert.equal(hfAttentionAttr({ architecture: "DeepseekV3ForCausalLM" }, "mla"), "self_attn");
+});
+
+test("hfFfnAttr 跟随 HF _modules key，不按 layerKind 二分", () => {
+  assert.equal(hfFfnAttr({ architecture: "DeepseekV3ForCausalLM" }, "moe"), "mlp");
+  assert.equal(hfFfnAttr({ architecture: "DeepseekV3ForCausalLM" }, "dense"), "mlp");
+  assert.equal(hfFfnAttr({ architecture: "Qwen3MoeForCausalLM" }, "moe"), "mlp");
+  assert.equal(hfFfnAttr({ architecture: "MiniMaxM3SparseForConditionalGeneration" }, "moe"), "mlp");
+  assert.equal(hfFfnAttr({ architecture: "MiniMaxM2ForCausalLM" }, "moe"), "block_sparse_moe");
+  assert.equal(hfFfnAttr({ architecture: "MiniMaxM2ForCausalLM" }, "dense"), "block_sparse_moe");
+  assert.equal(hfFfnAttr({ architecture: "KimiK3ForConditionalGeneration" }, "moe"), "block_sparse_moe");
+  assert.equal(hfFfnAttr({ architecture: "KimiK3ForConditionalGeneration" }, "dense"), "mlp");
+  assert.equal(hfFfnAttr({}, "moe"), "mlp");
 });

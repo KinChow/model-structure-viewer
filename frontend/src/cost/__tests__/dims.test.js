@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { tensorDims } from "../../structure/config/dims.js";
-import { tensorShapes } from "../../structure/model_executor/shapes.js";
+import { tensorShapes } from "../../structure/operators/shapes.js";
 
 const QWEN = {
   hiddenSize: 1024,

@@ -14,7 +14,7 @@ export function normalizeCatalog(rawCatalog) {
       displayName: typeof entry.display_name === "string" && entry.display_name.trim() ? entry.display_name.trim() : null,
       releaseTime: typeof entry.release_time === "string" && entry.release_time.trim() ? entry.release_time.trim() : null,
       revision: entry.revision || null,
-      canonicalArchitecture: entry.canonical_architecture || null,
+      architecture: Array.isArray(entry.architectures) ? entry.architectures[0] : null,
       configPath: requireString(entry, "config_path"),
       modelType: entry.model_type || null,
       architectures: Array.isArray(entry.architectures) ? entry.architectures : [],

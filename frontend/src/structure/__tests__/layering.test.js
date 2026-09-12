@@ -1,9 +1,6 @@
-// layering.test.js —— 结构目录级分层护栏（M11.5 子项 2 的棘轮）。
-// 背景：formulas/extractor.js 曾 import ../model_executor/{dims,layers/vision}.js ——
-// 文件级 madge 不报环，但目录分层被破坏（formulas 是 model_executor 的下层）。
-// 修复后编码"今天成立"的两条规则；未来再出现反向依赖，在这里失败而不是悄悄扩散：
-//   1. formulas/**（排除 __tests__）：import 行不得指向 model_executor；
-//   2. config/**：不得 import formulas/ 或 model_executor/（config 与 archs 同为结构栈最底层）。
+// layering.test.js —— 结构目录级分层护栏。
+// 目录：config/archs 最底；operators（formulas + ops）不碰 models/layers；
+// models 组网、layers 共享模块。测试允许上探，不构成分层违规。
 // 依赖仅 node 内建模块 —— 本测试自身不得引入被测层。
 
 import assert from "node:assert/strict";
@@ -12,11 +9,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// 本文件在 frontend/src/structure/__tests__/ → structure/ 上溯一级。
 const structureDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** 递归收集 .js 文件；跳过 __tests__（测试允许上探运行时各层，不构成分层违规）。 */
 function listJsFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
   const files = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === "__tests__") continue;
@@ -45,17 +42,18 @@ function offenders(dir, tokens) {
   );
 }
 
-test("结构分层：formulas/ 不 import model_executor/；config/ 不 import formulas|model_executor（M11.5 棘轮）", () => {
-  const lowerLayer = offenders(path.join(structureDir, "formulas"), ["model_executor"]);
+test("结构分层：operators/formulas 不 import models|layers；config 不 import operators|models|layers", () => {
+  const formulasDir = path.join(structureDir, "operators", "formulas");
+  const lowerLayer = offenders(formulasDir, ["/models/", "/layers/"]);
   assert.deepEqual(
     lowerLayer,
     [],
-    "formulas（下层）出现指向 model_executor（上层）的 import —— 分层倒置（docs/refactor_plan.md M11.5 子项 2）",
+    "operators/formulas 出现指向 models/ 或 layers/ 的 import —— 分层倒置",
   );
-  const bottom = offenders(path.join(structureDir, "config"), ["formulas", "model_executor"]);
+  const bottom = offenders(path.join(structureDir, "config"), ["/operators/", "/models/", "/layers/"]);
   assert.deepEqual(
     bottom,
     [],
-    "config（与 archs 同为结构栈最底层）不得 import formulas/ 或 model_executor/",
+    "config（与 archs 同为结构栈最底层）不得 import operators/、models/ 或 layers/",
   );
 });

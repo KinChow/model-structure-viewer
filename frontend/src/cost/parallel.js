@@ -4,7 +4,7 @@
 import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeightBytes } from "./memory.js";
 import { childRepeatMultiplier, graphNodeToNode, walkStructure } from "./traverse.js";
 import { deriveBuildPlan } from "../structure/config/plan.js";
-import { LAYER_INDEX_RE } from "../structure/formulas/extractor.js";
+import { LAYER_INDEX_RE } from "../structure/operators/formulas/extractor.js";
 import { declaredWeightBytesPerCard, declaredWeightElements, expertShardDivisor } from "./sharding.js";
 import { normalizeParallelPlan } from "./parallelPlan.js";
 const planOf = (config) => deriveBuildPlan(config?.raw ?? config);

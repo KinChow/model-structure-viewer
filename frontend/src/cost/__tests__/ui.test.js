@@ -26,7 +26,7 @@ test("costSummaryModel：英文文案与 unknown bound", () => {
 test("diagnosticsModel：skeleton-truth 触发未适配 banner，歧义计数", () => {
   const model = diagnosticsModel({
     strategy: "skeleton-truth",
-    graph_truth_gaps: ["model.layers.0.moe.experts"],
+    graph_truth_gaps: ["model.layers.0.mlp.experts"],
     graph_ambiguous_truth_matches: [{ template: "x", candidates: ["a", "b"] }],
     total_tensors: 10,
     graph_bound_tensors: 8,
@@ -46,11 +46,11 @@ test("diagnosticsModel：template+truth 无 banner；mergeSemantics 旧键兼容
 test("diagnosticsModel：unsupported 与 warnings 透传（M11-P0-3）", () => {
   const model = diagnosticsModel({
     strategy: "skeleton-truth",
-    unsupported: [{ code: "unsupported-architecture", message: "Supported architectures: gqa-decoder" }],
+    unsupported: [{ code: "unsupported-architecture", message: "Supported architectures: Qwen3ForCausalLM" }],
     warnings: [{ code: "missing-layer-count", message: "No text layer count was found in config" }],
   }, { english: false });
   assert.equal(model.unsupportedCount, 1);
-  assert.match(model.unsupported[0].message, /gqa-decoder/);
+  assert.match(model.unsupported[0].message, /Qwen3ForCausalLM/);
   assert.equal(model.warningCount, 1);
   assert.equal(model.warnings[0].code, "missing-layer-count");
   const empty = diagnosticsModel({ strategy: "no-truth" });

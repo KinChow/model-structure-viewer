@@ -38,12 +38,12 @@ Materialized ModelStructure
 
 - `config` 只提供模型字段，不直接生成 UI。
 - `registry` 只负责识别 canonical architecture，不负责成本计算。
-- `model_executor/models` 负责顶层组网。
+- `models` 负责顶层组网（查找键 = `config.architectures[0]`）。
 - `layers` 负责可复用模块和执行顺序。
-- `ops` 负责算子节点、shape flow、公式 ID 和参考实现名。
-- `formulas` 负责公式文本、输入输出和解释，不执行计算。
+- `operators/ops` 负责算子节点、shape flow、公式 ID 和参考实现名。
+- `operators/formulas` 负责公式文本、输入输出和解释，不执行计算。
 - `IR` 负责稳定的中间协议。
-- `materializer` 只负责把模板网络物化为 Graph IR（`materializeStructureGraph`）；checkpoint truth 合并在 `structure/truth/graphTruth.js`：`enrichGraphWithTruth = bindTruthToGraph（role/路径绑定）+ appendGraphGaps（缺口补挂）`，materializer 在物化后调用它（modelStructure.js:77-84、graphTruth.js:210-274）。
+- `materializer` 只负责把模板网络物化为 Graph IR（`materializeStructureGraph`）；checkpoint truth 合并在 `structure/truth/graphTruth.js`：`enrichGraphWithTruth = bindTruthToGraph（路径绑定）+ appendGraphGaps（缺口补挂）`，materializer 在物化后调用它（modelStructure.js:77-84、graphTruth.js:210-274）。
 - `cost` 从 materialized structure 和 normalized config 计算理论成本。
 - `diagram` 只负责把结构转换成图并响应交互。
 
@@ -87,35 +87,20 @@ checkpoint truth 的获取和结构骨架分成两件事：
 相关代码：
 
 - `frontend/src/structure/config/normalize.js`
-- `frontend/src/structure/registry/aliases.js`
-- `frontend/src/structure/registry/architectureCatalog.js`
 - `frontend/src/structure/registry/resolveArchitecture.js`
+- `frontend/src/structure/models/index.js`
 
 解析关系：
 
 ```text
-model_type / architectures[0] / model id
-  -> aliases
-  -> canonical architecture
-  -> hasBuilder
-  -> model builder
+architectures[0]
+  -> MODELS 精确表
+  -> 该架构的组装函数（内部决定有无 vision）
 ```
 
-canonical architecture 与 `hasBuilder` 的单源是 `registry/architectureCatalog.js` 的 `ARCHITECTURE_CATALOG`（`BUILDER_ARCHITECTURES` 供 materializer 判定）。当前 canonical architecture 与 builder：
+查找键的单源是 `models/index.js` 的 `MODELS`（对标 vLLM `_TEXT_GENERATION_MODELS`、SGLang `_ModelRegistry.models`）。`hasModelArchitecture` 供 materializer 判定。未命中 → `unsupported`，空网络 + 诊断枚举 `SUPPORTED_MODEL_ARCHITECTURES`（vLLM `ModelRegistry._raise_for_unsupported`）。
 
-| Canonical architecture | 有 builder | Builder | 结构特征 |
-|---|---:|---|---|
-| `gqa-decoder` | 是 | `buildGqaDecoderNetwork` | dense decoder + GQA |
-| `gqa-moe-decoder` | 是 | `buildGqaMoeDecoderNetwork` | decoder + routed/shared MoE |
-| `mla-moe-decoder` | 是 | `buildMlaMoeDecoderNetwork`（`models/deepseek.js`） | MLA + MoE |
-| `multimodal-gqa-decoder` | 是 | `buildQwenMultimodalNetwork` | vision + projector + GQA decoder |
-| `multimodal-sparse-moe-decoder` | 是 | `buildMiniMaxM3Network` | vision + projector + sparse text decoder |
-| `multimodal-gqa-moe-decoder` | 是 | `buildQwenMultimodalNetwork` | vision + projector + GQA/MoE decoder |
-| `multimodal-mla-moe-decoder` | 是 | `buildMlaMultimodalNetwork`（`models/qwen.js:34`） | vision + projector + MLA/MoE decoder |
-| `hybrid-multimodal-moe-decoder` | 是 | `buildHybridMultimodalNetwork` | multimodal decoder + hybrid connection |
-| `unsupported` | 否 | 无 builder（空网络 + 诊断） | 见 §4.6（models/index.js:8-17,53-62） |
-
-builder 表 `MODEL_BUILDERS` 与 `SUPPORTED_MODEL_ARCHITECTURES` 见 `models/index.js:8-20`。新增模型的决策顺序：先补 alias；参数差异复用 canonical architecture；顶层组网不同才新增 builder；局部 attention、MoE 或层序列不同则扩展 layer/ops/formulas；只有现有 IR 无法表达时才修改协议。
+新增模型：registry 一行 + 一份组装函数；参数差异复用已有函数；顶层接线不同才新写组装；局部 attention / MoE 不同则扩展 layer；只有现有 IR 无法表达时才改协议。
 
 ## 4. 顶层网络关系
 
@@ -251,7 +236,7 @@ layer_in → PreNorm → Attention → ⊕ → PreNorm → MLP/MoE → ⊕
 
 ## 6. Operator 关系
 
-`model_executor/ops/index.js` 的 `operatorSpec` 是算子统一入口：
+`operators/ops/index.js` 的 `operatorSpec` 是算子统一入口：
 
 ```text
 operatorSpec(id, name, operatorId, attributes, numericShapes)
@@ -296,7 +281,7 @@ operator chain 只是可解释的结构语义，不表示 MSV 会调用 vLLM/SGL
 
 ## 7. 完整公式目录
 
-公式元数据的代码来源是 `frontend/src/structure/formulas/index.js`（`FORMULAS` 注册表，在用 49 个键）。表中公式按 Markdown 做了必要的排版归一，但含义和公式 ID 与代码一致；它们是当前页面展示的架构语义，不等同于某个 runtime kernel 的源码。
+公式元数据的代码来源是 `frontend/src/structure/operators/formulas/index.js`（`FORMULAS` 注册表，在用 49 个键）。表中公式按 Markdown 做了必要的排版归一，但含义和公式 ID 与代码一致；它们是当前页面展示的架构语义，不等同于某个 runtime kernel 的源码。
 
 ### 7.1 基础算子
 
@@ -397,8 +382,8 @@ operator chain 只是可解释的结构语义，不表示 MSV 会调用 vLLM/SGL
 
 | 来源类型 | 当前代码位置 | 含义 |
 |---|---|---|
-| MSV 语义公式 | `structure/formulas/index.js` | 页面展示公式，由 MSV 按结构语义维护 |
-| 参考实现 | `model_executor/ops/index.js` 的 `implementation` | vLLM/SGLang 类、算子或 backend 名称，不在浏览器执行 |
+| MSV 语义公式 | `structure/operators/formulas/index.js` | 页面展示公式，由 MSV 按结构语义维护 |
+| 参考实现 | `operators/ops/index.js` 的 `implementation` | vLLM/SGLang 类、算子或 backend 名称，不在浏览器执行 |
 | 成本方法论 | `cost/*.js` 注释和函数 | 逐算子 counts 对标 FlopCounterMode / onnx-tool（shape → 公式）；并行、显存 fit、效率因子、roofline 下界仍借鉴 llm-analysis |
 | shape/协议事实 | safetensors、`@huggingface/hub`、模型 config | 参数量、dtype、shape、cache 和模型识别事实 |
 
@@ -462,7 +447,7 @@ MACs_attention = query_tokens * heads * context_tokens
                  * (query_key_dim + value_dim)
 ```
 
-QSA 使用 `min(sequence, indexer_budget)`；MiniMax sparse 使用 `(topk + init + local) * block_size`；linear attention 按各模型投影、卷积、状态更新和输出投影分解。公式唯一来源是 `structure/formulas/`——`formulas/extractor.js` 的 `countsForNode` 查 `FORMULAS` counts 注册表；`cost/compute.js` 只做 Graph IR 遍历（`walkStructure`）和 repeat 倍乘，旧 nodeMacs 分派链已于 W5-1 删除。方法论注释指向 llm-analysis 的 linear/attention FLOPs 函数。
+QSA 使用 `min(sequence, indexer_budget)`；MiniMax sparse 使用 `(topk + init + local) * block_size`；linear attention 按各模型投影、卷积、状态更新和输出投影分解。公式唯一来源是 `structure/operators/formulas/`——`formulas/extractor.js` 的 `countsForNode` 查 `FORMULAS` counts 注册表；`cost/compute.js` 只做 Graph IR 遍历（`walkStructure`）和 repeat 倍乘，旧 nodeMacs 分派链已于 W5-1 删除。方法论注释指向 llm-analysis 的 linear/attention FLOPs 函数。
 
 ### 9.4 并行投影
 
@@ -528,8 +513,8 @@ ModelStructure.graph（Graph IR 唯一结构载荷；App.jsx:96、DetailWorkspac
 |---|---|
 | config/registry/builder/layer | `structure/modelArchitecture.test.js`、`structure/builtinModels.test.js` |
 | truth 骨架/绑定/graph merge | `structure/truth/__tests__/`：`graphTruth`、`roleBinding`、`skeleton`、`skeletonTruthFile`、`truthDiagnosticsSeam`（`mergeSemantics.test.js` 已随 W3-D graph 化退役，不存在） |
-| 算子树/权重声明/unsupported | `structure/model_executor/__tests__/`：`declaration`、`ops-spec-tree.diff`、`unsupportedArchitecture` |
-| 公式与 counts 恒等 | `structure/formulas/__tests__/`：`atoms`、`counts`、`identities`、`modelIdentities`、`extractor.identity`、`countsAtomsConsistency` |
+| 算子树/权重声明/unsupported | `structure/operators/__tests__/`：`declaration`、`ops-spec-tree.diff`、`unsupportedArchitecture` |
+| 公式与 counts 恒等 | `structure/operators/formulas/__tests__/`：`atoms`、`counts`、`identities`、`modelIdentities`、`extractor.identity`、`countsAtomsConsistency` |
 | shape/dtype/safetensors | `cost/__tests__/dims.test.js`、`safetensorsReader.test.js` |
 | 成本链（counts/computeDtype/量化/字节/roofline/声明接缝） | `cost/__tests__/`：`compute`、`computeDtype`、`quantBytes`、`sharding`、`bytesCompleteness`、`rooflineChain`、`memory`、`derivedWeights`、`traverse`、golden diff（`cost-memory-actions.diff`） |
 | TP/PP/EP/DP/PD | `cost/__tests__/parallel.test.js`、`comm.test.js`、`pdSummary.test.js` |
@@ -542,9 +527,9 @@ ModelStructure.graph（Graph IR 唯一结构载荷；App.jsx:96、DetailWorkspac
 ## 12. 修改规则
 
 1. 配置字段变化改 `normalize.js`，不把厂商判断散落到 UI。
-2. 官方架构名称变化改 `aliases.js`。
-3. 顶层拓扑变化改 `model_executor/models/`。
-4. 可复用模块变化改 `layers/`；最小算子语义改 `ops/` 和 `formulas/`。
+2. 官方架构名称变化改 `models/index.js` 的 `MODELS` 表。
+3. 顶层拓扑变化改 `models/`。
+4. 可复用模块变化改 `layers/`；最小算子语义改 `operators/ops/` 和 `operators/formulas/`。
 5. 参数和 shape 真值改 truth/skeleton/merge 路径，不在模板中复制 checkpoint 事实。
 6. 成本公式改 `cost/`，同时更新来源注释和成本单测。
 7. IR 字段改动必须同步 materializer、API schema、导出、UI 和测试。

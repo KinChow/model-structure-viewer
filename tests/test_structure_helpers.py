@@ -91,6 +91,85 @@ def test_introspection_shapes_prevent_folding_different_linear_layers():
     assert children[0].value_source == "introspect"
 
 
+def test_walk_collapses_identical_module_list_without_visiting_every_child():
+    """DeepSeek-V3 remote MoE: 256 identical MLP under ModuleList. Walk one representative."""
+    import torch
+
+    from model_structure_viewer.structure.introspect import _build_graph_draft
+
+    class CountingMLP(torch.nn.Module):
+        visits = 0
+
+        def __init__(self):
+            super().__init__()
+            self.gate_proj = torch.nn.Linear(4, 8, bias=False)
+            self.up_proj = torch.nn.Linear(4, 8, bias=False)
+            self.down_proj = torch.nn.Linear(8, 4, bias=False)
+
+        def named_children(self):
+            type(self).visits += 1
+            return super().named_children()
+
+    CountingMLP.visits = 0
+    experts = torch.nn.ModuleList([CountingMLP() for _ in range(8)])
+    graph = _build_graph_draft(experts).finalize()
+    children = [node for node in graph.nodes if node.parent_id == graph.root_id]
+    assert len(children) == 1
+    assert children[0].repeat == 8
+    assert children[0].type == "layer-group"
+    assert children[0].attributes["range"] == "0..7"
+    assert CountingMLP.visits == 1
+    folded = collapse_graph(graph)
+    folded_children = [node for node in folded.nodes if node.parent_id == folded.root_id]
+    assert len(folded_children) == 1
+    assert folded_children[0].repeat == 8
+
+
+def test_walk_splits_decoder_layers_when_mlp_vs_moe_child_differs():
+    import torch
+
+    from model_structure_viewer.structure.introspect import _build_graph_draft
+
+    class TinyMLP(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.gate_proj = torch.nn.Linear(4, 8, bias=False)
+
+    class TinyMoE(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.experts = torch.nn.ModuleList([TinyMLP() for _ in range(4)])
+
+    class DecoderLayer(torch.nn.Module):
+        def __init__(self, ffn):
+            super().__init__()
+            self.self_attn = torch.nn.Linear(4, 4, bias=False)
+            self.mlp = ffn
+
+    layers = torch.nn.ModuleList([DecoderLayer(TinyMLP()), DecoderLayer(TinyMLP()), DecoderLayer(TinyMoE())])
+    graph = _build_graph_draft(layers).finalize()
+    children = [node for node in graph.nodes if node.parent_id == graph.root_id]
+    assert [node.repeat for node in children] == [2, None]
+    experts = [
+        node
+        for node in graph.nodes
+        if node.canonical_id and node.canonical_id.endswith("experts.0.group0")
+    ]
+    assert any(node.repeat == 4 and node.type == "layer-group" for node in experts)
+
+
+def test_walk_keeps_expanded_module_list_when_collapse_disabled():
+    import torch
+
+    from model_structure_viewer.structure.introspect import _build_graph_draft
+
+    experts = torch.nn.ModuleList([torch.nn.Linear(4, 4, bias=False) for _ in range(4)])
+    graph = _build_graph_draft(experts, collapse_repeated=False).finalize()
+    children = [node for node in graph.nodes if node.parent_id == graph.root_id]
+    assert len(children) == 4
+    assert all(child.repeat is None for child in children)
+
+
 def test_collapse_graph_rebuilds_stable_paths_and_edges():
     """P7（步骤 7）：materialize/project 双向视图退役——折叠边界的重建契约
     （位序路径 id、canonical 语义身份、module-order 边与 canonical 端点）

@@ -5,14 +5,15 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { normalizeConfig } from "./config/normalize.js";
 import { resolveArchitecture } from "./registry/resolveArchitecture.js";
-import { buildNetwork } from "./model_executor/models/index.js";
+import { buildNetwork } from "./models/index.js";
 import { createStructureIr } from "./ir/createStructureIr.js";
 import { materializeModelStructure } from "./materializers/modelStructure.js";
-import { formulaForOperator } from "./formulas/index.js";
+import { formulaForOperator } from "./operators/formulas/index.js";
 import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";
 import { aggregateCost } from "../cost/aggregate.js";
 import { deriveBuildPlan } from "./config/plan.js";
+import { recipeSharedExpertsAreFused } from "./archs/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -48,7 +49,7 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       assert.ok(visionChildren.length >= 2, `${entry.model_id}: vision tower has no detail modules`);
       const visionLayer0 = visionChildren.find((node) => (node.canonical_id || "").endsWith(".0"));
       assert.ok(childrenOf(structure.graph, visionLayer0?.id).length >= 8, `${entry.model_id}: vision layer has no operator detail`);
-      assert.ok(structure.graph.edges.some((edge) => edge.source_canonical_id === "vision_tower.patch_embed"), `${entry.model_id}: vision patch edge missing`);
+      assert.ok(structure.graph.edges.some((edge) => ["visual.patch_embed", "vision_tower.patch_embed"].includes(edge.source_canonical_id)), `${entry.model_id}: vision patch edge missing`);
     }
     for (const node of structure.graph.nodes) {
       if (node.type !== "operator") continue;
@@ -63,7 +64,7 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
     assert.ok(Number.isFinite(kvBytesPerToken(normalized)), `${entry.model_id}: invalid KV cost`);
     assert.ok(Number.isFinite(linearStateBytesPerSequence(normalized)), `${entry.model_id}: invalid recurrent state cost`);
     if (entry.model_id === "moonshotai/Kimi-K3") {
-      assert.equal(resolved.canonicalArchitecture, "hybrid-multimodal-moe-decoder");
+      assert.equal(resolved.architecture, "KimiK3ForConditionalGeneration");
       assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "linear").length, 69);
       assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "mla").length, 24);
       assert.equal(normalized.sharedExperts, 2);
@@ -72,13 +73,13 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       assert.ok(nodes.some((node) => node.name === "Attention Residual"), "Kimi-K3: missing per-layer AttnRes module");
       assert.ok(nodes.some((node) => node.name === "Output Attention Residual"), "Kimi-K3: missing output AttnRes module");
       assert.ok(nodes.some((node) => node.name === "MLA output gate"), "Kimi-K3: missing MLA output gate");
-      assert.ok(nodes.some((node) => node.canonical_id.endsWith(".moe.shared_experts")), "Kimi-K3: missing shared experts");
+      assert.ok(nodes.some((node) => node.canonical_id.endsWith(".block_sparse_moe.shared_experts")), "Kimi-K3: missing shared experts");
       // P3 fused shared expert：checkpoint 取证（models/moonshotai/Kimi-K3/k3-index.json
       // 每个 MoE 层只有 shared_experts.{gate,up,down}_proj.weight 各一个，共 92×3=276 个
       // 张量；modeling_kimi_linear.py:797-801 `intermediate_size =
       // moe_intermediate_size * num_shared_experts` 后实例化**单个** KimiMLP）——
       // 融合形态就是"一个更宽的 MLP"，不是 n 份专家，也不涉及 ep 亲和。
-      const sharedGate = nodes.find((node) => node.canonical_id.endsWith(".moe.shared_experts.gate_proj"));
+      const sharedGate = nodes.find((node) => node.canonical_id.endsWith(".block_sparse_moe.shared_experts.gate_proj"));
       assert.ok(sharedGate, "Kimi-K3: missing fused shared expert gate projection");
       assert.equal(normalized.sharedExpertIntermediateSize, normalized.moeIntermediateSize * normalized.sharedExperts);
       assert.deepEqual(
@@ -94,7 +95,7 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
         }],
         "Kimi-K3: fused shared expert 声明应为单组 tp（模块宽 = moeI×n_shared，count=1，gate 沿 output 切）",
       );
-      assert.equal(deriveBuildPlan(normalized.raw ?? normalized).sharedExpertsAreFused, true);
+      assert.equal(recipeSharedExpertsAreFused(normalized), true);
     }
   }
 });

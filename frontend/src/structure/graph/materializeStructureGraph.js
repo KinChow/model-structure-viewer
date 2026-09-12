@@ -7,8 +7,7 @@ function semanticEdges(item) {
 
 function isOutputNode(item) {
   const type = String(item?.node?.type || "").toLowerCase();
-  const role = String(item?.node?.role || item?.node?.attributes?.role || "").toLowerCase();
-  return type === "output" || type === "head" || role === "output";
+  return type === "output" || type === "head";
 }
 
 function flattenTree(root) {
@@ -84,7 +83,6 @@ export function materializeStructureGraph(root) {
       order: item.parentId == null ? 0 : Number(item.path.split(".").at(-1)),
       name: item.node?.name || "",
       type: item.node?.type || "module",
-      role: item.node?.role ?? null,
       repeat: item.node?.repeat ?? null,
       attributes: item.node?.attributes || {},
       source_fields: item.node?.source_fields || [],

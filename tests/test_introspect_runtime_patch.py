@@ -54,6 +54,60 @@ def test_load_config_applies_overrides_to_local_config(monkeypatch, tmp_path):
     assert loaded.temporal_patch_size == 4
 
 
+def test_trust_remote_code_false_when_model_type_is_in_transformers():
+    assert introspect._trust_remote_code_for_config({"model_type": "minimax_m3_vl", "auto_map": {"AutoConfig": "x.Y"}}) is False
+    assert introspect._trust_remote_code_for_config({"model_type": "not_a_real_arch", "auto_map": {"AutoConfig": "x.Y"}}) is True
+    assert introspect._trust_remote_code_for_config({
+        "model_type": "deepseek_v3",
+        "auto_map": {
+            "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+            "AutoModel": "modeling_deepseek.DeepseekV3Model",
+        },
+    }) is True
+
+
+def test_load_config_skips_catalog_remote_code_when_in_tree(monkeypatch, tmp_path):
+    (tmp_path / "config.json").write_text(
+        '{"model_type":"minimax_m3_vl","auto_map":{"AutoConfig":"configuration_minimax_m3_vl.MiniMaxM3VLConfig"}}',
+        encoding="utf-8",
+    )
+    seen = {}
+
+    class AutoConfig:
+        @staticmethod
+        def from_pretrained(path, trust_remote_code):
+            seen["trust_remote_code"] = trust_remote_code
+            return SimpleNamespace(model_type="minimax_m3_vl")
+
+    introspect._load_config(
+        AutoConfig,
+        {"model_type": "minimax_m3_vl", "auto_map": {"AutoConfig": "configuration_minimax_m3_vl.MiniMaxM3VLConfig"}},
+        tmp_path,
+    )
+    assert seen["trust_remote_code"] is False
+
+
+def test_load_config_keeps_remote_code_when_model_type_is_unknown(monkeypatch, tmp_path):
+    (tmp_path / "config.json").write_text(
+        '{"model_type":"custom_remote","auto_map":{"AutoConfig":"configuration_custom.CustomConfig"}}',
+        encoding="utf-8",
+    )
+    seen = {}
+
+    class AutoConfig:
+        @staticmethod
+        def from_pretrained(path, trust_remote_code):
+            seen["trust_remote_code"] = trust_remote_code
+            return SimpleNamespace(model_type="custom_remote")
+
+    introspect._load_config(
+        AutoConfig,
+        {"model_type": "custom_remote", "auto_map": {"AutoConfig": "configuration_custom.CustomConfig"}},
+        tmp_path,
+    )
+    assert seen["trust_remote_code"] is True
+
+
 def test_build_from_meta_model_activates_runtime_patch(monkeypatch):
     patch = RecordingPatch()
 

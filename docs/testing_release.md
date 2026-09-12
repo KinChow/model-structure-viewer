@@ -21,7 +21,7 @@ npm --prefix frontend install
 npm --prefix frontend test
 ```
 
-后端测试覆盖 resolver、API、repair、结构 introspection、验证和导出。前端测试覆盖配置归一化（golden 冻结件）、算子公式注册表与 counts、四条恒等式（容差 0）、per-op golden、truth（skeleton/roleBinding）、cost（含 sharding/parallelPlan 接缝）、diagram、导出、hooks、入口辅助逻辑与 model_executor 声明执法。
+后端测试覆盖 resolver、API、repair、结构 introspection、验证和导出。前端测试覆盖配置归一化（golden 冻结件）、算子公式注册表与 counts、四条恒等式（容差 0）、per-op golden、truth（skeleton/路径绑定）、cost（含 sharding/parallelPlan 接缝）、diagram、导出、hooks、入口辅助逻辑与 operators 声明执法。
 
 通过标准：命令退出码为 0，不存在 failure、error、unexpected skip。
 

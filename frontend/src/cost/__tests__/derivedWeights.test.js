@@ -21,9 +21,10 @@ test("fused vs 非 fused shared expert：参数量按形态而非个数（P3）"
   // shared_experts.{gate,up,down}_proj.weight 各一个；
   // modeling_kimi_linear.py:797-801 先把 intermediate_size 乘 num_shared_experts
   // 再实例化**单个** KimiMLP —— 融合形态 = 一个更宽的 MLP。
-  // 非 fused（DeepSeek 系）则是 n 份各自 moeI 宽的 MLP。两者在 n=1 时等价，
-  // n>1 时参数量相同但**结构不同**（1 份宽 vs n 份窄）——这里锁的是
-  // sharedExpertIntermediateSize 语义：fused 传模块宽、非 fused 传单专家宽。
+  // Transformers / vLLM / SGLang 的 DeepSeek 与 K3 都是「一个更宽的 MLP」
+  // （modeling 先 moeI×n_shared 再实例化单个 MLP）。目录里 DeepSeek 系 n_shared=1，
+  // fused vs 计数乘子在 n=1 时观察不到差别。本测试锁的是宽度语义：
+  // fused 传模块宽且 count=1，非 fused 传单专家宽且 count=n。
   const base = {
     layers: 1, hiddenSize: 8, attentionHeads: 2, kvHeads: 1, headDim: 4, valueHeadDim: 4,
     intermediateSize: 8, vocabSize: 10, tieWordEmbeddings: true,

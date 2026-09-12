@@ -1,27 +1,27 @@
-import { ARCHITECTURE_ALIASES } from "./aliases.js";
-import { multimodalVariant } from "./architectureCatalog.js";
+// 查找键 = config.architectures[0] 原字符串。
+// 对标：vLLM vllm/model_executor/models/registry.py
+//   _TEXT_GENERATION_MODELS / _MULTIMODAL_MODELS 以 HF 类名为键；
+//   ModelRegistry._try_load_model_cls / _raise_for_unsupported。
+// 对标：SGLang python/sglang/srt/models/registry.py
+//   _ModelRegistry.models 以 model_arch 为键；_raise_for_unsupported。
+// 没有 architectures[0] 或不在 MODELS 表里 → unsupported，不编造结构。
 
-function withVision(normalized, canonicalArchitecture) {
-  return normalized.hasVision
-    ? multimodalVariant(canonicalArchitecture) || canonicalArchitecture
-    : canonicalArchitecture;
-}
+import { MODELS } from "../models/index.js";
 
-export function resolveArchitecture(normalized, options = {}) {
-  if (normalized.architecture && ARCHITECTURE_ALIASES[normalized.architecture]) {
+export function resolveArchitecture(normalized) {
+  const architecture = normalized?.architecture;
+  if (architecture && MODELS[architecture]) {
     return {
-      canonicalArchitecture: withVision(normalized, ARCHITECTURE_ALIASES[normalized.architecture]),
-      architecture: normalized.architecture,
+      architecture,
       resolution: "architecture-alias",
     };
   }
+  return {
+    architecture,
+    resolution: "unsupported",
+  };
+}
 
-  // W5：删除原「architecture + model_type + modelId 拼串做 includes」的家族兜底。
-  // 该兜底会把任何 id 里带 "qwen"/"deepseek"/"minimax" 的模型硬塞进某个模板，
-  // 属于猜测而非判定；vLLM 的做法是 `_raise_for_unsupported` —— 精确表认不出
-  // 就报 unsupported。
-  // 步骤 2（结构正确性收口）：再删 layers 字段推断兜底（generic-decoder）——
-  // 用 layers/hidden/heads 拼通用网络同样属于伪造结构。前端的对应物 =
-  // 空网络走完管线 + collectDiagnostics 枚举支持项。
-  return { canonicalArchitecture: "unsupported", architecture: normalized.architecture, resolution: "unsupported" };
+export function hasModelArchitecture(architecture) {
+  return Boolean(architecture && MODELS[architecture]);
 }

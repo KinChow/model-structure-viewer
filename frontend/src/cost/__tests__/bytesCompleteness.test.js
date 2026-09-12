@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { normalizeConfig } from "../../structure/config/normalize.js";
 import { resolveArchitecture } from "../../structure/registry/resolveArchitecture.js";
-import { buildNetwork } from "../../structure/model_executor/models/index.js";
+import { buildNetwork } from "../../structure/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/modelStructure.js";
 import { computeNodeCosts } from "../compute.js";
@@ -45,7 +45,7 @@ test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁
       const op = String(row.node?.attributes?.operator_id || row.node?.type || "").toLowerCase();
       if (VIEW_OPS.has(op) || PENDING_UNMODELED.has(op)) continue;
       // W4：乘子为 0 的子树（MTP 在投机解码未启用时 repeat=0，见
-      // model_executor/layers/mtp.js 口径声明）本来就该聚合成零，
+      // layers/mtp.js 口径声明）本来就该聚合成零，
       // 不是「未建模的零」。判据是显式的 multiplier===0，不是白名单。
       if (row.multiplier === 0) continue;
       const { weights, actIn, actOut } = row.actions.bytes;

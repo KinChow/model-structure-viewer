@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../frontend/src/structure/buildStructure.js";
 import { normalizeConfig } from "../frontend/src/structure/config/normalize.js";
-import { formulaForOperator } from "../frontend/src/structure/formulas/index.js";
+import { formulaForOperator } from "../frontend/src/structure/operators/formulas/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models", "catalog.json"), "utf8"));
@@ -25,7 +25,7 @@ function collectValidationErrors(structure, normalized) {
     errors.push("missing summary/graph/top-level graph nodes");
     return errors;
   }
-  if (structure.summary.canonical_architecture === "unsupported") {
+  if (structure.source?.diagnostics?.resolution === "unsupported") {
     errors.push("resolved to unsupported");
   }
   const topLevel = topLevelNodes(graph);
@@ -58,7 +58,7 @@ for (const entry of catalog.models) {
     results.push({
       model_id: entry.model_id,
       ok,
-      canonical_architecture: structure?.summary?.canonical_architecture || null,
+      architecture: structure?.summary?.architecture || null,
       graph_root: structure?.graph?.nodes?.find((node) => node.id === structure.graph.root_id)?.name || null,
       nodes: structure?.graph?.nodes?.length || 0,
       error: errors.join("; "),
@@ -67,7 +67,7 @@ for (const entry of catalog.models) {
     results.push({
       model_id: entry.model_id,
       ok: false,
-      canonical_architecture: null,
+      architecture: null,
       graph_root: null,
       nodes: 0,
       error: error.stack || error.message,
@@ -84,5 +84,5 @@ if (failed.length > 0) {
 }
 
 for (const result of results) {
-  console.log(`${result.model_id}\t${result.canonical_architecture}\tnodes=${result.nodes}`);
+  console.log(`${result.model_id}\t${result.architecture}\tnodes=${result.nodes}`);
 }

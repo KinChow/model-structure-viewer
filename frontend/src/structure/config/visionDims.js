@@ -1,6 +1,6 @@
-// visionDims.js —— vision 塔的数值维度推导（M11.5 子项 2：自 model_executor/layers/vision.js 平移）。
-// 属 config 层：纯 normalized-config → dims 推导，无任何 import；formulas/ 与
-// model_executor/layers/vision.js 双向消费（formulas 不得下探 model_executor）。
+// visionDims.js —— vision 塔的数值维度推导（M11.5 子项 2：自 layers/vision.js 平移）。
+// 属 config 层：纯 normalized-config → dims 推导，无任何 import；operators/formulas
+// 与 layers/vision.js 双向消费（formulas 不得下探 layers）。
 
 export function visionDimensions(normalized) {
   const hidden = normalized.visionHiddenSize || 0;

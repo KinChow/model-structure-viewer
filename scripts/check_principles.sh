@@ -11,7 +11,7 @@ FAIL=0
 # 完整 pattern：含下划线/驼峰变体与独立 "kimi"。
 # 注意：早年 review 用窄 pattern 得出 11，本护栏以完整 pattern 为准。
 # 度量口径（W1 修订）：剥除纯注释行（注释不可能构成分派）；豁免
-# structure/formulas/index.js —— 它是 §8.1 认可的"一处数据文件"
+# structure/operators/formulas/index.js —— 它是 §8.1 认可的"一处数据文件"
 # （operatorId → 公式 → counts），explanation 中的模型名是条目文档而非分派。
 # formulas/modules.js 同类豁免（W5）：命中全在 source.ref / notes 的出处标注里，
 # 是证据链而非分派逻辑。
@@ -19,17 +19,15 @@ FAIL=0
 # 换成 config 字段判据，四个无字段判据的配方位迁到 structure/archs/index.js 的
 # ARCH_RECIPES。豁免随之转移给 archs/index.js（§8.1 认可的「一处数据文件」：
 # 模型 → 配方声明表，key 是 architectures[0] 原字符串，不做子串匹配）。
-# 基线沿革：W0（2026-09-07）测得 16 → W5（2026-09-09）删 resolveArchitecture 的
-# 家族名子串兜底得 15 → plan.js 的 modelTypeProbe 全换成 config 字段判据、四个
-# 无字段判据的配方位迁进 archs/ARCH_RECIPES 后得 14（plan.js 只剩 attention kind
-# 的**标签** "qwen35_full"，是值不是分派）。
+# 基线沿革：W0 16 → W5 14 → 2026-09-11 删角色表与 gqa-decoder 九宫格得 12
+#（aliases.js / architectureCatalog.js / roles.js 退出计数）。
 FAMILY_PATTERN='kimi|qwen4_?exp|qwen3_?5|glm5_?next|glm4_?moe|minimax_?m2|minimax_?m3|deepseek_?v32|deepseek_?v4|glm_?moe_?dsa'
-FAMILY_BASELINE=14
+FAMILY_BASELINE=12
 
 FAMILY_COUNT=0
 FAMILY_FILES=""
 for f in $(grep -rliE "$FAMILY_PATTERN" frontend/src --include='*.js' --include='*.jsx' \
-    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/formulas/index.js' | grep -v 'structure/formulas/modules.js' | grep -v 'structure/archs/index.js' | sort); do
+    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/operators/formulas/index.js' | grep -v 'structure/operators/formulas/modules.js' | grep -v 'structure/archs/index.js' | sort); do
   n=$(grep -iE "$FAMILY_PATTERN" "$f" | grep -cvE '^[[:space:]]*(//|\*|/\*)')
   if [ "$n" -gt 0 ]; then
     FAMILY_COUNT=$((FAMILY_COUNT + 1))
@@ -62,7 +60,7 @@ fi
 
 # ---------- §3.1 公式注册表完整性：每条目终止于 counts（无白名单） ----------
 COUNTS_CHECK=$(node --input-type=module -e "
-import { FORMULAS } from './frontend/src/structure/formulas/index.js';
+import { FORMULAS } from './frontend/src/structure/operators/formulas/index.js';
 const missing = Object.entries(FORMULAS).filter(([, v]) => typeof v.counts !== 'function').map(([k]) => k);
 if (missing.length) { console.log('✗ §3.1 违反：以下条目未接线 counts：' + missing.join(', ')); process.exit(1); }
 console.log('§3.1 公式注册表: ' + Object.keys(FORMULAS).length + ' 条全部终止于 counts');
@@ -76,8 +74,8 @@ console.log('§3.1 公式注册表: ' + Object.keys(FORMULAS).length + ' 条全�
 # case、ctxBuilder 键、或显式豁免清单（豁免必须在此登记，禁止沉默）。
 REACH_CHECK=$(node --input-type=module -e "
 import fs from 'node:fs';
-import { FORMULAS } from './frontend/src/structure/formulas/index.js';
-const src = fs.readFileSync('./frontend/src/structure/formulas/extractor.js', 'utf8');
+import { FORMULAS } from './frontend/src/structure/operators/formulas/index.js';
+const src = fs.readFileSync('./frontend/src/structure/operators/formulas/extractor.js', 'utf8');
 const switchCases = new Set([...src.matchAll(/case \"([a-z0-9_]+)\":/g)].map((m) => m[1]));
 const cbStart = src.indexOf('ctxBuilders');
 const cbBlock = cbStart === -1 ? '' : src.slice(cbStart, src.indexOf('\n}', cbStart));
@@ -97,7 +95,7 @@ console.log('§3.1b 运行时接线: ' + Object.keys(FORMULAS).length + ' 条可
 # ---------- §3.1d 公式来源标注（M11-P2-4，principles §3.5 / MAINTENANCE 3c） ----------
 # 三级体系（一等 aten 锚点 / 二等 modeling 对照 / 三等分解声明）逐条落到
 # formulas/index.js 的 `// ref:` 注释。计数随注册表条目数走：ref 行数 ≥ 条目数。
-FORMULAS_FILE=frontend/src/structure/formulas/index.js
+FORMULAS_FILE=frontend/src/structure/operators/formulas/index.js
 REF_COUNT=$(grep -c "ref:" "$FORMULAS_FILE" || true)
 ENTRY_COUNT=$(node --input-type=module -e "
 import { FORMULAS } from './$FORMULAS_FILE';

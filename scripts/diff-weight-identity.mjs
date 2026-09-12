@@ -15,11 +15,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeConfig } from "../frontend/src/structure/config/normalize.js";
 import { resolveArchitecture } from "../frontend/src/structure/registry/resolveArchitecture.js";
-import { buildNetwork } from "../frontend/src/structure/model_executor/models/index.js";
+import { buildNetwork } from "../frontend/src/structure/models/index.js";
 import { createStructureIr } from "../frontend/src/structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../frontend/src/structure/materializers/modelStructure.js";
 import { graphRoot } from "../frontend/src/structure/graph/selectors.js";
-import { countsForNode } from "../frontend/src/structure/formulas/extractor.js";
+import { countsForNode } from "../frontend/src/structure/operators/formulas/extractor.js";
 import { childRepeatMultiplier } from "../frontend/src/cost/traverse.js";
 import {
   derivedDecoderLayerBreakdown, derivedVisionParameters, derivedMtpParameters,
@@ -57,7 +57,7 @@ function leafWeightBreakdown(normalized, structure, phase) {
       continue;
     }
     const id = String(node?.canonical_id ?? node?.id ?? "");
-    const inVision = id.includes("vision") || id.includes("merger") || id.startsWith("projector");
+    const inVision = id.includes("visual") || id.includes("vision_tower") || id.includes("merger") || id.startsWith("projector");
     const options = inVision
       ? { batch: 1, sequence: normalized.visionTokens || 1, phase, vision: true, visionTokens: normalized.visionTokens || 1 }
       : { batch: 1, sequence: phase === "decode" ? 4096 : 128, phase };
@@ -65,7 +65,7 @@ function leafWeightBreakdown(normalized, structure, phase) {
     if (!a) continue;
     const params = ((a.bytes?.weights || 0) * multiplier) / B;
     if (params <= 0) continue;
-    const layerMatch = id.match(/^(?:decoder|text_decoder)\.(\d+)\./);
+    const layerMatch = id.match(/^(?:layers|language_model)\.(\d+)\./);
     const section = inVision ? "vision"
       : id.startsWith("mtp") ? "mtp"
         : id.startsWith("lm_head") ? "lm_head"

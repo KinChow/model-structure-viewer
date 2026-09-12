@@ -51,8 +51,13 @@ framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
    rank 约束，完善 `moe_tp`、`moe_ep`、`moe_dp`、DP/EP/ETP 校验。~~
    ✅ 已完成（2026-09-10，P6：parallelPlan.js 单源 + 协议 Q2/Q4 校验执法 +
    UI 第四消费者；moe_dp 按 Q3 登记不做）。
-5. **fused shared expert 闭合**：贯通 recipe、builder、operator、
-   `weightMatrices`、sharding、derived weights、communication 和测试。
+5. ~~**fused shared expert 闭合**：贯通 recipe、builder、operator、
+   `weightMatrices`、sharding、derived weights、communication 和测试。~~
+   ✅ 已完成（2026-09-10 P3；2026-09-11 对照 transformers/vLLM/SGLang 复核）：
+   checkpoint 融合 = 单个更宽 MLP（`intermediate = moeI × n_shared`），K3/DeepSeek/GLM
+   同构。SGLang `num_fused_shared_experts` 是运行时把 shared 打进 routed GEMM，
+   K3 不用这条路径。msv 只建模 checkpoint 布局；`sharedExpertsAreFused` 仅 K3
+   需要（目录里唯一 `n_shared>1`）。不改 K3 配方。
 6. ~~**后端对账**：后端输出带路径、class 和参数信息的 Transformers
    evidence，返回 `only_transformers`、`only_msv`、class/path/shape
    mismatch；区分构造通过和结构一致。~~ ✅ 已完成（2026-09-10，P7）。
@@ -104,8 +109,16 @@ W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
 
 未排期项（设计已定、实现未跟上；开工前需确认，不属于任一历史波次）：
 
-- **§5 source_ref**：采集 / 绑定 / Inspector 已接通；catalog 旁 JSON 需
-  `msv dump-source-ref --model <id>` 分模型入库。FlopCounterMode 矩阵抽查未接。
+- **§5 source_ref**：采集 / 绑定 / Inspector 已接通。catalog 59 个模型除
+  Kimi-K3 外均已 `msv dump-source-ref --source builtin` 入库（58/59）。
+  Kimi-K3 不做 dump / verify：Hub modeling 在 import 时 `from fla.modules` /
+  `fla.ops.kda`，本机 fla-core 0.5.2 仍拉 Triton；transformers 无 `kimi_k3`
+  入库实现。结构模板继续用 catalog modeling 作二等证据。
+  绑定脚本 `scripts/bind-source-ref.mjs`：58 模型 bind 通过。
+  `verify --graph` 构造通过才算脚本失败；`structurally_consistent` 只报告。
+  Decoder 路径段跟 HF `_modules` key：默认注意力 `self_attn`、FFN `mlp`；
+  M2 全程 `block_sparse_moe`；K3 MoE 层 `block_sparse_moe`。类名偏离写 HF 全名。
+  FlopCounterMode 未接。
 - **§6.4 来源解析契约**：前后端保持两套 resolver，以支持静态前端和 Python
   服务；需要共享来源类型、revision、fallback、错误分类和 fixture 契约，
   不强行合并运行时代码。

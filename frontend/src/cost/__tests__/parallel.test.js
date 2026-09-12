@@ -38,7 +38,7 @@ test("KDA request state follows attention TP and is replicated under DP-attentio
 test("权重按声明 class 选择 TP/EP/复制投影；无声明带权叶 = unknown（P5）", () => {
   const q = (attrs) => ({ id: "decoder.0.self_attn.q_proj", attributes: attrs });
   assert.deepEqual(weightBytesPerCard(100, q({ weightMatrices: [{ class: "tp", out: 1, in: 1 }] }), { tp: 4 }).bytes, 25);
-  const ep = { id: "decoder.0.moe.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } };
+  const ep = { id: "decoder.0.mlp.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } };
   assert.deepEqual(weightBytesPerCard(100, ep, { tp: 4, ep: 2 }).bytes, 50);
   const norm = { id: "decoder.0.input_layernorm", attributes: { weightMatrices: [{ class: "replicated", out: 1, in: 1 }] } };
   assert.deepEqual(weightBytesPerCard(100, norm, { tp: 4 }).bytes, 100);
@@ -55,7 +55,7 @@ test("节点 roofline 成本按声明 class 投影到单卡（P5：声明式）"
     macs: 20, weightBytes: 10, actInBytes: 6, actOutBytes: 4,
     projection: { axis: "tp", divisor: 4 },
   });
-  const ep = { id: "decoder.0.moe.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } };
+  const ep = { id: "decoder.0.mlp.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } };
   assert.equal(nodeCostPerCard(cost, ep, { tp: 4, ep: 2 }).macs, 40);
   const norm = { id: "decoder.0.input_layernorm", attributes: { weightMatrices: [{ class: "replicated", out: 1, in: 1 }] } };
   assert.equal(nodeCostPerCard(cost, norm, { tp: 4 }).macs, 80);
@@ -146,7 +146,7 @@ test("EP 返回专家权重平均值和最坏值区间", () => {
 
 test("stage 权重返回 EP 平均/最坏两种投影（P5：声明驱动）", () => {
   // 专家块识别走 ep 组声明（isRoutedExpertPath 正则随规则表退役）。
-  const root = { id: "model.layers.0", children: [{ id: "model.layers.0.moe.expert_mlp", repeat: 8, attributes: { operator_id: "fused_moe_mlp", weightMatrices: [{ class: "ep", out: 2, in: 2, count: 8, matrices: 1 }] }, children: [] }] };
+  const root = { id: "model.layers.0", children: [{ id: "model.layers.0.mlp.expert_mlp", repeat: 8, attributes: { operator_id: "fused_moe_mlp", weightMatrices: [{ class: "ep", out: 2, in: 2, count: 8, matrices: 1 }] }, children: [] }] };
   const result = projectNodePlan({ graph: toGraph(root), config: { layers: 1, experts: 8, kvHeads: 1 }, plan: { ep: 3 }, kvBytes: 0 });
   assert.equal(result.stages[0].weightAverageBytes, 64 / 3);
   assert.equal(result.stages[0].weightWorstBytes, 24);

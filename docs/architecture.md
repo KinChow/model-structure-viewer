@@ -28,9 +28,9 @@ flowchart LR
 config.json + safetensors header
   -> config/normalize
   -> registry/resolveArchitecture
-  -> model_executor/models
-  -> model_executor/layers
-  -> model_executor/ops + formulas
+  -> models
+  -> layers
+  -> operators (ops + formulas)
   -> Graph IR v2 (nodes + hierarchy + explicit dataflow edges)
   -> materializers/modelStructure
   -> UI / export / cost analysis

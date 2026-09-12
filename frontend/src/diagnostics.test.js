@@ -17,7 +17,7 @@ test("structureStatus explains successful meta introspection", () => {
 test("structureStatus explains frontend architecture template output", () => {
   const status = structureStatus({
     summary: { strategy: "frontend-architecture-template" },
-    source: { diagnostics: { canonical_architecture: "mla-moe-decoder" } },
+    source: { diagnostics: { architecture: "DeepseekV3ForCausalLM" } },
   });
 
   assert.equal(status.label, "Frontend template");

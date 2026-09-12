@@ -13,7 +13,7 @@ import { expertShardDivisor, declaredWeightBytesPerCard, declaredWeightElements,
 import { expertWeightRange, projectNodePlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 import { normalizeConfig } from "../../structure/config/normalize.js";
 import { resolveArchitecture } from "../../structure/registry/resolveArchitecture.js";
-import { buildNetwork } from "../../structure/model_executor/models/index.js";
+import { buildNetwork } from "../../structure/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/modelStructure.js";
 import { deriveBuildPlan } from "../../structure/config/plan.js";
@@ -109,7 +109,7 @@ test("锚 3 终态：无声明带权叶返回 unknown（不猜归属），零权
   // 内置模型的这类叶挡在门外）；无权重（纯激活/共享叶）→ 复制、字节 0。
   const bare = weightBytesPerCard(100, { id: "decoder.0.self_attn.q_proj", attributes: {} }, { tp: 4 });
   assert.deepEqual(bare, { bytes: 100, divisor: 1, axis: "unknown" });
-  const zero = weightBytesPerCard(0, { id: "decoder.0.moe.combine", attributes: {} }, { tp: 4 });
+  const zero = weightBytesPerCard(0, { id: "decoder.0.mlp.combine", attributes: {} }, { tp: 4 });
   assert.deepEqual(zero, { bytes: 0, divisor: 1, axis: "replicated" });
 });
 
@@ -210,7 +210,7 @@ test("量化枚举消费 weightMatrices：fp8 下专家矩阵按声明组精确�
   const quant = { quant_method: "fp8", weight_block_size: [128, 128] };
   const group = { class: "ep", out: 256, in: 128, count: 4, matrices: 3 };
   const root = { id: "model", children: [
-    { id: "decoder.0.moe.expert_mlp", type: "operator", attributes: { operator_id: "fused_moe_mlp", weightMatrices: [group] }, children: [] },
+    { id: "decoder.0.mlp.expert_mlp", type: "operator", attributes: { operator_id: "fused_moe_mlp", weightMatrices: [group] }, children: [] },
   ] };
   const config = { hiddenSize: 8, layers: 1, vocabSize: 16, intermediateSize: 8, attentionHeads: 1, headDim: 2, kvHeads: 1, quantization_config: quant };
   const base = derivedWeightBytes(config, 2);
@@ -226,7 +226,7 @@ test("量化枚举排除语义对声明组同源：modules_to_not_convert 命中
   const quant = { quant_method: "fp8", weight_block_size: [128, 128], modules_to_not_convert: [".*expert_mlp.*"] };
   const group = { class: "ep", out: 256, in: 128, count: 4, matrices: 3 };
   const root = { id: "model", children: [
-    { id: "decoder.0.moe.expert_mlp", type: "operator", attributes: { operator_id: "fused_moe_mlp", weightMatrices: [group] }, children: [] },
+    { id: "decoder.0.mlp.expert_mlp", type: "operator", attributes: { operator_id: "fused_moe_mlp", weightMatrices: [group] }, children: [] },
   ] };
   const config = { hiddenSize: 8, layers: 1, vocabSize: 16, intermediateSize: 8, attentionHeads: 1, headDim: 2, kvHeads: 1, quantization_config: quant };
   const cost = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 4, kvBytes: 2 });
@@ -254,7 +254,7 @@ test("P6 接缝：UI 输入的 snake_case 计划贯通 validatePlan 与声明分
   assert.equal(checked.plan.moeEp, 2);
   assert.equal(checked.plan.moeTp, 4);
   // 声明分片消费该计划：专家叶 ÷(moe_ep×moe_tp)=8；vocabParallel=false 时 lm_head 复制
-  const expert = weightBytesPerCard(800, { id: "decoder.0.moe.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } }, checked.plan);
+  const expert = weightBytesPerCard(800, { id: "decoder.0.mlp.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } }, checked.plan);
   assert.equal(expert.bytes, 100);
   assert.equal(expert.axis, "ep");
   const head = weightBytesPerCard(400, { id: "lm_head.linear", attributes: { weightMatrices: [{ class: "vocab", out: 1, in: 1 }] } }, checked.plan);

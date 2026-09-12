@@ -149,7 +149,8 @@ MAINTENANCE.md 棘轮已回写。
 1. ~~未知架构统一返回 `unsupported`，删除 `generic-decoder` 的未知架构兜底。~~
    ✅ 已完成（2026-09-10，`60c9e4e`）。
 2. `weightMatrices` 覆盖全部带权重叶；删除分片、量化和容量计算 fallback。
-3. `sharedExpertsAreFused` 贯通 recipe、结构、operator、声明、分片和成本。
+3. ~~`sharedExpertsAreFused` 贯通 recipe、结构、operator、声明、分片和成本。~~
+   ✅ 已完成（P3 + 2026-09-11 复核）：checkpoint 融合 = 单个更宽 MLP；SGLang kernel fusion 是另一件事，K3 不用。
 4. 后端输出 Transformers module evidence，接通与前端 Graph 的节点、边和类别对账。
 5. 统一 `ir_version`、`graph_version` 和 `api_schema_version` 的边界。
 6. 迁移所有 root 消费者，删除 `root`、tree projection 和仅为 root 存在的兼容路径。
@@ -326,7 +327,7 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
        ≈ `2 × 参数量 × tokens`（MoE 按 expertFraction 缩放）；decode 场景
        traffic ≈ 权重字节；
      - ③ 旧链差分：`nodeMacs` 旧实现 vs 新表，matrix 维度逐节点相等（W5 删）。
-- **入口**：`frontend/src/structure/formulas/index.js`、`frontend/src/cost/chips/{coverage,public}.js`
+- **入口**：`frontend/src/structure/operators/formulas/index.js`、`frontend/src/cost/chips/{coverage,public}.js`
 - **依赖**：W0
 - **验收**
   - CI 新增第 ③ 项：每条目三选一（counts / 纯 traffic / 分解声明）；
@@ -371,7 +372,7 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
   `minimaxM2` 五处重复的 `rope → scores → softmax → context → o_proj`；
   抽出各 builder 头部重复约 12 次的 `tensorShapes + tensorDims` 样板；
   `linearAttentionOperatorSpecs:76-90` 的 5 连纯转发 if 改为集合判断。
-- **入口**：`frontend/src/structure/model_executor/ops/index.js`（875 行）
+- **入口**：`frontend/src/structure/operators/ops/index.js`（875 行）
 - **依赖**：W1
 - **验收**：差分测试断言全部内置模型的 spec 树 JSON **深度相等**
 - **不包含**：改变任何算子 id、名称或 attributes 取值（改了会影响 W4 的边解析）
@@ -454,7 +455,7 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
   2. builder 在组装点消费 config 视图 + 配方，自行决定造什么；
   3. `normalizeConfig` 瘦身为纯字段归一（别名 + 默认值），删除全部方案类字段与家族分支；
   4. `cost/compute.js:308` 对 `layerSchedule` 的消费改为结构节点属性或显式 plan 对象。
-- **入口**：`structure/config/normalize.js`、`structure/model_executor/**`、`cost/compute.js`
+- **入口**：`structure/config/normalize.js`、`structure/models/**`、`cost/compute.js`
 - **依赖**：W3a
 - **验收**：**最终 spec 树**差分一致（59 模型）；`normalizeConfig` 输出不再含方案类字段
   ——后一项是输出变化，需重建差分参照并人工核对一次；

@@ -37,7 +37,7 @@ function Drawer({
           {builtinModels.map((entry) => (
             <button key={entry.configPath} onClick={() => onPickBuiltinModel(entry)}>
               <strong>{entry.modelId}</strong>
-              <span>{entry.modelType || entry.canonicalArchitecture || "built-in config"}</span>
+              <span>{entry.modelType || entry.architecture || "built-in config"}</span>
             </button>
           ))}
         </div>

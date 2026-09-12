@@ -5,8 +5,7 @@
 // 版本不一致时去掉 GitHub #L 锚点（§5.3）；inspect 失败保持 null（§5.4）。
 
 const WRAPPERS = new Set(["model", "language_model"]);
-const FIRST_SEGMENT_ALIASES = { layers: "decoder", visual: "vision_tower", vision: "vision_tower" };
-const AGGREGATE_TYPES = new Set(["layer-group", "layer-pattern-group"]);
+const AGGREGATE_TYPES = new Set(["layer-group", "layer-pattern-group", "vision-block-group"]);
 
 function isFoldedSegment(segment) {
   if (/^\d+$/.test(segment)) return true;
@@ -17,7 +16,6 @@ export function canonicalSourceRefPath(value) {
   const segments = String(value || "").split(".").filter(Boolean);
   if (segments[0] === "root") segments.shift();
   while (segments[0] && WRAPPERS.has(segments[0])) segments.shift();
-  if (segments[0]) segments[0] = FIRST_SEGMENT_ALIASES[segments[0]] || segments[0];
   return segments.filter((segment) => !isFoldedSegment(segment)).join(".");
 }
 
@@ -50,7 +48,11 @@ function moduleIndex(catalog) {
   const byClass = new Map();
   for (const row of catalog?.modules || []) {
     const path = canonicalSourceRefPath(row.module_path);
-    if (path && !byPath.has(path)) byPath.set(path, row);
+    if (path) {
+      const pathHits = byPath.get(path) || [];
+      pathHits.push(row);
+      byPath.set(path, pathHits);
+    }
     if (row.class_name) {
       const classHits = byClass.get(row.class_name) || [];
       classHits.push(row);
@@ -60,13 +62,29 @@ function moduleIndex(catalog) {
   return { byPath, byClass };
 }
 
+function sameSourceDefinition(rows) {
+  const first = rows[0];
+  const file = first.source_ref?.file || null;
+  const line = first.source_ref?.line ?? null;
+  return rows.every((row) =>
+    row.class_name === first.class_name
+    && (row.source_ref?.file || null) === file
+    && (row.source_ref?.line ?? null) === line);
+}
+
+function pickUnique(rows, className) {
+  if (!rows?.length) return null;
+  const matches = className ? rows.filter((row) => row.class_name === className) : rows;
+  if (!matches.length) return null;
+  return sameSourceDefinition(matches) ? matches[0] : null;
+}
+
 function pickRow(node, index) {
   const path = canonicalSourceRefPath(node.canonical_id || node.module_id || node.id);
-  if (path && index.byPath.has(path)) return index.byPath.get(path);
   const className = node.attributes?.class;
-  const classHits = className ? index.byClass.get(className) : null;
-  if (classHits?.length === 1) return classHits[0];
-  return null;
+  const pathHit = pickUnique(path ? index.byPath.get(path) : null, className);
+  if (pathHit) return pathHit;
+  return pickUnique(className ? index.byClass.get(className) : null, className);
 }
 
 export function bindSourceRefToGraph(graph, catalog, { runtimeVersion } = {}) {

@@ -34,7 +34,7 @@ def compare_structure_summary(
     errors: list[str] = []
     warnings: list[str] = []
 
-    for key in ("canonical_architecture", "text_layers"):
+    for key in ("architecture", "text_layers"):
         predicted_value = predicted_summary.get(key)
         reference_value = reference_summary.get(key)
         if predicted_value != reference_value:
@@ -62,13 +62,9 @@ def load_reconciliation_rules() -> dict[str, Any]:
         return {}
 
 
-# wrapper 段集合：与前端 graphTruth.js:1 PATH_WRAPPERS 对样（fixture 锚定，
-# 不共享代码）。剥的是**前导**包装段，与前端 canonicalModulePath 同语义。
+# wrapper 段集合：与前端 graphTruth.js PATH_WRAPPERS 对样（fixture 锚定，
+# 不共享代码）。剥的是**前导**包装段。
 _WRAPPERS = {"model", "language_model"}
-# 首段别名：后端 ModuleList/容器命名 ↔ 前端模板段名。与前端
-# canonicalModulePath 的首段改名集合同款，只登记 fixture 样例覆盖到的条目；
-# 前端新增别名时先补 fixture 样例，再谈规则。
-_FIRST_SEGMENT_ALIASES = {"layers": "decoder", "visual": "vision_tower", "vision": "vision_tower"}
 
 
 def canonical_reconciliation_path(path: Any) -> str:
@@ -84,8 +80,6 @@ def canonical_reconciliation_path(path: Any) -> str:
         segments = segments[1:]
     while segments and segments[0] in _WRAPPERS:
         segments = segments[1:]
-    if segments:
-        segments[0] = _FIRST_SEGMENT_ALIASES.get(segments[0], segments[0])
     return ".".join(segment for segment in segments if not _is_folded_segment(segment))
 
 
@@ -109,11 +103,11 @@ def diff_module_evidence(
     ``msv_graph`` 收两形态：前端 Graph 整体（``{"nodes": [...]}``）或裸节点
     列表（tasks.md 7.3 的节点列表契约）。键空间为
     ``canonical_reconciliation_path``；空键不入 diff——整树节点的差异由
-    summary.backbone_class ↔ canonical_architecture 承载，不在这里制造
+    summary.backbone_class ↔ architecture 承载，不在这里制造
     命名噪音。同键重复（折叠组头 + 模式组头折到同键）保留首见。
 
     P0-2 triage（规则词汇取自成熟方案，fixture 驱动）：
-    - ``renaming``：vLLM WeightsMapper 的段级改名（linear_attn↔self_attn）；
+    - ``renaming``：vLLM WeightsMapper 的段级改名（当前空：前端槽位已跟随 HF 属性名）；
     - **nonparam_drop**：前端无 ``weightMatrices`` 声明的计算叶整体排除出
       only_msv——P5「声明即权重归属」的直接推论：无声明 = 无 checkpoint
       对应物（scores/softmax/rope/split 等纯计算叶），对应 vLLM WeightsMapper

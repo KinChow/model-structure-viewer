@@ -4,8 +4,7 @@
 // "模块宽 vs 单专家宽"取决于 checkpoint 是否把多个 shared expert 打包成单张量
 // （fused），这是家族知识而非字段判据 —— 判定权归 archs 配方（P3 单源化），
 // 本文件只消费该布尔值。archs/ 与 config/ 同为结构栈最底层（见
-// __tests__/layering.test.js），其唯一上游 model_executor/roles.js 是零 import
-// 的角色词表，不构成分层倒置。
+// __tests__/layering.test.js）。
 import { archRecipe } from "../archs/index.js";
 
 export const LAYER_KEYS = ["num_hidden_layers", "num_layers", "n_layer", "n_layers"];

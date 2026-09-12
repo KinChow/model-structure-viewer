@@ -13,7 +13,7 @@ const TENSORS = [
   { name: "model.layers.1.self_attn.q_proj.weight", dtype: "BF16", shape: [512, 512] },
 ];
 
-const OPTS = { hasBuilder: false, modelName: "fixture", canonicalArchitecture: "fixture", modelType: "fixture" };
+const OPTS = { hasBuilder: false, modelName: "fixture", architecture: "fixture" };
 
 test("truth.skeleton（离线文件形态）与 truth.tensors 产出等价 truth graph", () => {
   const skeleton = buildSkeleton(TENSORS);

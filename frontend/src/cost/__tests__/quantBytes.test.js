@@ -41,9 +41,9 @@ test("compressed-tensors mxfp4（K3）：0.5B/元素 + e8m0 scale 1B/32 组", ()
 test("compressed-tensors 的 ignore 数组 = modules_to_not_convert 同义（'re:' 前缀正则）", () => {
   // 照抄 Kimi-K2-Thinking 的 ignore 表：路由专家量化，attention/shared/dense-MLP/lm_head 排除
   const quant = { quant_method: "compressed-tensors", ignore: ["lm_head", "re:.*self_attn.*", "re:.*shared_experts.*", "re:.*mlp\\.(gate|up|gate_up|down)_proj.*"] };
-  assert.equal(isQuantizedPath("decoder.3.moe.expert_mlp", quant), true);
+  assert.equal(isQuantizedPath("decoder.3.mlp.expert_mlp", quant), true);
   assert.equal(isQuantizedPath("decoder.3.self_attn.q_proj", quant), false);
-  assert.equal(isQuantizedPath("decoder.3.moe.shared_experts.down_proj", quant), false);
+  assert.equal(isQuantizedPath("decoder.3.mlp.shared_experts.down_proj", quant), false);
   assert.equal(isQuantizedPath("decoder.3.mlp.gate_proj", quant), false);
   assert.equal(isQuantizedPath("lm_head", quant), false);
 });
@@ -67,24 +67,22 @@ test("dynamic 排除/包含：'-:' 前缀为排除正则，显式列出为包含
   assert.equal(isQuantizedPath("lm_head", quant), true);
   // 字面路径 pattern（checkpoint 命名）经候选路径补全命中树 id
   assert.equal(isQuantizedPath("embed_tokens", quant), true);
-  assert.equal(isQuantizedPath("decoder.3.self_attn.qkv_proj", quant), false);
-  assert.equal(isQuantizedPath("decoder.3.mlp.down_proj", quant), true);
-  assert.equal(isQuantizedPath("decoder.3.moe.shared_experts.down_proj", quant), false);
+  assert.equal(isQuantizedPath("layers.3.self_attn.qkv_proj", quant), false);
+  assert.equal(isQuantizedPath("layers.3.mlp.down_proj", quant), true);
+  assert.equal(isQuantizedPath("layers.3.mlp.shared_experts.down_proj", quant), false);
   assert.equal(isQuantizedPath("mtp.layer.mlp.down_proj", quant), false);
-  // vision_tower → visual（Qwen3.5 checkpoint 对视觉塔的命名）
-  assert.equal(isQuantizedPath("vision_tower.0.qkv_proj", quant), false);
+  assert.equal(isQuantizedPath("visual.0.qkv_proj", quant), false);
   // 无 dynamic：全部量化
-  assert.equal(isQuantizedPath("decoder.0.self_attn.qkv_proj", { quant_method: "fp8" }), true);
+  assert.equal(isQuantizedPath("layers.0.self_attn.qkv_proj", { quant_method: "fp8" }), true);
 });
 
 test("modules_to_not_convert 数组：命中即不量化，优先于 dynamic", () => {
   // HF/vLLM 数组约定（GPTQ/FP8 checkpoint 常见）；模式支持字面路径与正则
-  const quant = { quant_method: "fp8", weight_block_size: [128, 128], modules_to_not_convert: ["lm_head", ".*embed_tokens.*", "model.visual.*"] };
+  const quant = { quant_method: "fp8", weight_block_size: [128, 128], modules_to_not_convert: ["lm_head", ".*embed_tokens.*", ".*visual.*"] };
   assert.equal(isQuantizedPath("lm_head", quant), false);
   assert.equal(isQuantizedPath("embed_tokens", quant), false);
-  // 字面路径 "model.visual.*" 经 canonicalModulePath 的 visual→vision_tower 映射命中树 id
-  assert.equal(isQuantizedPath("vision_tower.0.qkv_proj", quant), false);
-  assert.equal(isQuantizedPath("decoder.3.self_attn.qkv_proj", quant), true);
+  assert.equal(isQuantizedPath("visual.0.qkv_proj", quant), false);
+  assert.equal(isQuantizedPath("layers.3.self_attn.qkv_proj", quant), true);
   // 空数组不排除
   assert.equal(isQuantizedPath("lm_head", { quant_method: "fp8", modules_to_not_convert: [] }), true);
 });

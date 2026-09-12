@@ -4,7 +4,7 @@
 >
 > **最后对齐：2026-09-10（P4/P5/P10 后）**。历史叙述（W1-W5 校准过程）保留为方法论存档，以「历史记录」标注；已完成的验收数字是棘轮基线，只许向好。
 
-本文是 `frontend/src/structure/formulas/`（`index.js` 注册表 + `counts.js` 共享实现 + `extractor.js` 提取）的实现规格：
+本文是 `frontend/src/structure/operators/formulas/`（`index.js` 注册表 + `counts.js` 共享实现 + `extractor.js` 提取）的实现规格：
 分类、公式、共享实现与假设。实现以本文为准；修改公式先改本文。
 
 **逐条公式来源与单位约定见 [`principles.md`](../principles.md) §3.1 / §3.7**：
@@ -411,7 +411,7 @@ W1 时点在 principles §10 登记两条结构级缺口，均已修复：
 
 ## 提取器规格（W5-1 切装后实况）
 
-`frontend/src/structure/formulas/extractor.js` 是**唯一** node → counts 提取路径：
+`frontend/src/structure/operators/formulas/extractor.js` 是**唯一** node → counts 提取路径：
 `compute.js` 主链（W5-1 切装，旧 nodeMacs 分派链已删除，`compute.js:1-3`）经
 `countsForNode` 查本注册表。芯片参数不得进入该文件（§3.4）。
 

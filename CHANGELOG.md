@@ -12,6 +12,20 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- Registry 键改为 `config.architectures[0]`（对标 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）。删除自制 `gqa-decoder` 九宫格、`ARCHITECTURE_ALIASES`、`ARCHITECTURE_CATALOG`、`withVision`。视觉塔是该建模函数内部的可选子模块。
+- 删除角色表（`roles.js` / `SUFFIX_ROLES` / 节点 `role`）。checkpoint 按模块路径绑定：剥 HF 根包装 `model.` / `language_model.` 后相等匹配。
+- 图节点 id 改为 HF `_modules` 名：文本栈 `layers`（MiniMax-M3 文本塔 `language_model`），视觉塔 `visual` / `vision_tower`。不再用自制 `decoder` / `text_decoder`。
+- 目录对齐：`structure/layers/` 共享模块、`structure/models/` 按 `architectures[0]` 组网、`structure/operators/` = formulas + ops 工厂。删除 `model_executor/`（msv 不执行模型）。
+- 配方旗标（`linearAttentionMode` / `normMode` / `sharedExpertsAreFused` / `visionInternalMerger` / `attentionOutputGate`）组网与 cost 直接读 `ARCH_RECIPES`，不再经 `deriveBuildPlan` 产品对象。逐层调度（`layer_types` / `first_k_dense_replace` / `compress_ratios`）仍由 `plan.js` 从 raw config 派生。
+- Graph IR 仍是 module/layer 树的数据结构；summary 只留 `architecture`（HF 类名），不再写 `canonical_architecture`。
+
+- 删 `hfModulePrefix` / `hfModuleClass`：不再从 `architectures[0]` 剥任务后缀再拼 `FooAttention`。配方写 HF 全名，没写用词干。DeepSeek-V4 MoE 写 `DeepseekV4SparseMoeBlock`。vLLM/SGLang 每个模型文件手写 class，没有构词器。
+- `scripts/bind-source-ref.mjs`：`--verify` 只把 Transformers 构造失败当失败；`structurally_consistent` 只报告。walk 折叠更新走 `GraphDraft.replace_node`。
+- AutoConfig：catalog `auto_map` 同时有 AutoConfig 和 AutoModel 时走 remote config（DeepSeek-V3 / Kimi-K2 的 `rope_theta` 与 Hub modeling 配对）；只有 AutoConfig 且 `model_type` 已在 transformers `CONFIG_MAPPING` 时用库内实现（MiniMax-M3 那份 `from ...modeling_rope_utils` 不再当 remote code）。`AutoModel.from_config` 仍信任 remote。
+- Kimi-K3 不做 `dump-source-ref` / `verify --graph`：Hub modeling 在 import 时拉 `fla.modules` / `fla.ops.kda`（Triton）；transformers 无 `kimi_k3` 入库实现；不 hook Triton / 不 stub fla。结构模板继续用 catalog modeling 作二等证据。
+- introspect walk 对 `ModuleList`/`Sequential` 只展开连续同构子模块的第一个代表，其余记 `repeat`（DeepSeek-V3 remote 256 专家不再先建 7 万节点）。同构判定含直接子模块类名，`first_k_dense_replace` 的 dense MLP 与 MoE 层会拆开。`GraphDraft.add_dataflow` 改为 O(1) 索引。不改上游 modeling。
+- Decoder 注意力路径段照抄 transformers / vLLM / SGLang 属性名：默认 `self_attn`；Qwen3.5 / Qwen4Exp 的 GDN 层用 `linear_attn`。去掉把 `linear_attn` 改写成 `self_attn` 的绑定别名。Qwen4Exp linear 类名改为 `Qwen4ExpTextGatedDeltaNet`。
+- Qwen3.5 混合注意力 class 按 transformers 拆分：linear 层 `Qwen3_5GatedDeltaNet`、full 层 `Qwen3_5Attention`。RMSNorm 容器 class 走架构前缀（`Qwen3_5RMSNorm`），不再写死 `GemmaRMSNorm`。
 - 模块 `attributes.class` 改为 transformers 架构类名：从 `architectures[0]` 剥 `ForCausalLM`/`ForConditionalGeneration` 得到前缀，再拼 `Attention`/`DecoderLayer`/`MLP`/`MoE`。删除自研 `GQAAttention`/`DecoderStack`/`RoutedMoE`。算法身份仍在 `attention_kind`。同类型后缀差异（`MoE`/`SparseMoeBlock`、`TextAttention`）登记在 `ARCH_RECIPES`。
 - Transformers 校验失败分三类文案：后端不可达（需 `msv serve`）、worker 超时/崩溃、构造失败；未对账不是失败。
 - `source_ref` 采集照抄 modelmap annotate：`inspect.getsourcefile` + 包根前缀匹配；产物 `models/<org>/<id>/source-ref.json`；前端按对账路径绑定，版本不一致去掉 `#L`，inspect 失败留空。

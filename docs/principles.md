@@ -34,9 +34,11 @@ roofline 瓶颈分类与各路**理论时间下界**属于支柱④，不是服�
 
 ## 2. 结构原则：节点即图，递归至算子
 
-结构图来自**已适配的 builder**，查找键是精确表：主键 `config.architectures[0]`，
-辅键 `model_type` 别名。命中则用配方 + config 数字实例化；未命中则 `unsupported`，
+结构图来自**已适配的 modeling**，查找键是精确表：主键 `config.architectures[0]`
+（vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）。
+命中则该架构的组装函数读自己的字段、组 Module 树；未命中则 `unsupported`，
 空网络走完管线，**禁止**编造完整图。运行时不做结构推断。
+Graph IR 是这棵 Module 树的数据结构（节点 = module/layer/算子叶，边 = 声明的数据流）。
 
 ### 2.1 节点**可以**含图；含图的节点**必须显式声明边**
 
@@ -174,7 +176,7 @@ roofline 下界的参考，**不再**当逐算子 counts 的来源。Accelergy �
 贡献 0。注册条目产出四维动作向量（Accelergy Action Counts 形态）：
 
 ```js
-// frontend/src/structure/formulas/index.js
+// frontend/src/structure/operators/formulas/index.js
 softmax: {
   title, formula, explanation, inputs, outputs,
   aten: "aten._softmax",   // 对照锚点；无对应则省略，用 counts 注释声明分解
@@ -345,55 +347,42 @@ TFLOPS，arXiv 2607.20120）。同一 RMSNorm/softmax 在两类芯片上会落�
 3. **vLLM / SGLang 的 kernel 实现**——只提供 `implementation` 与 §2.4 融合边界，
    **不得反过来删掉 modeling 里的语义节点**。有 modeling 文件时，引擎融合不是语义标准。
 
-形态照抄成熟方案，分三层：
+形态照抄成熟方案，分两层：
 
-**层 1｜canonical 节点角色表（全局共享，声明式）**
-对齐 llama.cpp 的 `MODEL_TENSOR` 枚举与 `MODEL_TENSORS[arch]` 列表。
-角色（`attn_q` / `attn_qkv` / `attn_norm` / `ffn_gate` / …）是**跨模型可比性的唯一载体**：
-无论 checkpoint 里叫 `input_layernorm`、`ln_1` 还是 `norm_1`，角色都是 `attn_norm`。
+**层 1｜checkpoint 路径绑定**
+图节点身份 = HF `_modules` 路径。checkpoint 张量绑到含参叶子：剥
+`model.` / `language_model.` 根包装后路径相等即命中。文本栈 id 是 `layers`
+（MiniMax-M3 文本塔是 `language_model`）；视觉塔 id 是该架构 HF 属性名
+（Qwen/GLM `visual`，Kimi/M3 `vision_tower`）。不经角色表、不做子串猜测。
+末段同义（`o_proj`/`out_proj`）极少见时，写在该 `architectures[0]`
+的候选列表里，不建全局角色枚举。
+vLLM / SGLang 没有全局 `MODEL_TENSOR`；llama.cpp 的角色表是给 GGUF 第三套名字用的，
+msv 两端都是 HF 路径，不抄那一层。
 
-角色与算子类型是两个维度，都要有：
-
-```
-{ role: "attn_q",    operator_id: "linear" }
-{ role: "attn_norm", operator_id: "rmsnorm" }
-```
-
-**层 2｜per-arch checkpoint 映射表（声明式）**
-对齐 llama.cpp `gguf-py/gguf/tensor_mapping.py` 的 `block_mappings_cfg`
-（候选列表 + `{bid}` 占位）与 transformers 的 `WeightRenaming` / `WeightConverter`
-（可组合、可逆的 `ConversionOps`：`Chunk` / `Concatenate`、`MergeModulelist` /
-`SplitModulelist`、`Transpose`、`PermuteForRope`）。
-
-```js
-attn_out:    ["model.layers.{bid}.self_attn.o_proj",
-              "model.layers.{bid}.self_attn.out_proj"],   // 别名用候选列表，不用启发式匹配
-attn_qkv:    { from: "model.layers.{bid}.self_attn.qkv_proj", op: Chunk(0) },
-ffn_experts: { from: "model.layers.{bid}.mlp.experts.{eid}.gate_proj", op: MergeModulelist(0) },
-```
-
-**层 3｜图构建（代码，每 arch 一份）**
+**层 2｜图构建（代码，每 `architectures[0]` 一份）**
 对齐 llama.cpp `src/models/<arch>.cpp`、transformers `modeling_*.py`、vLLM `models/*.py`。
-负责执行顺序、无参算子插入、条件分支。`layers/*.js` + `ops/index.js` 就是这一层。
+负责执行顺序、无参算子插入、条件分支。共享组件在 `layers/`，算子信息在注册表。
 
 **查找键**：运行时用精确表，不用子串猜。主键 `config.architectures[0]`
-（vLLM `_MODELS` 形态）；辅键 `model_type` 别名。命中 → 已适配的 builder/配方 +
-config 数字实例化；未命中 → `unsupported`，不编造完整图。
+（vLLM `_MODELS` 形态）。命中 → 该架构的组装函数 + config 数字实例化；
+未命中 → `unsupported`，不编造完整图。
 
-**组件配方是一级概念，家族不是。** 现在的模型都是 transformer，变化只在组件选型
-（attention / norm / FFN / 位置编码 / 附加结构），不同家族会采用同一配方。
-**模型 = 配方 + 数字 + 逐层调度。** 新增模型应当是"选一个已有配方 + 填数字"；
-只有发明新组件方案才写新代码。家族名只允许出现在"模型 → 配方"的薄解析层。
+**组件选型是一级概念，家族不是。** 现在的模型都是 transformer，变化只在组件选型
+（attention / norm / FFN / 位置编码 / 附加结构），不同家族会采用同一组件。
+新增模型应当是"选已有共享 layer + 读 config"；只有发明新组件方案才写新代码。
+家族名 / `model_type` 子串不允许出现在组网分派里。
 
 **判据**：
 - 适配产物里出现"为了得到参数量 / shape 而写的公式分支"即违反——那些必须来自真值（§4.1）。
-- checkpoint 名与结构节点的对应**必须显式声明在层 2**，**禁止**运行时用路径归一化做相等匹配去猜。
-- **禁止**把层 3 改成纯 JSON/YAML 数据文件。图构建含条件分支（MoE/dense 交替、
+- checkpoint 名与结构节点的对应**按路径相等**（只剥 HF 根包装），
+  **禁止**运行时用路径归一化做别名猜测。
+- **禁止**把组网改成纯 JSON/YAML 数据文件。图构建含条件分支（MoE/dense 交替、
   `layer_types` 调度、逐层 `compress_ratio`、PLE/MHC 存在性、有无 bias），
   纯数据表达必然要发明 mini-DSL，那是自研且更难维护。
   llama.cpp / transformers / vLLM / TensorRT-LLM 无一例外用代码表达图构建。
 
-**检查**：新增 arch 时，层 1、层 2 各一处声明，层 3 一个 builder；三者之外不得再有该 arch 的分支。
+**检查**：新增 arch 时，registry 一行 + 一份组装函数；共享 layer / 算子注册表
+只在发明新组件时才改。三者之外不得再有该 arch 的分支。
 
 ### 4.4 真值缺失或冲突必须可见，禁止静默丢弃
 
@@ -422,13 +411,10 @@ GGUF / `pytorch_model.bin` / `.pth` / MLX 格式模型永远读不到 safetensor
 **判据**：**禁止**用 generic 兜底给未适配模型编造一个看起来完整的结构图。
 未适配就显式说未适配。
 
-### 4.6 映射表必须可逆校验
+### 4.6 路径绑定必须可对账
 
-照 transformers `WeightConverter.reverse_transform()` 的可逆设计：每个 `ConversionOps`
-都有 `reverse_op`，一份声明双向可用。
-
-**检查**：层 2 写完后必须有一条测试——用映射把 trie 反推成角色集合，再正推回 checkpoint 名，
-与原始 header 逐项对比。对不上即映射错误。这比"看图对不对"可靠得多，是映射表的唯一质量闸门。
+绑上的 tensor 名（剥根包装后）必须等于图节点模块路径，或该 arch 显式候选列表中的一项。
+对不上即绑定错误。这比"看图对不对"可靠，是路径绑定的质量闸门。
 
 ### 4.7 config 只供数，方案由组网决定
 
@@ -584,11 +570,11 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 
 ### 8.1 新增模型只允许"选配方 + 填数字"
 
-真正的目标是 §4.3 的组件配方：新增模型 = 选一个已有配方 + 填数字；只有发明新组件方案
+真正的目标是共享组件：新增模型 = 选已有 layer + 读 config；只有发明新组件方案
 才写新代码。"家族名硬编码的非测试文件数"是它的**可测量代理指标**，不是目标本身——
-配方表落地后，家族名只应出现在配方解析与映射表两处。
+registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling 文件名里。
 
-**判据**：家族名文件数**不得增加**。当前基线为 **14**（相对更早完整 pattern 的 16），
+**判据**：家族名文件数**不得增加**。当前基线为 **12**（相对更早完整 pattern 的 16），
 机械清单与豁免见 `scripts/check_principles.sh`。
 
 **检查**：CI 统计家族名出现的**非测试文件数**，只允许下降。
@@ -614,11 +600,11 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 - [ ] 数值公式带 `// ref:`（§3.5）
 - [ ] 涉及 KV/TP/MLA/DP 的改动有对应单测（§3.6）
 - [ ] 新数值字段带 `value_source`（§4.2）
-- [ ] 新增 arch 只在角色表 / 映射表 / builder 三处声明（§4.3）
-- [ ] checkpoint 对应关系是显式声明，未引入路径归一化猜测（§4.3）
+- [ ] 新增 arch 只在 registry + 组装函数声明，共享 layer 无该 arch 的 `modelType` 分支（§4.3）
+- [ ] checkpoint 按路径绑定，未引入路径归一化猜测（§4.3）
 - [ ] 真值缺失/冲突在 UI 可见（§4.4）
 - [ ] 未适配模型未被伪造成完整结构（§4.5）
-- [ ] 映射表有可逆校验测试（§4.6）
+- [ ] 路径绑定有对账测试（§4.6）
 - [ ] `source_ref` 无法确定时留空而非编造（§5.4）
 - [ ] 后端未新增第二份 IR 产出（§6.2）
 - [ ] 芯片数据带 `source` + `confidence`（§7）
@@ -636,9 +622,9 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 
 - **§6.3 / §6.4**：前端 DiagnosticsPanel 有校验入口。失败分三类：后端不可达 /
   transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 矩阵抽查未接。
-  来源解析策略仍两套。catalog 旁 `source-ref.json` 尚未批量入库（采集链路已接通，
-  静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接）。
-- **§8.1**：14/16 文件含家族名；剩余随配方表接管后进一步下降。
+  来源解析策略仍两套。catalog 旁 `source-ref.json` 按架构取样入库（见
+  implementation_plan §5）；静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
+- **§8.1**：12/16 文件含家族名；剩余随 modeling 接管后进一步下降。
 - **§3.1 运行时双轨**：extractor 巨型 switch 手搓原子 counts，注册表对这 30+ 条
   是死代码。护栏 §3.1b 承认「手搓可达」。不改用户看见的图，后置。
 

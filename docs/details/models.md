@@ -194,10 +194,10 @@ npm --prefix frontend run verify:models
 
 ## 模型适配归属
 
-- 模型 ID 或官方 architecture 别名：`frontend/src/structure/registry/aliases.js`
-- canonical architecture：`frontend/src/structure/registry/architectureCatalog.js`
-- 顶层组网：`frontend/src/structure/model_executor/models/`
-- 可复用层：`frontend/src/structure/model_executor/layers/`
+- 官方 architecture 查找键：`frontend/src/structure/models/index.js` 的 `MODELS`
+- 顶层组网：`frontend/src/structure/models/`
+- 可复用层：`frontend/src/structure/layers/`
+- 算子公式与工厂：`frontend/src/structure/operators/`
 - 专项模型说明：`docs/details/models/`
 
 

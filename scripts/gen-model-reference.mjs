@@ -12,11 +12,10 @@
 // 事实源（本脚本不复制任何清单，只读取并渲染）：
 //   - models/catalog.json（59 模型：model_id / model_type / architectures / release_time）
 //   - frontend/src/structure/config/normalize.js + registry/resolveArchitecture.js
-//     （与 frontend/src/structure/builtinModels.test.js 同一条运行时链路，得出 canonical architecture）
+//     （与 frontend/src/structure/builtinModels.test.js 同一条运行时链路）
 //   - frontend/src/cost/derivedWeights.js 的 derivedWeightParameters（参数量级，纯函数，离线派生值）
-//   - frontend/src/structure/registry/aliases.js（ARCHITECTURE_ALIASES，key=architectures[0] 原字符串）
-//   - frontend/src/structure/registry/architectureCatalog.js（ARCHITECTURE_CATALOG，canonical → 模板能力）
-//   - frontend/src/structure/archs/index.js（ARCH_RECIPES，§8.1 认可的「一处数据文件」）
+//   - frontend/src/structure/models/index.js（MODELS，key=architectures[0]）
+//   - frontend/src/structure/archs/index.js（ARCH_RECIPES）
 //
 // 用法：
 //   node scripts/gen-model-reference.mjs           # 写入两份文档
@@ -26,8 +25,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeConfig } from "../frontend/src/structure/config/normalize.js";
 import { resolveArchitecture } from "../frontend/src/structure/registry/resolveArchitecture.js";
-import { ARCHITECTURE_CATALOG } from "../frontend/src/structure/registry/architectureCatalog.js";
-import { ARCHITECTURE_ALIASES } from "../frontend/src/structure/registry/aliases.js";
+import { MODELS } from "../frontend/src/structure/models/index.js";
 import { ARCH_RECIPES } from "../frontend/src/structure/archs/index.js";
 import { derivedWeightParameters } from "../frontend/src/cost/derivedWeights.js";
 
@@ -82,7 +80,7 @@ function collectModels() {
       modelId: entry.model_id,
       modelType: dash(entry.model_type),
       arch0: dash(Array.isArray(entry.architectures) ? entry.architectures[0] : ""),
-      canonical: resolved.canonicalArchitecture,
+      architecture: resolved.architecture || "unsupported",
       params: derivedWeightParameters(normalized),
       evidence: exists ? (manifest ? "manifest" : "有") : "无",
       // release_time 只取日期段（catalog 里是 ISO 8601 UTC 串，完整时刻以 catalog 为准）。
@@ -102,13 +100,13 @@ function collectModels() {
     // architectures[0] 计数：别名表 / 配方表的「catalog 命中」列；canonical 计数：
     // canonical 目录的「catalog 模型数」列。命中 0 的条目 = 死登记，台账上一眼可见。
     arch0Counts: countBy("arch0"),
-    canonicalCounts: countBy("canonical"),
+    architectureCounts: countBy("architecture"),
     manifestCount: rows.filter((row) => row.evidence === "manifest").length,
   };
 }
 
-/** docs/models_reference.md 的机器段（59 模型台账表 + 按 canonical 汇总）。 */
-function renderModels({ rows, total, canonicalCounts, manifestCount }) {
+/** docs/models_reference.md 的机器段（59 模型台账表 + 按 architectures[0] 汇总）。 */
+function renderModels({ rows, total, architectureCounts, manifestCount }) {
   const out = [];
   out.push(MODELS_BEGIN);
   out.push("");
@@ -123,15 +121,15 @@ function renderModels({ rows, total, canonicalCounts, manifestCount }) {
   out.push("");
   out.push(`## 模型台账（${total} 个内置模型，按 model_id 码元序）`);
   out.push("");
-  out.push("| 模型 ID | family（model_type） | architectures[0] | canonical architecture | 参数量级（derived） | 证据库 | release_time |");
-  out.push("|---|---|---|---|---|---|---|");
+  out.push("| 模型 ID | family（model_type） | architectures[0] | 参数量级（derived） | 证据库 | release_time |");
+  out.push("|---|---|---|---|---|---|");
   for (const row of rows) {
-    out.push(`| \`${row.modelId}\` | \`${row.modelType}\` | \`${row.arch0}\` | \`${row.canonical}\` | ${paramCell(row.params)} | ${row.evidence} | ${row.releaseDate} |`);
+    out.push(`| \`${row.modelId}\` | \`${row.modelType}\` | \`${row.arch0}\` | ${paramCell(row.params)} | ${row.evidence} | ${row.releaseDate} |`);
   }
   out.push("");
-  out.push("## 按 canonical architecture 汇总（生成物）");
+  out.push("## 按 architectures[0] 汇总（生成物）");
   out.push("");
-  for (const [arch, count] of [...canonicalCounts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))) {
+  for (const [arch, count] of [...architectureCounts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))) {
     out.push(`- \`${arch}\`：${count} 个`);
   }
   out.push("");
@@ -141,37 +139,24 @@ function renderModels({ rows, total, canonicalCounts, manifestCount }) {
   return out.join("\n");
 }
 
-/** docs/architectures_reference.md 的机器段（别名表 + canonical 目录 + 配方表）。 */
-function renderArchitectures({ rows, arch0Counts, canonicalCounts }) {
+/** docs/architectures_reference.md 的机器段（MODELS 注册表 + 配方表）。 */
+function renderArchitectures({ arch0Counts }) {
   const out = [];
   out.push(ARCH_BEGIN);
   out.push("");
   out.push("> **本节由 `node scripts/gen-model-reference.mjs` 生成，请勿手改。**");
-  out.push("> 事实源 = `frontend/src/structure/registry/aliases.js`（别名表：key=`architectures[0]` 原字符串，");
-  out.push("> 精确匹配不做子串，principles §8.1 / vLLM `ModelRegistry` 对标）+");
-  out.push("> `registry/architectureCatalog.js`（canonical → 模板能力与 multimodal 变体）+");
-  out.push("> `structure/archs/index.js` 的 `ARCH_RECIPES`（只收「写不出 config 字段判据」的配方位）。");
-  out.push("> `catalog 命中` = 59 内置模型的精确计数（命中 0 = 内置 catalog 无消费者，hf / config 等外部来源仍可命中该别名）；别名/配方顺序 = 源文件声明顺序。");
-  out.push("> 别名命中后实际解析还会按 `hasVision` 升格 multimodal 变体（`resolveArchitecture.withVision`），");
-  out.push("> 故别名列的 canonical 与模型台账列可能相差一个 `multimodal-` 前缀。");
+  out.push("> 事实源 = `frontend/src/structure/models/index.js` 的 `MODELS`");
+  out.push(">（key=`architectures[0]` 原字符串，对标 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）+");
+  out.push("> `structure/archs/index.js` 的 `ARCH_RECIPES`（类名 / 路径例外）。");
+  out.push("> `catalog 命中` = 59 内置模型的精确计数。");
   out.push("");
-  const aliases = Object.entries(ARCHITECTURE_ALIASES);
-  out.push(`## 别名表 ARCHITECTURE_ALIASES（${aliases.length} 条）`);
+  const registered = Object.keys(MODELS);
+  out.push(`## MODELS 注册表（${registered.length} 条）`);
   out.push("");
-  out.push("| architectures[0] | canonical architecture（模板） | catalog 命中 |");
-  out.push("|---|---|---|");
-  for (const [arch, canonical] of aliases) {
-    out.push(`| \`${arch}\` | \`${canonical}\` | ${arch0Counts.get(arch) || 0} |`);
-  }
-  out.push("");
-  const canonicals = Object.entries(ARCHITECTURE_CATALOG);
-  out.push(`## canonical architecture 目录 ARCHITECTURE_CATALOG（${canonicals.length} 条）`);
-  out.push("");
-  out.push("| canonical | 有 builder | multimodal 变体 | catalog 模型数 |");
-  out.push("|---|---|---|---|");
-  for (const [arch, spec] of canonicals) {
-    const variant = spec.multimodalVariant ? `\`${spec.multimodalVariant}\`` : "—";
-    out.push(`| \`${arch}\` | ${spec.hasBuilder ? "✓" : "—"} | ${variant} | ${canonicalCounts.get(arch) || 0} |`);
+  out.push("| architectures[0] | catalog 命中 |");
+  out.push("|---|---|");
+  for (const arch of registered) {
+    out.push(`| \`${arch}\` | ${arch0Counts.get(arch) || 0} |`);
   }
   out.push("");
   const recipes = Object.entries(ARCH_RECIPES);
@@ -195,6 +180,9 @@ function renderArchitectures({ rows, arch0Counts, canonicalCounts }) {
       const value = recipe[key];
       if (value === undefined) return "—";
       if (typeof value === "boolean") return value ? "✓" : "—";
+      if (value && typeof value === "object") {
+        return `\`${Object.entries(value).map(([k, v]) => `${k}=${v}`).join(", ")}\``;
+      }
       return `\`${String(value)}\``;
     });
     out.push(`| \`${arch}\` | ${cells.join(" | ")} |`);
@@ -215,7 +203,7 @@ const targets = [
   {
     doc: ARCH_DOC, begin: ARCH_BEGIN, end: ARCH_END,
     render: () => renderArchitectures(data), label: "architectures_reference.md",
-    stat: `${Object.keys(ARCHITECTURE_ALIASES).length} 别名 + ${Object.keys(ARCHITECTURE_CATALOG).length} canonical + ${Object.keys(ARCH_RECIPES).length} 配方`,
+    stat: `${Object.keys(MODELS).length} MODELS + ${Object.keys(ARCH_RECIPES).length} 配方`,
   },
 ];
 

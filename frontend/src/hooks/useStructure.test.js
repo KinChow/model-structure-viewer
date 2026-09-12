@@ -30,7 +30,7 @@ test("buildStructureForPayload handles pasted config in the frontend without API
 
   assert.equal(apiCalled, false);
   assert.equal(structure.summary.strategy, "frontend-architecture-template");
-  assert.equal(structure.summary.canonical_architecture, "mla-moe-decoder");
+  assert.equal(structure.summary.architecture, "DeepseekV3ForCausalLM");
 });
 
 test("buildStructureForPayload keeps local safetensors truth for a picked directory", async () => {
@@ -95,7 +95,7 @@ test("buildStructureForPayload reads local config then builds in frontend", asyn
 
   assert.equal(apiCalled, false);
   assert.equal(structure.source.kind, "local cache");
-  assert.equal(structure.summary.canonical_architecture, "gqa-decoder");
+  assert.equal(structure.summary.architecture, "Qwen3ForCausalLM");
 });
 
 test("buildStructureForPayload reads built-in config without backend API", async () => {
@@ -135,7 +135,7 @@ test("buildStructureForPayload reads built-in config without backend API", async
   assert.equal(apiCalled, false);
   assert.equal(localCalled, false);
   assert.equal(structure.source.kind, "built-in config");
-  assert.equal(structure.summary.canonical_architecture, "gqa-decoder");
+  assert.equal(structure.summary.architecture, "Qwen3_5ForConditionalGeneration");
 });
 
 test("built-in model enriches its config with remote safetensors truth", async () => {
@@ -265,7 +265,7 @@ test("buildStructureForPayload reads HF config then builds in frontend", async (
 
   assert.equal(apiCalled, false);
   assert.equal(structure.source.kind, "hf config (huggingface)");
-  assert.equal(structure.summary.canonical_architecture, "mla-moe-decoder");
+  assert.equal(structure.summary.architecture, "DeepseekV3ForCausalLM");
 });
 
 test("HF config failure falls back to ModelScope before backend", async () => {
@@ -352,13 +352,13 @@ test("buildStructureForPayload enriches HF tree with checkpoint truth when avail
   assert.equal(structure.source.strategy, "template+truth");
 
   // 模板算子 q_proj 绑定到 trie 层 0 的真值
-  const qProj = findNode(structure, "decoder.0.self_attn.q_proj");
+  const qProj = findNode(structure, "layers.0.self_attn.q_proj");
   assert.equal(qProj.params, 1024 * 1024);
   assert.equal(qProj.value_source, "checkpoint");
   assert.deepEqual(qProj.weight_shapes.weight, [1024, 1024]);
   assert.equal(qProj.dtype, "BF16");
   // 无模板对应物（rope）不绑定（图 schema：未知扩展字段为 null，不是 undefined）
-  const rope = findNode(structure, "decoder.0.self_attn.rope");
+  const rope = findNode(structure, "layers.0.self_attn.rope");
   assert.equal(rope.params, null);
 });
 

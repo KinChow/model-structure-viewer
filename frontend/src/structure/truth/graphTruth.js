@@ -1,13 +1,18 @@
-const PATH_WRAPPERS = new Set(["model", "language_model"]);
 import { buildSkeleton } from "./skeleton.js";
-import { bindingKey, resolveCheckpointModule, templateBindingKey } from "../archs/index.js";
+
+// 只剥 HF named_modules 根包装（model. / language_model.）。
+// 对标 transformers PreTrainedModel 把主干挂在 self.model。
+const PATH_WRAPPERS = new Set(["model", "language_model"]);
 
 export function canonicalModulePath(value) {
   const parts = String(value || "").split(".").filter(Boolean);
   while (parts.length > 0 && PATH_WRAPPERS.has(parts[0])) parts.shift();
-  if (parts[0] === "layers" || parts[0] === "text_decoder") parts[0] = "decoder";
-  if (parts[0] === "visual" || parts[0] === "vision") parts[0] = "vision_tower";
   return parts.join(".");
+}
+
+function pathBindKeys(modulePath) {
+  const path = canonicalModulePath(modulePath);
+  return path ? [path] : [];
 }
 
 /** Build a minimal Graph IR index from checkpoint skeleton facts. */
@@ -52,37 +57,35 @@ export function skeletonTruthGraph(skeleton) {
 }
 
 /**
- * 绑定（W3-B2）：优先 role 连接键（domain|bid|role，见 structure/archs/），
- * 模板侧 role 未知时退化为 canonical 路径匹配（vision 等未覆盖域）。
- * 多候选仍记录为 ambiguous（诊断可见，不静默丢弃任何一侧）；
- * experts.{i} 等逐专家模块不参与 role 连接（模板无逐专家节点），走路径兜底。
+ * checkpoint 按模块路径绑到图节点。两端都剥 HF 根包装后做相等匹配。
+ * 图 id 已是 HF `_modules` 名（layers / visual / vision_tower / language_model）。
+ * 多候选记 ambiguous，不静默丢弃。
  */
-export function bindTruthToGraph(graph, truthGraph, { modelType } = {}) {
+export function bindTruthToGraph(graph, truthGraph) {
   const truthNodes = (truthGraph?.nodes || []).filter((node) => Number(node.params) > 0);
-  const truthByRole = new Map();
   const truthByPath = new Map();
   for (const node of truthNodes) {
     const truthId = node.canonical_id || node.module_id || node.id;
-    const resolved = resolveCheckpointModule(truthId, modelType);
-    if (resolved.role && !resolved.hasExpertIndex) {
-      const roleKey = bindingKey(resolved);
-      const roleEntries = truthByRole.get(roleKey) || [];
-      roleEntries.push(node);
-      truthByRole.set(roleKey, roleEntries);
+    for (const pathKey of pathBindKeys(truthId)) {
+      const pathEntries = truthByPath.get(pathKey) || [];
+      pathEntries.push(node);
+      truthByPath.set(pathKey, pathEntries);
     }
-    const pathKey = canonicalModulePath(truthId);
-    const pathEntries = truthByPath.get(pathKey) || [];
-    pathEntries.push(node);
-    truthByPath.set(pathKey, pathEntries);
   }
   const used = new Set();
   const boundIds = [];
   const ambiguous = [];
   const nodes = (graph?.nodes || []).map((node) => {
     const templateId = node.canonical_id || node.module_id || node.id;
-    const candidates = node.role
-      ? (truthByRole.get(templateBindingKey(node)) || []).filter((candidate) => !used.has(candidate.id))
-      : (truthByPath.get(canonicalModulePath(templateId)) || []).filter((candidate) => !used.has(candidate.id));
+    const seen = new Set();
+    const candidates = [];
+    for (const key of pathBindKeys(templateId)) {
+      for (const candidate of truthByPath.get(key) || []) {
+        if (used.has(candidate.id) || seen.has(candidate.id)) continue;
+        seen.add(candidate.id);
+        candidates.push(candidate);
+      }
+    }
     if (candidates.length > 1) {
       ambiguous.push({ template: templateId, candidates: candidates.map((candidate) => candidate.canonical_id || candidate.id) });
       return node;
@@ -207,7 +210,7 @@ export function appendGraphGaps(graph, skeleton, usedTruthIds) {
   return { ...graph, nodes, edges };
 }
 
-export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, canonicalArchitecture, modelType }) {
+export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, architecture }) {
   // 离线证据文件形态：truth.skeleton 是**已折叠**的 SkeletonNode（由
   // fetch-evidence --headers 从 safetensors 头部构建后入库，K3 原始张量
   // 表 59.7MB 折叠后小几个数量级，符合「仅轻量元数据入库」纪律）。
@@ -220,7 +223,7 @@ export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, cano
       if (root) {
         root.canonical_id = "skeleton";
         root.module_id = "skeleton";
-        root.name = modelName || canonicalArchitecture || "Model";
+        root.name = modelName || architecture || "Model";
         root.type = "model";
       }
       return {
@@ -228,7 +231,7 @@ export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, cano
         diagnostics: { strategy: "skeleton-truth-file", total_tensors: truth.tensor_count ?? null, parameter_total: truth.parameterTotal ?? null },
       };
     }
-    const bound = bindTruthToGraph(graph, truthGraph, { modelType });
+    const bound = bindTruthToGraph(graph, truthGraph);
     const enrichedGraph = appendGraphGaps(bound.graph, truth.skeleton, bound.diagnostics.graph_truth_used_ids);
     return {
       graph: enrichedGraph,
@@ -251,7 +254,7 @@ export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, cano
     if (root) {
       root.canonical_id = "skeleton";
       root.module_id = "skeleton";
-      root.name = modelName || canonicalArchitecture || "Model";
+      root.name = modelName || architecture || "Model";
       root.type = "model";
     }
     return {
@@ -259,7 +262,7 @@ export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, cano
       diagnostics: { strategy: "skeleton-truth", total_tensors: truth.tensors.length, parameter_total: truth.parameterTotal ?? null },
     };
   }
-  const bound = bindTruthToGraph(graph, truthGraph, { modelType });
+  const bound = bindTruthToGraph(graph, truthGraph);
   const enrichedGraph = appendGraphGaps(bound.graph, skeleton, bound.diagnostics.graph_truth_used_ids);
   return {
     graph: enrichedGraph,

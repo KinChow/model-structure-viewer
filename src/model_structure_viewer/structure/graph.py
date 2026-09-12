@@ -17,6 +17,7 @@ class GraphDraft:
     nodes: list[StructureGraphNode] = field(default_factory=list)
     edges: list[StructureGraphEdge] = field(default_factory=list)
     root_id: str = "root"
+    _nodes_by_id: dict[str, StructureGraphNode] = field(default_factory=dict, repr=False)
 
     def add_node(
         self,
@@ -39,7 +40,7 @@ class GraphDraft:
         value_source: str | None = None,
         tensor_names: list[str] | None = None,
     ) -> None:
-        self.nodes.append(StructureGraphNode(
+        node = StructureGraphNode(
             id=node_id,
             canonical_id=canonical_id,
             module_id=canonical_id,
@@ -58,16 +59,28 @@ class GraphDraft:
             output_shape=output_shape,
             value_source=value_source,
             tensor_names=tensor_names,
-        ))
+        )
+        self.nodes.append(node)
+        self._nodes_by_id[node_id] = node
+
+    def replace_node(self, node_id: str, node: StructureGraphNode) -> None:
+        """Keep nodes and the O(1) index in sync after in-place fold marks."""
+        self._nodes_by_id[node_id] = node
+        for index, existing in enumerate(self.nodes):
+            if existing.id == node_id:
+                self.nodes[index] = node
+                return
+        self.nodes.append(node)
 
     def add_dataflow(self, source: str, target: str, *, evidence: str = "module-order") -> None:
-        by_id = {node.id: node for node in self.nodes}
+        source_node = self._nodes_by_id.get(source)
+        target_node = self._nodes_by_id.get(target)
         self.edges.append(StructureGraphEdge(
             id=f"{source}~{target}",
             source=source,
             target=target,
-            source_canonical_id=(by_id.get(source).canonical_id if source in by_id else None),
-            target_canonical_id=(by_id.get(target).canonical_id if target in by_id else None),
+            source_canonical_id=(source_node.canonical_id if source_node is not None else None),
+            target_canonical_id=(target_node.canonical_id if target_node is not None else None),
             evidence=evidence,
         ))
 

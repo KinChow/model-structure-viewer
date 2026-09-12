@@ -87,31 +87,13 @@ export function quantLinearWeightBytes({ out, inn, quant }) {
  * dynamic 的 key 不带 "-:" 前缀 = 显式量化的模块，"-:" 前缀 = 排除的正则，
  * 后出现的声明覆盖先出现的。
  *
- * 模式是对 **checkpoint 权重前缀**写的，与 msv 的树 id 命名存在已知差异
- * （checkpoint 叫 model.language_model.embed_tokens / model.visual，树 id 是
- * embed_tokens / vision_tower）。桥接分两类，规则各只有一份：
- * - **字面路径** pattern（不含正则元字符）复用 checkpoint 真值绑定既有用的
- *   `canonicalModulePath`（剥 model/language_model 包装、layers→decoder、
- *   visual/vision→vision_tower）。注意不能对正则片段套它 —— 它的
- *   filter(Boolean) 会把 ".*attn.*" 的前导空段吃掉、产出非法正则 "*attn.*"。
- * - **正则片段**（"-:.*attn.*" 这类）原样通过；其中 visual/mtp 等中段名与
- *   树 id 的差异由 path 侧的 checkpoint 命名候选桥接（vision_tower→visual）。
+ * 字面路径 pattern 剥 HF 根包装 model. / language_model. 后再匹配树 id。
+ * 图 id 已是 HF `_modules` 名（visual / vision_tower），不再做中段别名桥接。
  */
 const LITERAL_PATH = /^[A-Za-z0-9_.\-]+$/;
 
-/**
- * 树 id → checkpoint 命名的反向候选（canonicalModulePath 逆映射的最小子集）：
- * checkpoint 把视觉塔叫 model.visual，树 id 是 vision_tower。
- */
 function pathCandidates(path) {
-  const candidates = [path];
-  if (path.includes("vision_tower")) {
-    // 两种 checkpoint 命名都要接得住：Qwen3.5 的 model.visual.*（字面路径
-    // pattern 带 model. 前缀）与中段正则 ..*visual.*（不带前缀）
-    candidates.push(path.replaceAll("vision_tower", "visual"));
-    candidates.push(path.replaceAll("vision_tower", "model.visual"));
-  }
-  return candidates;
+  return [path];
 }
 
 export function isQuantizedPath(path, quant) {

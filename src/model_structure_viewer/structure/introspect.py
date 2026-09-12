@@ -9,6 +9,7 @@ from typing import Any
 from ..errors import IntrospectionError
 from ..schemas import ModelStructure
 from . import semantics
+from .fold import _weight_shapes_key
 from .graph import GraphDraft, collapse_graph
 from .keys import make_extra_config
 from .repair.runtime import ConfigNormalizer, RuntimePatch
@@ -44,12 +45,15 @@ def build_from_meta_model(
 
         try:
             with init_empty_weights():
+                # Keep True here: V3.1/K2.5 auto_map AutoModel to Hub modeling
+                # (ModuleList of experts). Config loading already skipped catalog
+                # copies of in-tree files; the model class still comes from auto_map.
                 model = AutoModel.from_config(hf_config, trust_remote_code=True)
         except Exception as exc:  # noqa: BLE001  - third-party can raise anything
             _LOG.info("AutoModel.from_config failed for %s: %s", config.get("model_type"), exc)
             raise IntrospectionError(f"AutoModel.from_config failed: {exc}") from exc
 
-    graph = _build_graph_draft(model).finalize()
+    graph = _build_graph_draft(model, collapse_repeated=collapse_repeated).finalize()
     if collapse_repeated:
         graph = collapse_graph(graph)
 
@@ -86,6 +90,36 @@ def _import_introspection_deps() -> tuple[Any, Any, Any]:
     return AutoConfig, AutoModel, init_empty_weights
 
 
+def _auto_map_dict(config: Any) -> dict[str, Any]:
+    raw = config.get("auto_map") if isinstance(config, dict) else getattr(config, "auto_map", None)
+    return raw if isinstance(raw, dict) else {}
+
+
+def _trust_remote_code_for_config(config: Any) -> bool:
+    """Prefer in-tree AutoConfig unless the checkpoint ships a paired remote model.
+
+    MiniMax-M3: ``auto_map`` only lists AutoConfig, and the catalog file is a
+    generated ``from ...modeling_rope_utils`` copy. transformers CONFIG_MAPPING
+    already has ``minimax_m3_vl`` — do not execute that copy.
+
+    DeepSeek-V3 / Kimi-K2: ``auto_map`` pairs AutoConfig with AutoModel
+    (Hub ``modeling_deepseek.py`` still reads ``config.rope_theta``). The
+    in-tree ``DeepseekV3Config`` dropped that attribute, so config and model
+    must come from the same remote files.
+    """
+    auto_map = _auto_map_dict(config)
+    if auto_map.get("AutoConfig") and auto_map.get("AutoModel"):
+        return True
+    model_type = config.get("model_type") if isinstance(config, dict) else getattr(config, "model_type", None)
+    if not model_type:
+        return bool(auto_map)
+    try:
+        from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    except ImportError:
+        return True
+    return model_type not in CONFIG_MAPPING
+
+
 def _load_config(
     AutoConfig: Any,
     config: dict[str, Any],
@@ -95,7 +129,10 @@ def _load_config(
 ) -> Any:
     if local_dir is not None and (local_dir / "config.json").exists():
         try:
-            hf_config = AutoConfig.from_pretrained(str(local_dir), trust_remote_code=True)
+            hf_config = AutoConfig.from_pretrained(
+                str(local_dir),
+                trust_remote_code=_trust_remote_code_for_config(config),
+            )
             _apply_config_overrides(hf_config, config_overrides)
             return hf_config
         except Exception as exc:  # noqa: BLE001
@@ -130,7 +167,45 @@ def _apply_config_normalizer(
     return config_normalizer.normalize(hf_config)
 
 
-def _build_graph_draft(module: Any) -> GraphDraft:
+def _immediate_child_classes(module: Any) -> tuple[str, ...]:
+    children = getattr(module, "_modules", None)
+    if isinstance(children, dict):
+        return tuple(type(child).__name__ for child in children.values() if child is not None)
+    return tuple(type(child).__name__ for _, child in module.named_children())
+
+
+def _module_iso_key(module: Any) -> tuple:
+    """Own class + own weight shapes + immediate child classes.
+
+    DeepSeek-V3 remote MoE is 256 identical DeepseekV3MLP under one ModuleList:
+    experts share class and child layout, so one representative is enough.
+    Decoder layers that swap MLP for MoE differ in child class names
+    (DeepseekV3MLP vs DeepseekV3MoE). Read ``_modules`` so comparing a decoder
+    layer does not recursively enter the expert ModuleList.
+    """
+    metadata = _direct_parameter_metadata(module, "")
+    return (type(module).__name__, _weight_shapes_key(metadata.get("weight_shapes")), _immediate_child_classes(module))
+
+
+def _mark_repeated_group(draft: GraphDraft, node_id: str, *, repeat: int, range_label: str, group_index: int) -> None:
+    """Match fold.collapse consecutive-group output so a second collapse is a no-op."""
+    node = draft._nodes_by_id[node_id]
+    attributes = dict(node.attributes)
+    attributes["range"] = range_label
+    attributes.pop("source_ref", None)
+    canonical = f"{node.canonical_id}.group{group_index}"
+    updated = node.model_copy(update={
+        "type": "layer-group",
+        "repeat": repeat,
+        "name": f"{node.name} x{repeat}",
+        "attributes": attributes,
+        "canonical_id": canonical,
+        "module_id": canonical,
+    })
+    draft.replace_node(node_id, updated)
+
+
+def _build_graph_draft(module: Any, *, collapse_repeated: bool = True) -> GraphDraft:
     draft = GraphDraft()
 
     def visit(current: Any, *, attribute_name: str, path: str, parent_id: str | None, order: int) -> None:
@@ -154,11 +229,40 @@ def _build_graph_draft(module: Any) -> GraphDraft:
             confidence="high",
             **metadata,
         )
+        named = list(current.named_children())
         child_paths: list[str] = []
-        for child_order, (name, child) in enumerate(current.named_children()):
-            child_path = f"{path}.{name}" if name else path
-            child_paths.append(child_path)
-            visit(child, attribute_name=name, path=child_path, parent_id=path, order=child_order)
+        if collapse_repeated and node_type == "module-list" and named:
+            index = 0
+            group_index = 0
+            emitted_order = 0
+            while index < len(named):
+                name, child = named[index]
+                key = _module_iso_key(child)
+                end = index + 1
+                while end < len(named) and _module_iso_key(named[end][1]) == key:
+                    end += 1
+                child_path = f"{path}.{name}" if name else path
+                child_paths.append(child_path)
+                visit(child, attribute_name=name, path=child_path, parent_id=path, order=emitted_order)
+                run = end - index
+                if run > 1:
+                    last_name = named[end - 1][0]
+                    range_label = f"{name}..{last_name}" if name != last_name else name
+                    _mark_repeated_group(
+                        draft,
+                        child_path,
+                        repeat=run,
+                        range_label=range_label,
+                        group_index=group_index,
+                    )
+                index = end
+                group_index += 1
+                emitted_order += 1
+        else:
+            for child_order, (name, child) in enumerate(named):
+                child_path = f"{path}.{name}" if name else path
+                child_paths.append(child_path)
+                visit(child, attribute_name=name, path=child_path, parent_id=path, order=child_order)
         for source, target in zip(child_paths, child_paths[1:]):
             draft.add_dataflow(source, target)
 

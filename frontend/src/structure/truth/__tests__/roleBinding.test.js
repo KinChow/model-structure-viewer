@@ -1,13 +1,11 @@
-// W3-B2 验收：role 连接键绑定 + §4.6 可逆校验 + ambiguous=0。
+// checkpoint 按模块路径绑定：剥 HF 根包装 model. / language_model. 后相等匹配。
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildSkeleton } from "../skeleton.js";
-import { bindTruthToGraph, skeletonTruthGraph } from "../graphTruth.js";
-import { suffixesForRole } from "../../archs/index.js";
+import { bindTruthToGraph, canonicalModulePath, skeletonTruthGraph } from "../graphTruth.js";
 
 const T = (name, dtype = "BF16", shape) => ({ name, dtype, shape });
 
-// materializeStructureGraph 的极简替身：只保留绑定所需字段（role/canonical_id）。
 function graphFromSpecs(nodes) {
   return {
     version: 2,
@@ -21,7 +19,6 @@ function graphFromSpecs(nodes) {
       order: index,
       name: node.id,
       type: node.type ?? "operator",
-      role: node.role ?? null,
       repeat: null,
       attributes: {},
       source_fields: [],
@@ -38,122 +35,69 @@ function graphFromSpecs(nodes) {
   };
 }
 
-function truthGraphFrom(tensorNames, modelType) {
+function truthGraphFrom(tensorNames) {
   const tensors = tensorNames.map((name) => T(name, "BF16", [4, 4]));
   return skeletonTruthGraph(buildSkeleton(tensors));
 }
 
-test("role 绑定：标准 dense（投影+norm+embed/lm_head）全命中且 ambiguous=0", () => {
+test("canonicalModulePath 只剥 HF 根包装，不改 layers/visual", () => {
+  assert.equal(canonicalModulePath("model.layers.0.self_attn.q_proj"), "layers.0.self_attn.q_proj");
+  assert.equal(canonicalModulePath("language_model.norm"), "norm");
+  assert.equal(canonicalModulePath("model.visual.patch_embed"), "visual.patch_embed");
+  assert.equal(canonicalModulePath("embed_tokens"), "embed_tokens");
+});
+
+test("路径绑定：layers 图 id 与 checkpoint layers 剥包装后相等", () => {
   const template = graphFromSpecs([
-    { id: "embed_tokens", type: "embedding", role: "token_embd" },
-    { id: "decoder.0.self_attn.q_proj", role: "attn_q" },
-    { id: "decoder.0.self_attn.k_proj", role: "attn_k" },
-    { id: "decoder.0.self_attn.v_proj", role: "attn_v" },
-    { id: "decoder.0.self_attn.o_proj", role: "attn_out" },
-    { id: "decoder.0.input_layernorm", type: "normalization", role: "attn_norm" },
-    { id: "decoder.0.mlp.gate_proj", role: "ffn_gate" },
-    { id: "decoder.0.mlp.down_proj", role: "ffn_down" },
-    { id: "decoder.1.self_attn.q_proj", role: "attn_q" },
-    { id: "norm", type: "normalization", role: "output_norm" },
-    { id: "lm_head", type: "output", role: "output" },
+    { id: "embed_tokens", type: "embedding" },
+    { id: "layers.0.self_attn.q_proj" },
+    { id: "layers.0.mlp.gate_proj" },
+    { id: "layers.1.self_attn.q_proj" },
+    { id: "norm", type: "normalization" },
+    { id: "lm_head", type: "output" },
   ]);
   const truth = truthGraphFrom([
     "model.embed_tokens.weight",
     "model.layers.0.self_attn.q_proj.weight",
-    "model.layers.0.self_attn.k_proj.weight",
-    "model.layers.0.self_attn.v_proj.weight",
-    "model.layers.0.self_attn.o_proj.weight",
-    "model.layers.0.input_layernorm.weight",
     "model.layers.0.mlp.gate_proj.weight",
-    "model.layers.0.mlp.down_proj.weight",
     "model.layers.1.self_attn.q_proj.weight",
     "model.norm.weight",
     "lm_head.weight",
   ]);
-  const { graph, diagnostics } = bindTruthToGraph(template, truth, { modelType: "qwen3" });
+  const { graph, diagnostics } = bindTruthToGraph(template, truth);
   assert.deepEqual(diagnostics.graph_ambiguous_truth_matches, []);
   const bound = graph.nodes.filter((node) => node.value_source === "checkpoint");
-  assert.equal(bound.length, 11, "11 个模板节点应全部绑定");
-  // 层号必须参与连接：layer0 的 q 不得绑到 layer1 的真值
-  const q0 = bound.find((node) => node.canonical_id === "decoder.0.self_attn.q_proj");
+  assert.equal(bound.length, 6);
+  const q0 = bound.find((node) => node.canonical_id === "layers.0.self_attn.q_proj");
   assert.equal(q0.tensor_names[0], "model.layers.0.self_attn.q_proj.weight");
-  const q1 = bound.find((node) => node.canonical_id === "decoder.1.self_attn.q_proj");
+  const q1 = bound.find((node) => node.canonical_id === "layers.1.self_attn.q_proj");
   assert.equal(q1.tensor_names[0], "model.layers.1.self_attn.q_proj.weight");
 });
 
-test("role 绑定：MoE shared expert 走 shexp 作用域，与 routed 专家不混淆", () => {
+test("路径绑定：shared_experts 与 routed experts 靠路径区分", () => {
   const template = graphFromSpecs([
-    { id: "decoder.3.moe.router", role: "ffn_gate_inp" },
-    { id: "decoder.3.moe.shared_experts.gate_proj", role: "ffn_gate_shexp" },
-    { id: "decoder.3.moe.shared_experts.down_proj", role: "ffn_down_shexp" },
+    { id: "layers.3.mlp.router" },
+    { id: "layers.3.mlp.shared_experts.gate_proj" },
+    { id: "layers.3.mlp.shared_experts.down_proj" },
   ]);
   const truth = truthGraphFrom([
-    "model.layers.3.moe.router.weight",
-    "model.layers.3.moe.shared_experts.gate_proj.weight",
-    "model.layers.3.moe.shared_experts.down_proj.weight",
-    "model.layers.3.moe.experts.0.gate_proj.weight",
-    "model.layers.3.moe.experts.1.gate_proj.weight",
+    "model.layers.3.mlp.router.weight",
+    "model.layers.3.mlp.shared_experts.gate_proj.weight",
+    "model.layers.3.mlp.shared_experts.down_proj.weight",
+    "model.layers.3.mlp.experts.0.gate_proj.weight",
+    "model.layers.3.mlp.experts.1.gate_proj.weight",
   ]);
-  const { graph, diagnostics } = bindTruthToGraph(template, truth, { modelType: "deepseek_v3" });
-  assert.deepEqual(diagnostics.graph_ambiguous_truth_matches, [], "逐专家模块不得进入 role 连接");
+  const { graph, diagnostics } = bindTruthToGraph(template, truth);
+  assert.deepEqual(diagnostics.graph_ambiguous_truth_matches, []);
   const bound = graph.nodes.filter((node) => node.value_source === "checkpoint");
   assert.equal(bound.length, 3);
-  // 逐专家张量既不绑定也不消失 → 记入 gaps
   assert.ok(diagnostics.graph_truth_gaps.some((id) => id.includes("experts")));
 });
 
-test("role 绑定：fused qkv 与融合模板节点按 role 命中", () => {
-  const template = graphFromSpecs([
-    { id: "decoder.0.self_attn.qkv_gate_proj", role: "attn_qkv" },
-  ]);
-  const truth = truthGraphFrom(["model.layers.0.self_attn.qkv_gate_proj.weight"]);
-  const { graph, diagnostics } = bindTruthToGraph(template, truth, { modelType: "qwen3_5" });
-  assert.deepEqual(diagnostics.graph_ambiguous_truth_matches, []);
-  assert.equal(graph.nodes.filter((node) => node.value_source === "checkpoint").length, 1);
-});
-
-test("§4.6 可逆校验：每个绑定都满足 真值后缀 ∈ role 的逆像", () => {
-  const template = graphFromSpecs([
-    { id: "decoder.0.self_attn.q_proj", role: "attn_q" },
-    { id: "decoder.0.self_attn.o_proj", role: "attn_out" },
-    { id: "decoder.0.mlp.gate_proj", role: "ffn_gate" },
-  ]);
-  const truthNames = [
-    "model.layers.0.self_attn.q_proj.weight",
-    "model.layers.0.self_attn.o_proj.weight",
-    "model.layers.0.mlp.gate_proj.weight",
-  ];
-  const truth = truthGraphFrom(truthNames);
-  const { graph, diagnostics } = bindTruthToGraph(template, truth, { modelType: "qwen3" });
-  assert.deepEqual(diagnostics.graph_ambiguous_truth_matches, []);
-  for (const node of graph.nodes.filter((n) => n.value_source === "checkpoint")) {
-    const tensor = node.tensor_names[0];
-    const suffix = tensor.split(".").at(-2);
-    const legal = suffixesForRole(node.role);
-    assert.ok(legal.includes(suffix), `${node.canonical_id}(${node.role}) 绑到了非法后缀 ${suffix}，合法：${legal}`);
-  }
-});
-
-test("W3-B vision：vision 后缀词表绑定（CLIP/Qwen 双命名）", () => {
-  const template = graphFromSpecs([
-    { id: "vision_tower.patch_embed", role: "vision_patch_embd" },
-    { id: "vision_tower.0.qkv_proj", role: "attn_qkv" },
-    { id: "vision_tower.0.fc1", role: "vision_ffn_up" },
-    { id: "vision_tower.0.fc2", role: "vision_ffn_down" },
-    { id: "vision_tower.merger.fc1", role: "vision_ffn_up" },
-  ]);
-  // checkpoint 侧：Qwen 系（visual.*）与 CLIP 系（vision_tower.*）两种前缀
-  const truth = truthGraphFrom([
-    "model.visual.patch_embed.weight",
-    "model.visual.blocks.0.attn.qkv.weight",
-    "model.visual.blocks.0.mlp.fc1.weight",
-    "model.visual.blocks.0.mlp.fc2.weight",
-    "model.visual.merger.fc1.weight",
-  ]);
-  const { graph, diagnostics } = bindTruthToGraph(template, truth, { modelType: "qwen3_5" });
-  assert.deepEqual(diagnostics.graph_ambiguous_truth_matches, []);
-  const bound = graph.nodes.filter((node) => node.value_source === "checkpoint");
-  assert.equal(bound.length, 5, "vision 叶子全绑定");
-  const fc1 = bound.find((node) => node.canonical_id === "vision_tower.0.fc1");
-  assert.equal(fc1.tensor_names[0], "model.visual.blocks.0.mlp.fc1.weight");
+test("路径绑定：非候选的不同名不绑", () => {
+  const template = graphFromSpecs([{ id: "layers.0.self_attn.q_proj" }]);
+  const truth = truthGraphFrom(["model.blocks.0.self_attn.q_proj.weight"]);
+  const { graph, diagnostics } = bindTruthToGraph(template, truth);
+  assert.equal(graph.nodes.filter((node) => node.value_source === "checkpoint").length, 0);
+  assert.equal(diagnostics.graph_truth_gaps.length, 1);
 });

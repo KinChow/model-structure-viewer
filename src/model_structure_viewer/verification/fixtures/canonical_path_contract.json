@@ -8,11 +8,11 @@
     "（introspect 的原始 module path），frontend 侧来自前端模板 Graph 节点的 canonical_id。",
     "两侧路径 resolver 各自独立实现；样例锁定『同一路径对规范化后必须同键』。",
     "样例来源：Qwen/Qwen3.5-0.8B（多模态 + 混合线性注意力，覆盖 wrapper 剥离 /",
-    "首段别名 / 实例索引与折叠伪段三类规则）。",
+    "实例索引与折叠伪段）。图节点身份 = HF _modules 路径，不再把 layers 改写成 decoder。",
     "前端 canonical 词汇或后端折叠行为变化时，先更新样例、双方各自改实现，",
-    "对样单测即契约谈判桌。已知不桥接的命名分歧（如后端 linear_attn ↔ 前端",
-    "self_attn、norm1 ↔ input_norm）故意不入样例——它们应作为对账 diff 的真实信号浮出，",
-    "而不是被规范化规则静默吞掉。"
+    "对样单测即契约谈判桌。已知不桥接的命名分歧（如 vision norm1 ↔ input_norm）",
+    "故意不入样例——它们应作为对账 diff 的真实信号浮出，而不是被规范化规则静默吞掉。",
+    "Qwen GDN 层的 HF 属性名是 linear_attn，full 层是 self_attn；前端模板按层跟随，不再改名。"
   ],
   "pairs": [
     {
@@ -22,32 +22,37 @@
     },
     {
       "backend": "root.language_model.layers.3",
-      "frontend": "decoder.3",
-      "note": "layers→decoder 首段别名 + 实例索引折叠"
+      "frontend": "layers.3",
+      "note": "HF ModuleList 名 layers；实例索引折叠"
+    },
+    {
+      "backend": "root.language_model.layers.0.linear_attn",
+      "frontend": "layers.0.linear_attn",
+      "note": "Qwen GDN 层 HF 属性名 linear_attn（transformers/vLLM/SGLang 同槽）"
     },
     {
       "backend": "root.language_model.layers.3.self_attn",
-      "frontend": "decoder.3.self_attn",
-      "note": "同名子树"
+      "frontend": "layers.3.self_attn",
+      "note": "full attention 层 HF 属性名 self_attn"
     },
     {
       "backend": "root.language_model.layers.3.self_attn.o_proj",
-      "frontend": "decoder.3.self_attn.o_proj",
+      "frontend": "layers.3.self_attn.o_proj",
       "note": "算子级叶子"
     },
     {
       "backend": "root.language_model.layers.3.input_layernorm",
-      "frontend": "decoder.3.input_layernorm",
+      "frontend": "layers.3.input_layernorm",
       "note": "层内 norm"
     },
     {
       "backend": "root.language_model.layers.3.mlp",
-      "frontend": "decoder.3.mlp",
+      "frontend": "layers.3.mlp",
       "note": "mlp 容器"
     },
     {
       "backend": "root.language_model.layers.0.mlp.gate_proj",
-      "frontend": "decoder.0.mlp.gate_proj",
+      "frontend": "layers.0.mlp.gate_proj",
       "note": "线性注意力层(0)的 mlp 叶子"
     },
     {
@@ -57,17 +62,17 @@
     },
     {
       "backend": "root.visual.patch_embed",
-      "frontend": "vision_tower.patch_embed",
-      "note": "visual→vision_tower 别名"
+      "frontend": "visual.patch_embed",
+      "note": "Qwen VL 视觉塔 HF 属性名 visual"
     },
     {
       "backend": "root.visual.merger",
-      "frontend": "vision_tower.merger",
+      "frontend": "visual.merger",
       "note": "视觉 merger"
     },
     {
       "backend": "root.language_model.layers.0.group0.pattern0",
-      "frontend": "decoder",
+      "frontend": "layers",
       "note": "后端折叠伪段(groupN/patternN) ↔ 前端模板栈节点"
     }
   ],
@@ -81,13 +86,7 @@
       "fold_frontend_suffix（前端两级 norm 粒度上提，HF MergeModulelist 反向同款）、",
       "known_divergences（ignore-list：逐条带出处的真粒度/构造差异，显式列出≠静默吞）。"
     ],
-    "renaming": [
-      {
-        "backend": "linear_attn",
-        "frontend": "self_attn",
-        "source": "Qwen3.5 GDA 层：modeling_kimi_linear.py KimiSparseMoeBlock 的 linear_attn 模块在前端模板栈叫 self_attn（decoder.0 是 linear-attention 层）"
-      }
-    ],
+    "renaming": [],
     "fold_frontend_suffixes": [
       "rmsnorm"
     ],
@@ -103,35 +102,35 @@
         "source": "models/Qwen/Qwen3.5-0.8B/config.json tie_word_embeddings"
       },
       {
-        "pattern": "^decoder\\.self_attn\\.(in_proj_(qkv|z|a|b)|conv1d|norm|q_proj|k_proj|v_proj)$",
+        "pattern": "^layers\\.(linear_attn|self_attn)\\.(in_proj_(qkv|z|a|b)|conv1d|norm|q_proj|k_proj|v_proj)$",
         "apply_to": [
           "only_transformers"
         ],
-        "reason": "GDA 后端 in_proj_* 组 + MLA 层独立 q/k/v/v_proj ↔ 前端融合叶（qkv_gate_proj），同源不同拆法",
-        "source": "modeling_kimi_linear.py:760-800 vs 前端 hybrid.js GDA 模板"
+        "reason": "GDA 后端 in_proj_* 组 + full 层独立 q/k/v ↔ 前端融合叶，同源不同拆法",
+        "source": "transformers modeling_qwen3_5.py Qwen3_5GatedDeltaNet vs 前端 ops GDA 模板"
       },
       {
-        "pattern": "^decoder\\.self_attn\\.(qkv_projection|qkv_gate_proj|qkv_gate_split|beta_projection|decay_projection|output_gate_norm|output_gate|short_conv|state_update)$",
+        "pattern": "^layers\\.(linear_attn|self_attn)\\.(qkv_proj|qkv_projection|qkv_gate_proj|qkv_gate_split|beta_projection|decay_projection|output_gate_norm|output_gate|short_conv|state_update)$",
         "apply_to": [
           "only_msv"
         ],
-        "reason": "前端融合/拆分叶粒度（GDA）",
-        "source": "前端 hybrid.js GDA 模板"
+        "reason": "前端融合/拆分叶粒度（GDA / Qwen3.5 full gate）",
+        "source": "前端 ops/index.js GDA 与 qwen35Full 模板"
       },
       {
-        "pattern": "^vision_tower($|\\.)",
+        "pattern": "^(visual|vision_tower)($|\\.)",
         "reason": "vision 层级粒度：后端 blocks.N.attn/mlp 容器层级 ↔ 前端扁平模板（qkv_proj/fc1/fc2/merger.*）；class 命名 Qwen3_5* 系",
         "source": "后端 introspect blocks 层级 vs 前端 vision.js 模板"
       },
       {
-        "pattern": "^decoder\\.(input|post_attention)_layernorm$|^norm$|^decoder\\.self_attn\\.(q|k)_norm$",
+        "pattern": "^layers\\.(input|post_attention)_layernorm$|^norm$|^layers\\.(linear_attn|self_attn)\\.(q|k)_norm$",
         "reason": "两级 norm 粒度：前端 norm 容器 + rmsnorm 算子叶 ↔ 后端单级 Qwen3_5RMSNorm 模块（fold_frontend_suffixes 上提后 class 后缀容忍收敛）",
         "source": "P4 norm 声明（replicated 组）+ 后缀容忍同款 transformers architectures 后缀剥离"
       },
       {
-        "pattern": "^decoder\\.self_attn$",
-        "reason": "混合层实例折叠 artifact：Qwen3.5 层 0 是 GDA（后端 linear_attn）+ 层 3+ 是 MLA（后端 self_attn），实例索引折叠后同键取首见 class，混合类不可比",
-        "source": "modeling_kimi_linear.py 混合层调度"
+        "pattern": "^layers\\.self_attn$",
+        "reason": "K3/GLM 混合层两边都叫 self_attn：折叠后同键取首见 class，Delta/MLA 或 Linear/TextAttention 不可比。Qwen 已按 HF 属性拆成 linear_attn vs self_attn，不再走这条。",
+        "source": "Kimi modeling_kimi_linear.py:885 / GLM modeling_glm5_next.py:1267 两侧属性名均为 self_attn"
       },
       {
         "pattern": "^rotary_emb$",
@@ -139,7 +138,7 @@
         "source": "Qwen3_5 模型顶层 rotary_emb"
       },
       {
-        "pattern": "^(decoder\\.mlp|decoder\\.self_attn)\\.act_fn$|act_fn$",
+        "pattern": "^(layers\\.mlp|layers\\.(linear_attn|self_attn))\\.act_fn$|act_fn$",
         "reason": "backend 把激活函数当 nn.Module（act_fn），前端是算子叶（swiglu，无声明已 drop）",
         "source": "torch nn.SiLU 模块化 vs 前端算子建模"
       }

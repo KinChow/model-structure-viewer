@@ -1,7 +1,7 @@
 // compute.js —— 成本主链（W5-1 切换）：查 FORMULAS counts 注册表（§3.1）。
-// 旧 nodeMacs 分派链已删除；公式唯一来源是 structure/formulas/（含 20 处
+// 旧 nodeMacs 分派链已删除；公式唯一来源是 structure/operators/formulas/（含 20 处
 // legacy 镜像同步删除）。芯片参数不得进入本文件（§3.4，ERT 分离见 W5-2）。
-import { countsForNode } from "../structure/formulas/extractor.js";
+import { countsForNode } from "../structure/operators/formulas/extractor.js";
 import { nodeWeightBytes } from "./memory.js";
 import { walkStructure } from "./traverse.js";
 function countsFor(node, config, options = {}) {

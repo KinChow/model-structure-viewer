@@ -13,16 +13,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeConfig } from "../frontend/src/structure/config/normalize.js";
 import { resolveArchitecture } from "../frontend/src/structure/registry/resolveArchitecture.js";
-import { buildNetwork } from "../frontend/src/structure/model_executor/models/index.js";
+import { buildNetwork } from "../frontend/src/structure/models/index.js";
 import { createStructureIr } from "../frontend/src/structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../frontend/src/structure/materializers/modelStructure.js";
 import { graphRoot } from "../frontend/src/structure/graph/selectors.js";
-import { FORMULAS } from "../frontend/src/structure/formulas/index.js";
-import { MODULES, DECOMPOSE_PENDING } from "../frontend/src/structure/formulas/modules.js";
-import { OPERATOR_TO_MODULE, moduleParamsFor } from "../frontend/src/structure/formulas/moduleProbeParams.js";
-import { evaluateDecomposition } from "../frontend/src/structure/formulas/atoms.js";
+import { FORMULAS } from "../frontend/src/structure/operators/formulas/index.js";
+import { MODULES, DECOMPOSE_PENDING } from "../frontend/src/structure/operators/formulas/modules.js";
+import { OPERATOR_TO_MODULE, moduleParamsFor } from "../frontend/src/structure/operators/formulas/moduleProbeParams.js";
+import { evaluateDecomposition } from "../frontend/src/structure/operators/formulas/atoms.js";
 import { classifyRoofline } from "../frontend/src/cost/roofline.js";
-import { countsForNode } from "../frontend/src/structure/formulas/extractor.js";
+import { countsForNode, isVisionPath } from "../frontend/src/structure/operators/formulas/extractor.js";
 import { childRepeatMultiplier } from "../frontend/src/cost/traverse.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -75,7 +75,7 @@ function walkOrdered(node, visit) {
 
 /**
  * 结构槽位 = 叶子 id 去掉层号与叶名后的路径，例如
- * `decoder.0.self_attn.q_proj` -> `decoder.self_attn`、`mtp.layer.mlp.up_proj` -> `mtp.layer.mlp`。
+ * `layers.0.self_attn.q_proj` -> `layers.self_attn`、`mtp.layer.mlp.up_proj` -> `mtp.layer.mlp`。
  * 这样同一槽位在 59 模型 / 所有层之间可以合并统计。
  */
 function slotPathOf(node) {
@@ -130,7 +130,7 @@ function collectByStructureClass() {
       const row = ops.get(op);
       row.nodes += 1;
       row.instances += multiplier;
-      const inVision = String(node?.id || "").includes("vision");
+      const inVision = isVisionPath(node?.id);
       for (const ph of CLASS_PHASES) {
         const options = inVision
           ? { batch: 1, sequence: normalized.visionTokens || 1, phase: ph.name, vision: true, visionTokens: normalized.visionTokens || 1 }
@@ -227,12 +227,12 @@ function collect() {
       row.instances += multiplier;
       row.matrix = row.matrix || { prefill: 0, decode: 0 };
       row.bytes = row.bytes || { prefill: 0, decode: 0 };
-      // 结构槽位：取叶子 id 里紧邻的父段（self_attn / mlp / moe / vision_tower ...）
+      // 结构槽位：取叶子 id 里紧邻的父段（self_attn / mlp / visual / vision_tower ...）
       const segments = String(node?.id || "").split(".");
       const slot = segments.length >= 2 ? segments[segments.length - 2] : "root";
       row.slots.add(/^\d+$/.test(slot) ? (segments[segments.length - 3] || slot) : slot);
       for (const ph of PHASES) {
-        const inVision = String(node?.id || "").includes("vision");
+        const inVision = isVisionPath(node?.id);
         const options = inVision
           ? { batch: 1, sequence: normalized.visionTokens || 1, phase: ph.name, vision: true, visionTokens: normalized.visionTokens || 1 }
           : { batch: 1, sequence: ph.sequence, phase: ph.name };
@@ -262,7 +262,7 @@ function collect() {
 }
 
 function refOf(op) {
-  const src = fs.readFileSync(path.join(repoRoot, "frontend/src/structure/formulas/index.js"), "utf8");
+  const src = fs.readFileSync(path.join(repoRoot, "frontend/src/structure/operators/formulas/index.js"), "utf8");
   const at = src.indexOf(`\n  ${op}: {`);
   if (at === -1) return "";
   const block = src.slice(at, src.indexOf("\n  },", at));
@@ -330,7 +330,7 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
   // ---- 双向表（生成物）：与手写 §3 的表 A/表 B 同义，但覆盖面由探针保证 ----
   out.push("## 双向表 A（生成物）· 算子 → 结构槽位");
   out.push("");
-  out.push("> 槽位 = 叶子 id 去掉层号与叶名的路径（`decoder.0.self_attn.q_proj` → `decoder.self_attn`）。括号内为节点数。");
+  out.push("> 槽位 = 叶子 id 去掉层号与叶名的路径（`layers.0.self_attn.q_proj` → `layers.self_attn`）。括号内为节点数。");
   out.push("");
   out.push("| 算子 | 槽位（节点数） |");
   out.push("|---|---|");

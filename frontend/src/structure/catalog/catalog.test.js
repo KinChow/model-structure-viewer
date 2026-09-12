@@ -10,7 +10,7 @@ test("normalizes catalog entries for verified built-in models", () => {
         display_name: "DeepSeek V3.1",
         release_time: "2026-01-02T08:00:00Z",
         revision: "abc123",
-        canonical_architecture: "mla-moe-decoder",
+        architectures: ["DeepseekV3ForCausalLM"],
         config_path: "deepseek-ai/DeepSeek-V3.1/config.json",
       },
     ],

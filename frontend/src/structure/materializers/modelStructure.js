@@ -1,4 +1,4 @@
-import { BUILDER_ARCHITECTURES } from "../registry/architectureCatalog.js";
+import { hasModelArchitecture } from "../registry/resolveArchitecture.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 import { enrichGraphWithTruth } from "../truth/graphTruth.js";
 import { bindSourceRefToGraph } from "../source_ref/bindSourceRef.js";
@@ -9,7 +9,6 @@ function structureNodeFromSpec(spec) {
       id: spec.id,
       name: spec.name,
       type: "operator",
-      role: spec.role,
       attributes: {
         class: spec.name,
         operator_id: spec.operatorId,
@@ -32,7 +31,6 @@ function structureNodeFromSpec(spec) {
     id: spec.id,
     name: spec.name,
     type: spec.type,
-    role: spec.role,
     repeat: spec.repeat,
     attributes: spec.attributes || {},
     source_fields: Object.keys(spec.attributes || {}),
@@ -53,7 +51,7 @@ export function materializeModelStructure(ir) {
   const { network, normalized, resolved, options = {}, diagnostics = {} } = ir;
   const truth = options.truth;
 
-  const hasBuilder = BUILDER_ARCHITECTURES.has(resolved?.canonicalArchitecture);
+  const hasBuilder = hasModelArchitecture(resolved?.architecture);
   const truthDiagnostics = truth ? { strategy: "graph-truth" } : { strategy: "no-truth" };
   let mergedDiagnostics = { ...diagnostics, ...truthDiagnostics };
   const effectiveStrategy = truthDiagnostics.strategy === "no-truth" || !truth
@@ -68,10 +66,10 @@ export function materializeModelStructure(ir) {
     attributes: {
       class: network.name,
       model_type: normalized.modelType,
-      canonical_architecture: resolved.canonicalArchitecture,
+      architecture: resolved.architecture || normalized.architecture,
       ...(network.attributes || {}),
     },
-    source_fields: ["model_type", "canonical_architecture"],
+    source_fields: ["model_type", "architecture"],
     confidence: "high",
     children: network.children.map(structureNodeFromSpec),
   };
@@ -79,8 +77,7 @@ export function materializeModelStructure(ir) {
   const graphTruth = enrichGraphWithTruth(graph, truth, {
     hasBuilder,
     modelName: network?.name,
-    canonicalArchitecture: resolved?.canonicalArchitecture,
-    modelType: normalized.modelType,
+    architecture: resolved?.architecture,
   });
   graph = graphTruth.graph;
   const sourceRefBound = bindSourceRefToGraph(graph, options.sourceRef);
@@ -98,7 +95,6 @@ export function materializeModelStructure(ir) {
       model_family: graphRoot?.name || network.name,
       model_type: normalized.modelType,
       architecture: resolved.architecture || normalized.architecture || normalized.modelType,
-      canonical_architecture: resolved.canonicalArchitecture,
       text_layers: normalized.layers,
       vision_layers: normalized.visionLayers,
       vision_hidden_size: normalized.visionHiddenSize,

@@ -26,7 +26,7 @@ function hasVisionConfig(config) {
 
 // ---- 以下 helper 自 normalizeConfig 原样搬迁 ----
 
-function explicitLayerSchedule(config, layers) {
+export function explicitLayerSchedule(config, layers) {
   const mlpLayerTypes = config?.mlp_layer_types;
   if (Array.isArray(mlpLayerTypes) && mlpLayerTypes.length > 0) {
     return mlpLayerTypes.map((kind) => (String(kind).toLowerCase().includes("dense") ? "dense" : "moe"));
@@ -42,7 +42,7 @@ function explicitLayerSchedule(config, layers) {
   return undefined;
 }
 
-function sparseAttentionSchedule(config, layers) {
+export function sparseAttentionSchedule(config, layers) {
   const sparseFreq = config?.sparse_attention_config?.sparse_attention_freq;
   if (!Array.isArray(sparseFreq) || sparseFreq.length === 0) return undefined;
   const schedule = sparseFreq.map((value) => (value ? "sparse" : "gqa"));
@@ -50,7 +50,7 @@ function sparseAttentionSchedule(config, layers) {
   return schedule.concat(Array.from({ length: layers - schedule.length }, () => "gqa"));
 }
 
-function dsaIndexerSchedule(config, layers) {
+export function dsaIndexerSchedule(config, layers) {
   const explicitTypes = config?.indexer_types;
   if (Array.isArray(explicitTypes) && explicitTypes.length > 0) {
     return Array.from({ length: layers || explicitTypes.length }, (_, index) =>
@@ -74,7 +74,7 @@ function attentionKindForLayerType(layerType, useQsa = false) {
   return kind.includes("full") && useQsa ? "qsa" : "gqa";
 }
 
-function explicitAttentionSchedule(config, layers) {
+export function explicitAttentionSchedule(config, layers) {
   // W5：三处原本用 model_type 精确/子串比较，全部换成 config 字段判据 ——
   //   compress_ratios 数组存在        -> DeepSeek V4 压缩/滑窗混合（dsv4）
   //   index_topk + kv_lora_rank 存在  -> DSA over MLA（逐层同 kind）

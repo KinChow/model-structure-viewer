@@ -58,7 +58,7 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
       // out = latent + rope 分量宽（与 ctxBuilder 的无形状回退同口径）。
       return c.kvLoraRank ? { tokens, hidden: c.hiddenSize || 0, out: c.kvLoraRank + (c.qkRopeHeadDim || 0), b } : null;
     case "dsv4_hash_route":
-      // tid2eid 是 buffer（容量走 derivedBufferBytes）；模块只计 gather 流量。
+      // tid2eid 是 buffer（容量走叶 buffer_elements）；模块只计 gather 流量。
       return c.numHashLayers ? { tokens, topk: c.expertsPerToken || 1, b } : null;
     case "vision_position":
     case "vision_activation":

@@ -9,8 +9,7 @@ import ExportTab from "./ExportTab";
 import RawConfigTab from "./RawConfigTab";
 import NodeDetailPanel from "./NodeDetailPanel";
 import { structureStatus } from "../diagnostics";
-import { normalizeConfig } from "../structure/config/normalize.js";
-import { derivedWeightParameters } from "../cost/derivedWeights.js";
+import { graphWeightCapacity } from "../cost/memory.js";
 import { COMPARISON_MODE } from "../diagram/compare.js";
 import { buildNodeLens } from "../diagram/lens.js";
 import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
@@ -31,8 +30,8 @@ function breadcrumbForPath(graph, path) {
 function parameterTotalForStructure(structure) {
   const reported = structure?.summary?.parameters_total;
   if (reported != null) return { value: reported, derived: false };
-  if (!structure?.extra_config) return { value: null, derived: false };
-  const derived = derivedWeightParameters(normalizeConfig(structure.extra_config));
+  if (!structure?.graph) return { value: null, derived: false };
+  const derived = graphWeightCapacity(structure.graph).elements;
   return { value: derived > 0 ? derived : null, derived: derived > 0 };
 }
 

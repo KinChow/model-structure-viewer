@@ -93,7 +93,7 @@ function MsvNode({ data, selected }) {
       <div className="rf-node-badges">
         {node.repeat && <span className="diagram-repeat">×{node.repeat}</span>}
         {node.node?.attributes?.range && <span className="diagram-range">{node.node.attributes.range}</span>}
-        {node.node?.attributes?.formula_id && <span className="diagram-formula">{node.node.attributes.formula_id}</span>}
+        {node.node?.attributes?.operator_id && <span className="diagram-formula">{node.node.attributes.operator_id}</span>}
         {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {english ? (node.node.children.length === 1 ? "child" : "children") : "个子模块"}</span>}
         {/* M11-P1-7：bound=unknown 显式呈现（虚线灰徽标），不再以"不渲染"冒充未开 Lens */}
         {lensEnabled && (activeLenses.has("compute") || activeLenses.has("memory")) && bound && (bound !== "unknown"

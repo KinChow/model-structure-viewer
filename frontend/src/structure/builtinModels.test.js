@@ -9,10 +9,9 @@ import { buildNetwork } from "./models/index.js";
 import { createStructureIr } from "./ir/createStructureIr.js";
 import { materializeModelStructure } from "./materializers/modelStructure.js";
 import { formulaForOperator } from "./operators/formulas/index.js";
-import { derivedWeightParameters } from "../cost/derivedWeights.js";
 import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";
 import { aggregateCost } from "../cost/aggregate.js";
-import { deriveBuildPlan } from "./config/plan.js";
+import { attentionScheduleOf } from "./config/plan.js";
 import { recipeSharedExpertsAreFused } from "./archs/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -54,19 +53,20 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
     for (const node of structure.graph.nodes) {
       if (node.type !== "operator") continue;
       assert.ok(node.attributes.formula, `${entry.model_id}: missing formula for ${node.attributes.operator_id}`);
-      assert.ok(formulaForOperator(node.attributes.formula_id), `${entry.model_id}: unknown formula id ${node.attributes.formula_id}`);
+      assert.ok(formulaForOperator(node.attributes.operator_id), `${entry.model_id}: unknown formula id ${node.attributes.operator_id}`);
       assert.ok(Array.isArray(node.input_shape), `${entry.model_id}: ${node.canonical_id} missing numeric input shape`);
       assert.ok(Array.isArray(node.output_shape), `${entry.model_id}: ${node.canonical_id} missing numeric output shape`);
     }
     const cost = aggregateCost({ graph: structure.graph, config: normalized, phase: "prefill", batch: 1, sequence: 128 });
     assert.equal(cost.computeComplete, true, `${entry.model_id}: ${cost.unknownComputePaths.join(", ")}`);
-    assert.ok(Number.isFinite(derivedWeightParameters(normalized)), `${entry.model_id}: invalid derived weights`);
-    assert.ok(Number.isFinite(kvBytesPerToken(normalized)), `${entry.model_id}: invalid KV cost`);
-    assert.ok(Number.isFinite(linearStateBytesPerSequence(normalized)), `${entry.model_id}: invalid recurrent state cost`);
+    assert.ok(Number.isFinite(cost.memory.weightBytes), `${entry.model_id}: invalid graph weight capacity`);
+    assert.ok(Number.isFinite(kvBytesPerToken(structure.graph)), `${entry.model_id}: invalid KV cost`);
+    assert.ok(Number.isFinite(linearStateBytesPerSequence(structure.graph)), `${entry.model_id}: invalid recurrent state cost`);
     if (entry.model_id === "moonshotai/Kimi-K3") {
       assert.equal(resolved.architecture, "KimiK3ForConditionalGeneration");
-      assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "linear").length, 69);
-      assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "mla").length, 24);
+      const attention = attentionScheduleOf(normalized) || [];
+      assert.deepEqual(attention.filter((kind) => kind === "linear").length, 69);
+      assert.deepEqual(attention.filter((kind) => kind === "mla").length, 24);
       assert.equal(normalized.sharedExperts, 2);
       assert.equal(normalized.attnResBlockSize, 12);
       const nodes = structure.graph.nodes;

@@ -15,7 +15,7 @@ import { MODELS } from "./models/index.js";
 // P7（步骤 7）：legacy structure.root 断言退役——treeView = selectors.graphRoot
 // 的图视图（与生产 layout 同一构造），节点 id / children / attributes 语义不变。
 const treeView = (structure) => graphRoot(structure.graph);
-import { deriveBuildPlan } from "./config/plan.js";
+import { attentionScheduleOf, indexerScheduleOf, layerScheduleOf } from "./config/plan.js";
 import { recipeLinearAttentionMode, recipeNormMode } from "./archs/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -380,8 +380,8 @@ test("maps GLM-5.3-Flash KDA, DSA, and mHC to the published layer layout", () =>
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-5.3-Flash/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
   assert.equal(normalized.headDim, 256);
-  assert.equal(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "linear").length, 34);
-  assert.equal(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.filter((kind) => kind === "qsa").length, 11);
+  assert.equal((attentionScheduleOf(normalized) || []).filter((kind) => kind === "linear").length, 34);
+  assert.equal((attentionScheduleOf(normalized) || []).filter((kind) => kind === "qsa").length, 11);
   assert.equal(normalized.mhcNumResidualStreams, 4);
   assert.equal(normalized.mhcSinkhornIterations, 20);
   assert.equal(normalized.linearLowerBound, -5);
@@ -418,7 +418,7 @@ test("maps GLM-5.3-Flash KDA, DSA, and mHC to the published layer layout", () =>
     "output projection",
   ]);
   const stateUpdate = firstAttention.children.find((node) => node.name === "KDA recurrent state");
-  assert.equal(stateUpdate.attributes.formula_id, "gated_delta_attention");
+  assert.equal(stateUpdate.attributes.operator_id, "gated_delta_attention");
   assert.equal(stateUpdate.attributes.safe_gate, true);
   assert.equal(stateUpdate.attributes.gate_lower_bound, -5);
   const glmProjection = firstAttention.children.find((node) => node.name === "QKV projection");
@@ -494,7 +494,7 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
 test("maps DeepSeek V4 compression variants and hash MoE without duplicating framework kernels", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V4-Flash/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
-  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.every((kind) => kind === "dsv4"), true);
+  assert.deepEqual((attentionScheduleOf(normalized) || []).every((kind) => kind === "dsv4"), true);
   assert.deepEqual(normalized.compressRatios.slice(0, 4), [0, 0, 4, 128]);
   assert.equal(normalized.numHashLayers, 3);
   assert.equal(normalized.indexerHeadDim, 128);
@@ -513,8 +513,8 @@ test("maps DeepSeek V4 compression variants and hash MoE without duplicating fra
   const hashMoe = hashLayer.children.find((node) => node.type === "moe");
   assert.equal(hashAttention.attributes.attention_kind, "dsv4");
   assert.equal(hashAttention.attributes.compress_ratio, 0);
-  assert.equal(hashAttention.children.find((node) => node.name === "sliding-window MQA").attributes.formula_id, "dsv4_swa_attention");
-  assert.ok(hashMoe.children.some((node) => node.attributes.formula_id === "dsv4_hash_route"));
+  assert.equal(hashAttention.children.find((node) => node.name === "sliding-window MQA").attributes.operator_id, "dsv4_swa_attention");
+  assert.ok(hashMoe.children.some((node) => node.attributes.operator_id === "dsv4_hash_route"));
   assert.equal(hashMoe.children.some((node) => node.name === "top-k expert routing"), false);
   assert.ok(hashMoe.children.some((node) => node.name === "shared expert branch add"));
 
@@ -522,13 +522,13 @@ test("maps DeepSeek V4 compression variants and hash MoE without duplicating fra
   const sparseAttention = sparseLayer.children.find((node) => node.type === "attention");
   assert.equal(sparseAttention.attributes.compress_ratio, 4);
   assert.equal(sparseAttention.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer").attributes.implementation[0], "vLLM.DeepseekV4Indexer");
-  assert.equal(sparseAttention.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer").attributes.formula_id, "dsv4_indexer");
-  assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse MLA attention").attributes.formula_id, "dsv4_sparse_mla");
+  assert.equal(sparseAttention.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer").attributes.operator_id, "dsv4_indexer");
+  assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse MLA attention").attributes.operator_id, "dsv4_sparse_mla");
 
   const compressedLayer = decoder.children.find((node) => node.attributes.range === "3..3");
   const compressedAttention = compressedLayer.children.find((node) => node.type === "attention");
   assert.equal(compressedAttention.attributes.compress_ratio, 128);
-  assert.equal(compressedAttention.children.find((node) => node.name === "compressed MLA attention").attributes.formula_id, "dsv4_compressed_attention");
+  assert.equal(compressedAttention.children.find((node) => node.name === "compressed MLA attention").attributes.operator_id, "dsv4_compressed_attention");
   assert.equal(compressedLayer.children.find((node) => node.type === "moe").children.some((node) => node.name === "top-k expert routing"), true);
 });
 
@@ -536,7 +536,7 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.8-Flash-Next/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
   assert.equal(recipeLinearAttentionMode(normalized), "qwen4_exp");
-  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.reduce((counts, kind) => {
+  assert.deepEqual((attentionScheduleOf(normalized) || []).reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { linear: 36, qsa: 12 });
@@ -565,7 +565,7 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   assert.ok(linear.id.endsWith(".linear_attn"), `Qwen4Exp GDN attr should be linear_attn, got ${linear.id}`);
   assert.equal(linear.attributes.class, "Qwen4ExpTextGatedDeltaNet");
   assert.equal(linear.children.length, 8);
-  assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.formula_id, "qwen_qkvz_split");
+  assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.operator_id, "qwen_qkvz_split");
   assert.equal(linear.children.find((node) => node.name === "output projection").attributes.communication_role, "tp_attention_output");
   assert.equal(linear.children.find((node) => node.name === "KDA recurrent state").attributes.decay_activation, "softplus");
   const pleLayer = decoder.children.find((node) => node.attributes.range === "1..1");
@@ -580,7 +580,7 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   assert.equal(ple.attributes.ngram_size, 3);
   assert.equal(ple.attributes.heads_per_ngram, 8);
   assert.equal(ple.attributes.conv_dilation, 3);
-  assert.equal(ple.children[0].attributes.formula_id, "ple");
+  assert.equal(ple.children[0].attributes.operator_id, "ple");
 });
 
 test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics", () => {
@@ -589,7 +589,7 @@ test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
   assert.equal(recipeLinearAttentionMode(denseNormalized), "qwen3_5");
   assert.equal(recipeNormMode(denseNormalized), "gemma_rmsnorm");
   assert.equal(denseNormalized.partialRotaryFactor, 0.25);
-  assert.deepEqual(deriveBuildPlan(denseNormalized.raw ?? denseNormalized).attentionSchedule.reduce((counts, kind) => {
+  assert.deepEqual((attentionScheduleOf(denseNormalized) || []).reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { linear: 48, qwen35_full: 16 });
@@ -612,13 +612,13 @@ test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
     "gated RMSNorm",
     "output projection",
   ]);
-  assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.formula_id, "qwen_qkvz_split");
+  assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.operator_id, "qwen_qkvz_split");
   const full = denseDecoder.children.find((node) => node.attributes.range === "3..3").children.find((node) => node.type === "attention");
   assert.equal(full.name, "Qwen3.5 Full Attention");
   assert.equal(full.attributes.attention_kind, "qwen35_full");
   assert.equal(full.children.find((node) => node.name === "rotary position embedding").attributes.partial_rotary_factor, 0.25);
-  assert.equal(full.children.find((node) => node.name === "Q attention Gemma RMSNorm").attributes.formula_id, "gemma_rmsnorm");
-  assert.equal(full.children.find((node) => node.name === "attention output gate").attributes.formula_id, "attention_output_gate");
+  assert.equal(full.children.find((node) => node.name === "Q attention Gemma RMSNorm").attributes.operator_id, "gemma_rmsnorm");
+  assert.equal(full.children.find((node) => node.name === "attention output gate").attributes.operator_id, "attention_output_gate");
 
   const moeConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.5-35B-A3B/config.json"), "utf8"));
   const moeNormalized = normalizeConfig(moeConfig);
@@ -639,9 +639,9 @@ test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
 test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse schedule", () => {
   const deepseekConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V3.2/config.json"), "utf8"));
   const deepseekNormalized = normalizeConfig(deepseekConfig);
-  assert.equal(deriveBuildPlan(deepseekNormalized.raw ?? deepseekNormalized).attentionSchedule.length, 61);
-  assert.equal(deriveBuildPlan(deepseekNormalized.raw ?? deepseekNormalized).attentionSchedule.every((kind) => kind === "qsa"), true);
-  assert.equal(deriveBuildPlan(deepseekNormalized.raw ?? deepseekNormalized).indexerSchedule.every((kind) => kind === "compute"), true);
+  assert.equal((attentionScheduleOf(deepseekNormalized) || []).length, 61);
+  assert.equal((attentionScheduleOf(deepseekNormalized) || []).every((kind) => kind === "qsa"), true);
+  assert.equal((indexerScheduleOf(deepseekNormalized) || []).every((kind) => kind === "compute"), true);
   const deepseekResolved = resolveArchitecture(deepseekNormalized, { modelId: "deepseek-ai/DeepSeek-V3.2" });
   const deepseekStructure = materializeModelStructure(createStructureIr({
     network: buildNetwork(deepseekResolved, deepseekNormalized),
@@ -666,11 +666,11 @@ test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse sched
     "output projection",
   ]);
   assert.equal(deepseekAttention.children.find((node) => node.name === "DSA indexer").attributes.indexer_mode, "compute");
-  assert.equal(deepseekAttention.children.find((node) => node.name === "KV latent and rope split").attributes.formula_id, "mla_kv_split");
+  assert.equal(deepseekAttention.children.find((node) => node.name === "KV latent and rope split").attributes.operator_id, "mla_kv_split");
 
   const glmConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-5.2/config.json"), "utf8"));
   const glmNormalized = normalizeConfig(glmConfig);
-  assert.deepEqual(deriveBuildPlan(glmNormalized.raw ?? glmNormalized).indexerSchedule.slice(0, 8), ["compute", "compute", "compute", "reuse", "reuse", "reuse", "compute", "reuse"]);
+  assert.deepEqual((indexerScheduleOf(glmNormalized) || []).slice(0, 8), ["compute", "compute", "compute", "reuse", "reuse", "reuse", "compute", "reuse"]);
   const glmResolved = resolveArchitecture(glmNormalized, { modelId: "zai-org/GLM-5.2" });
   const glmStructure = materializeModelStructure(createStructureIr({
     network: buildNetwork(glmResolved, glmNormalized),
@@ -686,11 +686,11 @@ test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse sched
 test("maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/MiniMaxAI/MiniMax-M3/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
-  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).attentionSchedule.reduce((counts, kind) => {
+  assert.deepEqual((attentionScheduleOf(normalized) || []).reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { gqa: 3, sparse: 57 });
-  assert.deepEqual(deriveBuildPlan(normalized.raw ?? normalized).layerSchedule.reduce((counts, kind) => {
+  assert.deepEqual((layerScheduleOf(normalized) || []).reduce((counts, kind) => {
     counts[kind] = (counts[kind] || 0) + 1;
     return counts;
   }, {}), { dense: 3, moe: 57 });
@@ -757,7 +757,7 @@ test("maps MiniMax M2 fused QKV, QK norms, and partial RoPE", () => {
     "SDPA attention",
     "output projection",
   ]);
-  assert.equal(attention.children.find((node) => node.name === "QKV split").attributes.formula_id, "attention_qkv_split");
+  assert.equal(attention.children.find((node) => node.name === "QKV split").attributes.operator_id, "attention_qkv_split");
   const moe = decoder.children[0].children.find((node) => node.type === "moe");
   assert.ok(moe.id.endsWith(".block_sparse_moe"), `MiniMax-M2 HF attr is block_sparse_moe, got ${moe.id}`);
   assert.equal(moe.children.find((node) => node.name === "router logits").attributes.scoring_func, "sigmoid");
@@ -812,7 +812,7 @@ test("maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE", () => {
   const decoder = treeView(structure).children.find((node) => node.id === "layers");
   const attention = decoder.children[0].children.find((node) => node.type === "attention");
   assert.equal(attention.children[0].name, "fused QKV projection");
-  assert.equal(attention.children.find((node) => node.name === "Q RMSNorm").attributes.formula_id, "rmsnorm");
+  assert.equal(attention.children.find((node) => node.name === "Q RMSNorm").attributes.operator_id, "rmsnorm");
   assert.equal(attention.children.find((node) => node.name === "partial rotary position embedding").attributes.partial_rotary_factor, 0.5);
   const moeLayer = decoder.children.find((node) => node.children?.some((child) => child.type === "moe"));
   const moe = moeLayer.children.find((node) => node.type === "moe");

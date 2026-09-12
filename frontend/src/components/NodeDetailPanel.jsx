@@ -45,7 +45,7 @@ function TruthSection({ node, language = "zh" }) {
 
 function FormulaSection({ node, language = "zh" }) {
   const formula = node.attributes?.formula;
-  const formulaId = node.attributes?.formula_id;
+  const formulaId = node.attributes?.operator_id;
   if (!formulaId && !formula) return null;
   return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
 }

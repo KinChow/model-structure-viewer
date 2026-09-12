@@ -33,6 +33,17 @@ test("explicit child repeats replace an informational parent repeat", () => {
   assert.equal(childRepeatMultiplier({ repeat: 4 }, 2, { repeatHandled: true }), 2);
 });
 
+test("residentRepeat keeps MTP repeat=0 resident", () => {
+  const rows = [];
+  walkStructure(graph([
+    { id: "root", parent_id: null, order: 0, type: "model", repeat: null },
+    { id: "root.mtp", parent_id: "root", order: 0, type: "mtp", repeat: 0, attributes: { modules: 1 } },
+    { id: "root.mtp.eh_proj", parent_id: "root.mtp", order: 0, type: "operator", repeat: null },
+  ]), (row) => rows.push(row));
+  assert.equal(rows[2].multiplier, 0);
+  assert.equal(rows[2].resident, 1);
+});
+
 test("walkStructure consumes Graph IR nodes and preserves repeat multipliers", () => {
   const rows = [];
   walkStructure(graph([

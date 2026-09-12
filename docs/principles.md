@@ -168,9 +168,11 @@ modelmap 主图把残差藏在兄弟顺序链里、micro-view 只在子层后塞
 边上传入张量 shape → 节点公式只吃本节点 in/out/weight shape → 产出 counts
 ```
 
-换 B/S = 重新传播运行时维，不改公式。llm-analysis 仍是并行投影 / 显存 fit / 效率因子 /
-roofline 下界的参考，**不再**当逐算子 counts 的来源。Accelergy 仍是「次数 × 芯片单价」
-（§3.4）的参考。
+换 B/S = 重新传播运行时维，不改公式。llm-analysis 只留给并行投影的**除法规则**
+（GQA KV `/ min(TP, kv_heads)`、MLA 不切、DP-attention 复制）与效率因子 / roofline
+下界。Accelergy 仍是「次数 × 芯片单价」（§3.4）的参考。
+**禁止**再维护一套 `config + layer schedule → 整层 Σ` 的旁路。
+容量与算力同一主语：walk 图。
 
 本仓在 FlopCounterMode 之上**有意多计**：flop_counter 只数矩阵系 FLOPs，softmax/norm
 贡献 0。注册条目产出四维动作向量（Accelergy Action Counts 形态）：
@@ -217,9 +219,11 @@ softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假�
 **检查**：
 - CI 断言每个条目三选一（counts / 纯 traffic / 分解声明），无白名单；
 - **整模型恒等式作为 matrix 维度的外部 oracle**：对每个内置模型，
-  counts 聚合的 matrix FLOPs ≈ `2 × 参数量 × tokens`（dense；MoE 按 expertFraction 缩放）
-  ——训练 6ND / 推理 2ND 的标准 invariant，独立于实现，能抓住 /TP 写错、漏 2×、单位错；
-  decode 场景补充恒等式：seq=1 时 traffic ≈ 权重字节数（强度 ~1-2，memory-bound）。
+  counts 聚合的 matrix FLOPs ≈ `2 × 该相位实际读取的权重元素 × tokens`
+  （dense = 图上非 embed 权重；MoE = 该相位 `counts.bytes.weights` 对应的触达份）
+  ——训练 6ND / 推理 2ND 的标准 invariant。期望侧走叶子 counts / checkpoint /
+  `weightMatrices`，**禁止**用 config 闭式当期望。
+  decode 场景补充恒等式：seq=1 时 traffic ≈ 该相位权重字节数（强度 ~1-2，memory-bound）。
 
 ### 3.2 禁止显示名参与任何数值计算
 
@@ -305,6 +309,47 @@ TFLOPS，arXiv 2607.20120）。同一 RMSNorm/softmax 在两类芯片上会落�
 
 **缺项降级（§7）**：芯片缺 `sfu_ops` / `vector_flops` → 对应单元的时间不可判，
 `coverage.js` 关闭相应能力门控，绝不估算。
+
+### 3.8 容量与前向流量分开；容量只 walk 图
+
+cost 只认三类输入：**图**、**负载**（B/S/phase/visionTokens）、**并行计划**
+（TP/PP/EP，与组网 schedule 无关）。没有第四类「config 闭式模型」。
+
+四类数字都从 walk 出（计费主语同 §2.4，`× repeat`）：
+
+| 数字 | 怎么加 | 对标 |
+|---|---|---|
+| 算力 / 前向流量 | 计费主语节点的 `counts` | FlopCounterMode / Accelergy |
+| 权重**容量** | Σ `weightMatrices` × `residentRepeat`（MTP `repeat=0` 仍计入：投机关闭时不参与前向，但参数占显存） | vLLM `named_parameters` |
+| KV **容量** | attention 叶声明的每 token cache 元素 × repeat × B × S | vLLM `AttentionSpec` 挂在该层模块上 |
+| KDA **态容量** | linear 叶声明的 request state 元素 × repeat × B | vLLM `MambaStateShapeCalculator.kda_state_shape` |
+
+**容量 ≠ 这次 forward 读了多少。** `counts.bytes.kvRead` 是 decode 读 cache；
+sparse / DSA 读的是 budget，存的是全长（indexer 还要扫全 S）。把 `kvRead` 当
+容量会系统性低估「放得下吗」。
+
+KV / KDA 容量必须是节点上的**数值声明**（对标 vLLM spec），不是展示用 shape 字符串，
+也不是 `plan.attentionSchedule[i]`。组网时 kind 已经写在层上，声明跟 kind 一起产出。
+
+哈希路由 `tid2eid` 是 buffer 不是参数（Megatron-Bridge）。容量要么写在
+hash_router 叶上，要么是 `num_hash_layers × vocab × k` 的字段直译——**不是**
+layer schedule 闭式。
+
+无图（unsupported 空网络）→ 参数量 / KV 空，不编造。checkpoint 在 → Params
+用 header；不在 → Σ 图。
+
+**判据**：
+- `cost/` **禁止** import `config/plan.js` 的调度函数当容量输入。
+- `cost/` **禁止** 生产调用 config 闭式算容量。
+- 新增 KV/KDA 变体必须在对应叶上声明容量字段，不得在 `memory.js` 加
+  `if (schedule[i] === ...)` 分支。
+
+**检查**：`cost/` 生产文件对调度函数 / 闭式容量的 import 为零。
+
+组网仍可读 `layer_types` / `first_k_dense_replace`（那是
+`nn.Module.__init__(layer_idx)`，对标 vLLM）。那是组网私有 helper
+（`layerScheduleOf` / `attentionScheduleOf` / `indexerScheduleOf`），**不 export
+给 cost**。不存在八字段 plan 产品对象。
 
 ---
 
@@ -428,7 +473,8 @@ config 解读包含两种性质不同的工作，归属不同：
 
 **判据**：config 归一层出现家族条件分支、或输出"selected scheme"类字段即违反。
 
-**检查**：config 视图的输出对象不含方案类字段；逐层调度只在组网入口被消费。
+**检查**：config 视图的输出对象不含方案类字段；逐层调度只在组网入口被消费，
+不进入 `cost/`（§3.8）。
 
 ---
 
@@ -595,6 +641,8 @@ registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling �
 - [ ] 计费不双计：父有 counts 用父，否则用叶子（§2.4）
 - [ ] SDPA 核默认折叠为 `sdpa_attention`；未给整个 Attention/MoE 模块挂融合 counts（§2.3 / §2.4）
 - [ ] 新算子只在 `formulas/index.js` 注册，含 `counts` 动作向量（§3.1）
+- [ ] `cost/` 生产文件未 import 调度函数当容量输入，未调用 config 闭式算容量（§3.8）
+- [ ] KV/KDA 变体在叶上声明了数值容量，未把 `kvRead` 当驻留容量（§3.8）
 - [ ] `cost/` 未引入显示名参与计算（§3.2）
 - [ ] 未实现成本返回 `null` 而非 `0`（§3.3）
 - [ ] 数值公式带 `// ref:`（§3.5）
@@ -621,14 +669,17 @@ registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling �
 **仍偏离**（设计已定、代码未跟上或契约未收口）：
 
 - **§6.3 / §6.4**：前端 DiagnosticsPanel 有校验入口。失败分三类：后端不可达 /
-  transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 矩阵抽查未接。
-  来源解析策略仍两套。catalog 旁 `source-ref.json` 按架构取样入库（见
-  implementation_plan §5）；静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
-- **§8.1**：12/16 文件含家族名；剩余随 modeling 接管后进一步下降。
-- **§3.1 运行时双轨**：extractor 巨型 switch 手搓原子 counts，注册表对这 30+ 条
-  是死代码。护栏 §3.1b 承认「手搓可达」。不改用户看见的图，后置。
+  transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 已接
+  **独立算子夹具**（Linear / BMM / 深度可分 Conv1d：msv MAC × 2 == torch FLOPs）；
+  不对 catalog 整模型跑 forward（catalog 无权重）。来源解析策略仍两套。
+  catalog 旁 `source-ref.json` 按架构取样入库（见 implementation_plan §5）；
+  静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
+- **§8.1**：10/16 文件含家族名（删闭式后 12→10）；剩余随 modeling 接管后进一步下降。
+- **§3.1**：extractor 已收成 `FORMULAS[id].fromNode` + `.counts` 查表
+  （flop_registry）。护栏 §3.1b = switch case 0。
+- **§3.8**：生产链已切到图 walk（叶声明 KV/KDA/buffer、`graphWeightCapacity`、
+  MTP `repeat=0` 走 `residentRepeat`）。config 闭式已删；身份测试期望侧 walk 图。
 
 **带债项**（触发点见 `refactor_plan.md`）：
 
 - 家族知识 5 住址收口（触发：接新模型家族）。
-- `plan.js` 移 config/ 与 normalize 共享解析原语（随上项）。

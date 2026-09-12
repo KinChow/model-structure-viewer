@@ -1,0 +1,892 @@
+{
+  "model_id": "MiniMaxAI/MiniMax-M3",
+  "transformers_version": "5.16.1",
+  "modules": [
+    {
+      "module_path": "root",
+      "class_name": "MiniMaxM3VLModel",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLModel",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 1283,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L1283"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower",
+      "class_name": "MiniMaxM3VLVisionModel",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLVisionModel",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 1159,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L1159"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.embeddings",
+      "class_name": "MiniMaxM3VLVisionEmbeddings",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLVisionEmbeddings",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 969,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L969"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.embeddings.proj",
+      "class_name": "Conv3d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv3d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 568,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L568"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.pre_layrnorm",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.group0",
+      "class_name": "MiniMaxM3VLVisionEncoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.self_attn",
+      "class_name": "MiniMaxM3VLVisionAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLVisionAttention",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 1052,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L1052"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.self_attn.out_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.layer_norm1",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.mlp",
+      "class_name": "MiniMaxM3VLVisionMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLVisionMLP",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 1111,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L1111"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.mlp.activation_fn",
+      "class_name": "GELUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "GELUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 69,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L69"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.mlp.fc1",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.mlp.fc2",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.layers.0.layer_norm2",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.rotary_emb",
+      "class_name": "MiniMaxM3VL3DRotaryEmbedding",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VL3DRotaryEmbedding",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 995,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L995"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.multi_modal_projector",
+      "class_name": "MiniMaxM3VLMultiModalProjector",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLMultiModalProjector",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 1200,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L1200"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.multi_modal_projector.linear_1",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.multi_modal_projector.act",
+      "class_name": "GELUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "GELUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 69,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L69"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.multi_modal_projector.linear_2",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.multi_modal_projector.merge_linear_1",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.multi_modal_projector.merge_act",
+      "class_name": "GELUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "GELUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 69,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L69"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.multi_modal_projector.merge_linear_2",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model",
+      "class_name": "MiniMaxM3VLTextModel",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLTextModel",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 715,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L715"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.embed_tokens",
+      "class_name": "Embedding",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.sparse",
+        "class_name": "Embedding",
+        "file": "torch/nn/modules/sparse.py",
+        "line": 14,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/sparse.py#L14"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.group0",
+      "class_name": "MiniMaxM3VLDecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn",
+      "class_name": "MiniMaxM3VLAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLAttention",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 408,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L408"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.q_norm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.k_norm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp",
+      "class_name": "MiniMaxM3VLDenseMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLDenseMLP",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 164,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L164"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp.gate_up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.input_layernorm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.post_attention_layernorm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.group1",
+      "class_name": "MiniMaxM3VLDecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn",
+      "class_name": "MiniMaxM3VLAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLAttention",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 408,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L408"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.q_norm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.k_norm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer",
+      "class_name": "MiniMaxM3VLIndexer",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLIndexer",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 492,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L492"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.q_norm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.k_norm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp",
+      "class_name": "MiniMaxM3VLSparseMoeBlock",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLSparseMoeBlock",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 244,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L244"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.gate",
+      "class_name": "MiniMaxM3VLTopKRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLTopKRouter",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 223,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L223"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.experts",
+      "class_name": "MiniMaxM3VLExperts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLExperts",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 182,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L182"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts",
+      "class_name": "MiniMaxM3VLDenseMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLDenseMLP",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 164,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L164"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts.gate_up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.input_layernorm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.post_attention_layernorm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.norm",
+      "class_name": "MiniMaxM3VLRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRMSNorm",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 142,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L142"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.rotary_emb",
+      "class_name": "MiniMaxM3VLRotaryEmbedding",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m3_vl.modeling_minimax_m3_vl",
+        "class_name": "MiniMaxM3VLRotaryEmbedding",
+        "file": "src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+        "line": 267,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py#L267"
+      },
+      "has_params": false
+    }
+  ]
+}

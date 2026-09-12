@@ -118,12 +118,15 @@ W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
   `verify --graph` 构造通过才算脚本失败；`structurally_consistent` 只报告。
   Decoder 路径段跟 HF `_modules` key：默认注意力 `self_attn`、FFN `mlp`；
   M2 全程 `block_sparse_moe`；K3 MoE 层 `block_sparse_moe`。类名偏离写 HF 全名。
-  FlopCounterMode 未接。
+  FlopCounterMode 独立算子夹具已接（`verification/flop_counter.py`：Linear /
+  BMM / 深度可分 Conv1d）；整模型 forward 抽查未接（catalog 无权重）。
 - **§6.4 来源解析契约**：前后端保持两套 resolver，以支持静态前端和 Python
   服务；需要共享来源类型、revision、fallback、错误分类和 fixture 契约，
   不强行合并运行时代码。
 - **§7 国产芯片条目**：每字段必须有公开来源，缺项保持 unknown。
-- **§3.1 extractor 双轨**：手搓 switch 与 FORMULAS.counts 并存；不改画面，后置。
+- **§3.8 删 llm-analysis 容量旁路**：cost 只 walk 图。叶上声明 KV/KDA
+  数值容量与 hash buffer；`memoryBreakdown` / Params / PP 切层改 walk；
+  生产不再调用 config 闭式算容量；身份测试期望侧 walk 图。闭式已删。
 
 ### 统一结构协议的生成或契约测试
 
@@ -137,6 +140,30 @@ Graph/evidence 对账测试。schema-first 生成仅用于协议字段，不能�
 ### 模型 catalog 维护自动化
 
 继续保持模型清单、配置、发布时间来源和验证报告可追溯。新增模型时应同时更新 catalog、来源记录、模型专项说明和验证结果，避免只增加配置却没有来源和验收记录。
+
+## 后续方案（2026-09-12）
+
+config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 1 + T4 walk 图声明；
+台账参数量级走 `graphWeightCapacity`，与 UI 同口径。
+
+**S2 extractor 收成查表（对标 flop_registry）** ✅
+- `countsForNode` 无 `switch` / `ctxBuilders`。
+- `FORMULAS[operator_id].fromNode` 抽 ctx，`.counts(ctx)` 计价。
+- 未注册 op → `unknownComputePaths`。
+- 护栏 §3.1b：switch case = 0，每条有 `fromNode`。
+
+剩余：
+
+**S3 有真值再接的验证**
+- 整模型 FlopCounterMode：需要真实 `forward` + 权重，catalog 做不到。
+- 有 checkpoint 时 W1 总量对 header `parameterTotal`。
+- Kimi-K3 继续不做 dump / verify。
+
+**明确后置 / 不做**
+- 拆 59 个 modeling 文件（`ARCH_RECIPES` 过渡表可留）。
+- 对账 triage DSL 重写（继续当 fixture）。
+- `{matrix, vector, sfu, bytes}` 保留。
+- 前端下权重、plan 搜索、服务指标。
 
 ## P2：条件性需求
 

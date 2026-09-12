@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 import { memoryBreakdown } from "../memory.js";
 import { classifyRoofline } from "../roofline.js";
 
 test("KV bytes 和常数项使用用户可调假设", () => {
-  const result = memoryBreakdown({ weightBytes: 0, config: { layers: 1, kvHeads: 1, headDim: 1 }, tokens: 2, kvBytes: 1, activationPeak: 3, runtimeConst: 4 });
+  const graph = materializeStructureGraph({
+    id: "model",
+    children: [{ id: "layers.0.sdpa", attributes: { cache_kv_elements: 2 }, children: [] }],
+  });
+  const result = memoryBreakdown({ weightBytes: 0, graph, tokens: 2, kvBytes: 1, activationPeak: 3, runtimeConst: 4, bufferBytes: 0 });
   assert.equal(result.kvBytes, 4);
   assert.equal(result.totalBytes, 11);
 });

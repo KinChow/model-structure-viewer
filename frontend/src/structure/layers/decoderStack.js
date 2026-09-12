@@ -3,7 +3,7 @@ import { decoderLayerModule } from "./decoderLayer.js";
 import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
-import { deriveBuildPlan } from "../config/plan.js";
+import { attentionScheduleOf, indexerScheduleOf } from "../config/plan.js";
 import { hfNamedClass } from "../archs/index.js";
 
 export function decoderStackNetwork(id, normalized, options = {}) {
@@ -13,17 +13,18 @@ export function decoderStackNetwork(id, normalized, options = {}) {
   const defaultLayerKind = options.defaultLayerKind || (normalized.experts ? "moe" : "dense");
   const defaultAttentionKind = options.attentionKind || "gqa";
   const kinds = layerKinds(normalized, defaultLayerKind);
-  const plan = deriveBuildPlan(normalized.raw ?? normalized);
-  const attentionKinds = plan.attentionSchedule?.length
-    ? plan.attentionSchedule
+  const attentionSchedule = attentionScheduleOf(normalized);
+  const attentionKinds = attentionSchedule?.length
+    ? attentionSchedule
     : Array.from({ length: layers }, () => defaultAttentionKind);
+  const indexerSchedule = indexerScheduleOf(normalized);
   const combinedKinds = kinds.map((kind, index) => {
     const attentionKind = attentionKinds[index] || defaultAttentionKind;
     const compressionVariant = attentionKind === "dsv4"
       ? `:c${normalized.compressRatios?.[index] ?? 0}`
       : "";
-    const indexerVariant = attentionKind === "qsa" && plan.indexerSchedule?.length
-      ? `:i${plan.indexerSchedule[index] || "compute"}`
+    const indexerVariant = attentionKind === "qsa" && indexerSchedule?.length
+      ? `:i${indexerSchedule[index] || "compute"}`
       : "";
     const hasPle = normalized.pleLayerIds?.includes(index + 1) ? "ple" : "no-ple";
     const mhcBoundary = normalized.multiHyperConnection

@@ -168,7 +168,7 @@ test("F8 MoE：topk 选择 + dispatch/combine 搬运 + combine 加权求和计 v
 
 test("F8 hash 路由：tid2eid 是 buffer（零权重字节），gather 读=写=tokens·topk", () => {
   // 2026-09-09 分类裁决：tid2eid 是 buffer 不是参数（Megatron-Bridge 明文），
-  // 表的常驻容量（vocab·k·4B）由 derivedBufferBytes 计入显存，不进权重字节；
+  // 表的常驻容量（vocab·k·4B）由叶 buffer_elements 计入显存，不进权重字节；
   // 本算子只计 gather 的真实拷贝流量。
   const c = hashRouteCounts({ tokens: 2, topk: 2, bytesPerElement: B });
   assert.equal(c.matrix + c.vector + c.sfu, 0);

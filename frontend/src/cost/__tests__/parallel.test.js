@@ -126,8 +126,14 @@ test("PP 按 stage 层数分配 KV 而不是每个 stage 复制全量", () => {
 });
 
 test("PP 按实际 linear-attention 层分配 KDA state", () => {
-  const config = { layers: 2, attentionSchedule: ["linear", "gqa"], attentionHeads: 2, headDim: 4, linearKeyHeads: 2, linearValueHeads: 2, linearKeyDim: 4, linearValueDim: 4, linearConvKernelSize: 3 };
-  const result = projectNodePlan({ graph: toGraph({ id: "model", children: [] }), config, plan: { tp: 1, pp: 2 }, stateBytes: 128 });
+  const root = {
+    id: "model",
+    children: [
+      { id: "layers.0.state_update", attributes: { state_elements: 64 }, children: [] },
+      { id: "layers.1.sdpa", attributes: { cache_kv_elements: 8 }, children: [] },
+    ],
+  };
+  const result = projectNodePlan({ graph: toGraph(root), config: { layers: 2, kvHeads: 1 }, plan: { tp: 1, pp: 2 }, stateBytes: 128 });
   assert.deepEqual(result.stages.map((stage) => stage.stateBytes), [128, 0]);
 });
 

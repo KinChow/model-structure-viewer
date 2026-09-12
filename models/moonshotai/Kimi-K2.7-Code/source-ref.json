@@ -1,0 +1,990 @@
+{
+  "model_id": "moonshotai/Kimi-K2.7-Code",
+  "transformers_version": "5.16.1",
+  "modules": [
+    {
+      "module_path": "root",
+      "class_name": "KimiK25ForConditionalGeneration",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "KimiK25ForConditionalGeneration",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 866,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower",
+      "class_name": "MoonViT3dPretrainedModel",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "MoonViT3dPretrainedModel",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 668,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.patch_embed",
+      "class_name": "MoonVision3dPatchEmbed",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "MoonVision3dPatchEmbed",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 336,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.patch_embed.proj",
+      "class_name": "Conv2d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv2d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 388,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L388"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.patch_embed.pos_emb",
+      "class_name": "Learnable2DInterpPosEmbDivided_fixed",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "Learnable2DInterpPosEmbDivided_fixed",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 283,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.encoder",
+      "class_name": "MoonViT3dEncoder",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "MoonViT3dEncoder",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 593,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.encoder.rope_2d",
+      "class_name": "Rope2DPosEmbRepeated",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "Rope2DPosEmbRepeated",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 387,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.group0",
+      "class_name": "MoonViTEncoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.norm0",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.norm1",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.mlp",
+      "class_name": "MLP2",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "MLP2",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 483,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.mlp.fc0",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.mlp.fc1",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.mlp.activation",
+      "class_name": "GELUTanh",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "GELUTanh",
+        "file": "src/transformers/activations.py",
+        "line": 30,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L30"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.wqkv",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.encoder.blocks.0.wo",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.vision_tower.encoder.final_layernorm",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.mm_projector",
+      "class_name": "PatchMergerMLP",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_kimi_k25",
+        "class_name": "PatchMergerMLP",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_kimi_k25.py",
+        "line": 772,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.mm_projector.pre_norm",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.mm_projector.proj",
+      "class_name": "Sequential",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "Sequential",
+        "file": "torch/nn/modules/container.py",
+        "line": 59,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L59"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.mm_projector.proj.0",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.mm_projector.proj.1",
+      "class_name": "GELU",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.activation",
+        "class_name": "GELU",
+        "file": "torch/nn/modules/activation.py",
+        "line": 777,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/activation.py#L777"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.mm_projector.proj.2",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model",
+      "class_name": "DeepseekV3ForCausalLM",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3ForCausalLM",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 1496,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model",
+      "class_name": "DeepseekV3Model",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3Model",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 1334,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.embed_tokens",
+      "class_name": "Embedding",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.sparse",
+        "class_name": "Embedding",
+        "file": "torch/nn/modules/sparse.py",
+        "line": 14,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/sparse.py#L14"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.0",
+      "class_name": "DeepseekV3DecoderLayer",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3DecoderLayer",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 1141,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn",
+      "class_name": "DeepseekV3Attention",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3Attention",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 637,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.q_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.q_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.q_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.kv_a_proj_with_mqa",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.kv_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.kv_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.self_attn.rotary_emb",
+      "class_name": "DeepseekV3YarnRotaryEmbedding",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3YarnRotaryEmbedding",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 289,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.mlp",
+      "class_name": "DeepseekV3MLP",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3MLP",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 393,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.mlp.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.mlp.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.mlp.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.mlp.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.input_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.0.post_attention_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.group1",
+      "class_name": "DeepseekV3DecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn",
+      "class_name": "DeepseekV3Attention",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3Attention",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 637,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.q_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.q_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.q_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.kv_a_proj_with_mqa",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.kv_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.kv_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.self_attn.rotary_emb",
+      "class_name": "DeepseekV3YarnRotaryEmbedding",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3YarnRotaryEmbedding",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 289,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp",
+      "class_name": "DeepseekV3MoE",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3MoE",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 500,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.experts",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.experts.0.group0",
+      "class_name": "DeepseekV3MLP",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.experts.0.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.experts.0.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.experts.0.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.experts.0.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.gate",
+      "class_name": "MoEGate",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "MoEGate",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 419,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.shared_experts",
+      "class_name": "DeepseekV3MLP",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3MLP",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 393,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.shared_experts.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.shared_experts.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.mlp.shared_experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.input_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.layers.1.post_attention_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.model.norm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.Kimi_hyphen_K2_dot_7_hyphen_Code.5a7a0403ea4a8915.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/Kimi_hyphen_K2_dot_7_hyphen_Code/5a7a0403ea4a8915/modeling_deepseek.py",
+        "line": 101,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.lm_head",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    }
+  ]
+}

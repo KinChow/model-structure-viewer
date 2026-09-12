@@ -8,7 +8,7 @@ import { resolveArchitecture } from "../../structure/registry/resolveArchitectur
 import { buildNetwork } from "../../structure/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/modelStructure.js";
-import { deriveBuildPlan } from "../../structure/config/plan.js";
+import { DEFAULT_PLAN } from "../defaults.js";
 import { aggregateCost } from "../aggregate.js";
 import { planCommunicationBytes } from "../comm.js";
 import { classifyRoofline } from "../roofline.js";
@@ -46,8 +46,7 @@ test("all built-in models classify a roofline bound through the aggregate chain"
     assert.equal(cost.computeComplete, true, `${entry.model_id}: ${cost.unknownComputePaths.join(", ")}`);
     assert.ok(cost.actions, `${entry.model_id}: aggregate actions missing`);
 
-    const plan = deriveBuildPlan(normalized.raw ?? normalized);
-    const communication = planCommunicationBytes({ graph: structure.graph, config: normalized, plan, batch: 1, tokens: 512 });
+    const communication = planCommunicationBytes({ graph: structure.graph, config: normalized, plan: DEFAULT_PLAN, batch: 1, tokens: 512 });
     const roofline = classifyRoofline({
       actions: {
         ...cost.actions,

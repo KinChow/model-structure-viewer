@@ -11,7 +11,7 @@
 //
 // **计费口径（显式声明）**：`repeat: 0`。投机解码默认不启用，MTP 不参与每次前向
 // 的计算与访存，所以聚合时乘子为 0（cost/traverse.js childRepeatMultiplier）；
-// 但它的**参数占显存**，由 derivedWeightParameters 计入 —— 对应五支柱的
+// 但它的**参数占显存**，由 walk 的 residentRepeat 计入（原则 §3.8）—— 对应五支柱的
 // ②「放得下吗」。启用投机解码时把 repeat 改成实际的 speculative 步数即可。
 import { moduleSpec, withShapeDims } from "./base.js";
 import { decoderLayerModule } from "./decoderLayer.js";

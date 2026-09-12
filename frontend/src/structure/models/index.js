@@ -3,7 +3,7 @@ import { buildMiniMaxM3Network } from "./minimax.js";
 import { buildGqaDecoderNetwork, buildGqaMoeDecoderNetwork, buildMlaMultimodalNetwork, buildQwenMultimodalNetwork } from "./qwen.js";
 import { networkSpec } from "./common.js";
 import { mtpModule, mtpModuleCount } from "../layers/mtp.js";
-import { deriveBuildPlan } from "../config/plan.js";
+import { attentionScheduleOf, layerScheduleOf } from "../config/plan.js";
 
 function assembleMlaText(resolved, normalized) {
   return normalized.hasVision
@@ -57,9 +57,8 @@ export const SUPPORTED_MODEL_ARCHITECTURES = Object.keys(MODELS);
  */
 function withMtp(network, normalized) {
   if (!mtpModuleCount(normalized) || !network?.children?.length) return network;
-  const plan = deriveBuildPlan(normalized.raw ?? normalized);
-  const schedule = plan.attentionSchedule || [];
-  const layerSchedule = plan.layerSchedule || [];
+  const schedule = attentionScheduleOf(normalized) || [];
+  const layerSchedule = layerScheduleOf(normalized) || [];
   const last = Math.max((normalized.layers || 1) - 1, 0);
   const insertAt = Math.max(network.children.findIndex((c) => c?.type === "decoder" || c?.id === "layers" || c?.id === "language_model"), 0) + 1;
   const mtp = mtpModule("mtp", normalized, {

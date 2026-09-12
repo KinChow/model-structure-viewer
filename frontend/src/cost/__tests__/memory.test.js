@@ -7,47 +7,81 @@ import { aggregateCost } from "../aggregate.js";
 // P7（步骤 7）：夹具 tree root 经 materializeStructureGraph 转 Graph IR。
 const toGraph = (root) => materializeStructureGraph(root);
 
+function cacheLeaf(id, { kv = 0, index = 0, state = 0, repeat } = {}) {
+  return {
+    id,
+    attributes: {
+      cache_kv_elements: kv,
+      cache_index_elements: index,
+      state_elements: state,
+    },
+    children: [],
+    ...(repeat != null ? { repeat } : {}),
+  };
+}
+
 test("F3 KV cache 使用 K/V 两份张量和 KV heads", () => {
-  assert.equal(kvBytesPerToken({ layers: 2, kvHeads: 4, headDim: 8 }, 2), 2 * 4 * 8 * 2 * 2);
+  const graph = toGraph({
+    id: "model",
+    children: [
+      { id: "layers", repeat: 2, children: [cacheLeaf("layers.0.sdpa", { kv: 2 * 4 * 8 })] },
+    ],
+  });
+  assert.equal(kvBytesPerToken(graph, 2), 2 * 4 * 8 * 2 * 2);
 });
 
 test("F4 MLA KV 使用压缩 latent 与 rotary 分量", () => {
-  assert.equal(kvBytesPerToken({ layers: 2, kvHeads: 16, headDim: 128, kvLoraRank: 512, qkRopeHeadDim: 64 }, 2), 2 * (512 + 64) * 2);
+  const graph = toGraph({
+    id: "model",
+    children: [
+      { id: "layers", repeat: 2, children: [cacheLeaf("layers.0.sdpa", { kv: 512 + 64 })] },
+    ],
+  });
+  assert.equal(kvBytesPerToken(graph, 2), 2 * (512 + 64) * 2);
 });
 
 test("memory breakdown exposes token KV and request state separately", () => {
-  const result = memoryBreakdown({ weightBytes: 10, config: { layers: 1, kvHeads: 1, headDim: 1 }, batch: 1, tokens: 2,
-    activationPeak: 3, runtimeConst: 4, commBuffer: 5, kvBytes: 1 });
+  const graph = toGraph({
+    id: "model",
+    children: [cacheLeaf("layers.0.sdpa", { kv: 2 })],
+  });
+  const result = memoryBreakdown({ weightBytes: 10, graph, batch: 1, tokens: 2,
+    activationPeak: 3, runtimeConst: 4, commBuffer: 5, kvBytes: 1, bufferBytes: 0 });
   assert.deepEqual(result, { weightBytes: 10, bufferBytes: 0, kvBytes: 4, kvBytesPerToken: 2, stateBytes: 0, stateBytesPerSequence: 0, activationBytes: 3, runtimeBytes: 4, commBufferBytes: 5, totalBytes: 26 });
 });
 
 test("KDA recurrent and convolution state is request-scoped, not token KV", () => {
-  const config = { layers: 2, attentionSchedule: ["linear", "gqa"], kvHeads: 2, headDim: 4, linearKeyHeads: 2, linearValueHeads: 2, linearKeyDim: 4, linearValueDim: 4, linearConvKernelSize: 3 };
-  assert.equal(linearStateBytesPerSequence(config, 2), 160);
-  assert.equal(kvBytesPerToken(config, 2), 2 * 2 * 4 * 2);
-  const result = memoryBreakdown({ weightBytes: 0, config, batch: 2, tokens: 100, kvBytes: 2, activationPeak: 0, runtimeConst: 0 });
+  const graph = toGraph({
+    id: "model",
+    children: [
+      cacheLeaf("layers.0.state_update", { state: 80 }),
+      cacheLeaf("layers.1.sdpa", { kv: 2 * 2 * 4 }),
+    ],
+  });
+  assert.equal(linearStateBytesPerSequence(graph, 2), 160);
+  assert.equal(kvBytesPerToken(graph, 2), 2 * 2 * 4 * 2);
+  const result = memoryBreakdown({ weightBytes: 0, graph, batch: 2, tokens: 100, kvBytes: 2, activationPeak: 0, runtimeConst: 0, bufferBytes: 0 });
   assert.equal(result.stateBytes, 320);
   assert.equal(result.kvBytes, 6400);
 });
 
 test("Qwen3.5 GDN state uses separate key/value heads and dimensions", () => {
-  const config = {
-    layers: 1,
-    attentionSchedule: ["linear"],
-    linearKeyHeads: 1,
-    linearValueHeads: 2,
-    linearKeyDim: 2,
-    linearValueDim: 2,
-    linearConvKernelSize: 3,
-    headDim: 2,
-    kvHeads: 1,
-  };
-  assert.equal(linearStateBytesPerSequence(config, 2), 48);
+  const graph = toGraph({
+    id: "model",
+    children: [cacheLeaf("layers.0.state_update", { state: 24 })],
+  });
+  assert.equal(linearStateBytesPerSequence(graph, 2), 48);
 });
 
 test("MiniMax M3 sparse layers include index KV side cache", () => {
-  const config = { layers: 2, attentionSchedule: ["gqa", "sparse"], modelType: "minimax_m3_vl", kvHeads: 2, headDim: 4, sparseIndexHeads: 1, sparseIndexDim: 2 };
-  assert.equal(kvBytesPerToken(config, 2), 68);
+  const graph = toGraph({
+    id: "model",
+    children: [
+      cacheLeaf("layers.0.sdpa", { kv: 2 * 2 * 4 }),
+      cacheLeaf("layers.1.sparse_attention", { kv: 2 * 2 * 4, index: 1 * 2 }),
+    ],
+  });
+  assert.equal(kvBytesPerToken(graph, 2), 68);
 });
 
 test("offline weight fallback multiplies folded layer repeats", () => {

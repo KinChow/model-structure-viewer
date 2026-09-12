@@ -99,9 +99,10 @@ class VerifyRequest(StructureRequest):
 
 
 class VerifyEvidenceMismatch(BaseModel):
-    # kind: "class"（torch 类名 ↔ 前端模板标签分歧）| "shape"（weight_shapes 正维语义分歧）
+    # kind: "class"（torch 类名 ↔ 前端模板标签）| "shape"（weight_shapes 正维）
+    # | "params"（named_parameters.numel ↔ weightMatrices 声明元素）
     path: str
-    kind: Literal["class", "shape"]
+    kind: Literal["class", "shape", "params"]
     transformers: Any = None
     msv: Any = None
 

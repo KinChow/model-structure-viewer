@@ -1,13 +1,11 @@
 // 给定 TP/PP/EP/DP 计划的资源投影；不搜索计划，也不预测吞吐或延迟。
 // 来源：llm-analysis 的并行内存分解方法，以及 evolution_design.md §5.3(6)。
 
-import { linearStateElementsPerLayer, linearStateElementsPerSequence, nodeWeightBytes } from "./memory.js";
-import { childRepeatMultiplier, graphNodeToNode, walkStructure } from "./traverse.js";
-import { deriveBuildPlan } from "../structure/config/plan.js";
+import { nodeWeightBytes } from "./memory.js";
+import { childResidentRepeat, graphNodeToNode, walkStructure } from "./traverse.js";
 import { LAYER_INDEX_RE } from "../structure/operators/formulas/extractor.js";
 import { declaredWeightBytesPerCard, declaredWeightElements, expertShardDivisor } from "./sharding.js";
 import { normalizeParallelPlan } from "./parallelPlan.js";
-const planOf = (config) => deriveBuildPlan(config?.raw ?? config);
 
 function positiveInteger(value) {
   return Number.isInteger(value) && value > 0;
@@ -50,15 +48,20 @@ export function stateBytesPerCard(totalStateBytes, config = {}, plan = {}) {
   return { bytes: totalStateBytes / shardFactor, shardFactor, errors: [] };
 }
 
-function stateBytesForLayerRange(totalStateBytes, config = {}, start = 0, end = -1) {
-  const layers = config.layers || planOf(config).attentionSchedule?.length || 0;
-  const totalElements = linearStateElementsPerSequence(config);
-  if (!layers || !totalElements || end < start) return 0;
+function stateBytesForLayerRange(graph, totalStateBytes, start = 0, end = -1) {
+  if (!graph?.nodes?.length || end < start) return 0;
   let selected = 0;
-  for (let index = Math.max(0, start); index <= Math.min(end, layers - 1); index += 1) {
-    selected += linearStateElementsPerLayer(config, index);
-  }
-  return totalStateBytes * selected / totalElements;
+  let total = 0;
+  walkStructure(graph, ({ node, multiplier }) => {
+    const elements = (node?.attributes?.state_elements || 0) * multiplier;
+    if (!elements) return;
+    total += elements;
+    const match = String(node?.id || "").match(LAYER_INDEX_RE);
+    const layer = match ? Number(match[1]) : null;
+    if (layer != null && layer >= start && layer <= end) selected += elements;
+  });
+  if (!total) return 0;
+  return totalStateBytes * selected / total;
 }
 
 /** 按模块类别计算权重在单卡上的 TP/EP 投影；PP 只负责 stage 归属。
@@ -141,6 +144,7 @@ function layerSpanForNode(node) {
     return { start, end };
   }
   const path = String(node?.id || "");
+  if (/(^|\.)mtp(\.|$)/.test(path)) return null;
   const match = path.match(LAYER_INDEX_RE);
   if (match && !/(^|\.)experts(\.|$)/.test(path) && Number.isFinite(node?.repeat) && node.repeat > 1) {
     const start = Number(match[1]);
@@ -198,8 +202,8 @@ function nodeResidentWeightBytes(node) {
 // P7（步骤 7）：tree root 入参退役——自然权重直接沿 Graph IR 汇总。
 function graphWeightBytes(graph) {
   let total = 0;
-  walkStructure(graph, ({ node, multiplier }) => {
-    total += nodeResidentWeightBytes(node) * multiplier;
+  walkStructure(graph, ({ node, resident }) => {
+    total += nodeResidentWeightBytes(node) * resident;
   });
   return total;
 }
@@ -251,7 +255,7 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
       }
     }
     const layerRepeatHandled = Boolean(ownLayerSpan);
-    const childMultiplier = childRepeatMultiplier(nodeForScope, inheritedRepeat, { repeatHandled: layerRepeatHandled });
+    const childMultiplier = childResidentRepeat(nodeForScope, inheritedRepeat, { repeatHandled: layerRepeatHandled });
     for (const child of children) visitChild(child, childMultiplier, layerSpan);
   }
   function visitGraph(graphValue) {
@@ -284,7 +288,7 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
     const stageLayers = bounds ? Math.max(0, bounds.end - bounds.start + 1) : 0;
     stage.kvBytes = config.layers ? kv.bytes * stageLayers / config.layers : kv.bytes / pp;
     stage.stateBytes = config.layers
-      ? state.bytes == null ? null : state.bytes * (stateBytesForLayerRange(stateBytes, config, bounds.start, bounds.end) / Math.max(stateBytes, 1))
+      ? state.bytes == null ? null : state.bytes * (stateBytesForLayerRange(graph, stateBytes, bounds.start, bounds.end) / Math.max(stateBytes, 1))
       : (state.bytes || 0) / pp;
     // N2-4 W-B：不均衡区间的集合切分度来自组合语义（EP 启用 = epSize，未启用 =
     // dp——DP 也切专家集合）；专家数优先用声明的 count，缺省回 config.experts。

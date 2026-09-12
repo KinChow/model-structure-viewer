@@ -90,7 +90,7 @@ export function attentionCounts({ heads, queryTokens, keyTokens, headDim, valueD
   const kvWrite = kvHeads * queryTokens * (headDim + valueDim);
   return {
     matrix: scores * (headDim + valueDim),
-    // W5：4·scores = 1（QK^T/sqrt(d) 的缩放乘）+ 3（softmax 的减 max/累加/除）。
+    // W5：4·scores = 1（QKᵀ/sqrt(d) 的缩放乘）+ 3（softmax 的减 max/累加/除）。
     // 此前只计 3，漏了 scale 段——融合分解恒等式实测 fused/decompose = 0.75。
     vector: 4 * scores,
     sfu: 2 * scores,
@@ -337,7 +337,7 @@ export function addCounts({ tokens, hidden, bytesPerElement }) {
 // not parameters"；MaxText 同；出处 = Hash Layers, Roller et al. 2021）——
 // 所以 bytes.weights = 0（与 embedding 表同待遇：不进权重字节恒等式），
 // 流量按 gather 的真实拷贝计：每 token 读 topk 个专家 id、写 topk 个。
-// 表本身的常驻容量（vocab·k·4B int32）由 derivedBufferBytes 单独计入显存。
+// 表本身的常驻容量（vocab·k·4B int32）由叶 buffer_elements / bufferBytesFromGraph 计入显存。
 // 流量与 gather 原子逐位同构（scratch 证明 100/100 组：读=写=tokens·topk）
 // → 直接委托（M11.5 子项 3）。
 export function hashRouteCounts({ tokens, topk, bytesPerElement }) {

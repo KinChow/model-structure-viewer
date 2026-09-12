@@ -7,10 +7,10 @@
 
 | # | 命令（cwd） | 守护什么 | 基线 |
 |---|---|---|---|
-| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b 运行时接线、§3.1d 来源标注、§3.5b /tmp 引用棘轮、P0 root 复活棘轮 | §8.1 ≤14/16 |
-| 2 | `cd frontend && npm test` | 341 例单测：四条恒等式**容差 0**（融合分解 382 组逐位+夹逼 / 权重字节逐字节 / KV 读分桶夹逼 / 激活流形状连续性）、N2-4 锚 1（weightMatrices 声明单源，全目录逐叶）+ 锚 2（EP 组合语义三方一致）、四种量化方案 per-matrix 手算（fp8/mxfp8/gptq/compressed-tensors）、19+ 原子手算 exact、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、role 绑定、第六 oracle 全链路、内存侧基线、TF32 费率行 | 全绿 |
+| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b fromNode 查表、§3.1d 来源标注、§3.5b /tmp 引用棘轮、P0 root 复活棘轮 | §8.1 ≤10/16 |
+| 2 | `cd frontend && npm test` | 350 例单测：四条恒等式**容差 0**（融合分解 382 组逐位+夹逼 / 权重字节逐字节 / KV 读分桶夹逼 / 激活流形状连续性）、N2-4 锚 1（weightMatrices 声明单源，全目录逐叶）+ 锚 2（EP 组合语义三方一致）、四种量化方案 per-matrix 手算（fp8/mxfp8/gptq/compressed-tensors）、19+ 原子手算 exact、per-op golden、plan parity、normalize/树/边哈希基线、声明执法、第六 oracle 全链路、内存侧基线、TF32 费率行 | 全绿 |
 | 3 | `cd frontend && npm run verify:models` | 59 内置模型结构可构建 | `"failed": 0` |
-| 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照与 evidence 对账 | 169 passed |
+| 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照、params numel 对账、FlopCounterMode 独立算子抽查 | 184 passed |
 | 5 | `cd frontend && npm run test:e2e` | 浏览器端：图渲染、边 evidence 契约、成本交互（全量内置模型回归仅桌面跑） | 9 passed + 1 skipped |
 
 e2e 注：2026-09-10 出现两轮全量单用例失败（不同用例/project，隔离单跑均过、
@@ -28,8 +28,8 @@ e2e 注：2026-09-10 出现两轮全量单用例失败（不同用例/project，
 
 | 指标 | 当前 | 说明 |
 |---|---|---|
-| §8.1 家族名文件 | 14 / 16 | 配方表接管 plan.js 后应 <14（M11.5） |
-| 四条恒等式容差 | **0** | 权重字节/KV/形状连续性/融合分解全部 error 模式；超差先跑 `scripts/diff-weight-identity.mjs` 归因，禁止放宽 |
+| §8.1 家族名文件 | 10 / 16 | 删闭式后 12→10；配方表接管后应继续下降 |
+| 四条恒等式容差 | **0** | 权重字节/KV/形状连续性/融合分解全部 error 模式；超差用 checkpoint header 或锚 1（声明 vs 叶 counts）归因，禁止放宽 |
 | `/tmp` 取证引用（operators_reference） | 15（§3.5b 棘轮） | 只许下降；新证据落 models/<org>/<id>/ 证据库 |
 | DECOMPOSE_PENDING | **0** | 新模块进 formulas/modules.js 必须同时声明 decompose |
 | 语义边登记（形状连续性） | 只许缩短 | 未登记的不连续边即失败 |

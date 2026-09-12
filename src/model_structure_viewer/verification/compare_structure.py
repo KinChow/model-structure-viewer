@@ -1,13 +1,10 @@
 """结构对账：transformers per-module evidence ↔ 前端 msv Graph 三分类 diff。
 
-P7/步骤 6（tasks.md Task 7.3）。旧版只有 summary 两键比较——
-``compare_structure_summary`` 是 catalog 门禁的历史入口
-（tests/test_verification_compare.py 在用，生产零调用），原样保留；
 对账主体是 ``diff_module_evidence`` 三分类：
 
 - ``only_transformers``：后端 meta 构造有、前端 Graph 无的模块路径；
 - ``only_msv``：前端 Graph 有、后端无的模块路径；
-- ``mismatch``：路径命中但 class / shape 不一致（见 ``_module_mismatches``）。
+- ``mismatch``：路径命中但 class / shape / params 不一致（见 ``_module_mismatches``）。
 
 路径规范化的契约精神（§6.4）：前后端各持一套路径 resolver——前端
 graphTruth.js:5 ``canonicalModulePath``，后端本文件
@@ -21,30 +18,6 @@ import json
 import re
 from pathlib import Path
 from typing import Any
-
-
-def compare_structure_summary(
-    *,
-    predicted: dict[str, Any],
-    reference: dict[str, Any],
-) -> dict[str, Any]:
-    """Compare the high-level summary fields that gate catalog verification."""
-    predicted_summary = predicted.get("summary") or {}
-    reference_summary = reference.get("summary") or {}
-    errors: list[str] = []
-    warnings: list[str] = []
-
-    for key in ("architecture", "text_layers"):
-        predicted_value = predicted_summary.get(key)
-        reference_value = reference_summary.get(key)
-        if predicted_value != reference_value:
-            errors.append(f"{key} mismatch: predicted={predicted_value!r} reference={reference_value!r}")
-
-    return {
-        "status": "failed" if errors else "passed",
-        "errors": errors,
-        "warnings": warnings,
-    }
 
 
 _RULES_FIXTURE = Path(__file__).parent / "fixtures" / "canonical_path_contract.json"
@@ -212,7 +185,7 @@ def diff_module_evidence(
 
 
 def _module_mismatches(key: str, backend: dict[str, Any], frontend: dict[str, Any]) -> list[dict[str, Any]]:
-    """单模块的 class / shape 两类不一致判定。任一侧字段缺 None 即不参与。"""
+    """单模块的 class / shape / params 三类不一致判定。任一侧字段缺 None 即不参与。"""
     mismatches: list[dict[str, Any]] = []
 
     # class：后端是真实 torch 类名（Qwen3_5RMSNorm），前端是模板/算子标签
@@ -258,7 +231,45 @@ def _module_mismatches(key: str, backend: dict[str, Any], frontend: dict[str, An
                         "msv": {name: frontend_shapes[name]},
                     }
                 )
+
+    # numel：meta 模块 named_parameters().numel ↔ 前端声明元素。
+    # 优先用节点 params（checkpoint 绑定后才有）；catalog 模板 params 为 null
+    # 时改走 weightMatrices 声明（组网已写 shape，不必等权重文件）。
+    # shared 组是 tied 复用，不计入本节点自有 numel（与 graphWeightCapacity 同口径）。
+    # ref: 原则 §6.3「参数字节：meta numel × dtype ↔ msv 权重字节」。
+    backend_params = backend.get("params")
+    frontend_params = _frontend_declared_elements(frontend)
+    if (
+        isinstance(backend_params, (int, float))
+        and backend_params > 0
+        and frontend_params > 0
+        and int(backend_params) != frontend_params
+    ):
+        mismatches.append(
+            {"path": key, "kind": "params", "transformers": int(backend_params), "msv": frontend_params}
+        )
     return mismatches
+
+
+def _frontend_declared_elements(frontend: dict[str, Any]) -> int:
+    """前端节点自有参数元素：params 优先，否则 Σ weightMatrices（跳过 shared）。"""
+    params = _msv_field(frontend, "params")
+    if isinstance(params, (int, float)) and params > 0:
+        return int(params)
+    declaration = _msv_field(frontend, "weightMatrices")
+    if not isinstance(declaration, list):
+        return 0
+    total = 0
+    for group in declaration:
+        if not isinstance(group, dict) or group.get("shared"):
+            continue
+        out = group.get("out") or 0
+        inn = group.get("in") or 0
+        count = group.get("count") or 1
+        matrices = group.get("matrices") or 1
+        if isinstance(out, (int, float)) and isinstance(inn, (int, float)):
+            total += int(count) * int(matrices) * int(out) * int(inn)
+    return total
 
 
 _GENERIC_CONTAINERS = {"modulelist", "moduledict", "sequential"}

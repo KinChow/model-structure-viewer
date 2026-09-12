@@ -294,7 +294,7 @@ export function normalizeConfig(config) {
     sharedExpertIntermediateSize: pick(SHARED_EXPERT_INTERMEDIATE_KEYS)
       // 通用 MoE 回退：shared expert 模块中间维 = moeIntermediateSize；融合形态
       // （sharedExpertsFused，判定归 archs 配方）乘 n_shared 得模块宽。非融合模型的
-      // 个数由 derivedWeights/moe.js 的 count 乘子处理，回退只给单专家宽。
+      // 个数由声明组 count 乘子处理，回退只给单专家宽。
       // 列表式启发式曾两次漏模型（deepseek_v3、glm_moe_dsa）。
       ?? ((firstNumber(textConfig, EXPERT_KEYS) ?? firstNumber(config, EXPERT_KEYS))
         ? (() => {

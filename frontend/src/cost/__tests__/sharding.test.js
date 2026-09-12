@@ -16,9 +16,9 @@ import { resolveArchitecture } from "../../structure/registry/resolveArchitectur
 import { buildNetwork } from "../../structure/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/modelStructure.js";
-import { deriveBuildPlan } from "../../structure/config/plan.js";
+import { layerScheduleOf } from "../../structure/config/plan.js";
 import { aggregateCost } from "../aggregate.js";
-import { derivedWeightBytes } from "../derivedWeights.js";
+import { graphWeightCapacity } from "../memory.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 
 // P7（步骤 7）：projectNodePlan/aggregateCost 只收 Graph IR——
@@ -124,17 +124,17 @@ function buildMiniMaxM27() {
   const normalized = normalizeConfig(raw);
   const resolved = resolveArchitecture(normalized, { modelId: entry.model_id });
   const structure = materializeModelStructure(createStructureIr({ network: buildNetwork(resolved, normalized), normalized, resolved }));
-  return { normalized, structure, plan: deriveBuildPlan(normalized.raw ?? normalized) };
+  return { normalized, structure };
 }
 
 /** 路由专家声明字节的闭式独立推导（不读树）：moe 层数 × E × 3 × EH × EI × 2B。
  *  层调度与 expectedWeightBytes（modelIdentities）同口径：layerSchedule 缺省时
  *  均匀 MoE 模型按全 moe 回退。 */
-function routedDeclaredBytes(normalized, plan) {
+function routedDeclaredBytes(normalized) {
   const experts = normalized.experts || 0;
-  const schedule = plan?.layerSchedule
+  const schedule = layerScheduleOf(normalized)
     || Array.from({ length: normalized.layers || 0 }, () => (experts ? "moe" : "dense"));
-  const moeLayers = schedule.filter((kind) => kind === "moe").length;
+  const moeLayers = schedule.filter((kind) => kind === "moe").length + (normalized.mtpModules || 0);
   const eh = normalized.routedExpertHiddenSize || normalized.hiddenSize;
   const ei = normalized.moeIntermediateSize || normalized.intermediateSize;
   return moeLayers * experts * 3 * eh * ei * 2;
@@ -160,7 +160,7 @@ test("锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其�
   const config = { ...normalized, layers: normalized.layers, experts: normalized.experts };
   const base = projectNodePlan({ graph: structure.graph, config, plan: { tp: 1, ep: 1 } });
   const natural = base.stages[0].weightBytes; // tp=1/ep=1 → 全复制，即树的声明驻留总量
-  const routed = routedDeclaredBytes(normalized, deriveBuildPlan(normalized.raw ?? normalized));
+  const routed = routedDeclaredBytes(normalized);
   const replicated = replicatedBytes(structure, config); // router + norm 族（P4 声明后不再 ÷tp）
   const rest = natural - routed - replicated;
   assert.ok(replicated > 0 && rest > 0, "复制类与其余类都应为正（分解口径检查）");
@@ -187,7 +187,7 @@ test("锚 2：expertWeightRange 接声明的专家数与组合 setDegree（平�
   const config = { ...normalized, layers: normalized.layers, experts: normalized.experts };
   const base = projectNodePlan({ graph: structure.graph, config, plan: { tp: 1, ep: 1 } });
   const natural = base.stages[0].weightBytes;
-  const routed = routedDeclaredBytes(normalized, deriveBuildPlan(normalized.raw ?? normalized));
+  const routed = routedDeclaredBytes(normalized);
   const experts = normalized.experts;
 
   const projected = projectNodePlan({ graph: structure.graph, config, plan: { tp: 1, ep: 3 } });
@@ -213,12 +213,13 @@ test("量化枚举消费 weightMatrices：fp8 下专家矩阵按声明组精确�
     { id: "decoder.0.mlp.expert_mlp", type: "operator", attributes: { operator_id: "fused_moe_mlp", weightMatrices: [group] }, children: [] },
   ] };
   const config = { hiddenSize: 8, layers: 1, vocabSize: 16, intermediateSize: 8, attentionHeads: 1, headDim: 2, kvHeads: 1, quantization_config: quant };
-  const base = derivedWeightBytes(config, 2);
+  const graph = toGraph(root);
+  const base = graphWeightCapacity(graph).bytes;
   // 每矩阵 = 256·128·1B + ceil(256/128)·ceil(128/128)·4B(scale) = 32776
   const perMatrix = 256 * 128 + 2 * 1 * 4;
   const instances = 4 * 3;
   const expected = base - 256 * 128 * instances * 2 + perMatrix * instances;
-  const cost = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 4, kvBytes: 2 });
+  const cost = aggregateCost({ graph, config, batch: 1, sequence: 4, kvBytes: 2 });
   assert.equal(cost.memory.weightBytes, expected);
 });
 
@@ -229,8 +230,9 @@ test("量化枚举排除语义对声明组同源：modules_to_not_convert 命中
     { id: "decoder.0.mlp.expert_mlp", type: "operator", attributes: { operator_id: "fused_moe_mlp", weightMatrices: [group] }, children: [] },
   ] };
   const config = { hiddenSize: 8, layers: 1, vocabSize: 16, intermediateSize: 8, attentionHeads: 1, headDim: 2, kvHeads: 1, quantization_config: quant };
-  const cost = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 4, kvBytes: 2 });
-  assert.equal(cost.memory.weightBytes, derivedWeightBytes(config, 2));
+  const graph = toGraph(root);
+  const cost = aggregateCost({ graph, config, batch: 1, sequence: 4, kvBytes: 2 });
+  assert.equal(cost.memory.weightBytes, graphWeightCapacity(graph).bytes);
 });
 
 // ---------------------------------------------------------------------------

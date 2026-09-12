@@ -18,12 +18,11 @@ import { createStructureIr } from "../../../ir/createStructureIr.js";
 import { materializeModelStructure } from "../../../materializers/modelStructure.js";
 import { graphRoot } from "../../../graph/selectors.js";
 import { countsForNode, isVisionPath } from "../extractor.js";
-import { childRepeatMultiplier } from "../../../../cost/traverse.js";
-import { derivedWeightParameters, derivedVisionParameters, derivedMtpParameters, derivedDecoderLayerBreakdown } from "../../../../cost/derivedWeights.js";
-import { kvBytesPerToken, kvBytesPerTokenBreakdown } from "../../../../cost/memory.js";
+import { childRepeatMultiplier, walkStructure } from "../../../../cost/traverse.js";
+import { kvBytesPerToken } from "../../../../cost/memory.js";
 import { paramBytes } from "../paramDtypes.js";
 import { classifyRoofline } from "../../../../cost/roofline.js";
-import { deriveBuildPlan } from "../../../config/plan.js";
+import { attentionScheduleOf } from "../../../config/plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../..");
 const B = 2;
@@ -37,16 +36,6 @@ const REPRESENTATIVES = [
   ["S15", "moonshotai/Kimi-K3"], ["S16", "MiniMaxAI/MiniMax-M2.7"],
 ];
 
-const PHASES = [
-  { name: "prefill", tokens: 128, sequence: 128 },
-  { name: "decode", tokens: 1, sequence: 4096 },
-];
-
-// 逐算子逐相位的 bound 期望（plan §四）。未列出的算子不断言。
-// **必须声明工作点**：bound 是 arithmetic intensity 与 ridge point 的比较结果，
-// T 太小时投影类也会落在访存侧。W1 实测：T=128 的 prefill 下 linear/matmul 全部
-// memory-bound（AI 未过 A100 的 ridge≈306），所以 bound 断言另用一组"真实
-// prefill 工作点"（T=S=2048），且只保留判据无歧义的算子。
 const BOUND_PHASES = [
   { name: "prefill", tokens: 2048, sequence: 2048 },
   { name: "decode", tokens: 1, sequence: 4096 },
@@ -91,42 +80,8 @@ function buildStructure(raw, modelId) {
 //   逐位吻合）；MoE 层数（schedule 实测 42 moe + 3 dense，与
 //   first_k_dense_replace=3 一致）。prefill 侧同模型仅 +0.57%。
 
-/** 期望侧：该相位下应被读一遍的权重字节（不含 embedding 表，gather 不计权重读；
- *  也不含 tid2eid 等 buffer —— 它们是常驻数据，容量由 derivedBufferBytes 单独计）。 */
-function expectedWeightBytes(normalized, phase, tokens, plan) {
-  const hidden = normalized.hiddenSize || 0;
-  const total = derivedWeightParameters(normalized);
-  const vision = derivedVisionParameters(normalized);
-  const embed = (normalized.vocabSize || 0) * hidden;
-  const experts = normalized.experts || 0;
-  const topk = normalized.expertsPerToken || 0;
-  const moeI = normalized.moeIntermediateSize || normalized.intermediateSize || 0;
-  const routedHidden = normalized.routedExpertHiddenSize || hidden;
-  // routed 专家只存在于 MoE 层。此前按全部 layers 算，dense 前缀层
-  // （first_k_dense_replace）也被计成 MoE → routedN 过大、dense 项被压小，
-  // decode 侧 expected 偏小（S08 甚至为负）。改走 plan 的 layerSchedule。
-  const schedule = plan?.layerSchedule
-    || Array.from({ length: normalized.layers || 0 }, () => (experts ? "moe" : "dense"));
-  const moeLayers = schedule.filter((kind) => kind === "moe").length;
-  const routedN = experts ? moeLayers * experts * 3 * routedHidden * moeI : 0;
-  // routed 专家：prefill 大 T 下全部被激活；decode 只触达 min(k·T, E) 份
-  const activeExperts = experts ? Math.min(topk * tokens, experts) : 0;
-  const routedActive = experts ? routedN * (activeExperts / experts) : 0;
-  // tied embeddings：lm_head 与嵌入表共享同一张量，但 lm_head 的 GEMM 仍要从
-  // HBM 读一遍权重 —— 叶子侧计了，期望侧必须加回来。与 identity 的 nEff
-  // 「+ (tie ? embeddingTerm : 0)」同一处理。实测 Qwen3.5-0.8B 的 1.4242 偏差
-  // 100% 来自这一项（lm_head 权重 = vocab·H = 0.509 GB / 缺口 0.506 GB）。
-  const tiedHead = normalized.tieWordEmbeddings ? embed : 0;
-  // W4：MTP 参数在 total 里（支柱②），但每次前向不读它的权重（repeat=0），
-  // 叶子侧因此为 0 —— 期望侧同步扣掉。
-  const mtp = derivedMtpParameters(normalized);
-  const dense = total - mtp - vision - embed - routedN;
-  // fp32 参数（paramDtypes 登记的 dt_bias/A_log、mHC base/scale）按 4B 计，
-  // 其余按 B。fp32 元素数只数主干层（MTP 的期望侧本来就被整体减掉）。
-  const fp32 = derivedDecoderLayerBreakdown(normalized).perLayer
-    .reduce((sum, row) => sum + (row.fp32Elements || 0), 0);
-  return (dense - fp32 + tiedHead + routedActive + vision) * B + fp32 * 4;
-}
+/** 期望侧：该相位下叶 counts.bytes.weights 之和。无 header 时不再用闭式 Σ；
+ *  声明 vs counts 由锚 1 单源对账。本函数只是同一 walk 的相位合计。 */
 
 // P7（步骤 7）：遍历起点从 legacy structure.root 换成 graphRoot 图视图
 // （root_id 契约字段；节点 id/repeat/children 语义不变）。
@@ -148,10 +103,9 @@ function walkLeaves(root, visit) {
 
 const fmt = (n) => (Number.isFinite(n) ? n.toExponential(3) : String(n));
 
-test("W1 报表：权重字节恒等式 + bound 期望", () => {
+test("W1 报表：模块级 bound 期望", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
   const byId = new Map(catalog.models.map((m) => [m.model_id, m]));
-  const weightRows = [];
   const boundViolations = new Map();
 
   for (const [cls, modelId] of REPRESENTATIVES) {
@@ -159,21 +113,6 @@ test("W1 报表：权重字节恒等式 + bound 期望", () => {
     assert.ok(entry, `代表模型缺失: ${modelId}`);
     const raw = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const { normalized, structure } = buildStructure(raw, modelId);
-
-    for (const ph of PHASES) {
-      let weights = 0;
-      walkLeaves(treeView(structure), (node, multiplier) => {
-        const inVision = isVisionPath(node?.id);
-        const options = inVision
-          ? { batch: 1, sequence: normalized.visionTokens || 1, phase: ph.name, vision: true, visionTokens: normalized.visionTokens || 1 }
-          : { batch: 1, sequence: ph.sequence, phase: ph.name };
-        const actions = countsForNode(node, { config: normalized, options, path: node?.id || "", bytesPerElement: B });
-        if (!actions) return;
-        weights += (actions.bytes?.weights || 0) * multiplier;
-      });
-      const expected = expectedWeightBytes(normalized, ph.name, ph.tokens, deriveBuildPlan(normalized.raw ?? normalized));
-      weightRows.push({ cls, modelId, phase: ph.name, actual: weights, expected, ratio: expected > 0 ? weights / expected : null });
-    }
 
     for (const ph of BOUND_PHASES) {
       // 按模块子树聚合：遇到 attention/mlp/moe 模块就把它整棵子树的动作向量求和
@@ -217,10 +156,6 @@ test("W1 报表：权重字节恒等式 + bound 期望", () => {
   }
 
 
-  console.error("\n=== W1 权重字节恒等式（Σ 叶子 bytes.weights vs 应读一遍的权重字节）===");
-  for (const r of weightRows) {
-    console.error(`  ${r.cls} ${r.phase.padEnd(7)} ${r.modelId.padEnd(42)} actual=${fmt(r.actual)} expected=${fmt(r.expected)} ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)}`);
-  }
   console.error("\n=== W1 bound 期望违反（逐算子逐相位，prefill 工作点 T=S=2048）===");
   if (boundViolations.size === 0) console.error("  （无）");
   for (const [key, classes] of [...boundViolations.entries()].sort()) {
@@ -231,49 +166,11 @@ test("W1 报表：权重字节恒等式 + bound 期望", () => {
   // W5：bound 期望从 warn 升级为**断言**（模块级，工作点 prefill T=S=2048 /
   // decode T=1 S=4096）。这条把用户那句「attn prefill 算力瓶颈、decode 访存
   // 瓶颈」变成 CI 可拦的契约；MoE 两相位访存侧的判据见 MODULE_BOUND_EXPECTATION
-  // 的推导注释。
+  // 的推导注释。权重字节 vs 声明由下方锚 1 单源对账，不再用闭式 Σ。
   assert.deepEqual(
     [...boundViolations.keys()].sort(),
     [],
     "模块级 bound 与期望不符：先核 arithmetic intensity 与 ridge point，再决定是改公式还是改期望",
-  );
-
-  assert.equal(weightRows.length, REPRESENTATIVES.length * PHASES.length, "权重字节报表覆盖不全");
-
-  // W4 → W6：权重字节恒等式收到 **容差 0（逐字节相等）**，登记表空。
-  // 两侧是两套独立实现（期望侧 = cost/derivedWeights.js 的闭式参数量公式，
-  // 实际侧 = 结构树逐叶 bytes.weights 求和），能逐字节对上才说明两边都对。
-  // 归零路径（每一条都是**公式修正**，不是放宽容差；逐层归因工具
-  // `node scripts/diff-weight-identity.mjs --phase decode <modelId>`）：
-  //   · 视觉 patch embedding 被误当查表（regex `(patch_)?embed`）→ 权重与 MAC 全丢
-  //   · 逐头归一化的权重宽度：q_norm/k_norm/GDN 输出门/index_k_norm 一律
-  //     `RMSNorm(head_dim)`，不是全宽（normWeightWidth 取最后一维）
-  //   · linear 的 bias 也是权重；LayerNorm 有 bias（affineBias）
-  //   · MLA 的 q_a_layernorm 在 mla_query_compress 与独立 `q_a_norm` 叶双计
-  //   · KDA 的 beta 已在融合 qkvbfg_a/qkvgfab 内，独立 beta 叶是双计；
-  //     GLM 还缺 g_b_proj、A_log、o_norm；K3 的 attn_residual 聚合叶双计了
-  //     两个 norm 与两个打分投影
-  //   · mHC 的混合矩阵是 [mix_hc, hc_mult·hidden]（不是 [H, hc_mult]），
-  //     attn_norm/ffn_norm 融进 mhc_pre/fused，最终 hc_post 复用末层权重
-  //     （weightsShared，算力照计、字节不重复计）
-  //   · 哈希路由层没有 router GEMM，用的是 tid2eid 表
-  //   · 扁平 vision 配置也有投影器；Kimi 的 PatchMergerMLP 输出是**文本** hidden；
-  //     GLM merger 的 mergeWidth→output 与 downsample 是同一条
-  //   · PLE、q/k norm、latent norms、routed_expert_norm 等期望侧缺项逐条补齐
-  const WEIGHT_BYTES_TOLERANCE = 0;
-  const WEIGHT_BYTES_REGISTERED = {};
-  const weightOffenders = weightRows.filter((r) => {
-    const key = `${r.modelId}|${r.phase}`;
-    const tol = WEIGHT_BYTES_REGISTERED[key] ?? WEIGHT_BYTES_TOLERANCE;
-    if (r.actual == null || r.expected == null) return true;
-    // 容差 0 时比**整数字节差**，不比浮点比值（比值会被 toFixed 掩盖 1 字节的差）。
-    if (tol === 0) return Math.round(r.actual) !== Math.round(r.expected);
-    return r.ratio == null || Math.abs(r.ratio - 1) > tol;
-  });
-  assert.deepEqual(
-    weightOffenders.map((r) => `${r.modelId}|${r.phase} actual=${r.actual} expected=${r.expected} 差=${r.actual - r.expected}`),
-    [],
-    "权重字节恒等式不再逐字节相等：跑 `node scripts/diff-weight-identity.mjs --phase <phase> <modelId>` 定位到层与算子，修公式；不要放宽容差",
   );
 });
 
@@ -427,21 +324,36 @@ test("W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）", () =>
     const { normalized, structure } = buildStructure(raw, modelId);
     const S = 4096;
     const options = { batch: 1, sequence: S, phase: "decode" };
-    const plan = deriveBuildPlan(normalized.raw ?? normalized);
-    const schedule = plan.attentionSchedule || [];
-    const { main, index } = kvBytesPerTokenBreakdown(normalized, B);
+    const schedule = attentionScheduleOf(normalized) || [];
+    let mainPerToken = 0;
+    let indexPerToken = 0;
+    walkStructure(structure.graph, ({ node, multiplier }) => {
+      const id = String(node?.id || "");
+      if (isVisionPath(id) || node?.attributes?.modality === "vision") return;
+      const attrs = node?.attributes || {};
+      mainPerToken += (attrs.cache_kv_elements || 0) * multiplier;
+      indexPerToken += (attrs.cache_index_elements || 0) * multiplier;
+    });
+    assert.equal(kvBytesPerToken(structure.graph, B), (mainPerToken + indexPerToken) * B);
 
     // 期望侧：逐层 cache 容量 × 全长 S，按「读全 cache / 只读一部分」分两桶。
     let fullCapacity = 0;
     let selectiveCapacity = 0;
     let indexCapacity = 0;
-    for (let i = 0; i < (normalized.layers || 0); i += 1) {
-      const kind = schedule[i] || "gqa";
-      if (kind === "linear") continue; // KDA 状态是 request 级，不在 KV cache 口径内
-      if (FULL_READ_KINDS.has(kind)) fullCapacity += (main[i] || 0) * S;
-      else selectiveCapacity += (main[i] || 0) * S;
-      indexCapacity += (index[i] || 0) * S;
-    }
+    walkStructure(structure.graph, ({ node, multiplier }) => {
+      const id = String(node?.id || "");
+      if (isVisionPath(id) || node?.attributes?.modality === "vision") return;
+      const attrs = node?.attributes || {};
+      const kv = (attrs.cache_kv_elements || 0) * multiplier * B * S;
+      const index = (attrs.cache_index_elements || 0) * multiplier * B * S;
+      indexCapacity += index;
+      if (!kv) return;
+      const layer = Number((id.match(/(?:^|\.)(?:layers|language_model)\.(\d+)(?:\.|$)/) || [])[1]);
+      const kind = Number.isFinite(layer) ? (schedule[layer] || "gqa") : "gqa";
+      if (kind === "linear") return;
+      if (FULL_READ_KINDS.has(kind)) fullCapacity += kv;
+      else selectiveCapacity += kv;
+    });
 
     // 实际侧：逐叶的 kvRead / indexRead（都是 actIn 的子项，单独声明）。
     let fullRead = 0;

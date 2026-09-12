@@ -1462,20 +1462,10 @@ A2/A5 口径优先。
 
 ## 6. 双轨现状与护栏（§3.1b）
 
-**现状**：42 条 registry 条目与 extractor 手搓分支**同名双轨**。运行时分派顺序：
-`countsForNode` 的 type 分支（attention/embedding，`extractor.js:329-351`）→ 手搓
-switch case（提前 return）→ default 走 registry `entry.counts(ctxBuilder())`
-（11 个 ctxBuilder，`extractor.js:694-761`）。**手搓 case 的注册表 counts 引用是
-护栏认证过的死引用**——两轨对同一 operatorId 可能口径不同，已登记实例（G2）：
-causal_conv1d 的 vector/sfu/weights、matmul 的 F2 融合 vs 分解、swiglu 的 routed
-分支、gated_delta_attention 的 vector/sfu、linear_attention 的 state 分派。
-
-**护栏**：`scripts/check_principles.sh:65-86`（§3.1b 运行时接线判据）保证每条
-FORMULAS 运行时可达——**手搓 case / ctxBuilder / 显式豁免三选一**，实测 42 条可达
-（手搓 31 / ctxBuilder 11 / 豁免 0）。配套：§3.1d ref 注释 42/42；§3.1c bytes
-完整性棘轮（全 leaf 三访存分量不得全零，view 豁免除外）。长期方向 = 手搓分支逐条
-搬入 counts.js、消双轨（refactor_plan.md「护栏 §3.1 改运行时判据」；M11.5 的共享
-bytes 助手抽取）。
+**现状（2026-09-13 收口）**：`countsForNode` 无 switch。分派 = `FROM_NODE[operator_id]`，
+挂到 `FORMULAS[id].fromNode`；计价仍走 `.counts(ctx)`。`type=attention` /
+`type=embedding` 无 `operator_id`，仍在入口处理。护栏 §3.1b：switch case = 0，
+51 条全部有 `fromNode`。
 
 **对齐审查时的判读规则**：本文各节「实现」字段给的是**运行时真实生效**的位置
 （a4d709a 行号）；registry 条目行号（index.js）是规格与 ref 来源的权威锚点。
@@ -1532,9 +1522,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
         （gqa/mha/mla/qwen35_full）`kvRead` **逐字节等于**逐层容量×S（10/16 结构类有该桶）；
         选择性读的层（top-k / 块稀疏 / 压缩+滑窗）`kvRead ≤ 容量×S`；
         indexer 的 `indexRead ≤ 自己那份 index-k cache 容量×S`。无容差、无登记表。
-- [x] **逐层归因工具**：`node scripts/diff-weight-identity.mjs --phase decode <modelId>`
-      把权重字节差额摊到「第几层 / 哪个算子」，替代早期靠代数反解 + 单层变体二分的
-      手工流程。权重字节这条从 1% 收到 0 的 20 余处修正全部由它定位。
+- [x] **逐层归因工具**（已删 `scripts/diff-weight-identity.mjs`）：闭式对照面退役后，
+      超差改走 checkpoint header / 锚 1（声明 vs 叶 counts），不再用闭式按层反解。
 - [x] **tid2eid 分类裁决落地**（2026-09-09 联网取证）：tid2eid 是 **buffer 不是参数**
       （NVIDIA Megatron-Bridge 文档明文 "Buffers are not parameters"；MaxText 同；
       出处 = Hash Layers, Roller et al. 2021）。哈希层的 gather 叶 `bytes.weights = 0`

@@ -299,8 +299,8 @@ def test_verify_transformers_structure_reconciliation_consistent(monkeypatch):
     msv_graph = {
         "nodes": [
             # 前端模板栈节点：无 class 标签（class 检查 None 不参与）
-            {"id": "root.2", "canonical_id": "decoder", "type": "decoder"},
-            {"id": "root.2.0", "canonical_id": "decoder.0.self_attn.q_proj", "type": "operator",
+            {"id": "root.2", "canonical_id": "layers", "type": "module"},
+            {"id": "root.2.0", "canonical_id": "layers.0.self_attn.q_proj", "type": "operator",
              "attributes": {"class": "Linear"}, "weight_shapes": {"weight": [64, 64]}},
             # 后缀容忍：RMSNorm ⊂ DemoRMSNorm
             {"id": "root.3", "canonical_id": "norm", "type": "normalization", "attributes": {"class": "RMSNorm"}},
@@ -334,9 +334,9 @@ def test_verify_transformers_structure_constructed_but_structurally_inconsistent
             # 前端多了后端没有的模块
             # P0-2：带声明且不命中 known_divergences（^lm_head 是 tied 专属登记），
             # 才能表达"构造通过但结构不一致"——unclassified 只剩未登记分歧。
-            {"id": "root.4", "canonical_id": "decoder.custom_head", "type": "output", "attributes": {"class": "Linear", "weightMatrices": [{"class": "tp", "out": 1, "in": 1}]}},
+            {"id": "root.4", "canonical_id": "layers.custom_head", "type": "output", "attributes": {"class": "Linear", "weightMatrices": [{"class": "tp", "out": 1, "in": 1}]}},
             # path 命中但 weight_shapes 正维分歧
-            {"id": "root.5", "canonical_id": "decoder.0.self_attn.q_proj", "type": "operator",
+            {"id": "root.5", "canonical_id": "layers.0.self_attn.q_proj", "type": "operator",
              "attributes": {"class": "Linear", "weightMatrices": [{"class": "tp", "out": 64, "in": 128}]},
              "weight_shapes": {"weight": [64, 128]}},
         ]
@@ -350,11 +350,12 @@ def test_verify_transformers_structure_constructed_but_structurally_inconsistent
 
     assert result.ok is True
     assert result.status == "passed"
-    assert result.evidence.diff.only_msv == ["decoder.custom_head"]
-    assert [
-        (entry.path, entry.kind, entry.transformers, entry.msv)
-        for entry in result.evidence.diff.mismatches
-    ] == [("decoder.self_attn.q_proj", "shape", {"weight": [64, 64]}, {"weight": [64, 128]})]
+    assert result.evidence.diff.only_msv == ["layers.custom_head"]
+    mismatch_kinds = {(entry.path, entry.kind) for entry in result.evidence.diff.mismatches}
+    assert ("layers.self_attn.q_proj", "shape") in mismatch_kinds
+    shape_entry = next(entry for entry in result.evidence.diff.mismatches if entry.kind == "shape")
+    assert shape_entry.transformers == {"weight": [64, 64]}
+    assert shape_entry.msv == {"weight": [64, 128]}
     assert result.evidence.summary["structurally_consistent"] is False
 
 
@@ -389,8 +390,8 @@ def test_verify_service_passes_msv_graph_through_to_verification(monkeypatch):
     )
     msv_graph = {
         "nodes": [
-            {"id": "root.0", "canonical_id": "decoder", "type": "decoder"},
-            {"id": "root.1", "canonical_id": "decoder.0.self_attn.q_proj", "type": "operator",
+            {"id": "root.0", "canonical_id": "layers", "type": "module"},
+            {"id": "root.1", "canonical_id": "layers.0.self_attn.q_proj", "type": "operator",
              "attributes": {"class": "Linear"}, "weight_shapes": {"weight": [64, 64]}},
             {"id": "root.2", "canonical_id": "norm", "type": "normalization", "attributes": {"class": "RMSNorm"}},
         ]

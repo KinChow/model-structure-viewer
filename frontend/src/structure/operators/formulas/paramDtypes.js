@@ -1,8 +1,7 @@
 // 参数字节宽登记表（v1 范围：vLLM 显式声明 torch.float32 的**标量/一维**参数）。
 //
-// 为什么是一张表：权重字节恒等式的两侧（结构树 counts 与 derivedWeights 闭式公式）
-// 必须对同一个参数用同一个字节宽，否则恒等式失配。dtype 和公式一样是「两侧各写
-// 一遍就会漂移」的知识，所以定在这里，两边 import。
+// 为什么是一张表：叶 counts 与 weightMatrices 声明必须对同一个参数用同一个字节宽，
+// 否则锚 1 失配。dtype 和公式一样是「两侧各写一遍就会漂移」的知识，所以定在这里。
 //
 // 覆盖范围（2026-09-09 用户裁决「一次性修完」）：
 // - 全部 vLLM 显式声明 torch.float32 的参数（含大矩阵 hc_*_fn）；
@@ -15,7 +14,7 @@
 /** vLLM 显式声明 torch.float32 的参数组 -> 每元素字节。未登记的默认 2（bf16/fp16）。 */
 export const FP32_PARAMS = Object.freeze({
   // GDN/KDA 的衰减参数（dt_bias + A_log）。形状按家族不同，元素数由
-  // derivedWeights.gdnDecayElements / extractor 的 stateUpdateCounts 给出：
+  // extractor 的 stateUpdateCounts 给出：
   // - qwen GDN：两者都是 num_v_heads（qwen_gdn_linear_attn.py:467-475）
   // - glm5next：dt_bias = projection_size、A_log = num_heads（kda.py:205-243）
   // - kimi_k3：同 glm5next（kimi_k3/amd/kda.py:138-195）

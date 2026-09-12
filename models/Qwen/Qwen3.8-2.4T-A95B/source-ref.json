@@ -1,0 +1,648 @@
+{
+  "model_id": "Qwen/Qwen3.8-2.4T-A95B",
+  "transformers_version": "5.16.1",
+  "modules": [
+    {
+      "module_path": "root",
+      "class_name": "Qwen3_5MoeTextModel",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeTextModel",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 1241,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L1241"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.embed_tokens",
+      "class_name": "Embedding",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.sparse",
+        "class_name": "Embedding",
+        "file": "torch/nn/modules/sparse.py",
+        "line": 14,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/sparse.py#L14"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.group0.pattern0",
+      "class_name": "Qwen3_5MoeDecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.group0",
+      "class_name": "Qwen3_5MoeDecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.linear_attn",
+      "class_name": "Qwen3_5MoeGatedDeltaNet",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeGatedDeltaNet",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 384,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L384"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.linear_attn.conv1d",
+      "class_name": "Conv1d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv1d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 225,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L225"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.linear_attn.norm",
+      "class_name": "Qwen3_5MoeRMSNormGated",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNormGated",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 168,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L168"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.linear_attn.out_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.linear_attn.in_proj_qkv",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.linear_attn.in_proj_z",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.linear_attn.in_proj_b",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.linear_attn.in_proj_a",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp",
+      "class_name": "Qwen3_5MoeSparseMoeBlock",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeSparseMoeBlock",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 782,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L782"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.gate",
+      "class_name": "Qwen3_5MoeTopKRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeTopKRouter",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 763,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L763"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.experts",
+      "class_name": "Qwen3_5MoeExperts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeExperts",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 723,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L723"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_expert",
+      "class_name": "Qwen3_5MoeMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeMLP",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 707,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L707"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_expert.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_expert.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_expert.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_expert.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_expert_gate",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.input_layernorm",
+      "class_name": "Qwen3_5MoeRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNorm",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 804,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L804"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.post_attention_layernorm",
+      "class_name": "Qwen3_5MoeRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNorm",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 804,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L804"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3",
+      "class_name": "Qwen3_5MoeDecoderLayer",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeDecoderLayer",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 824,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L824"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.self_attn",
+      "class_name": "Qwen3_5MoeAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeAttention",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 630,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L630"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.q_norm",
+      "class_name": "Qwen3_5MoeRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNorm",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 804,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L804"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.k_norm",
+      "class_name": "Qwen3_5MoeRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNorm",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 804,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L804"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp",
+      "class_name": "Qwen3_5MoeSparseMoeBlock",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeSparseMoeBlock",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 782,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L782"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.gate",
+      "class_name": "Qwen3_5MoeTopKRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeTopKRouter",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 763,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L763"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts",
+      "class_name": "Qwen3_5MoeExperts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeExperts",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 723,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L723"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_expert",
+      "class_name": "Qwen3_5MoeMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeMLP",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 707,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L707"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_expert.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_expert.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_expert.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_expert.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_expert_gate",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.input_layernorm",
+      "class_name": "Qwen3_5MoeRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNorm",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 804,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L804"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.post_attention_layernorm",
+      "class_name": "Qwen3_5MoeRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNorm",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 804,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L804"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.norm",
+      "class_name": "Qwen3_5MoeRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeRMSNorm",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 804,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L804"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.rotary_emb",
+      "class_name": "Qwen3_5MoeTextRotaryEmbedding",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.qwen3_5_moe.modeling_qwen3_5_moe",
+        "class_name": "Qwen3_5MoeTextRotaryEmbedding",
+        "file": "src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+        "line": 85,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py#L85"
+      },
+      "has_params": false
+    }
+  ]
+}

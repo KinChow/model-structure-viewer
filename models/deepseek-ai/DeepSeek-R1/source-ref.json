@@ -1,0 +1,626 @@
+{
+  "model_id": "deepseek-ai/DeepSeek-R1",
+  "transformers_version": "5.16.1",
+  "modules": [
+    {
+      "module_path": "root",
+      "class_name": "DeepseekV3Model",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3Model",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 1342,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.embed_tokens",
+      "class_name": "Embedding",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.sparse",
+        "class_name": "Embedding",
+        "file": "torch/nn/modules/sparse.py",
+        "line": 14,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/sparse.py#L14"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.group0",
+      "class_name": "DeepseekV3DecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.self_attn",
+      "class_name": "DeepseekV3Attention",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3Attention",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 627,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.kv_a_proj_with_mqa",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.kv_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.kv_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.rotary_emb",
+      "class_name": "DeepseekV3YarnRotaryEmbedding",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3YarnRotaryEmbedding",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 262,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp",
+      "class_name": "DeepseekV3MLP",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3MLP",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 374,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.input_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.post_attention_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.group1",
+      "class_name": "DeepseekV3DecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.self_attn",
+      "class_name": "DeepseekV3Attention",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3Attention",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 627,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.self_attn.q_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.q_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.q_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.kv_a_proj_with_mqa",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.kv_a_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.kv_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.self_attn.rotary_emb",
+      "class_name": "DeepseekV3YarnRotaryEmbedding",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3YarnRotaryEmbedding",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 262,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp",
+      "class_name": "DeepseekV3MoE",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3MoE",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 475,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts.0.group0",
+      "class_name": "DeepseekV3MLP",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts.0.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts.0.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts.0.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.experts.0.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.gate",
+      "class_name": "MoEGate",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "MoEGate",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 393,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_experts",
+      "class_name": "DeepseekV3MLP",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3MLP",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 374,
+        "version": null,
+        "url": null
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_experts.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_experts.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.mlp.shared_experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.3.input_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.3.post_attention_layernorm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.norm",
+      "class_name": "DeepseekV3RMSNorm",
+      "source_ref": {
+        "framework": null,
+        "module_path": "transformers_modules.DeepSeek_hyphen_R1.b201b22b40737170.modeling_deepseek",
+        "class_name": "DeepseekV3RMSNorm",
+        "file": "/Users/zhouzijian01/.cache/huggingface/modules/transformers_modules/DeepSeek_hyphen_R1/b201b22b40737170/modeling_deepseek.py",
+        "line": 94,
+        "version": null,
+        "url": null
+      },
+      "has_params": true
+    }
+  ]
+}

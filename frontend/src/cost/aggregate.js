@@ -1,6 +1,5 @@
-import { bytesPerDtype, nodeWeightBytes, memoryBreakdown } from "./memory.js";
+import { bytesPerDtype, graphShapedWeightBytes, graphWeightCapacity, memoryBreakdown } from "./memory.js";
 import { computeNodeCosts } from "./compute.js";
-import { derivedWeightBytes, derivedWeightParameters, derivedBufferBytes } from "./derivedWeights.js";
 import { walkStructure } from "./traverse.js";
 import { quantizationConfigOf, isQuantizedPath, quantLinearWeightBytes } from "./quantBytes.js";
 
@@ -9,7 +8,7 @@ import { quantizationConfigOf, isQuantizedPath, quantLinearWeightBytes } from ".
  *（derivedLinearShape 同口径：output/input shape 的正维乘积），命中 quant 方案
  * 的按 quantLinearWeightBytes 精确计（权重 + scale + zeros），返回
  * 「被量化矩阵的元素数」与「它们的精确字节」。其余参数（norm/embed/mtp/vision
- * 与未命中量化的矩阵）仍按派生标量字节宽计。
+ * 与未命中量化的矩阵）仍按声明字节宽计。
  *
  * N2-4 W-B：带 weightMatrices 声明的叶子优先按声明组枚举（feature flag =
  * 声明存在，无声明叶逐位走原路径）。这补上了此前最大的枚举缺口——MoE 专家
@@ -20,7 +19,7 @@ import { quantizationConfigOf, isQuantizedPath, quantLinearWeightBytes } from ".
 function quantizedMatrixBytes(graph, quant) {
   let elements = 0;
   let bytes = 0;
-  walkStructure(graph, ({ node, multiplier }) => {
+  walkStructure(graph, ({ node, resident }) => {
     const path = String(node?.canonical_id ?? node?.id ?? "");
     const declaration = node?.attributes?.weightMatrices;
     if (Array.isArray(declaration) && declaration.length > 0) {
@@ -33,11 +32,11 @@ function quantizedMatrixBytes(graph, quant) {
         // quantizable=false 标记这类参数，不用维度大小猜——K3 的
         // attn_residual res_proj 就是 out=1 的真 GEMM（[1, 7168] 打分投影），
         // 按"维度>1"过滤会误伤它。
-        if (group.quantizable === false) continue;
+        if (group.quantizable === false || group.shared) continue;
         const matrixBytes = quantLinearWeightBytes({ out: group.out, inn: group.in, quant });
         // 无法计算的 quant 方案留在基桶（诚实缺项，不伪造 1B 标量宽）
         if (matrixBytes == null) continue;
-        const instances = (group.count ?? 1) * (group.matrices ?? 1) * multiplier;
+        const instances = (group.count ?? 1) * (group.matrices ?? 1) * resident;
         elements += group.out * group.in * instances;
         bytes += matrixBytes * instances;
       }
@@ -54,17 +53,18 @@ function quantizedMatrixBytes(graph, quant) {
 export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
   kvBytes = 2, activationPeak, runtimeConst, commBuffer, weightBytesPerParameter } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;
-  const nodeWeights = sumNodeWeights(graph);
+  const shapedWeights = graphShapedWeightBytes(graph);
+  const declared = graphWeightCapacity(graph);
   const quant = quantizationConfigOf(config);
   const naturalWeightBytes = hasParameterCount
     ? Object.entries(parameterCount).reduce((sum, [dtype, count]) => sum + count * bytesPerDtype(dtype), 0)
-    : nodeWeights > 0 ? nodeWeights : quantCapacityBytes(graph, config, quant);
+    : shapedWeights > 0 ? shapedWeights : quantCapacityBytes(graph, declared, quant, config);
   const parameterTotal = hasParameterCount
     ? Object.values(parameterCount).reduce((sum, count) => sum + count, 0)
-    : derivedWeightParameters(config);
+    : declared.elements;
   const hasWeightOverride = typeof weightBytesPerParameter === "number" && weightBytesPerParameter > 0;
   const weightBytes = hasWeightOverride ? parameterTotal * weightBytesPerParameter : naturalWeightBytes;
-  const memory = memoryBreakdown({ weightBytes, bufferBytes: derivedBufferBytes(config), config, batch, tokens: sequence, kvBytes,
+  const memory = memoryBreakdown({ weightBytes, graph, batch, tokens: sequence, kvBytes,
     activationPeak, runtimeConst, commBuffer });
   const nodes = computeNodeCosts(graph, config, { batch, sequence, phase, visionTokens: visionTokens ?? undefined });
   const unknownComputePaths = nodes
@@ -74,9 +74,9 @@ export function aggregateCost({ graph, config, parameterCount, batch = 1, sequen
   const computeComplete = unknownComputePaths.length === 0;
   const totalMacs = computeComplete ? knownMacs : null;
   const forwardTokens = batch * (phase === "decode" ? 1 : sequence);
-  const derivedSource = config?.quantizationBytesPerParameter > 0 || quant ? "derived-quantized" : "derived";
+  const graphSource = quant ? "derived-quantized" : "node";
   const actions = summarizeActions(nodes, computeComplete);
-  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : nodeWeights > 0 ? "node" : derivedSource, nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
+  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : (shapedWeights > 0 || declared.bytes > 0) ? graphSource : "empty", nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
     actions,
     knownMacs, computeComplete, unknownComputePaths,
     macsPerToken: totalMacs != null && forwardTokens > 0 ? totalMacs / forwardTokens : null,
@@ -117,30 +117,20 @@ function summarizeMacsSources(nodes) {
 
 /**
  * 量化容量（无 checkpoint、树可枚举时）：
- *   base = 全部参数按 bf16（2B，含 fp32 参数修正）；被量化矩阵换为其精确
+ *   base = 图上声明的驻留字节（bf16 + 已标 param_dtype 的 fp32）；被量化矩阵换为其精确
  *   字节（fp8 1B + scale / gptq 0.5B + scales+zeros）。
  * **排除矩阵（modules_to_not_convert / dynamic 命中）必须留在 bf16 桶** ——
  * 它们以未量化精度运行，若留在标量量化宽（如 fp8 的 1B）会把排除项算小
  *（M2.7 实测 lm_head/gate 排除后出现 -150,048 的反常下降，2026-09-09 修正）。
- * 图不可枚举（bare config，无 graph 结构）时退回标量
- * quantizationBytesPerParameter —— 没有 [out,in] 就没有 scale 形状与排除
- * 归属，这是信息极限而非建模缺口（登记于 operators_reference §7）。
+ * 无图 → 0，不编造闭式（原则 §3.8）。
  */
-function quantCapacityBytes(graph, config, quant) {
-  const base = derivedWeightBytes(config, 2);
-  if (!quant) {
-    const scalarBytes = config?.quantizationBytesPerParameter || 2;
-    return scalarBytes !== 2 ? derivedWeightBytes(config, scalarBytes) : base;
-  }
+function quantCapacityBytes(graph, declared, quant, config) {
+  const scalarBytes = config?.quantizationBytesPerParameter || 2;
+  const base = !quant && scalarBytes !== 2
+    ? graphWeightCapacity(graph, { fallbackBytes: scalarBytes }).bytes
+    : declared.bytes;
+  if (!quant) return base;
   const { elements, bytes } = quantizedMatrixBytes(graph, quant);
   if (elements <= 0) return base;
   return base - elements * 2 + bytes;
-}
-
-function sumNodeWeights(graph) {
-  let total = 0;
-  walkStructure(graph, ({ node, multiplier }) => {
-    total += nodeWeightBytes(node) * multiplier;
-  });
-  return total;
 }

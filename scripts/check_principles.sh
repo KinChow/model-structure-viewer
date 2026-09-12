@@ -20,9 +20,10 @@ FAIL=0
 # ARCH_RECIPES。豁免随之转移给 archs/index.js（§8.1 认可的「一处数据文件」：
 # 模型 → 配方声明表，key 是 architectures[0] 原字符串，不做子串匹配）。
 # 基线沿革：W0 16 → W5 14 → 2026-09-11 删角色表与 gqa-decoder 九宫格得 12
-#（aliases.js / architectureCatalog.js / roles.js 退出计数）。
+#（aliases.js / architectureCatalog.js / roles.js 退出计数）→ 2026-09-13
+# 删 derivedWeights.js 闭式得 10。
 FAMILY_PATTERN='kimi|qwen4_?exp|qwen3_?5|glm5_?next|glm4_?moe|minimax_?m2|minimax_?m3|deepseek_?v32|deepseek_?v4|glm_?moe_?dsa'
-FAMILY_BASELINE=12
+FAMILY_BASELINE=10
 
 FAMILY_COUNT=0
 FAMILY_FILES=""
@@ -67,28 +68,25 @@ console.log('§3.1 公式注册表: ' + Object.keys(FORMULAS).length + ' 条全�
 ") || FAIL=1
 [ -n "$COUNTS_CHECK" ] && echo "$COUNTS_CHECK"
 
-# ---------- §3.1b 运行时接线判据（M11-P0-7，registry completeness） ----------
-# M11 四路审计：护栏原判据只查"注册表挂了 counts 函数"，而 extractor 有
-# 手搓 switch（31 条提前 return）——注册表上 31 个 counts 引用是被护栏
-# 认证过的死代码。新判据：每条目必须可从 extractor 分派到达——手搓
-# case、ctxBuilder 键、或显式豁免清单（豁免必须在此登记，禁止沉默）。
+# ---------- §3.1b 运行时接线判据（flop_registry：fromNode 查表） ----------
+# 终态：extractor 无 switch case；每条 FORMULAS 挂 fromNode（import extractor 后）。
+# type=attention / type=embedding 无 operator_id，不算注册表条目。
 REACH_CHECK=$(node --input-type=module -e "
 import fs from 'node:fs';
 import { FORMULAS } from './frontend/src/structure/operators/formulas/index.js';
+import './frontend/src/structure/operators/formulas/extractor.js';
 const src = fs.readFileSync('./frontend/src/structure/operators/formulas/extractor.js', 'utf8');
-const switchCases = new Set([...src.matchAll(/case \"([a-z0-9_]+)\":/g)].map((m) => m[1]));
-const cbStart = src.indexOf('ctxBuilders');
-const cbBlock = cbStart === -1 ? '' : src.slice(cbStart, src.indexOf('\n}', cbStart));
-const ctxKeys = new Set([...cbBlock.matchAll(/([a-z0-9_]+):\s*\(/g)].map((m) => m[1]));
-const RUNTIME_EXCEPTIONS = new Set([]);
-const unreachable = Object.keys(FORMULAS).filter((k) => !switchCases.has(k) && !ctxKeys.has(k) && !RUNTIME_EXCEPTIONS.has(k));
-if (unreachable.length) {
-  console.log('✗ §3.1b 违反：以下条目运行时不可达（无手搓 case、无 ctxBuilder、无豁免登记）：' + unreachable.join(', '));
+const switchCases = [...src.matchAll(/case \"([a-z0-9_]+)\":/g)].map((m) => m[1]);
+if (switchCases.length) {
+  console.log('✗ §3.1b 违反：extractor 仍有 switch case（终态 = 0）：' + switchCases.join(', '));
   process.exit(1);
 }
-const viaSwitch = Object.keys(FORMULAS).filter((k) => switchCases.has(k)).length;
-const viaCtx = Object.keys(FORMULAS).filter((k) => !switchCases.has(k) && ctxKeys.has(k)).length;
-console.log('§3.1b 运行时接线: ' + Object.keys(FORMULAS).length + ' 条可达（手搓 ' + viaSwitch + ' / ctxBuilder ' + viaCtx + ' / 豁免 ' + RUNTIME_EXCEPTIONS.size + '）');
+const missing = Object.keys(FORMULAS).filter((k) => typeof FORMULAS[k].fromNode !== 'function');
+if (missing.length) {
+  console.log('✗ §3.1b 违反：以下条目未挂 fromNode：' + missing.join(', '));
+  process.exit(1);
+}
+console.log('§3.1b 运行时接线: ' + Object.keys(FORMULAS).length + ' 条 fromNode 可达（switch case = 0）');
 ") || FAIL=1
 [ -n "$REACH_CHECK" ] && echo "$REACH_CHECK"
 

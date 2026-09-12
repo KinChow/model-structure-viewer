@@ -1,0 +1,264 @@
+{
+  "model_id": "MiniMaxAI/MiniMax-M2.7",
+  "transformers_version": "5.16.1",
+  "modules": [
+    {
+      "module_path": "root",
+      "class_name": "MiniMaxM2Model",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2Model",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 421,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L421"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.embed_tokens",
+      "class_name": "Embedding",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.sparse",
+        "class_name": "Embedding",
+        "file": "torch/nn/modules/sparse.py",
+        "line": 14,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/sparse.py#L14"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.group0",
+      "class_name": "MiniMaxM2DecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.self_attn",
+      "class_name": "MiniMaxM2Attention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2Attention",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 287,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L287"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_norm",
+      "class_name": "MiniMaxM2RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2RMSNorm",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 127,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L127"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.k_norm",
+      "class_name": "MiniMaxM2RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2RMSNorm",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 127,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L127"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp",
+      "class_name": "MiniMaxM2SparseMoeBlock",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2SparseMoeBlock",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 107,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L107"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.gate",
+      "class_name": "MiniMaxM2TopKRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2TopKRouter",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 46,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L46"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.experts",
+      "class_name": "MiniMaxM2Experts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2Experts",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 67,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L67"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.input_layernorm",
+      "class_name": "MiniMaxM2RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2RMSNorm",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 127,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L127"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.post_attention_layernorm",
+      "class_name": "MiniMaxM2RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2RMSNorm",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 127,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L127"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.norm",
+      "class_name": "MiniMaxM2RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2RMSNorm",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 127,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L127"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.rotary_emb",
+      "class_name": "MiniMaxM2RotaryEmbedding",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.minimax_m2.modeling_minimax_m2",
+        "class_name": "MiniMaxM2RotaryEmbedding",
+        "file": "src/transformers/models/minimax_m2/modeling_minimax_m2.py",
+        "line": 148,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/minimax_m2/modeling_minimax_m2.py#L148"
+      },
+      "has_params": false
+    }
+  ]
+}

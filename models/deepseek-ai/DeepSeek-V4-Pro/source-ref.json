@@ -1,0 +1,530 @@
+{
+  "model_id": "deepseek-ai/DeepSeek-V4-Pro",
+  "transformers_version": "5.16.1",
+  "modules": [
+    {
+      "module_path": "root",
+      "class_name": "DeepseekV4Model",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4Model",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 1255,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L1255"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.embed_tokens",
+      "class_name": "Embedding",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.sparse",
+        "class_name": "Embedding",
+        "file": "torch/nn/modules/sparse.py",
+        "line": 14,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/sparse.py#L14"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.group0",
+      "class_name": "DeepseekV4DecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.self_attn",
+      "class_name": "DeepseekV4Attention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4Attention",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 746,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L746"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_a_norm",
+      "class_name": "DeepseekV4RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 45,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L45"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.q_b_norm",
+      "class_name": "DeepseekV4UnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4UnweightedRMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 66,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L66"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.self_attn.kv_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.kv_norm",
+      "class_name": "DeepseekV4RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 45,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L45"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.o_a_proj",
+      "class_name": "DeepseekV4GroupedLinear",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4GroupedLinear",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 294,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L294"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.o_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.compressor",
+      "class_name": "DeepseekV4HCACompressor",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4HCACompressor",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 353,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L353"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.compressor.kv_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.compressor.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.compressor.kv_norm",
+      "class_name": "DeepseekV4RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 45,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L45"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.self_attn.compressor.rotary_emb",
+      "class_name": "DeepseekV4RotaryEmbedding",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RotaryEmbedding",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 75,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L75"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp",
+      "class_name": "DeepseekV4SparseMoeBlock",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4SparseMoeBlock",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 1076,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L1076"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.gate",
+      "class_name": "DeepseekV4HashRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4HashRouter",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 1045,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L1045"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.gate.score_fn",
+      "class_name": "SqrtSoftplusActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SqrtSoftplusActivation",
+        "file": "src/transformers/activations.py",
+        "line": 217,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L217"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.experts",
+      "class_name": "DeepseekV4Experts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4Experts",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 983,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L983"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_experts",
+      "class_name": "DeepseekV4MLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4MLP",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 965,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L965"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_experts.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_experts.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.mlp.shared_experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.input_layernorm",
+      "class_name": "DeepseekV4RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 45,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L45"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.post_attention_layernorm",
+      "class_name": "DeepseekV4RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 45,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L45"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.attn_hc",
+      "class_name": "DeepseekV4HyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4HyperConnection",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 867,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L867"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.attn_hc.input_norm",
+      "class_name": "DeepseekV4UnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4UnweightedRMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 66,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L66"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.layers.0.ffn_hc",
+      "class_name": "DeepseekV4HyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4HyperConnection",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 867,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L867"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.layers.0.ffn_hc.input_norm",
+      "class_name": "DeepseekV4UnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4UnweightedRMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 66,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L66"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.norm",
+      "class_name": "DeepseekV4RMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 45,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L45"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.rotary_emb",
+      "class_name": "DeepseekV4RotaryEmbedding",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4RotaryEmbedding",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 75,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L75"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.hc_head",
+      "class_name": "DeepseekV4HyperHead",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4HyperHead",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 946,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L946"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.hc_head.input_norm",
+      "class_name": "DeepseekV4UnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.deepseek_v4.modeling_deepseek_v4",
+        "class_name": "DeepseekV4UnweightedRMSNorm",
+        "file": "src/transformers/models/deepseek_v4/modeling_deepseek_v4.py",
+        "line": 66,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L66"
+      },
+      "has_params": false
+    }
+  ]
+}

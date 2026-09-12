@@ -6,7 +6,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeConfig } from "../../config/normalize.js";
-import { deriveBuildPlan } from "../plan.js";
+import { attentionScheduleOf, indexerScheduleOf, layerScheduleOf } from "../plan.js";
+import {
+  recipeAttentionOutputGate,
+  recipeLinearAttentionMode,
+  recipeNormMode,
+  recipeSharedExpertsAreFused,
+  recipeVisionInternalMerger,
+} from "../../archs/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
@@ -64,11 +71,21 @@ export function hashJson(json) {
   return createHash("sha256").update(json).digest("hex").slice(0, 16);
 }
 
-/** { model_id: deriveBuildPlan(config) 的方案字段 } —— parity 对比的现算侧 */
+/** { model_id: 调度函数 + recipe* 快照 } —— 与 plan-fixture 字段同名，便于逐值对。 */
 export function buildPlanFromDerive() {
   const map = {};
   for (const { model_id, config } of catalogEntries()) {
-    map[model_id] = Object.fromEntries(PLAN_FIELDS.map((field) => [field, deriveBuildPlan(config)[field] ?? null]));
+    const snapshot = {
+      attentionSchedule: attentionScheduleOf(config) ?? null,
+      layerSchedule: layerScheduleOf(config) ?? null,
+      indexerSchedule: indexerScheduleOf(config) ?? null,
+      linearAttentionMode: recipeLinearAttentionMode(config) ?? null,
+      normMode: recipeNormMode(config) ?? null,
+      sharedExpertsAreFused: recipeSharedExpertsAreFused(config) ?? null,
+      visionInternalMerger: recipeVisionInternalMerger(config) ?? null,
+      attentionOutputGate: recipeAttentionOutputGate(config) ?? null,
+    };
+    map[model_id] = snapshot;
   }
   return map;
 }

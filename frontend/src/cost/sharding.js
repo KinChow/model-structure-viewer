@@ -21,7 +21,7 @@
 export function declaredWeightElements(groups) {
   if (!Array.isArray(groups)) return 0;
   return groups.reduce(
-    (sum, group) => sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in,
+    (sum, group) => group.shared ? sum : sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in,
     0,
   );
 }

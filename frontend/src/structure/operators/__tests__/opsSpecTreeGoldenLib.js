@@ -30,7 +30,7 @@ function stripRegistryTexts(node) {
   for (const [k, v] of Object.entries(node)) {
     if (k === "attributes" && v && typeof v === "object") {
       out[k] = Object.fromEntries(
-        Object.entries(v).filter(([ak]) => ak !== "explanation" && ak !== "inputs" && ak !== "outputs"),
+        Object.entries(v).filter(([ak]) => ak !== "explanation" && ak !== "inputs" && ak !== "outputs" && ak !== "formula_id"),
       );
     } else {
       out[k] = stripRegistryTexts(v);

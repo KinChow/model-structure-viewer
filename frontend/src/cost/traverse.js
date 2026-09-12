@@ -4,6 +4,19 @@ export function childRepeatMultiplier(node, inheritedMultiplier = 1, { repeatHan
   return inheritedMultiplier * (repeatHandled || childHasExplicitRepeat ? 1 : repeat);
 }
 
+/** 驻留容量用的 repeat：MTP `repeat=0` 仍占显存（原则 §3.8，对标 vLLM named_parameters）。 */
+export function residentRepeat(node) {
+  const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
+  if (repeat !== 0) return repeat;
+  const modules = node?.attributes?.modules;
+  return Number.isFinite(modules) && modules > 0 ? modules : 1;
+}
+
+export function childResidentRepeat(node, inheritedMultiplier = 1, { repeatHandled = false } = {}) {
+  const childHasExplicitRepeat = (node?.children || []).some((child) => Number.isFinite(child?.repeat));
+  return inheritedMultiplier * (repeatHandled || childHasExplicitRepeat ? 1 : residentRepeat(node));
+}
+
 export function graphNodeToNode(graphNode) {
   return {
     id: graphNode.canonical_id || graphNode.module_id || graphNode.id,
@@ -41,7 +54,7 @@ export function walkStructure(graph, visit) {
   for (const children of childrenByParent.values()) {
     children.sort((left, right) => (left.order || 0) - (right.order || 0) || left.id.localeCompare(right.id));
   }
-  function walk(nodeId, multiplier = 1) {
+  function walk(nodeId, multiplier = 1, resident = 1) {
     const graphNode = byId.get(nodeId);
     if (!graphNode) return;
     const children = childrenByParent.get(nodeId) || [];
@@ -52,10 +65,11 @@ export function walkStructure(graph, visit) {
       ...graphNodeToNode(graphNode),
       children: children.map(graphNodeToNode),
     };
-    visit({ node, path: graphNode.id, multiplier });
+    visit({ node, path: graphNode.id, multiplier, resident });
     const childHasExplicitRepeat = children.some((child) => Number.isFinite(child.repeat));
     const childMultiplier = childRepeatMultiplier(node, multiplier, { repeatHandled: childHasExplicitRepeat });
-    for (const child of children) walk(child.id, childMultiplier);
+    const childResident = childResidentRepeat(node, resident, { repeatHandled: childHasExplicitRepeat });
+    for (const child of children) walk(child.id, childMultiplier, childResident);
   }
   walk(graph.root_id || graph.nodes.find((node) => node.parent_id == null)?.id || "root");
 }

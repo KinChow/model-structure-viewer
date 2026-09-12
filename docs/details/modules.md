@@ -104,7 +104,7 @@ architectures[0]
 
 ## 4. 顶层网络关系
 
-顶层 builder 由 `models/index.js` 的 `MODEL_BUILDERS` 分派，所有模板出口统一经过 `withMtp` 追加 optional MTP 模块（models/index.js:29-48）。MTP 对标 vLLM registry 的独立注册项（`DeepseekV32MTPModel` / `Qwen3_5MTP` / `MiniMaxM3MTP` / `Glm5NextMTPModel` / `KimiK3MTPModel`），实现见 `layers/mtp.js`：enorm(RMSNorm) + hnorm(RMSNorm) + eh_proj(2H→H) + 一个完整 decoder 层 + shared_head.norm，插在 decoder **之后、final norm 之前**——MTP 消费主干最后一层的 hidden state，不是 lm_head 的 logits（models/index.js:35-39）。`repeat: 0` 计费口径：投机解码缺省关闭，聚合乘子为 0（`cost/traverse.js` 的 `childRepeatMultiplier`），不参与每次前向的算力/访存；参数仍占显存（derivedWeightParameters 计入）。51/59 内置模型带 MTP 字段（49 个 1 模块、2 个 3 模块）。
+顶层 builder 由 `models/index.js` 的 `MODEL_BUILDERS` 分派，所有模板出口统一经过 `withMtp` 追加 optional MTP 模块（models/index.js:29-48）。MTP 对标 vLLM registry 的独立注册项（`DeepseekV32MTPModel` / `Qwen3_5MTP` / `MiniMaxM3MTP` / `Glm5NextMTPModel` / `KimiK3MTPModel`），实现见 `layers/mtp.js`：enorm(RMSNorm) + hnorm(RMSNorm) + eh_proj(2H→H) + 一个完整 decoder 层 + shared_head.norm，插在 decoder **之后、final norm 之前**——MTP 消费主干最后一层的 hidden state，不是 lm_head 的 logits（models/index.js:35-39）。`repeat: 0` 计费口径：投机解码缺省关闭，聚合乘子为 0（`cost/traverse.js` 的 `childRepeatMultiplier`），不参与每次前向的算力/访存；参数仍占显存（`residentRepeat` 计入，原则 §3.8）。51/59 内置模型带 MTP 字段（49 个 1 模块、2 个 3 模块）。
 
 ### 4.1 Dense/GQA decoder
 
@@ -241,15 +241,14 @@ layer_in → PreNorm → Attention → ⊕ → PreNorm → MLP/MoE → ⊕
 ```text
 operatorSpec(id, name, operatorId, attributes, numericShapes)
   -> formulaForOperator(operatorId)
-  -> formula_id / formula / explanation / inputs / outputs
+  -> formula / explanation / inputs / outputs
   -> input_shape / output_shape
   -> optional implementation / model-specific attributes
 ```
 
 | 字段 | 作用 |
 |---|---|
-| `operator_id` | 连接公式元数据和成本逻辑 |
-| `formula_id` | UI 公式索引和节点联动键 |
+| `operator_id` | 连接公式元数据和成本逻辑；UI 公式索引同一键 |
 | `input_shape` / `output_shape` | 数值 shape，供成本和 Inspector 使用 |
 | `attributes` | 可读 shape、attention kind、split sizes 等 |
 | `implementation` | vLLM/SGLang 参考实现名，不在浏览器执行 |
@@ -384,7 +383,7 @@ operator chain 只是可解释的结构语义，不表示 MSV 会调用 vLLM/SGL
 |---|---|---|
 | MSV 语义公式 | `structure/operators/formulas/index.js` | 页面展示公式，由 MSV 按结构语义维护 |
 | 参考实现 | `operators/ops/index.js` 的 `implementation` | vLLM/SGLang 类、算子或 backend 名称，不在浏览器执行 |
-| 成本方法论 | `cost/*.js` 注释和函数 | 逐算子 counts 对标 FlopCounterMode / onnx-tool（shape → 公式）；并行、显存 fit、效率因子、roofline 下界仍借鉴 llm-analysis |
+| 成本方法论 | `cost/*.js` 注释和函数 | 逐算子 counts 对标 FlopCounterMode / onnx-tool（shape → 公式）；并行、显存 fit、效率因子、roofline 下界仍借鉴 llm-analysis。FlopCounterMode 独立算子夹具在 `verification/flop_counter.py`（Linear / BMM / 深度可分 Conv1d）。 |
 | shape/协议事实 | safetensors、`@huggingface/hub`、模型 config | 参数量、dtype、shape、cache 和模型识别事实 |
 
 外部参考：
@@ -420,7 +419,7 @@ weight_bytes = sum(parameter_count[dtype] * bytes_per_dtype(dtype))
 node_weight_bytes = sum(product(shape) * bytes_per_dtype(tensor_dtype))
 ```
 
-代码：`cost/weights.js`、`cost/memory.js`、`cost/aggregate.js`。无 truth 时 `derivedWeights.js` 根据 config 做 fallback。聚合结果携带五值 `weightSource`（aggregate.js:77-79）：`checkpoint`（truth 参数量在）/ `node`（结构叶 weight_shapes 汇总）/ `derived`（config 推导）/ `derived-quantized`（config 推导 + 量化方案）/ `what-if`（用户 weightBytesPerParameter 覆盖）。
+代码：`cost/weights.js`、`cost/memory.js`、`cost/aggregate.js`。无 checkpoint 时 walk 图声明（`graphWeightCapacity`）。聚合结果携带 `weightSource`：`checkpoint` / `node`（图声明汇总）/ `derived-quantized`（图声明 + 量化）/ `what-if` / `empty`。
 
 ### 9.2 KV cache 和 request state
 
@@ -516,7 +515,7 @@ ModelStructure.graph（Graph IR 唯一结构载荷；App.jsx:96、DetailWorkspac
 | 算子树/权重声明/unsupported | `structure/operators/__tests__/`：`declaration`、`ops-spec-tree.diff`、`unsupportedArchitecture` |
 | 公式与 counts 恒等 | `structure/operators/formulas/__tests__/`：`atoms`、`counts`、`identities`、`modelIdentities`、`extractor.identity`、`countsAtomsConsistency` |
 | shape/dtype/safetensors | `cost/__tests__/dims.test.js`、`safetensorsReader.test.js` |
-| 成本链（counts/computeDtype/量化/字节/roofline/声明接缝） | `cost/__tests__/`：`compute`、`computeDtype`、`quantBytes`、`sharding`、`bytesCompleteness`、`rooflineChain`、`memory`、`derivedWeights`、`traverse`、golden diff（`cost-memory-actions.diff`） |
+| 成本链（counts/computeDtype/量化/字节/roofline/声明接缝） | `cost/__tests__/`：`compute`、`computeDtype`、`quantBytes`、`sharding`、`bytesCompleteness`、`rooflineChain`、`memory`、`aggregateWeights`（aggregate 接缝）、`traverse`、golden diff（`cost-memory-actions.diff`） |
 | TP/PP/EP/DP/PD | `cost/__tests__/parallel.test.js`、`comm.test.js`、`pdSummary.test.js` |
 | 芯片来源和缺项 | `cost/__tests__/publicChips.test.js`、`coverage.test.js`、`manualChip.test.js` |
 | 图和交互 | `diagram/__tests__/edgeStyle.test.js`、`components/ModelEntry.test.js`、`hooks/useStructure.test.js`、`diagnostics.test.js` |

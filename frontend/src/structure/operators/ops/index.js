@@ -1,7 +1,7 @@
 import { formulaForOperator } from "../formulas/index.js";
 import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
-import { deriveBuildPlan } from "../../config/plan.js";
+import { indexerScheduleOf } from "../../config/plan.js";
 import { recipeAttentionOutputGate, recipeLinearAttentionMode } from "../../archs/index.js";
 
 function cleanAttributes(attributes) {
@@ -20,7 +20,6 @@ export function operatorSpec(id, name, operatorId, attributes = {}, numericShape
     input_shape: numericShapes.input,
     output_shape: numericShapes.output,
     attributes: cleanAttributes({
-      formula_id: operatorId,
       formula: formula?.formula,
       explanation: formula?.explanation,
       inputs: formula?.inputs,
@@ -83,7 +82,7 @@ function dimWidth(d) {
  * - **param_dtype**：引用 `formulas/paramDtypes.js` 的 FP32_PARAMS 键（不携带
  *   字节数——dtype 知识仍单源在登记表），供锚 1 的 dtype-aware 判据使用。
  */
-export function weightMatrixDecl(klass, { shape, out, in: inDim, count = 1, matrices = 1, split = null, quantizable = true, param_dtype = undefined }) {
+export function weightMatrixDecl(klass, { shape, out, in: inDim, count = 1, matrices = 1, split = null, quantizable = true, param_dtype = undefined, shared = false }) {
   let resolvedOut = out;
   let resolvedIn = inDim;
   if (Array.isArray(shape)) {
@@ -95,6 +94,7 @@ export function weightMatrixDecl(klass, { shape, out, in: inDim, count = 1, matr
   if (split) group.split = split;
   if (!quantizable) group.quantizable = false;
   if (param_dtype) group.param_dtype = param_dtype;
+  if (shared) group.shared = true;
   return group;
 }
 
@@ -163,6 +163,24 @@ export function routedExpertWeightMatrices(normalized) {
 
 // SDPA 核（原则 §2.3 / §2.4）：QKᵀ / softmax / PV。不含 RoPE、不含 q/k/v/o 投影。
 // FlashAttention 是这个核的实现，写进 implementation。默认折叠；展开才看到三叶。
+/** 每 token 驻留 cache 元素（容量，不是这次 forward 的 kvRead）。
+ *  ref: vLLM AttentionSpec / MLAAttentionSpec / CompressorStateCache。 */
+export function cacheResidentDecl({ kvElements = 0, indexElements = 0 } = {}) {
+  return { cache_kv_elements: kvElements, cache_index_elements: indexElements };
+}
+
+/** KDA request state 元素。ref: vLLM MambaStateShapeCalculator.kda_state_shape。 */
+export function linearStateResidentDecl(normalized) {
+  const keyHeads = normalized.linearKeyHeads || normalized.attentionHeads || 0;
+  const valueHeads = normalized.linearValueHeads || normalized.attentionHeads || 0;
+  const keyDim = normalized.linearKeyDim || normalized.headDim || 0;
+  const valueDim = normalized.linearValueDim || normalized.valueHeadDim || keyDim;
+  const kernel = Math.max(0, (normalized.linearConvKernelSize || 1) - 1);
+  const convElements = keyHeads * keyDim * 2 + valueHeads * valueDim;
+  const recurrentElements = valueHeads * valueDim * keyDim;
+  return { state_elements: convElements * kernel + recurrentElements };
+}
+
 export function sdpaAttentionModule(prefix, shapes, dims, { scoresName = "attention scores", scores = {}, context = {}, modality } = {}) {
   const sdpaId = `${prefix}.sdpa`;
   const formula = formulaForOperator("sdpa_attention");
@@ -192,12 +210,12 @@ export function sdpaAttentionModule(prefix, shapes, dims, { scoresName = "attent
     attributes: cleanAttributes({
       class: "SDPA",
       operator_id: "sdpa_attention",
-      formula_id: "sdpa_attention",
       formula: formula?.formula,
       explanation: formula?.explanation,
       inputs: formula?.inputs,
       outputs: formula?.outputs,
       attention_kind: scores.attention_kind || context.attention_kind,
+      ...(scores.cacheResident || {}),
       implementation: ["vLLM.Attention", "SGLang.FlashAttentionBackend", "TRT-LLM.GPTAttention"],
       dataflow_edges: [["scores", "softmax"], ["softmax", "context"]],
       modality,
@@ -218,14 +236,14 @@ export function sdpaAttentionModule(prefix, shapes, dims, { scoresName = "attent
 //   preOutput: 插在 SDPA 核与 o_proj 之间的节点（MLA 的 g_proj）
 //   before: 插在 tail 之前的节点（minimax sparse 的 indexer 链）
 // 真语义不同的变体（dsa、dsv4、qsa）不并入本 helper。
-function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary position embedding", rope = {}, scoresName = "attention scores", scores = {}, context = {}, preOutput = [], before = [] } = {}) {
+function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary position embedding", rope = {}, scoresName = "attention scores", scores = {}, context = {}, preOutput = [], before = [], cacheResident } = {}) {
   return [
     ...before,
     operatorSpec(`${prefix}.rope`, ropeName, "rope", {
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
       ...rope,
     }, { input: dims.attentionQuery, output: dims.attentionQuery }),
-    sdpaAttentionModule(prefix, shapes, dims, { scoresName, scores, context }),
+    sdpaAttentionModule(prefix, shapes, dims, { scoresName, scores: { ...scores, cacheResident }, context }),
     ...preOutput,
     operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
       ...shapeFlow(shapes.attentionContext, shapes.hidden),
@@ -239,6 +257,9 @@ function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary positio
 
 export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
+  const kvHeads = normalized.kvHeads || normalized.attentionHeads || 0;
+  const headDim = normalized.headDim || 0;
+  const valueDim = normalized.valueHeadDim || headDim;
   return [
     operatorSpec(`${prefix}.q_proj`, "q projection", "linear", {
       ...shapeFlow(shapes.hidden, shapes.attentionQuery),
@@ -273,6 +294,7 @@ export function attentionOperatorSpecs(prefix, attentionKind, normalized) {
         probabilities_shape: shapes.attentionProbabilities,
         value_shape: shapes.attentionValue,
       },
+      cacheResident: cacheResidentDecl({ kvElements: 2 * kvHeads * headDim }),
     }),
   ];
 }
@@ -292,7 +314,9 @@ export function linearAttentionOperatorSpecs(prefix, normalized) {
     operatorSpec(`${prefix}.in_proj_b`, "linear attention decay projection", "linear", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${prefix}.short_conv`, "short convolution", "linear_attention", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${prefix}.state_update`, "linear attention state update", "linear_attention", {
-      ...shapeFlow(`${shapes.hidden}, state`, shapes.hidden), attention_kind: "linear",
+      ...shapeFlow(`${shapes.hidden}, state`, shapes.hidden),
+      attention_kind: "linear",
+      ...linearStateResidentDecl(normalized),
     }, { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${prefix}.output_gate`, "linear attention output gate", "linear_attention_gate", shapeFlow(shapes.hidden, shapes.hidden), { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", { ...shapeFlow(shapes.hidden, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.hidden, output: dims.hidden }),
@@ -405,8 +429,7 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
     // M8-V2（源码 modeling_kimi_linear.py）：kimi_k3 的 decay 走低秩
     // f_a（在融合 qkvgfab 内）+ f_b（独立 head_dim→projection_size）——
     // 独立全宽 decay 叶会与融合内 f_a 重复计数（88M vs 真值 2.5M/层）。
-    // W3.5 修正：**glm5_next 同为低秩**（derivedWeights 的
-    // glm5NextLinearAttentionParameters 依 modeling_glm5_next.py 取证：融合
+    // W3.5 修正：**glm5_next 同为低秩**（modeling_glm5_next.py 取证：融合
     // qkvbfg_a 已含 b/f_a/g_a，独立叶只有 f_b、g_b，各 head_dim→qkv_dim）。
     // 此前只给 kimi_k3 特判，glm5_next 仍发全宽 hidden×qkv_dim decay 叶，
     // 单层多算 3.2e7 元素 x 34 层 = 1.09e9 —— 权重字节恒等式 decode 1.0958
@@ -470,6 +493,7 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       gate_lower_bound: normalized.linearLowerBound,
       decay_parameters: ["A_log", "dt_bias"],
       state_shape: stateShape,
+      ...linearStateResidentDecl(normalized),
     }, { input: qkvConvDims, output: outputDims }),
     // M8-V2：kimi_k3 的 gated norm / o_proj 输入 = state 输出宽（projection），
     // 非融合聚合宽（源码：o_norm(128 逐头门控) → o_proj 12288→hidden）
@@ -516,6 +540,7 @@ export function qwen35FullAttentionOperatorSpecs(prefix, normalized) {
       rope: { partial_rotary_factor: normalized.partialRotaryFactor },
       scores: { attention_kind: "qwen35_full" },
       context: { attention_kind: "qwen35_full" },
+      cacheResident: cacheResidentDecl({ kvElements: 2 * kvProjection }),
       preOutput: [operatorSpec(`${prefix}.output_gate`, "attention output gate", "attention_output_gate", {
         ...shapeFlow(`${shapes.attentionContext}, ${gateShape}`, shapes.attentionContext),
         activation: recipeAttentionOutputGate(normalized) ? "sigmoid" : "none",
@@ -564,7 +589,8 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
       formula: "S = Q K^T / sqrt(d_rope)",
       attention_kind: "mla",
     },
-    context: { attention_kind: "mla" },    preOutput: [
+    context: { attention_kind: "mla" },
+    cacheResident: cacheResidentDecl({ kvElements: (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0) }),    preOutput: [
       ...(normalized.mlaUseOutputGate
         ? [operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext })]
         : []),
@@ -653,6 +679,10 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       selected_tokens: budget,
       compress_ratio: ratio,
       attention_kind: "dsv4_sparse_mla",
+      ...cacheResidentDecl({
+        kvElements: headDim + (2 * (ratio === 4 ? 2 : 1) * headDim) / ratio,
+        indexElements: indexDim || 0,
+      }),
       implementation: ["vLLM.DeepseekV4FlashMLAAttention", "SGLang.RadixAttention + DSV4 backend"],
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
   } else if (ratio === 128) {
@@ -660,6 +690,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       ...shapeFlow(`${query}, compressed KV`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
       compress_ratio: ratio,
       attention_kind: "dsv4_compressed_mla",
+      ...cacheResidentDecl({ kvElements: headDim + (2 * 1 * headDim) / ratio }),
       implementation: ["vLLM.DeepseekV4FlashMLAAttention", "SGLang.MQALayer"],
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
   } else {
@@ -668,6 +699,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       sliding_window: normalized.slidingWindow,
       compress_ratio: ratio,
       attention_kind: "dsv4_swa_mqa",
+      ...cacheResidentDecl({ kvElements: headDim }),
       implementation: ["vLLM.DeepseekV4SWACache", "SGLang.RadixAttention"],
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
   }
@@ -747,6 +779,12 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
       ...shapeFlow(`${shapes.attentionQuery}, selected K/V`, shapes.attentionContext),
       selected_tokens: budget,
       attention_kind: "qsa",
+      ...cacheResidentDecl({
+        kvElements: (normalized.kvLoraRank != null && normalized.qkRopeHeadDim != null)
+          ? (normalized.kvLoraRank + normalized.qkRopeHeadDim)
+          : 2 * kvHeads * headDim,
+        indexElements: indexerDim || 0,
+      }),
       implementation: ["vLLM.Qwen4ExpQSAAttention", "SGLang.qwen4_exp qsa"],
     }, { input: dims.attentionQuery, output: dims.attentionContext }),
     operatorSpec(`${prefix}.out_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
@@ -828,6 +866,10 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         init_blocks: normalized.sparseInitBlock,
         disable_index_value: disableIndexValue,
         attention_kind: "minimax_m3_sparse_gqa",
+        ...cacheResidentDecl({
+          kvElements: 2 * kvHeads * (normalized.headDim || 0),
+          indexElements: (normalized.sparseIndexHeads || 0) * (normalized.sparseIndexDim || 0),
+        }),
         implementation: ["vLLM.MiniMaxM3SparseImpl", "SGLang.minimax_sparse_backend"],
       }, { input: dims.attentionQuery, output: dims.attentionContext }),
     );
@@ -839,6 +881,7 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         partial_rotary_factor: normalized.partialRotaryFactor,
         implementation: ["vLLM.MiniMaxM3Attention.rotary_emb", "SGLang.MiniMaxM3Attention.rotary_emb"],
       },
+      cacheResident: cacheResidentDecl({ kvElements: 2 * kvHeads * (normalized.headDim || 0) }),
     }));
   }
   return specs;
@@ -893,6 +936,7 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant
         rotary_dim: normalized.rotaryDim,
         partial_rotary_factor: normalized.partialRotaryFactor,
       },
+      cacheResident: cacheResidentDecl({ kvElements: 2 * kvProjection }),
     }),
   ];
 }
@@ -911,7 +955,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const indexDim = normalized.dsaIndexHeadDim ?? normalized.indexerHeadDim ?? 0;
   const budget = normalized.dsaIndexTopk ?? normalized.indexerBudget ?? 0;
   const kpool = normalized.dsaIndexKpool ?? 1;
-  const indexerMode = deriveBuildPlan(normalized.raw ?? normalized).indexerSchedule?.[layerIndex] || "compute";
+  const indexerMode = indexerScheduleOf(normalized)?.[layerIndex] || "compute";
   const qLatentShape = `[batch, sequence, q latent=${qRank}]`;
   const kvLatentShape = `[batch, sequence, kv latent=${kvRank}, rope=${ropeDim}]`;
   const qShape = `[batch, sequence, attention heads=${heads}, head dimension=${qkDim}]`;
@@ -986,6 +1030,10 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       selected_tokens: budget,
       attention_kind: "dsa_sparse_mla",
       indexer_mode: indexerMode,
+      ...cacheResidentDecl({
+        kvElements: kvRank + ropeDim,
+        indexElements: indexDim || 0,
+      }),
       implementation: ["vLLM.DeepseekV32MLAAttention", "SGLang.RadixAttention + DSA backend"],
     }, { input: [-1, -1, heads, qkDim], output: [-1, -1, heads, valueDim] }),
     operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
@@ -1095,6 +1143,8 @@ export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false
       ...shapeFlow("[batch, sequence] input_ids", shapes.topExperts),
       num_hash_layers: normalized.numHashLayers,
       hash_table_shape: `[vocab size=${normalized.vocabSize}, experts per token=${normalized.expertsPerToken}]`,
+      // tid2eid 是 buffer 不是参数（Megatron-Bridge）。每层一张 vocab×k 表。
+      buffer_elements: (normalized.vocabSize || 0) * (normalized.expertsPerToken || 0),
       implementation: ["vLLM.gate.tid2eid + fused_topk_bias", "SGLang DeepSeek V4 hash routing"],
     }, { input: [-1, -1], output: dims.topExperts })]
     : [

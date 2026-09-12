@@ -1,6 +1,5 @@
-// W3-C oracle：① normalizeConfig 输出哈希与基线比对（重生成后 diff 必须只体现
-// 方案字段删除）；② deriveBuildPlan 与方案字段 parity fixture 逐值相等（逐字搬迁
-// 的保真证明，覆盖 59 模型 × 8 字段）。
+// W3-C oracle：① normalizeConfig 输出哈希与基线比对；
+// ② 调度函数 + recipe* 与方案字段 parity fixture 逐值相等。
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -8,7 +7,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { buildNormalizeMap, buildPlanFromDerive, hashJson, PLAN_FIELDS } from "./normalizeGoldenLib.js";
-import { deriveBuildPlan } from "../plan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const goldenPath = path.join(repoRoot, "frontend/src/structure/config/__tests__/normalize.golden.json");
@@ -40,7 +38,7 @@ test("W3-C：normalizeConfig 输出哈希与基线一致", () => {
 // **不可观测**——它们全是纯 MLA、没有线性注意力层，ops-spec-tree 与 edge
 // 两份 golden 哈希在本次改动下逐位不变即为证明。K2.5/2.6/2.7 走
 // KimiK25ForConditionalGeneration，仍声明为 'kimi'，未变。
-test("W3-C：deriveBuildPlan 与搬迁前方案字段逐值相等（parity fixture）", () => {
+test("W3-C：调度函数 + recipe* 与搬迁前方案字段逐值相等（parity fixture）", () => {
   const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
   const derived = buildPlanFromDerive();
   const fields = [...PLAN_FIELDS, "indexerSchedule"];

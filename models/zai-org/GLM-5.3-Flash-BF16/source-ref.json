@@ -1,0 +1,2382 @@
+{
+  "model_id": "zai-org/GLM-5.3-Flash-BF16",
+  "transformers_version": "5.16.1",
+  "modules": [
+    {
+      "module_path": "root",
+      "class_name": "Glm5NextModel",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextModel",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1827,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1827"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual",
+      "class_name": "Glm5NextVisionModel",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextVisionModel",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1732,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1732"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.patch_embed",
+      "class_name": "Glm5NextVisionPatchEmbed",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextVisionPatchEmbed",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1712,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1712"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.patch_embed.proj",
+      "class_name": "Conv3d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv3d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 568,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L568"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.rotary_pos_emb",
+      "class_name": "Glm5NextVisionRotaryEmbedding",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextVisionRotaryEmbedding",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1700,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1700"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.blocks",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.blocks.0.group0",
+      "class_name": "Glm5NextVisionBlock",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.blocks.0.norm1",
+      "class_name": "Glm5NextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1540,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1540"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.norm2",
+      "class_name": "Glm5NextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1540,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1540"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.attn",
+      "class_name": "Glm5NextVisionAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextVisionAttention",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1582,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1582"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.blocks.0.attn.qkv",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.attn.proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.attn.q_norm",
+      "class_name": "Glm5NextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1540,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1540"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.attn.k_norm",
+      "class_name": "Glm5NextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1540,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1540"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.mlp",
+      "class_name": "Glm5NextVisionMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextVisionMLP",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1497,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1497"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.blocks.0.mlp.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.mlp.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.mlp.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.blocks.0.mlp.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.merger",
+      "class_name": "Glm5NextVisionPatchMerger",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextVisionPatchMerger",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1517,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1517"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.merger.proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.merger.post_projection_norm",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.merger.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.merger.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.merger.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.merger.act1",
+      "class_name": "GELU",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.activation",
+        "class_name": "GELU",
+        "file": "torch/nn/modules/activation.py",
+        "line": 777,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/activation.py#L777"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.merger.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.visual.downsample",
+      "class_name": "Conv2d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv2d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 388,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L388"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.visual.post_layernorm",
+      "class_name": "Glm5NextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1540,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1540"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model",
+      "class_name": "Glm5NextTextModel",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextModel",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1408,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1408"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.embed_tokens",
+      "class_name": "Embedding",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.sparse",
+        "class_name": "Embedding",
+        "file": "torch/nn/modules/sparse.py",
+        "line": 14,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/sparse.py#L14"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers",
+      "class_name": "ModuleList",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.container",
+        "class_name": "ModuleList",
+        "file": "torch/nn/modules/container.py",
+        "line": 335,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/container.py#L335"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.group0",
+      "class_name": "Glm5NextTextDecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn",
+      "class_name": "Glm5NextTextLinearAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextLinearAttention",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 581,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L581"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.conv1d",
+      "class_name": "Conv1d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv1d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 225,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L225"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.forget_gate",
+      "class_name": "Glm5NextTextForgetGate",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextForgetGate",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 305,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L305"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.forget_gate.f_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.forget_gate.f_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.g_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.g_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.o_norm",
+      "class_name": "Glm5NextTextRMSNormGated",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNormGated",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 338,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L338"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp",
+      "class_name": "Glm5NextTextMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMLP",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 86,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L86"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.mlp.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.input_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.post_attention_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.attn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.attn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.0.ffn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.0.ffn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3",
+      "class_name": "Glm5NextTextDecoderLayer",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextDecoderLayer",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1259,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1259"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn",
+      "class_name": "Glm5NextTextAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextAttention",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1064,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1064"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.q_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.q_a_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.q_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.kv_a_proj_with_mqa",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.kv_a_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.kv_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer",
+      "class_name": "Glm5NextTextIndexer",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextIndexer",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 736,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L736"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.wq_b",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.wk",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.k_norm",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.self_attn.indexer.weights_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp",
+      "class_name": "Glm5NextTextMoE",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMoE",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 186,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L186"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.experts",
+      "class_name": "Glm5NextTextExperts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextExperts",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 107,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L107"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.gate",
+      "class_name": "Glm5NextTextTopkRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextTopkRouter",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 145,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L145"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts",
+      "class_name": "Glm5NextTextMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMLP",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 86,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L86"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.mlp.shared_experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.input_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.post_attention_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.attn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.attn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.3.ffn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.3.ffn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.group2.pattern2",
+      "class_name": "Glm5NextTextDecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.group2",
+      "class_name": "Glm5NextTextDecoderLayer",
+      "source_ref": null,
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn",
+      "class_name": "Glm5NextTextLinearAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextLinearAttention",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 581,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L581"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.conv1d",
+      "class_name": "Conv1d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv1d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 225,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L225"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.forget_gate",
+      "class_name": "Glm5NextTextForgetGate",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextForgetGate",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 305,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L305"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.forget_gate.f_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.forget_gate.f_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.g_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.g_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.o_norm",
+      "class_name": "Glm5NextTextRMSNormGated",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNormGated",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 338,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L338"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp",
+      "class_name": "Glm5NextTextMoE",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMoE",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 186,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L186"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp.experts",
+      "class_name": "Glm5NextTextExperts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextExperts",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 107,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L107"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp.gate",
+      "class_name": "Glm5NextTextTopkRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextTopkRouter",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 145,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L145"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp.shared_experts",
+      "class_name": "Glm5NextTextMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMLP",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 86,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L86"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp.shared_experts.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp.shared_experts.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.mlp.shared_experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.input_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.post_attention_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.attn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.attn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.4.ffn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.4.ffn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.7",
+      "class_name": "Glm5NextTextDecoderLayer",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextDecoderLayer",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1259,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1259"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn",
+      "class_name": "Glm5NextTextAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextAttention",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1064,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1064"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.q_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.q_a_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.q_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.kv_a_proj_with_mqa",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.kv_a_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.kv_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.indexer",
+      "class_name": "Glm5NextTextIndexer",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextIndexer",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 736,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L736"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.indexer.wq_b",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.indexer.wk",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.indexer.k_norm",
+      "class_name": "LayerNorm",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.normalization",
+        "class_name": "LayerNorm",
+        "file": "torch/nn/modules/normalization.py",
+        "line": 105,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/normalization.py#L105"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.self_attn.indexer.weights_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp",
+      "class_name": "Glm5NextTextMoE",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMoE",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 186,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L186"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp.experts",
+      "class_name": "Glm5NextTextExperts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextExperts",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 107,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L107"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp.gate",
+      "class_name": "Glm5NextTextTopkRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextTopkRouter",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 145,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L145"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp.shared_experts",
+      "class_name": "Glm5NextTextMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMLP",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 86,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L86"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp.shared_experts.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp.shared_experts.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.mlp.shared_experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.7.input_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.post_attention_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.attn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.attn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.7.ffn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.7.ffn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.44",
+      "class_name": "Glm5NextTextDecoderLayer",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextDecoderLayer",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 1259,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L1259"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn",
+      "class_name": "Glm5NextTextLinearAttention",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextLinearAttention",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 581,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L581"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.q_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.k_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.v_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.conv1d",
+      "class_name": "Conv1d",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.conv",
+        "class_name": "Conv1d",
+        "file": "torch/nn/modules/conv.py",
+        "line": 225,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/conv.py#L225"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.forget_gate",
+      "class_name": "Glm5NextTextForgetGate",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextForgetGate",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 305,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L305"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.forget_gate.f_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.forget_gate.f_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.g_a_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.g_b_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.o_norm",
+      "class_name": "Glm5NextTextRMSNormGated",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNormGated",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 338,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L338"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.self_attn.o_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp",
+      "class_name": "Glm5NextTextMoE",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMoE",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 186,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L186"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp.experts",
+      "class_name": "Glm5NextTextExperts",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextExperts",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 107,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L107"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp.gate",
+      "class_name": "Glm5NextTextTopkRouter",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextTopkRouter",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 145,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L145"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp.shared_experts",
+      "class_name": "Glm5NextTextMLP",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextMLP",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 86,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L86"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp.shared_experts.gate_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp.shared_experts.up_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp.shared_experts.down_proj",
+      "class_name": "Linear",
+      "source_ref": {
+        "framework": "torch",
+        "module_path": "torch.nn.modules.linear",
+        "class_name": "Linear",
+        "file": "torch/nn/modules/linear.py",
+        "line": 53,
+        "version": "2.12.0",
+        "url": "https://github.com/pytorch/pytorch/blob/v2.12.0/torch/nn/modules/linear.py#L53"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.mlp.shared_experts.act_fn",
+      "class_name": "SiLUActivation",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.activations",
+        "class_name": "SiLUActivation",
+        "file": "src/transformers/activations.py",
+        "line": 92,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/activations.py#L92"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.44.input_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.post_attention_layernorm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.attn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.attn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.layers.44.ffn_hc",
+      "class_name": "Glm5NextTextHyperConnection",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperConnection",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 219,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L219"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.layers.44.ffn_hc.input_norm",
+      "class_name": "Glm5NextTextUnweightedRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextUnweightedRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 210,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L210"
+      },
+      "has_params": false
+    },
+    {
+      "module_path": "root.language_model.norm",
+      "class_name": "Glm5NextTextRMSNorm",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextRMSNorm",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 65,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L65"
+      },
+      "has_params": true
+    },
+    {
+      "module_path": "root.language_model.hc_head",
+      "class_name": "Glm5NextTextHyperHead",
+      "source_ref": {
+        "framework": "transformers",
+        "module_path": "transformers.models.glm5_next.modeling_glm5_next",
+        "class_name": "Glm5NextTextHyperHead",
+        "file": "src/transformers/models/glm5_next/modeling_glm5_next.py",
+        "line": 298,
+        "version": "5.16.1",
+        "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py#L298"
+      },
+      "has_params": false
+    }
+  ]
+}

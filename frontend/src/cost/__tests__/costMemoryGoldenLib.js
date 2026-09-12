@@ -12,7 +12,7 @@ import { resolveArchitecture } from "../../structure/registry/resolveArchitectur
 import { buildNetwork } from "../../structure/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/modelStructure.js";
-import { deriveBuildPlan } from "../../structure/config/plan.js";
+import { DEFAULT_PLAN } from "../defaults.js";
 import { aggregateCost } from "../aggregate.js";
 import { planCommunicationBytes } from "../comm.js";
 import { classifyRoofline } from "../roofline.js";
@@ -31,8 +31,7 @@ export function computeModelChain(rawConfig, modelId) {
     resolved,
   }));
   const cost = aggregateCost({ graph: structure.graph, config: normalized, phase: "prefill", batch: 1, sequence: 512 });
-  const plan = deriveBuildPlan(normalized.raw ?? normalized);
-  const communication = planCommunicationBytes({ graph: structure.graph, config: normalized, plan, batch: 1, tokens: 512 });
+  const communication = planCommunicationBytes({ graph: structure.graph, config: normalized, plan: DEFAULT_PLAN, batch: 1, tokens: 512 });
   // M11-P0-4/P0-5：与 CostSummary 同步——actions 通道 + counts.bytes 流量
   // （weights 仍以 memory 侧为权威保 what-if 语义）
   const roofline = classifyRoofline({

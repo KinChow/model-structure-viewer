@@ -12,11 +12,18 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- 结构对账补 params：meta `named_parameters().numel` ↔ 前端 `weightMatrices` 声明元素（catalog 无 `params` 时也能比；tied `shared` 组跳过）。
+- FlopCounterMode 矩阵抽查：独立 Linear / BMM / 深度可分 Conv1d 夹具，msv MAC × 2 == torch FLOPs。不对 catalog 整模型跑 forward。
+
+- 删 `derivedWeights.js` config 闭式。身份测试期望侧 walk 图声明（T4 / 锚 1）；台账参数量级走 `graphWeightCapacity`，与 UI 同口径。无 header 不是死循环——闭式不是 header 的替身。
+- extractor 收成查表（flop_registry）：`countsForNode` 无 switch；`FORMULAS[id].fromNode` 抽 ctx，`.counts` 计价。护栏 §3.1b = switch case 0 且每条有 fromNode。
+- 删 `formula_id`：公式索引读 `operator_id`（flop_registry / vLLM 一个 id）。
+- 删生产零调用的 `compare_structure_summary`。
 - Registry 键改为 `config.architectures[0]`（对标 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）。删除自制 `gqa-decoder` 九宫格、`ARCHITECTURE_ALIASES`、`ARCHITECTURE_CATALOG`、`withVision`。视觉塔是该建模函数内部的可选子模块。
 - 删除角色表（`roles.js` / `SUFFIX_ROLES` / 节点 `role`）。checkpoint 按模块路径绑定：剥 HF 根包装 `model.` / `language_model.` 后相等匹配。
 - 图节点 id 改为 HF `_modules` 名：文本栈 `layers`（MiniMax-M3 文本塔 `language_model`），视觉塔 `visual` / `vision_tower`。不再用自制 `decoder` / `text_decoder`。
 - 目录对齐：`structure/layers/` 共享模块、`structure/models/` 按 `architectures[0]` 组网、`structure/operators/` = formulas + ops 工厂。删除 `model_executor/`（msv 不执行模型）。
-- 配方旗标（`linearAttentionMode` / `normMode` / `sharedExpertsAreFused` / `visionInternalMerger` / `attentionOutputGate`）组网与 cost 直接读 `ARCH_RECIPES`，不再经 `deriveBuildPlan` 产品对象。逐层调度（`layer_types` / `first_k_dense_replace` / `compress_ratios`）仍由 `plan.js` 从 raw config 派生。
+- 配方旗标（`linearAttentionMode` / `normMode` / `sharedExpertsAreFused` / `visionInternalMerger` / `attentionOutputGate`）组网直接读 `ARCH_RECIPES` 的 `recipe*`。逐层调度读 HF 字段（`layer_types` / `first_k_dense_replace` / `compress_ratios`），不经产品对象。
 - Graph IR 仍是 module/layer 树的数据结构；summary 只留 `architecture`（HF 类名），不再写 `canonical_architecture`。
 
 - 删 `hfModulePrefix` / `hfModuleClass`：不再从 `architectures[0]` 剥任务后缀再拼 `FooAttention`。配方写 HF 全名，没写用词干。DeepSeek-V4 MoE 写 `DeepseekV4SparseMoeBlock`。vLLM/SGLang 每个模型文件手写 class，没有构词器。

@@ -201,7 +201,7 @@ const MODULE_LIST = [
     // DeepSeek V4 的哈希路由。2026-09-09 分类裁决：tid2eid 是 **buffer 不是
     // 参数**（Megatron-Bridge："Buffers are not parameters"；MaxText 同；
     // 出处 = Hash Layers, Roller et al. 2021）——表的常驻容量（vocab·k·4B
-    // int32）由 derivedBufferBytes 计入显存，不进权重字节恒等式；本模块只计
+    // int32）由叶 buffer_elements 计入显存，不进权重字节恒等式；本模块只计
     // gather 的真实拷贝。此前「表算权重」的口径与 gather 的物理读数冲突，
     // 是 DECOMPOSE_PENDING 里唯一一条「口径冲突」而非「工作量」的待办。
     id: "dsv4_hash_route",
@@ -212,7 +212,7 @@ const MODULE_LIST = [
     residentIntermediates: () => [],
     compulsoryBytes: (p) => 2 * p.tokens * p.topk * p.b,
     notes: [
-      "tid2eid 是 buffer：容量走 derivedBufferBytes，不进权重字节恒等式",
+      "tid2eid 是 buffer：容量走叶 buffer_elements，不进权重字节恒等式",
       "gather 读 = 写 = tokens·topk（每 token 取 topk 个专家 id）",
     ],
   },

@@ -1,27 +1,26 @@
-// plan.js —— 组网方案决定（W3-C，§4.7"config 只供数，方案由组网决定"）。
+// plan.js —— 组网按层读 HF 字段（对标 vLLM DecoderLayer.__init__(layer_idx)）。
 //
-// 从 normalizeConfig 原样搬迁的方案类字段：逐层调度与方案选择不再是"归一层"
-// 的输出，而由组装点（builders / cost 消费方）按需从 raw config 派生。
-// 逻辑与搬迁前逐字等价（plan parity fixture + 59 模型 spec 树哈希双 oracle）。
-//
-// 家族名仅出现在"读 config 语义"的探测里（与搬迁前一致）；
-// 真正的"模型 → 配方"声明表归 structure/archs/（W3-B2）。
-import {
-  LAYER_KEYS,
-  firstNumber,
-} from "./normalize.js";
-import { archRecipe } from "../archs/index.js";
-
-const PLAN_CACHE = new WeakMap();
+// 不是产品类型。没有八字段 bag。组网 / 身份测试按函数取：
+//   layerScheduleOf / attentionScheduleOf / indexerScheduleOf
+// 配方旗标（linearAttentionMode / normMode / fused / merger / gate）走 archs/
+// recipe*，不经本文件。
+import { LAYER_KEYS, firstNumber } from "./normalize.js";
 
 function textConfigOf(config) {
-  return typeof config?.text_config === "object" && config.text_config ? config.text_config : config;
+  const source = config?.raw ?? config;
+  if (typeof source !== "object" || !source) return {};
+  return typeof source.text_config === "object" && source.text_config ? source.text_config : source;
 }
 
-// 与 normalizeConfig 的 visionConfig 判定一致：嵌套 vision_config 或平铺 vision_n_layers
-function hasVisionConfig(config) {
-  if (typeof config?.vision_config === "object" && config.vision_config) return true;
-  return firstNumber(config, ["vision_n_layers"]) != null;
+function layerCountOf(config) {
+  const source = config?.raw ?? config;
+  const text = textConfigOf(config);
+  return firstNumber(text, LAYER_KEYS) ?? firstNumber(source, LAYER_KEYS);
+}
+
+function rawSource(config) {
+  const source = config?.raw ?? config;
+  return typeof source === "object" && source ? source : {};
 }
 
 // ---- 以下 helper 自 normalizeConfig 原样搬迁 ----
@@ -114,73 +113,37 @@ export function explicitAttentionSchedule(config, layers) {
   return undefined;
 }
 
-// ---- 派生入口 ----
+/** dense/moe 逐层表。读 mlp_layer_types / moe_layer_freq / first_k_dense_replace。 */
+export function layerScheduleOf(config) {
+  const source = rawSource(config);
+  const text = textConfigOf(config);
+  const layers = layerCountOf(config);
+  if (Array.isArray(source.layerSchedule)) return source.layerSchedule;
+  return explicitLayerSchedule(text, layers) ?? explicitLayerSchedule(source, layers);
+}
 
-/**
- * 从 raw config 派生组网方案（WeakMap 记忆化，可随意重复调用）。
- * @param {object} config 原始 config（normalized.raw 或顶层 config 均可）
- * @returns {{attentionSchedule, layerSchedule, indexerSchedule, linearAttentionMode, normMode, sharedExpertsAreFused, visionInternalMerger, attentionOutputGate}}
- */
-export function deriveBuildPlan(config) {
-  // 兼容两种入参：raw config，或 normalizeConfig 的输出（解 .raw）
-  const source = config?.raw ?? config;
-  if (typeof source !== "object" || !source) {
-    return deriveBuildPlan({});
-  }
-  const cached = PLAN_CACHE.get(source);
-  if (cached) return cached;
-  const textConfig = textConfigOf(source);
-  const modelTypeProbe = String(source?.model_type || textConfig?.model_type || "");
-  const layers = firstNumber(textConfig, LAYER_KEYS) ?? firstNumber(source, LAYER_KEYS);
-  const recipe = archRecipe(Array.isArray(source?.architectures) ? source.architectures[0] : undefined);
+/** 注意力 kind 逐层表。读 layer_types / compress_ratios / index_topk / linear_attn_config。 */
+export function attentionScheduleOf(config) {
+  const source = rawSource(config);
+  const text = textConfigOf(config);
+  const layers = layerCountOf(config);
+  if (Array.isArray(source.attentionSchedule)) return source.attentionSchedule;
+  return explicitAttentionSchedule(text, layers)
+    ?? explicitAttentionSchedule(source, layers)
+    ?? sparseAttentionSchedule(text, layers);
+}
 
-  const plan = {
-    // 逐层调度（原 normalizeConfig 的 layerSchedule/attentionSchedule/indexerSchedule）。
-    // 显式声明优先：入参对象自带方案字段（旧契约调用方/测试 fixture/未来 archs
-    // 声明表）直接采用——HF raw config 不含这些键，派生路径不受影响。
-    layerSchedule: Array.isArray(source.layerSchedule)
-      ? source.layerSchedule
-      : explicitLayerSchedule(textConfig, layers) ?? explicitLayerSchedule(source, layers),
-    attentionSchedule: Array.isArray(source.attentionSchedule)
-      ? source.attentionSchedule
-      : explicitAttentionSchedule(textConfig, layers)
-        ?? explicitAttentionSchedule(source, layers)
-        ?? sparseAttentionSchedule(textConfig, layers),
-    // W5：原按 model_type 子串开关，换字段判据 —— indexer 复用调度只在
-    // 「有 index_topk 且没有 kpool 压缩」的 DSA 上存在（indexer_types /
-    // index_topk_pattern / index_topk_freq 三个键任一驱动）。
-    indexerSchedule: Array.isArray(source.indexerSchedule)
-      ? source.indexerSchedule
-      : (firstNumber(textConfig, ["index_topk"]) ?? firstNumber(source, ["index_topk"])) != null
-        && (firstNumber(textConfig, ["index_kpool"]) ?? firstNumber(source, ["index_kpool"]) ?? 1) <= 1
-        // compress_ratios 存在 = DeepSeek V4 的压缩层 indexer，走 dsv4_indexer，
-        // 没有 DSA 那套「跨层复用 top-k 索引」的调度。
-        && !(Array.isArray(textConfig?.compress_ratios) ? textConfig.compress_ratios.length : (source?.compress_ratios || []).length)
-        ? dsaIndexerSchedule(textConfig, layers) ?? dsaIndexerSchedule(source, layers)
-        : undefined,
-    // W5：四个「没有 config 字段判据」的配方位改读 archs/ 的 ARCH_RECIPES
-    // 声明表（key = architectures[0] 原字符串，不做子串匹配）。原实现是
-    // modelTypeProbe.includes("qwen3_5"/"kimi_k3"/"glm5_next"/...) —— 把人工
-    // 适配伪装成自动推断。反例证据：use_gemma_norm 全库仅 2/59 命中，却有 35 个
-    // 模型实际走 gemma norm，字段判据根本写不出来，只能登记。
-    normMode: typeof source.normMode === "string"
-      ? source.normMode
-      : (textConfig?.use_gemma_norm ?? source?.use_gemma_norm)
-        ? "gemma_rmsnorm"
-        : recipe.normMode ?? "rmsnorm",
-    linearAttentionMode: typeof source.linearAttentionMode === "string"
-      ? source.linearAttentionMode
-      : recipe.linearAttentionMode ?? "generic",
-    sharedExpertsAreFused: typeof source.sharedExpertsAreFused === "boolean"
-      ? source.sharedExpertsAreFused
-      : Boolean(recipe.sharedExpertsAreFused),
-    visionInternalMerger: typeof source.visionInternalMerger === "boolean"
-      ? source.visionInternalMerger
-      : Boolean(hasVisionConfig(source) && recipe.visionInternalMerger),
-    attentionOutputGate: typeof source.attentionOutputGate === "boolean"
-      ? source.attentionOutputGate
-      : Boolean(textConfig?.attn_output_gate ?? source?.attn_output_gate),
-  };
-  PLAN_CACHE.set(config, plan);
-  return plan;
+/** DSA indexer compute/reuse 逐层表。有 compress_ratios 的 V4 压缩层不走这套。 */
+export function indexerScheduleOf(config) {
+  const source = rawSource(config);
+  const text = textConfigOf(config);
+  const layers = layerCountOf(config);
+  if (Array.isArray(source.indexerSchedule)) return source.indexerSchedule;
+  const hasTopk = (firstNumber(text, ["index_topk"]) ?? firstNumber(source, ["index_topk"])) != null;
+  const kpool = firstNumber(text, ["index_kpool"]) ?? firstNumber(source, ["index_kpool"]) ?? 1;
+  const compressLen = Array.isArray(text?.compress_ratios)
+    ? text.compress_ratios.length
+    : (source?.compress_ratios || []).length;
+  if (!hasTopk || kpool > 1 || compressLen) return undefined;
+  return dsaIndexerSchedule(text, layers) ?? dsaIndexerSchedule(source, layers);
 }

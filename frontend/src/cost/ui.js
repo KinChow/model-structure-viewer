@@ -10,16 +10,16 @@ const BOUND_LABELS_EN = { ...UNIT_LABELS_EN, unknown: "unknown" };
 
 const WEIGHT_SOURCE_LABELS_ZH = {
   checkpoint: "checkpoint 真值",
-  node: "节点权重汇总",
-  derived: "config 推导",
-  "derived-quantized": "config 推导（量化假设）",
+  node: "图声明汇总",
+  empty: "无图",
+  "derived-quantized": "图声明（量化）",
   "what-if": "what-if 假设",
 };
 const WEIGHT_SOURCE_LABELS_EN = {
   checkpoint: "checkpoint truth",
-  node: "node weight sum",
-  derived: "config derived",
-  "derived-quantized": "config derived (quantized)",
+  node: "graph declaration sum",
+  empty: "no graph",
+  "derived-quantized": "graph declaration (quantized)",
   "what-if": "what-if assumption",
 };
 

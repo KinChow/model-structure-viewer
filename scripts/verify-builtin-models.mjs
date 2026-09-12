@@ -37,7 +37,7 @@ function collectValidationErrors(structure, normalized) {
   }
   for (const node of graph.nodes) {
     if (node.type !== "operator") continue;
-    const formulaId = node.attributes?.formula_id;
+    const formulaId = node.attributes?.operator_id;
     if (!formulaId || !formulaForOperator(formulaId)) {
       errors.push(`operator ${node.canonical_id || node.id} has no registered formula`);
     }

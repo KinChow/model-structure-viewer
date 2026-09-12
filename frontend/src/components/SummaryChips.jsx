@@ -1,6 +1,5 @@
 import { structureStatus } from "../diagnostics";
-import { normalizeConfig } from "../structure/config/normalize.js";
-import { derivedWeightParameters } from "../cost/derivedWeights.js";
+import { graphWeightCapacity } from "../cost/memory.js";
 import { formatCount } from "../formatters.js";
 
 function dtypeBreakdown(byDtype) {
@@ -13,12 +12,12 @@ function dtypeBreakdown(byDtype) {
 function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   const summary = structure?.summary || {};
   const status = structureStatus(structure);
-  const derivedCandidate = summary.parameters_total == null && structure?.extra_config
-    ? derivedWeightParameters(normalizeConfig(structure.extra_config))
+  const derivedCandidate = summary.parameters_total == null && structure?.graph
+    ? graphWeightCapacity(structure.graph).elements
     : null;
   const derivedParameters = derivedCandidate > 0 ? derivedCandidate : null;
   const parameterTotal = summary.parameters_total ?? derivedParameters;
-  const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype) || (derivedParameters != null ? (language === "en" ? "derived from model config" : "由模型配置推导") : undefined);
+  const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype) || (derivedParameters != null ? (language === "en" ? "summed from graph weightMatrices" : "由图上 weightMatrices 汇总") : undefined);
   const modelId = structure?.source?.model_id || "";
   const provider = modelId.includes("/") ? modelId.split("/")[0] : null;
   const english = language === "en";

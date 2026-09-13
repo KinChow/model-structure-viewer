@@ -10,6 +10,7 @@
 // M11.5 子项 3：与原子逐位同构的 counts 直接委托 atoms.js 实现（单处化，
 // 防抄写漂移）。方向向下（counts → atoms），无反向依赖（layering.test.js 护栏）。
 import { add, softmax, gather } from "./atoms.js";
+import { paramBytes } from "./paramDtypes.js";
 
 const product = (values) => values.reduce((total, value) => total * value, 1);
 
@@ -194,14 +195,14 @@ export function causalConvCounts({ tokens, channels, kernel, bytesPerElement }) 
  * - decode 相位额外读写 conv state（kernel−1 个历史 token 的通道值，
  *   W3-⑥ 补齐；prefill 的窗口在片上滑动不落 HBM）。
  */
-export function causalShortConvCounts({ tokens, channels, kernel, bytesPerElement, phase = "prefill" }) {
-  const convStateElements = phase === "decode" ? channels * Math.max(kernel - 1, 0) : 0;
+export function causalShortConvCounts({ tokens, channels, kernel, bytesPerElement, phase = "prefill", includeWeights = true, includeConvState }) {
+  const convStateElements = (includeConvState ?? phase === "decode") ? channels * Math.max(kernel - 1, 0) : 0;
   return {
     matrix: tokens * channels * kernel,
     vector: 0,
     sfu: 0,
     bytes: {
-      weights: channels * kernel * bytesPerElement,
+      weights: includeWeights ? channels * kernel * bytesPerElement : 0,
       actIn: (tokens * channels + convStateElements) * bytesPerElement,
       actOut: (tokens * channels + convStateElements) * bytesPerElement,
     },
@@ -233,7 +234,7 @@ export function sinkhornCounts({ tokens, streams, iterations, bytesPerElement })
 
 /**
  * F7b 线性注意力递推状态（覆盖全部 linearAttentionMode 变体：
- * generic=plain；qwen3_5/qwen4_exp/kimi/kimi_k3/glm5_next=delta）。
+ * generic=plain 外积；其余 gated-delta 3 段）。
  * keyDim/valueDim 为**每头**维度；heads 显式给出（state = heads·dk·dv，
  * 多头下 state 流量是主导项，必须显式）。
  * plain：S_t = decay⊙S + k^Tv（外积），o_t = q_t S_t
@@ -359,6 +360,242 @@ export function rearrangeCounts({ copy = false, inElements, outElements, bytesPe
   return {
     matrix: 0, vector: 0, sfu: 0,
     bytes: { weights: 0, actIn: inElements * bytesPerElement, actOut: outElements * bytesPerElement },
+  };
+}
+
+/** 文本 embedding gather：每 token 读一行 hidden、写一行 hidden；无 MAC、不读权重矩阵。 */
+export function embedGatherCounts({ tokens, hidden, bytesPerElement }) {
+  return {
+    matrix: 0,
+    vector: 0,
+    sfu: 0,
+    bytes: { weights: 0, actIn: tokens * hidden * bytesPerElement, actOut: tokens * hidden * bytesPerElement },
+  };
+}
+
+/**
+ * 分解链上的 scores / context 叶（operator_id=matmul）。
+ * 融合核走 attentionCounts / sdpaAttentionCounts；本函数按叶切分，并单列 kvRead
+ *（GQA/MQA/MLA 读宽、latent 共享防双计）。
+ */
+export function matmulPartCounts({
+  part, heads = 1, queryTokens = 1, keyTokens = 1, headDim = 1, valueDim = 1, bytesPerElement = 1,
+  kvHeads, kReadWidth, vReadWidth, latentShared = false, phase = "prefill",
+}) {
+  kvHeads ??= heads;
+  kReadWidth ??= headDim;
+  vReadWidth ??= valueDim;
+  const pairs = heads * scoredPairs({ phase, queryTokens, keyTokens });
+  if (part === "scores") {
+    const kvRead = keyTokens * kvHeads * kReadWidth * bytesPerElement;
+    return {
+      matrix: pairs * headDim,
+      vector: 0,
+      sfu: 0,
+      bytes: {
+        weights: 0,
+        actIn: (queryTokens * heads * headDim + keyTokens * kvHeads * kReadWidth) * bytesPerElement,
+        actOut: pairs * bytesPerElement,
+        kvRead,
+      },
+    };
+  }
+  if (part === "context") {
+    const vRead = latentShared ? 0 : keyTokens * kvHeads * vReadWidth;
+    return {
+      matrix: pairs * valueDim,
+      vector: 0,
+      sfu: 0,
+      bytes: {
+        weights: 0,
+        actIn: (pairs + vRead) * bytesPerElement,
+        actOut: queryTokens * heads * valueDim * bytesPerElement,
+        kvRead: vRead * bytesPerElement,
+      },
+    };
+  }
+  return attentionCounts({ heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement, kvHeads, phase });
+}
+
+/**
+ * SDPA 融合核：matrix/vector/sfu 走 F2 attentionCounts；bytes 按核边界改写
+ *（scores 不落 HBM；MLA latent 共享时 K/V 读宽取一份、无 kvWrite）。
+ */
+export function sdpaAttentionCounts({
+  heads = 1, queryTokens = 1, keyTokens = 1, headDim = 1, valueDim = 1, bytesPerElement = 1,
+  kvHeads, phase = "prefill", kReadWidth, vReadWidth, latentShared = false,
+}) {
+  kvHeads ??= heads;
+  kReadWidth ??= headDim;
+  vReadWidth ??= valueDim;
+  const fused = attentionCounts({
+    heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement, kvHeads, phase,
+  });
+  const q = heads * queryTokens * headDim;
+  const kRead = kvHeads * keyTokens * kReadWidth;
+  const vRead = latentShared ? 0 : kvHeads * keyTokens * vReadWidth;
+  const context = heads * queryTokens * valueDim;
+  const kvWrite = latentShared ? 0 : kvHeads * queryTokens * (headDim + valueDim);
+  fused.bytes = {
+    weights: 0,
+    actIn: (q + kRead + vRead) * bytesPerElement,
+    actOut: (context + kvWrite) * bytesPerElement,
+    kvRead: (kRead + vRead) * bytesPerElement,
+  };
+  return fused;
+}
+
+/**
+ * QSA / DSA / DSV4 C4 稀疏主注意力叶。
+ * vector/sfu = 0（稀疏模板无独立 softmax 叶的 4·scores 记 bytes 中间量，不进 vector）；
+ * latent 共享时 K/V 读宽取 max；C4 另加滑窗。
+ */
+export function sparseLeafAttentionCounts({
+  heads = 1, tokens = 1, selected = 1, headDim = 1, valueDim = 1, bytesPerElement = 1,
+  kvHeads, kWidth, vWidth, latentRead = false, kvWrite = 0, dsv4Window = 0, phase = "prefill",
+}) {
+  kvHeads ??= heads;
+  kWidth ??= headDim;
+  vWidth ??= valueDim;
+  const scores = heads * scoredPairs({ phase, queryTokens: tokens, keyTokens: selected });
+  const context = tokens * heads * valueDim;
+  const kvSpan = latentRead ? Math.max(kWidth, vWidth) : kWidth + vWidth;
+  return {
+    matrix: scores * (headDim + valueDim),
+    vector: 0,
+    sfu: 0,
+    bytes: {
+      weights: 0,
+      actIn: (tokens * heads * headDim
+        + kvHeads * selected * kvSpan
+        + tokens * selected
+        + dsv4Window
+        + 2 * scores) * bytesPerElement,
+      actOut: (2 * scores + context + kvWrite + dsv4Window) * bytesPerElement,
+      kvRead: (kvHeads * selected * kvSpan + dsv4Window) * bytesPerElement,
+    },
+  };
+}
+
+/** MiniMax 块稀疏 GQA：选中块 + cache 写回（融合核内，dense 侧由 k/v_proj 计）。 */
+export function minimaxSparseAttentionCounts({
+  heads = 1, tokens = 1, selected = 1, headDim = 1, valueDim = 1, bytesPerElement = 1, kvHeads, phase = "prefill",
+}) {
+  kvHeads ??= heads;
+  const scores = heads * scoredPairs({ phase, queryTokens: tokens, keyTokens: selected });
+  return {
+    matrix: scores * (headDim + valueDim),
+    vector: 0,
+    sfu: 0,
+    bytes: {
+      weights: 0,
+      actIn: (heads * tokens * headDim
+        + kvHeads * selected * (headDim + valueDim)
+        + 2 * scores) * bytesPerElement,
+      actOut: (2 * scores
+        + heads * tokens * valueDim
+        + kvHeads * tokens * (headDim + valueDim)) * bytesPerElement,
+      kvRead: kvHeads * selected * (headDim + valueDim) * bytesPerElement,
+    },
+  };
+}
+
+function dsv4SwaKeyTokens({ sequence, ratio, slidingWindow }) {
+  return ratio === 0
+    ? Math.min(sequence, slidingWindow || sequence)
+    : Math.ceil(sequence / Math.max(ratio, 1));
+}
+
+/** DeepSeek V4 sliding-window MQA（compress_ratio=0）。 */
+export function dsv4SwaAttentionCounts({
+  batch = 1, sequence = 1, phase = "prefill", ratio = 0, slidingWindow,
+  heads = 1, headDim = 1, valueDim = 1, kvHeads = 1, bytesPerElement = 1,
+}) {
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  const keyTokens = dsv4SwaKeyTokens({ sequence, ratio, slidingWindow });
+  const scores = heads * scoredPairs({ phase, queryTokens, keyTokens });
+  return {
+    matrix: scores * (headDim + valueDim),
+    vector: 0,
+    sfu: 0,
+    bytes: {
+      weights: 0,
+      actIn: (heads * queryTokens * headDim + kvHeads * keyTokens * headDim + 2 * scores) * bytesPerElement,
+      actOut: (2 * scores + heads * queryTokens * valueDim + kvHeads * queryTokens * headDim) * bytesPerElement,
+      kvRead: kvHeads * keyTokens * headDim * bytesPerElement,
+    },
+  };
+}
+
+/**
+ * DeepSeek V4 compressed MLA（compress_ratio=128）。
+ * matrix 按压缩可见长度（decode available=1）；bytes 另加未压缩滑窗混合读；
+ * 压缩态写入归 compressor 叶，本叶无 kvWrite。
+ */
+export function dsv4CompressedAttentionCounts({
+  batch = 1, sequence = 1, phase = "prefill", ratio = 0, slidingWindow, indexerBudget,
+  heads = 1, headDim = 1, valueDim = 1, kvHeads = 1, bytesPerElement = 1, windowTokens,
+}) {
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  const available = phase === "decode" ? 1 : sequence;
+  const visible = ratio === 0
+    ? Math.min(available, slidingWindow || available)
+    : ratio === 4
+      ? Math.min(Math.ceil(available / ratio) + (slidingWindow || 0), indexerBudget || available)
+      : Math.ceil(available / Math.max(ratio, 1));
+  const keyTokens = dsv4SwaKeyTokens({ sequence, ratio, slidingWindow });
+  const scores = heads * queryTokens * keyTokens;
+  const window = windowTokens ?? Math.min(sequence, slidingWindow || 128);
+  return {
+    matrix: queryTokens * heads * visible * (headDim + headDim),
+    vector: 0,
+    sfu: 0,
+    bytes: {
+      weights: 0,
+      actIn: (heads * queryTokens * headDim + 2 * kvHeads * keyTokens * headDim + kvHeads * window * headDim + 2 * scores) * bytesPerElement,
+      actOut: (2 * scores + heads * queryTokens * valueDim + kvHeads * queryTokens * headDim) * bytesPerElement,
+      kvRead: (2 * kvHeads * keyTokens * headDim + kvHeads * window * headDim) * bytesPerElement,
+    },
+  };
+}
+
+/** 业界 chunked linear attention 默认块长（A6）。 */
+export const LINEAR_ATTENTION_CHUNK = 64;
+
+/**
+ * GDN/KDA 递推状态运行时口径（与 linearAttentionStateCounts 的 F7b 下界不同）：
+ * - matrix 按 per-token 递推（generic 外积 vs gated-delta 3 段）；
+ * - 状态读写按 chunked steps（prefill ⌈T/64⌉、decode 每 batch 一次）；
+ * - 含 conv 环形历史 + dt_bias/A_log（gdn_decay fp32）。
+ */
+export function gatedDeltaStateCounts({
+  batch = 1, sequence = 1, phase = "prefill", bytesPerElement,
+  keyHeads = 0, valueHeads = 0, keyDim = 0, valueDim = 0,
+  convKernelSize = 0, generic = false, gdnScalars,
+}) {
+  const kernel = Math.max(0, (convKernelSize || 1) - 1);
+  const convElements = keyHeads * keyDim * 2 + valueHeads * valueDim;
+  const recurrentElements = valueHeads * valueDim * keyDim;
+  const stateBytes = (convElements * kernel + recurrentElements) * bytesPerElement;
+  const steps = phase === "decode"
+    ? Math.max(batch, 1)
+    : Math.ceil(Math.max(sequence, 1) / LINEAR_ATTENTION_CHUNK);
+  const recurrentState = (valueHeads || keyHeads || 1) * (keyDim || 0) * (valueDim || 0);
+  const heads = valueHeads || keyHeads || 1;
+  const scalars = gdnScalars ?? 2 * heads;
+  const stateUpdate = generic
+    ? keyHeads * valueHeads * keyDim * valueDim
+    : 3 * valueHeads * valueDim * keyDim;
+  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
+  return {
+    matrix: queryTokens * stateUpdate,
+    vector: steps * recurrentState,
+    sfu: steps * heads * 3,
+    bytes: {
+      weights: scalars * paramBytes("gdn_decay"),
+      actIn: stateBytes * steps,
+      actOut: stateBytes * steps,
+    },
   };
 }
 

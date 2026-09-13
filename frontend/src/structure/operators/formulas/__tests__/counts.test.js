@@ -266,7 +266,7 @@ test("注册表完整性：51 个条目全部终止于 counts（无白名单，�
     assert.ok(entry, `条目缺失: ${key}`);
     assert.equal(typeof entry.counts, "function", `counts 未接线: ${key}`);
     if (composites.has(key)) continue;
-    const sample = entry.counts({ elements: 1, tokens: 1, hidden: 1, bytesPerElement: 1, width: 1, intermediate: 1, experts: 1, topk: 1, expertHidden: 1, expertIntermediate: 1, keyDim: 1, valueDim: 1, keyTokens: 1, headDim: 1, heads: 1, queryTokens: 1, valueDim2: 1, ropeDims: 1, channels: 1, kernel: 1, tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false, gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false, copy: false });
+    const sample = entry.counts({ elements: 1, tokens: 1, hidden: 1, bytesPerElement: 1, width: 1, intermediate: 1, experts: 1, topk: 1, expertHidden: 1, expertIntermediate: 1, keyDim: 1, valueDim: 1, keyTokens: 1, headDim: 1, heads: 1, queryTokens: 1, valueDim2: 1, ropeDims: 1, channels: 1, kernel: 1, tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false, gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false, copy: false, part: "scores", selected: 1, batch: 1, sequence: 1, keyHeads: 1, valueHeads: 1, convKernelSize: 1 });
     assert.ok(Number.isFinite(sample.matrix), `matrix 非有限: ${key}`);
     assert.ok(Number.isFinite(sample.bytes.actIn), `bytes 非有限: ${key}`);
   }

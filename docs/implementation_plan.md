@@ -154,7 +154,8 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 
 **组网调度住址** ✅ `config/plan.js` 已删，helper 在 `layers/schedule.js`。
 
-**共享 layer 家族分派** ✅ 改读配方旗标 / config 字段。剩余 `fromNode` 内联算 counts、每 arch 一份 modeling、normalize 瘦视图未收。
+**共享 layer 家族分派** ✅ 改读配方旗标 / config 字段。
+**1.1 fromNode 只抽 ctx** ✅ `countsForNode` = `fromNode(env)` → `FORMULAS[id].counts(ctx)`；动作向量只在 `counts.js`。
 
 剩余：
 

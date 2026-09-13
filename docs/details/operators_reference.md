@@ -1463,9 +1463,9 @@ A2/A5 口径优先。
 ## 6. 双轨现状与护栏（§3.1b）
 
 **现状（2026-09-13 收口）**：`countsForNode` 无 switch。分派 = `FROM_NODE[operator_id]`，
-挂到 `FORMULAS[id].fromNode`；计价仍走 `.counts(ctx)`。`type=attention` /
-`type=embedding` 无 `operator_id`，仍在入口处理。护栏 §3.1b：switch case = 0，
-51 条全部有 `fromNode`。
+挂到 `FORMULAS[id].fromNode`；`fromNode` 只抽 ctx，计价只走 `.counts(ctx)`。
+`type=attention` / `type=embedding` 无 `operator_id`，仍在入口处理。护栏 §3.1b：
+switch case = 0，51 条全部有 `fromNode`。
 
 **对齐审查时的判读规则**：本文各节「实现」字段给的是**运行时真实生效**的位置
 （a4d709a 行号）；registry 条目行号（index.js）是规格与 ref 来源的权威锚点。

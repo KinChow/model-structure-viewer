@@ -14,7 +14,7 @@
 /** vLLM 显式声明 torch.float32 的参数组 -> 每元素字节。未登记的默认 2（bf16/fp16）。 */
 export const FP32_PARAMS = Object.freeze({
   // GDN/KDA 的衰减参数（dt_bias + A_log）。形状按家族不同，元素数由
-  // extractor 的 stateUpdateCounts 给出：
+  // extractor 的 gatedDeltaStateCtx / counts.gatedDeltaStateCounts 给出：
   // - qwen GDN：两者都是 num_v_heads（qwen_gdn_linear_attn.py:467-475）
   // - glm5next：dt_bias = projection_size、A_log = num_heads（kda.py:205-243）
   // - kimi_k3：同 glm5next（kimi_k3/amd/kda.py:138-195）

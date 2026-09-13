@@ -7,10 +7,12 @@
 // - 三等：分解声明（复合条目，写明由哪几个 F 函数组合）。
 // 每条注明单位换算与 A1-A7 全局假设引用（docs/details/cost_counts.md）。
 import {
-  linearCounts, attentionCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts,
+  linearCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts,
   ropeCounts, causalConvCounts, causalShortConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
-  fusedMoeMlpCounts,
+  fusedMoeMlpCounts, embedGatherCounts, matmulPartCounts, sdpaAttentionCounts,
+  sparseLeafAttentionCounts, minimaxSparseAttentionCounts, dsv4SwaAttentionCounts,
+  dsv4CompressedAttentionCounts, gatedDeltaStateCounts,
 } from "./counts.js";
 import { sparseIndexerCounts } from "./modules.js";
 
@@ -34,7 +36,7 @@ export const FORMULAS = {
     explanation: "线性投影，用于生成 q/k/v、MLP 中间状态或输出投影。",
     inputs: ["X", "W", "b"],
     outputs: ["Y"],
-    counts: linearCounts,
+    counts: (ctx) => (ctx?.embedGather ? embedGatherCounts(ctx) : linearCounts(ctx)),
   },
   matmul: {
     title: "MatMul",
@@ -44,7 +46,7 @@ export const FORMULAS = {
     explanation: "矩阵乘法，用于 attention score 或加权 value 聚合。",
     inputs: ["A", "B"],
     outputs: ["Y"],
-    counts: attentionCounts,
+    counts: matmulPartCounts,
   },
   softmax: {
     title: "Softmax",
@@ -66,7 +68,7 @@ export const FORMULAS = {
     explanation: "缩放点积注意力核：QKᵀ、softmax、PV。GQA/MHA/MQA 与 MLA 打分段共用此核，shape 由 heads/T/S/headDim/valueDim/kvHeads 区分。",
     inputs: ["Q", "K", "V"],
     outputs: ["O"],
-    counts: attentionCounts,
+    counts: sdpaAttentionCounts,
   },
   split: {
     title: "Fused Projection Split",
@@ -237,7 +239,12 @@ export const FORMULAS = {
     explanation: "按 token 递推更新线性 attention 状态，避免构造完整的 query-key score 矩阵。",
     inputs: ["q", "k", "v", "decay", "state"],
     outputs: ["state", "y"],
-    counts: linearAttentionStateCounts,
+    counts: (ctx) => {
+      if (ctx?.variant === "conv") return causalShortConvCounts(ctx);
+      if (ctx?.variant === "state") return gatedDeltaStateCounts(ctx);
+      if (ctx?.variant === "zero") return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+      return linearAttentionStateCounts(ctx);
+    },
   },
   linear_attention_gate: {
     title: "Linear Attention Output Gate",
@@ -260,7 +267,7 @@ export const FORMULAS = {
     explanation: "KDA 的统一 q/k L2 normalization、beta sigmoid、safe decay 和 gated-delta recurrent state 更新；模型差异记录在投影属性中。",
     inputs: ["q", "k", "v", "beta_raw", "A_log", "dt_bias", "state"],
     outputs: ["state", "o"],
-    counts: (ctx) => linearAttentionStateCounts({ ...ctx, delta: true }),
+    counts: gatedDeltaStateCounts,
   },
   gated_rmsnorm: {
     title: "Gated RMSNorm",
@@ -493,7 +500,7 @@ export const FORMULAS = {
     explanation: "Qwen QSA 的主注意力：只在 indexer 选出的 token 位置上做逐头 GQA。",
     inputs: ["Q", "K_selected", "V_selected", "selected_token_indices"],
     outputs: ["O"],
-    counts: attentionCounts,
+    counts: sparseLeafAttentionCounts,
   },
   dsa_sparse_mla: {
     title: "DSA Sparse MLA Attention",
@@ -507,7 +514,7 @@ export const FORMULAS = {
     explanation: "DeepSeek V3.2 / GLM-5 系的 DSA 主注意力：在 indexer 选中的位置上执行吸收式 MLA，KV 只读 latent。",
     inputs: ["q", "kv_latent_cache", "topk_indices"],
     outputs: ["O"],
-    counts: attentionCounts,
+    counts: sparseLeafAttentionCounts,
   },
   dsv4_sparse_mla: {
     title: "DeepSeek V4 C4 Sparse MLA Attention",
@@ -519,7 +526,7 @@ export const FORMULAS = {
     explanation: "DeepSeek V4 compress_ratio=4 层的主注意力：读 indexer 选中的压缩 KV 与滑窗内的原始 KV。",
     inputs: ["Q", "compressed_KV_selected", "sliding_window_KV", "topk_indices"],
     outputs: ["O"],
-    counts: attentionCounts,
+    counts: sparseLeafAttentionCounts,
   },
   qwen_qkvz_split: {
     title: "Qwen GDN QKVZ Split",
@@ -579,7 +586,7 @@ export const FORMULAS = {
     explanation: "主 GQA 只读取 indexer 选择的 KV blocks；index value/output 分支由配置显式关闭时不参与主输出。",
     inputs: ["Q", "K_selected blocks", "V_selected blocks", "block ids"],
     outputs: ["O"],
-    counts: attentionCounts,
+    counts: minimaxSparseAttentionCounts,
   },
   dsv4_hash_route: {
     title: "DeepSeek V4 Hash MoE Routing",
@@ -602,7 +609,7 @@ export const FORMULAS = {
     explanation: "compress_ratio=0 层不建立压缩 KV 状态，只在 sliding_window 范围内使用单 KV 头执行 MQA。",
     inputs: ["Q", "K_window", "V_window"],
     outputs: ["O"],
-    counts: attentionCounts,
+    counts: dsv4SwaAttentionCounts,
   },
   dsv4_compressed_attention: {
     title: "DeepSeek V4 Compressed MLA",
@@ -614,7 +621,7 @@ export const FORMULAS = {
     explanation: "compress_ratio=128 层把历史 KV 压缩到更短的 cache 序列后执行 MLA；compressor 与 attention 是同一语义链上的两个步骤。",
     inputs: ["Q", "compressed_KV"],
     outputs: ["O"],
-    counts: attentionCounts,
+    counts: dsv4CompressedAttentionCounts,
   },
 };
 

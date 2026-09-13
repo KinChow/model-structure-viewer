@@ -8,9 +8,9 @@ import { tensorDims } from "../config/dims.js";
 import { attentionResidualModule } from "./residual.js";
 import { hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
 import { layerInSpec, residualAddSpec } from "../operators/ops/index.js";
-import { hfAttentionAttr, hfFfnAttr, hfNamedClass } from "../archs/index.js";
+import { hfAttentionAttr, hfFfnAttr, hfNamedClass, recipeValue } from "../archs/index.js";
 
-function decoderLayerEdges({ isMhc, isQwen4Exp, isLastLayer, hasPle, hasHyper, hasAttnRes, attnAttr, ffnAttr }) {
+function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, attnAttr, ffnAttr }) {
   const ffn = ffnAttr;
   if (isMhc) {
     return [
@@ -24,7 +24,7 @@ function decoderLayerEdges({ isMhc, isQwen4Exp, isLastLayer, hasPle, hasHyper, h
       ...(isLastLayer ? [["ffn_residual_add", "mhc_final_post"], ["mhc_final_post", "mhc_contract"]] : []),
     ];
   }
-  if (isQwen4Exp) {
+  if (layerMix === "hyper_connection") {
     const edges = [];
     if (hasPle) edges.push(["ple", "attn_hyper_connection"]);
     edges.push(
@@ -65,7 +65,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const isMhc = normalized.multiHyperConnection;
-  const isQwen4Exp = normalized.modelType === "qwen4_exp";
+  const layerMix = recipeValue(normalized, "layerMix");
   const isLastLayer = isMhc && layerIndex === (normalized.layers || 0) - 1;
   const hasPle = Boolean(normalized.pleLayerIds?.includes(layerIndex + 1));
   const hasHyper = Boolean(normalized.hyperConnectionCount);
@@ -86,7 +86,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
       multiHyperConnectionModule(`${id}.mhc_final_post`, normalized, "post"),
       multiHyperConnectionModule(`${id}.mhc_contract`, normalized, "contract"),
     ] : []),
-  ] : isQwen4Exp ? [
+  ] : layerMix === "hyper_connection" ? [
     ...(hasPle ? [pleModule(`${id}.ple`, normalized)] : []),
     hyperConnectionModule(`${id}.attn_hyper_connection`, normalized, "attn_mix"),
     attentionModule(`${id}.${attnAttr}`, normalized, attentionKind, layerIndex),
@@ -116,7 +116,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     {
       class: hfNamedClass(normalized, "decoderLayerClass", "DecoderLayer"),
       layer_kind: layerKind,
-      dataflow_edges: decoderLayerEdges({ isMhc, isQwen4Exp, isLastLayer, hasPle, hasHyper, hasAttnRes, attnAttr, ffnAttr }),
+      dataflow_edges: decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, attnAttr, ffnAttr }),
       ...shapeFlow(shapes.hidden, shapes.hidden),
     },
     children,

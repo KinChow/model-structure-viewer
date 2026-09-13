@@ -22,10 +22,11 @@
 //（Attention / MLP / MoE），不从 architectures[0] 剥前缀再拼。vLLM/SGLang 每个
 // 模型文件手写 class Foo，没有这套构词器。attn/ffn 变体清单不进本表。
 export const ARCH_RECIPES = {
-  DeepseekV4ForCausalLM: { moeClass: "DeepseekV4SparseMoeBlock" },
+  DeepseekV4ForCausalLM: { moeClass: "DeepseekV4SparseMoeBlock", hashMoE: true },
   Glm5NextForConditionalGeneration: {
     linearAttentionMode: "glm5_next",
     visionInternalMerger: true,
+    visionMergerMlp: true,
     visionAttr: "visual",
     moeClass: "Glm5NextTextMoE",
     decoderLayerClass: "Glm5NextTextDecoderLayer",
@@ -48,6 +49,7 @@ export const ARCH_RECIPES = {
     sharedExpertsAreFused: true,
     ffn: { moe: "block_sparse_moe" },
     moeClass: "KimiSparseMoeBlock",
+    latentMoE: true,
     mlpClass: "KimiMLP",
     attentionClass: { mla: "KimiMLAAttention", linear: "KimiDeltaAttention" },
     decoderLayerClass: "KimiDecoderLayer",
@@ -55,7 +57,8 @@ export const ARCH_RECIPES = {
     modelClass: "KimiLinearModel",
     visionAttr: "vision_tower",
   },
-  MiniMaxM2ForCausalLM: { ffn: "block_sparse_moe", moeClass: "MiniMaxM2SparseMoeBlock" },
+  MiniMaxM2ForCausalLM: { ffn: "block_sparse_moe", moeClass: "MiniMaxM2SparseMoeBlock", fusedQkv: true, sigmoidRouter: true },
+  Glm4MoeForCausalLM: { fusedQkv: true, sigmoidRouter: true },
   MiniMaxM3SparseForConditionalGeneration: {
     normMode: "gemma_rmsnorm",
     moeClass: "MiniMaxM3VLSparseMoeBlock",
@@ -68,6 +71,8 @@ export const ARCH_RECIPES = {
     visionModelClass: "MiniMaxM3VLVisionModel",
     visionAttr: "vision_tower",
     layersAttr: "language_model",
+    swigluVariant: "swigluoai",
+    sigmoidRouter: true,
   },
   Qwen3_5ForConditionalGeneration: {
     normMode: "gemma_rmsnorm",
@@ -114,6 +119,7 @@ export const ARCH_RECIPES = {
     mlpClass: "Qwen4ExpTextMLP",
     rmsNormClass: "Qwen4ExpTextRMSNorm",
     gatedResidualClass: "Qwen4ExpTextGatedResidual",
+    layerMix: "hyper_connection",
     pleClass: "Qwen4ExpTextPLELayer",
     attentionClass: { linear: "Qwen4ExpTextGatedDeltaNet", qsa: "Qwen4ExpTextAttention", gqa: "Qwen4ExpTextAttention" },
   },
@@ -203,4 +209,12 @@ export function recipeAttentionOutputGate(config) {
   if (typeof config?.attentionOutputGate === "boolean") return config.attentionOutputGate;
   const text = typeof raw?.text_config === "object" && raw.text_config ? raw.text_config : raw;
   return Boolean(text?.attn_output_gate ?? raw?.attn_output_gate);
+}
+
+export function recipeFlag(config, key) {
+  return Boolean(recipeOf(config)[key]);
+}
+
+export function recipeValue(config, key) {
+  return recipeOf(config)[key];
 }

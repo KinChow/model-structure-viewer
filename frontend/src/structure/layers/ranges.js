@@ -1,4 +1,4 @@
-import { layerScheduleOf } from "../config/plan.js";
+import { layerScheduleOf } from "./schedule.js";
 export function compactRanges(kinds) {
   if (!Array.isArray(kinds) || kinds.length === 0) return [];
   const ranges = [];

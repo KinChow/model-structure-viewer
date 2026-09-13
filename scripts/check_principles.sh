@@ -21,9 +21,9 @@ FAIL=0
 # 模型 → 配方声明表，key 是 architectures[0] 原字符串，不做子串匹配）。
 # 基线沿革：W0 16 → W5 14 → 2026-09-11 删角色表与 gqa-decoder 九宫格得 12
 #（aliases.js / architectureCatalog.js / roles.js 退出计数）→ 2026-09-13
-# 删 derivedWeights.js 闭式得 10。
+# 删 derivedWeights.js 闭式得 10 → 2026-09-13 删 plan.js + 共享 layer 家族分派得 8。
 FAMILY_PATTERN='kimi|qwen4_?exp|qwen3_?5|glm5_?next|glm4_?moe|minimax_?m2|minimax_?m3|deepseek_?v32|deepseek_?v4|glm_?moe_?dsa'
-FAMILY_BASELINE=10
+FAMILY_BASELINE=8
 
 FAMILY_COUNT=0
 FAMILY_FILES=""

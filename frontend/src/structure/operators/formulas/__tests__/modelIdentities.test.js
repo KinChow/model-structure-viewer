@@ -22,7 +22,7 @@ import { childRepeatMultiplier, walkStructure } from "../../../../cost/traverse.
 import { kvBytesPerToken } from "../../../../cost/memory.js";
 import { paramBytes } from "../paramDtypes.js";
 import { classifyRoofline } from "../../../../cost/roofline.js";
-import { attentionScheduleOf } from "../../../config/plan.js";
+import { attentionScheduleOf } from "../../../layers/schedule.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../..");
 const B = 2;

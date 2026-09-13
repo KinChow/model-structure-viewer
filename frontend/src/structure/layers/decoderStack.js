@@ -3,7 +3,7 @@ import { decoderLayerModule } from "./decoderLayer.js";
 import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
-import { attentionScheduleOf, indexerScheduleOf } from "../config/plan.js";
+import { attentionScheduleOf, indexerScheduleOf } from "./schedule.js";
 import { hfNamedClass } from "../archs/index.js";
 
 export function decoderStackNetwork(id, normalized, options = {}) {

@@ -1,4 +1,4 @@
-// normalize.js —— config 字段归一层（§4.7：只供数，方案决定权归 plan.js/组网）。
+// normalize.js —— config 字段归一层（§4.7：只供数，方案决定权归组网）。
 //
 // 唯一的例外是 sharedExpertIntermediateSize 的**回退宽度语义**：字段缺失时，
 // "模块宽 vs 单专家宽"取决于 checkpoint 是否把多个 shared expert 打包成单张量
@@ -190,6 +190,7 @@ export function normalizeConfig(config) {
     oLoraRank: pick(O_LORA_RANK_KEYS),
     oGroups: pick(O_GROUP_KEYS),
     numHashLayers: pick(NUM_HASH_LAYER_KEYS),
+    scoringFunc: textConfig?.scoring_func ?? config?.scoring_func,
     compressRatios: Array.isArray(textConfig?.compress_ratios)
       ? textConfig.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
       : Array.isArray(config?.compress_ratios)

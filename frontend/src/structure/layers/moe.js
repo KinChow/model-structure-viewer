@@ -4,18 +4,17 @@ import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
 import { mlpModule } from "./mlp.js";
 import { sharedExpertGateModule } from "./hybrid.js";
-import { hfNamedClass } from "../archs/index.js";
+import { hfNamedClass, recipeFlag } from "../archs/index.js";
 
 export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
-  const isKimiK3 = normalized.modelType === "kimi_k3";
-  const isDeepseekV4 = normalized.modelType === "deepseek_v4";
-  const isMiniMaxM3 = normalized.modelType === "minimax_m3_vl";
-  const isHashMoe = isDeepseekV4 && layerIndex < (normalized.numHashLayers || 0);
-  const operatorSpecs = isKimiK3
+  const isLatentMoE = recipeFlag(normalized, "latentMoE");
+  const isHashMoEArch = recipeFlag(normalized, "hashMoE");
+  const isHashMoe = isHashMoEArch && layerIndex < (normalized.numHashLayers || 0);
+  const operatorSpecs = isLatentMoE
     ? kimiK3MoeOperatorSpecs(id, normalized)
-    : isDeepseekV4
+    : isHashMoEArch
       ? deepseekV4MoeOperatorSpecs(id, normalized, isHashMoe)
       : moeOperatorSpecs(id, normalized);
   const sharedExpert = normalized.sharedExperts
@@ -24,13 +23,13 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
       intermediateSize: normalized.sharedExpertIntermediateSize || normalized.moeIntermediateSize,
     })
     : null;
-  if (sharedExpert && isKimiK3) sharedExpert.name = "Shared Expert MLP";
+  if (sharedExpert && isLatentMoE) sharedExpert.name = "Shared Expert MLP";
   const children = [
     ...operatorSpecs,
     ...(sharedExpert ? [sharedExpert] : []),
     ...(normalized.sharedExpertGate ? [sharedExpertGateModule(`${id}.shared_expert_gate`, normalized)] : []),
   ];
-  if (normalized.sharedExperts && (isDeepseekV4 || isMiniMaxM3 || (!normalized.sharedExpertGate && !isKimiK3) || normalized.sharedExpertGate)) {
+  if (normalized.sharedExperts && (isHashMoEArch || recipeFlag(normalized, "swigluVariant") || (!normalized.sharedExpertGate && !isLatentMoE) || normalized.sharedExpertGate)) {
     children.push(operatorSpec(`${id}.shared_expert_add`, "shared expert branch add", "moe_add", {
       ...shapeFlow(`${shapes.hidden}, ${shapes.hidden}`, shapes.hidden),
       shared_experts: normalized.sharedExperts,
@@ -57,7 +56,7 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
   const filteredEdges = declaredEdges.filter(([source, target]) => childSuffixes.has(source) && childSuffixes.has(target));
   return withShapeDims(moduleSpec(
     id,
-    isDeepseekV4 ? (isHashMoe ? "DeepSeek V4 Hash Routed MoE" : "DeepSeek V4 Routed MoE") : isKimiK3 ? "Kimi K3 Latent Routed MoE" : "Routed MoE",
+    isHashMoEArch ? (isHashMoe ? "Hash Routed MoE" : "Routed MoE") : isLatentMoE ? "Latent Routed MoE" : "Routed MoE",
     "moe",
     {
       class: hfNamedClass(normalized, "moeClass", "MoE"),
@@ -69,7 +68,7 @@ export function moeModule(id, normalized, { layerIndex = 0 } = {}) {
       shared_expert_intermediate_size: normalized.sharedExpertIntermediateSize,
       hash_moe: isHashMoe,
       hash_layer_index: isHashMoe ? layerIndex : undefined,
-      implementation: isDeepseekV4 ? ["vLLM.DeepseekV4MoE", "SGLang.DeepSeekV4 MoE"] : undefined,
+      implementation: isHashMoEArch ? ["vLLM.DeepseekV4MoE", "SGLang.DeepSeekV4 MoE"] : undefined,
       dataflow_edges: filteredEdges,
       ...shapeFlow(shapes.hidden, shapes.hidden, {
         router_logits_shape: shapes.routerLogits,

@@ -1039,7 +1039,7 @@ export function countsForNode(node, env = {}) {
     let matrix = null;
     if (kind === "linear") matrix = linearAttentionCoreMacs(config, macsOptions);
     else if (kind === "qsa") matrix = qsaCoreMacs(config, macsOptions);
-    else if (kind === "sparse" && config?.modelType === "minimax_m3_vl") matrix = minimaxSparseCoreMacs(config, macsOptions);
+    else if (kind === "sparse") matrix = minimaxSparseCoreMacs(config, macsOptions);
     else if (kind === "dsv4") matrix = deepseekV4AttentionMacs(config, { ...macsOptions, layerIndex: layerIndexOf(node?.id || path) ?? 0 });
     else matrix = attentionCoreMacs(config, macsOptions);
     return { matrix, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };

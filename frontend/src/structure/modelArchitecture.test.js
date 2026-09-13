@@ -15,7 +15,7 @@ import { MODELS } from "./models/index.js";
 // P7（步骤 7）：legacy structure.root 断言退役——treeView = selectors.graphRoot
 // 的图视图（与生产 layout 同一构造），节点 id / children / attributes 语义不变。
 const treeView = (structure) => graphRoot(structure.graph);
-import { attentionScheduleOf, indexerScheduleOf, layerScheduleOf } from "./config/plan.js";
+import { attentionScheduleOf, indexerScheduleOf, layerScheduleOf } from "./layers/schedule.js";
 import { recipeLinearAttentionMode, recipeNormMode } from "./archs/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");

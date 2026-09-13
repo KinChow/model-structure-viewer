@@ -3,7 +3,7 @@ import { buildMiniMaxM3Network } from "./minimax.js";
 import { buildGqaDecoderNetwork, buildGqaMoeDecoderNetwork, buildMlaMultimodalNetwork, buildQwenMultimodalNetwork } from "./qwen.js";
 import { networkSpec } from "./common.js";
 import { mtpModule, mtpModuleCount } from "../layers/mtp.js";
-import { attentionScheduleOf, layerScheduleOf } from "../config/plan.js";
+import { attentionScheduleOf, layerScheduleOf } from "../layers/schedule.js";
 
 function assembleMlaText(resolved, normalized) {
   return normalized.hasVision

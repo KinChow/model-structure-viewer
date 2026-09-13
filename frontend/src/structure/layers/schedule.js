@@ -1,10 +1,9 @@
-// plan.js —— 组网按层读 HF 字段（对标 vLLM DecoderLayer.__init__(layer_idx)）。
+// schedule.js —— 组网按层读 HF 字段（对标 vLLM DecoderLayer.__init__(layer_idx)）。
 //
-// 不是产品类型。没有八字段 bag。组网 / 身份测试按函数取：
+// 组网私有 helper，不是产品类型。cost/ 不得 import。
 //   layerScheduleOf / attentionScheduleOf / indexerScheduleOf
-// 配方旗标（linearAttentionMode / normMode / fused / merger / gate）走 archs/
-// recipe*，不经本文件。
-import { LAYER_KEYS, firstNumber } from "./normalize.js";
+// 配方旗标走 archs/recipe*。
+import { LAYER_KEYS, firstNumber } from "../config/normalize.js";
 
 function textConfigOf(config) {
   const source = config?.raw ?? config;
@@ -22,8 +21,6 @@ function rawSource(config) {
   const source = config?.raw ?? config;
   return typeof source === "object" && source ? source : {};
 }
-
-// ---- 以下 helper 自 normalizeConfig 原样搬迁 ----
 
 export function explicitLayerSchedule(config, layers) {
   const mlpLayerTypes = config?.mlp_layer_types;
@@ -74,11 +71,10 @@ function attentionKindForLayerType(layerType, useQsa = false) {
 }
 
 export function explicitAttentionSchedule(config, layers) {
-  // W5：三处原本用 model_type 精确/子串比较，全部换成 config 字段判据 ——
-  //   compress_ratios 数组存在        -> DeepSeek V4 压缩/滑窗混合（dsv4）
-  //   index_topk + kv_lora_rank 存在  -> DSA over MLA（逐层同 kind）
+  // 字段判据，不含家族名：
+  //   compress_ratios 数组存在        -> V4 压缩/滑窗混合（dsv4）
+  //   index_topk + kv_lora_rank 存在  -> DSA over MLA
   //   attn_output_gate 为真           -> 带输出门的 full attention（qwen35_full）
-  // 判据都能在 59 个内置 config 上机械复现，不含任何家族名。
   if (Array.isArray(config?.compress_ratios) && config.compress_ratios.length > 0) {
     return Array.from({ length: layers || config.compress_ratios.length }, () => "dsv4");
   }
@@ -133,7 +129,7 @@ export function attentionScheduleOf(config) {
     ?? sparseAttentionSchedule(text, layers);
 }
 
-/** DSA indexer compute/reuse 逐层表。有 compress_ratios 的 V4 压缩层不走这套。 */
+/** DSA indexer compute/reuse 逐层表。有 compress_ratios 的压缩层不走这套。 */
 export function indexerScheduleOf(config) {
   const source = rawSource(config);
   const text = textConfigOf(config);

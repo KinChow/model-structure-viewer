@@ -143,7 +143,7 @@ sequence parallel / backend 是否已 reduce —— 属 runtime-unknown，不计
 
 **Q8 并行 plan 独立 schema。**
 现状：并行 plan 字段只存在于 `cost/parallel.js` 的 `validatePlan` 归一化代码，
-与组网 build plan（`structure/config/plan.js`）共用 "plan" 一词。结论：新建
+与组网逐层调度（`structure/layers/schedule.js`）共用过 "plan" 一词。结论：新建
 `cost/parallelPlan.js` 作为归一化与校验单一住址，`validatePlan` 委托；文档中
 固定两个名字 —— **parallel plan**（并行）vs **build plan**（组网）。
 

@@ -1,12 +1,12 @@
 // W3-C 基线库：59 模型 normalizeConfig 输出哈希 + 方案字段快照。
 // 哈希用于"删除字段后其余逐字节不变"的机械审阅；
-// 方案字段快照是 plan.js 逐字搬迁的 parity oracle（搬迁前后值必须相等）。
+// 方案字段快照是调度函数搬迁的 parity oracle（搬迁前后值必须相等）。
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeConfig } from "../../config/normalize.js";
-import { attentionScheduleOf, indexerScheduleOf, layerScheduleOf } from "../plan.js";
+import { attentionScheduleOf, indexerScheduleOf, layerScheduleOf } from "../../layers/schedule.js";
 import {
   recipeAttentionOutputGate,
   recipeLinearAttentionMode,
@@ -17,7 +17,7 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
-// W3-C 迁移的方案类字段（决策逻辑 → config/plan.js）
+// 组网调度字段（决策逻辑 → layers/schedule.js）
 export const PLAN_FIELDS = [
   "attentionSchedule",
   "layerSchedule",

@@ -2,7 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { operatorSpec, sdpaAttentionModule } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { visionDimensions } from "../config/visionDims.js";
-import { hfNamedClass, hfVisionAttr, recipeVisionInternalMerger } from "../archs/index.js";
+import { hfNamedClass, hfVisionAttr, recipeFlag, recipeVisionInternalMerger } from "../archs/index.js";
 
 function visionLayerModule(id, normalized) {
   const d = visionDimensions(normalized);
@@ -91,7 +91,7 @@ function visionMergerModule(id, normalized) {
       ...shapeFlow(mergedShape, mergedShape), modality: "vision", vision_stage: "merger",
     }, { input: [-1, -1, d.mergedWidth], output: [-1, -1, d.mergedWidth] }),
   ];
-  if (normalized.modelType === "glm5_next") {
+  if (recipeFlag(normalized, "visionMergerMlp")) {
     const intermediate = normalized.visionMergerIntermediateSize || d.intermediate;
     children.push(
       operatorSpec(`${id}.proj`, "vision merger projection", "linear", { ...shapeFlow(mergedShape, outputShape), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, d.mergedWidth], output: d.mergedVisual }),
@@ -108,7 +108,7 @@ function visionMergerModule(id, normalized) {
       operatorSpec(`${id}.fc2`, "vision merger output projection", "linear", { ...shapeFlow(mergedShape, outputShape), modality: "vision", vision_stage: "merger" }, { input: [-1, -1, d.mergedWidth], output: d.mergedVisual }),
     );
   }
-  const edges = normalized.modelType === "glm5_next"
+  const edges = recipeFlag(normalized, "visionMergerMlp")
     ? [["patch_merge", "norm"], ["norm", "proj"], ["proj", "post_norm"], ["post_norm", "gate_proj"], ["post_norm", "up_proj"], ["gate_proj", "activation"], ["up_proj", "activation"], ["activation", "down_proj"]]
     : [["patch_merge", "norm"], ["norm", "fc1"], ["fc1", "activation"], ["activation", "fc2"]];
   return withShapeDims(moduleSpec(id, "Vision Merger", "vision-merger", {

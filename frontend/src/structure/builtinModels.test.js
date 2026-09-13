@@ -11,7 +11,7 @@ import { materializeModelStructure } from "./materializers/modelStructure.js";
 import { formulaForOperator } from "./operators/formulas/index.js";
 import { kvBytesPerToken, linearStateBytesPerSequence } from "../cost/memory.js";
 import { aggregateCost } from "../cost/aggregate.js";
-import { attentionScheduleOf } from "./config/plan.js";
+import { attentionScheduleOf } from "./layers/schedule.js";
 import { recipeSharedExpertsAreFused } from "./archs/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");

@@ -16,7 +16,8 @@ Model Structure Viewer 的重要变更记录。
 - FlopCounterMode 矩阵抽查：独立 Linear / BMM / 深度可分 Conv1d 夹具，msv MAC × 2 == torch FLOPs。不对 catalog 整模型跑 forward。
 
 - 删 `derivedWeights.js` config 闭式。身份测试期望侧 walk 图声明（T4 / 锚 1）；台账参数量级走 `graphWeightCapacity`，与 UI 同口径。无 header 不是死循环——闭式不是 header 的替身。
-- extractor 收成查表（flop_registry）：`countsForNode` 无 switch；`FORMULAS[id].fromNode` 抽 ctx，`.counts` 计价。护栏 §3.1b = switch case 0 且每条有 fromNode。
+- 删 `config/plan.js`：组网逐层调度搬到 `layers/schedule.js`（读 HF `layer_types` / `first_k_dense_replace` / `compress_ratios`），cost 零 import。
+- 共享 layer 不再按 `modelType ===` 分派。DSA vs QSA 用 `kvLoraRank`；fused QKV / sigmoid router / hash MoE / latent MoE / vision merger MLP 写进 `ARCH_RECIPES`。§8.1 家族名 10→8。
 - 删 `formula_id`：公式索引读 `operator_id`（flop_registry / vLLM 一个 id）。
 - 删生产零调用的 `compare_structure_summary`。
 - Registry 键改为 `config.architectures[0]`（对标 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）。删除自制 `gqa-decoder` 九宫格、`ARCHITECTURE_ALIASES`、`ARCHITECTURE_CATALOG`、`withVision`。视觉塔是该建模函数内部的可选子模块。

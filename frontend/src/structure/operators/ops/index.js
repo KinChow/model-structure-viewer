@@ -1,8 +1,8 @@
 import { formulaForOperator } from "../formulas/index.js";
 import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
-import { indexerScheduleOf } from "../../config/plan.js";
-import { recipeAttentionOutputGate, recipeLinearAttentionMode } from "../../archs/index.js";
+import { indexerScheduleOf } from "../../layers/schedule.js";
+import { recipeAttentionOutputGate, recipeFlag, recipeLinearAttentionMode, recipeValue } from "../../archs/index.js";
 
 function cleanAttributes(attributes) {
   return Object.fromEntries(
@@ -595,7 +595,7 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
         ? [operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext })]
         : []),
       // M8-V2：kimi_k3 MLA 的 full-rank 输出门（index.json 实锤 88.1M/层）
-      ...(normalized.modelType === "kimi_k3"
+      ...(recipeLinearAttentionMode(normalized) === "kimi_k3"
         ? [operatorSpec(`${prefix}.mla_gate`, "MLA full-rank output gate", "linear", { ...shapeFlow(shapes.hidden, shapes.attentionQuery), semantic_role: "attention_output_gate" }, { input: dims.hidden, output: dims.attentionQuery })]
         : []),
     ],
@@ -735,7 +735,7 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
   // indexer（modeling_glm5_next.py:739-741 "DeepSeek Sparse Attention (DSA)
   // indexer with k-pool compression"、:1473 mask 名 deepseek_sparse_attention），
   // 此前误入逐头 QSA 模板。差异：index_kpool=4 池化、qk_rope_head_dim=0。
-  if (["deepseek_v32", "glm_moe_dsa", "glm5_next"].includes(normalized.modelType)) {
+  if ((normalized.kvLoraRank || 0) > 0) {
     return dsaAttentionOperatorSpecs(prefix, normalized, layerIndex);
   }
   const { shapes, dims } = shapesAndDims(normalized);
@@ -895,7 +895,7 @@ export function minimaxSparseAttentionOperatorSpecs(prefix, normalized, layerInd
   return minimaxAttentionCommon(prefix, normalized, true, layerIndex);
 }
 
-export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant = "minimax_m2") {
+export function minimaxM2AttentionOperatorSpecs(prefix, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
   const qProjection = (normalized.attentionHeads || 0) * (normalized.headDim || 0);
   const kvProjection = (normalized.kvHeads || normalized.attentionHeads || 0) * (normalized.headDim || 0);
@@ -906,9 +906,7 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant
       ...shapeFlow(shapes.hidden, fusedShape),
       projection_layout: ["q", "k", "v"],
       bias: normalized.attentionBias,
-      implementation: modelVariant === "glm4_moe"
-        ? ["vLLM.Glm4MoeAttention.qkv_proj", "SGLang.Glm4MoeAttention.qkv_proj"]
-        : ["vLLM.MiniMaxM2Attention.qkv_proj", "SGLang.MiniMaxM2Attention.qkv_proj"],
+      implementation: ["vLLM fused QKV", "SGLang fused QKV"],
     }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
     operatorSpec(`${prefix}.qkv_split`, "QKV split", "attention_qkv_split", {
       ...shapeFlow(fusedShape, `${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`),
@@ -918,17 +916,13 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized, modelVariant
       input: dims.attentionQuery,
       output: dims.attentionQuery,
       norm_type: normalized.qkNormType || "per_layer",
-      implementation: modelVariant === "glm4_moe"
-        ? ["vLLM.Glm4MoeAttention.q_norm", "SGLang.Glm4MoeAttention.q_norm"]
-        : ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
+      implementation: ["vLLM QK RMSNorm", "SGLang QK RMSNorm"],
     }),
     operatorSpec(`${prefix}.k_norm`, "K RMSNorm", "rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), {
       input: dims.attentionKey,
       output: dims.attentionKey,
       norm_type: normalized.qkNormType || "per_layer",
-      implementation: modelVariant === "glm4_moe"
-        ? ["vLLM.Glm4MoeAttention.k_norm", "SGLang.Glm4MoeAttention.k_norm"]
-        : ["vLLM.MiniMaxText01RMSNormTP", "SGLang.MiniMaxM2RMSNormTP"],
+      implementation: ["vLLM QK RMSNorm", "SGLang QK RMSNorm"],
     }),
     ...scaledDotProductTail(prefix, shapes, dims, {
       ropeName: "partial rotary position embedding",
@@ -1080,7 +1074,7 @@ export function mlpOperatorSpecs(prefix, normalized) {
       ...shapeFlow(`${shapes.intermediate}, ${shapes.intermediate}`, shapes.intermediate),
       gate_shape: shapes.intermediate,
       up_shape: shapes.intermediate,
-      activation: normalized.modelType === "minimax_m3_vl" ? "swigluoai" : undefined,
+      activation: recipeValue(normalized, "swigluVariant"),
       swiglu_alpha: normalized.swigluAlpha,
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,
@@ -1095,19 +1089,20 @@ export function mlpOperatorSpecs(prefix, normalized) {
 
 export function moeOperatorSpecs(prefix, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
-  const isMiniMaxRouter = ["minimax_m2", "minimax_m3_vl", "glm4_moe"].includes(normalized.modelType);
+  const isSigmoidRouter = String(normalized.scoringFunc || "").toLowerCase() === "sigmoid"
+    || recipeFlag(normalized, "sigmoidRouter");
   return [
     operatorSpec(`${prefix}.router`, "router logits", "linear", {
       ...shapeFlow(shapes.hidden, shapes.routerLogits),
-      scoring_func: isMiniMaxRouter ? "sigmoid" : undefined,
-      routing_bias: isMiniMaxRouter ? true : undefined,
-      implementation: isMiniMaxRouter ? ["vLLM.GateLinear fp32 router", "SGLang.GateLinear fp32 router"] : undefined,
+      scoring_func: isSigmoidRouter ? "sigmoid" : undefined,
+      routing_bias: isSigmoidRouter ? true : undefined,
+      implementation: isSigmoidRouter ? ["vLLM.GateLinear fp32 router", "SGLang.GateLinear fp32 router"] : undefined,
     }, { input: dims.hidden, output: dims.routerLogits }),
     operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
       ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
       expert_ids_shape: shapes.topExperts,
       expert_weights_shape: shapes.topExperts,
-      scoring_func: isMiniMaxRouter ? "sigmoid" : undefined,
+      scoring_func: isSigmoidRouter ? "sigmoid" : undefined,
     }, { input: dims.routerLogits, output: dims.topExperts }),
     operatorSpec(`${prefix}.dispatch`, "expert dispatch", "moe_dispatch", {
       ...shapeFlow(`${shapes.hidden}, ${shapes.topExperts}`, shapes.expertInput),
@@ -1118,7 +1113,7 @@ export function moeOperatorSpecs(prefix, normalized) {
     operatorSpec(`${prefix}.expert_mlp`, "expert MLP", "fused_moe_mlp", {
       ...shapeFlow(shapes.expertInput, shapes.expertInput),
       intermediate_shape: shapes.moeIntermediate,
-      activation: normalized.modelType === "minimax_m3_vl" ? "swigluoai_uninterleave" : undefined,
+      activation: recipeValue(normalized, "swigluVariant") ? `${recipeValue(normalized, "swigluVariant")}_uninterleave` : undefined,
       swiglu_alpha: normalized.swigluAlpha,
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,

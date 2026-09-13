@@ -13,7 +13,7 @@ import { countsForNode, isVisionPath, ROUTED_EXPERT_RE } from "../extractor.js";
 import { childRepeatMultiplier, walkStructure } from "../../../../cost/traverse.js";
 import { graphWeightCapacity } from "../../../../cost/memory.js";
 import { graphRoot } from "../../../graph/selectors.js";
-import { attentionScheduleOf } from "../../../config/plan.js";
+import { attentionScheduleOf } from "../../../layers/schedule.js";
 import { scoredPairs } from "../counts.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../..");

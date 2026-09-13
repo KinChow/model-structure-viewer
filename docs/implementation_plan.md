@@ -152,6 +152,10 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 - 未注册 op → `unknownComputePaths`。
 - 护栏 §3.1b：switch case = 0，每条有 `fromNode`。
 
+**组网调度住址** ✅ `config/plan.js` 已删，helper 在 `layers/schedule.js`。
+
+**共享 layer 家族分派** ✅ 改读配方旗标 / config 字段。剩余 `fromNode` 内联算 counts、每 arch 一份 modeling、normalize 瘦视图未收。
+
 剩余：
 
 **S3 有真值再接的验证**

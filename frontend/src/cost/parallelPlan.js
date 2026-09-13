@@ -1,8 +1,7 @@
 // parallelPlan.js —— 并行计划（parallel plan）的归一化与校验单源（协议 Q8）。
 //
-// 命名边界：**parallel plan**（本文件，用户输入的逻辑并行轴）vs **build plan**
-// （structure/config/plan.js，从 config 派生的组网方案）。两套 "plan" 在 P1
-// 协议定稿前只活在各自消费方的归一化代码里，本文件把并行计划提升为显式 schema。
+// 命名边界：**parallel plan**（本文件，用户输入的逻辑并行轴）。组网逐层调度
+// 在 structure/layers/schedule.js，不是产品对象，也不叫 plan。
 //
 // 校验等式的出处：details/parallel_protocol.md §二（九项裁决 Q1-Q4）——
 //   world_size == tp×pp×dp

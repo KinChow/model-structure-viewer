@@ -339,7 +339,7 @@ layer schedule 闭式。
 用 header；不在 → Σ 图。
 
 **判据**：
-- `cost/` **禁止** import `config/plan.js` 的调度函数当容量输入。
+- `cost/` **禁止** import 组网调度函数当容量输入。
 - `cost/` **禁止** 生产调用 config 闭式算容量。
 - 新增 KV/KDA 变体必须在对应叶上声明容量字段，不得在 `memory.js` 加
   `if (schedule[i] === ...)` 分支。
@@ -674,7 +674,7 @@ registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling �
   不对 catalog 整模型跑 forward（catalog 无权重）。来源解析策略仍两套。
   catalog 旁 `source-ref.json` 按架构取样入库（见 implementation_plan §5）；
   静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
-- **§8.1**：10/16 文件含家族名（删闭式后 12→10）；剩余随 modeling 接管后进一步下降。
+- **§8.1**：8/16 文件含家族名（删 plan.js + 共享 layer 家族分派后 10→8）；剩余随 modeling 接管后进一步下降。
 - **§3.1**：extractor 已收成 `FORMULAS[id].fromNode` + `.counts` 查表
   （flop_registry）。护栏 §3.1b = switch case 0。
 - **§3.8**：生产链已切到图 walk（叶声明 KV/KDA/buffer、`graphWeightCapacity`、

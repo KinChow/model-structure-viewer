@@ -16,7 +16,7 @@ import { resolveArchitecture } from "../../structure/registry/resolveArchitectur
 import { buildNetwork } from "../../structure/models/index.js";
 import { createStructureIr } from "../../structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../../structure/materializers/modelStructure.js";
-import { layerScheduleOf } from "../../structure/config/plan.js";
+import { layerScheduleOf } from "../../structure/layers/schedule.js";
 import { aggregateCost } from "../aggregate.js";
 import { graphWeightCapacity } from "../memory.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";

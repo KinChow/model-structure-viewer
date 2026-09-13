@@ -173,7 +173,7 @@ function renderArchitectures({ arch0Counts }) {
   out.push("");
   out.push(`> 四个配方位（${preferred.join(" / ")}）在 config 里没有对应字段，属人工登记的`);
   out.push("> 家族知识（archs/index.js 头注：显式声明比藏在 `model_type.includes(...)` 里诚实）；");
-  out.push("> 能用 config 字段表达的判据一律走 `config/plan.js`，不进配方表。");
+  out.push("> 能用 config 字段表达的判据一律走 `layers/schedule.js`，不进配方表。");
   out.push("");
   out.push(`| architectures[0] | ${recipeKeys.join(" | ")} |`);
   out.push(`|---|${recipeKeys.map(() => "---").join("|")}|`);

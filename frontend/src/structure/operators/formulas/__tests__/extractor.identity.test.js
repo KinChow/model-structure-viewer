@@ -10,11 +10,12 @@ import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../../../buildStructure.js";
 import { countsForNode, isVisionPath, ROUTED_EXPERT_RE } from "../extractor.js";
 import { childRepeatMultiplier, walkStructure } from "../../../../cost/traverse.js";
-import { graphWeightCapacity } from "../../../../cost/memory.js";
+import { declaredElementsForHeader, graphWeightCapacity } from "../../../../cost/memory.js";
 import { normalizeConfig } from "../../../config/normalize.js";
 import { graphRoot } from "../../../graph/selectors.js";
 import { attentionScheduleOf } from "../../../layers/schedule.js";
 import { scoredPairs } from "../counts.js";
+import { logicalElementsFromHeader, quantizationConfigOf } from "../../../../cost/quantBytes.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../..");
 const T = 128;
@@ -171,16 +172,21 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
   assert.deepEqual(bad.map((r) => r.model), [], "恒等式超差须先归因：要么修 counts/图声明，要么登记为建模边界并写入 REGISTERED");
 });
 
-// S3：有 header-truth.json 时，图声明元素对 header parameterTotal。
+// S3：有 header-truth.json 时，图声明逻辑元素对 header 逻辑元素。
 // 期望侧是外部 oracle（@huggingface/hub parseSafetensorsMetadata 一次性产物），
 // 不是 counts 实现。缺席 sidecar 的模型跳过（Kimi-K3 永不取证）。
+// 未量化：header.parameterTotal 即逻辑 Σnumel。
+// 量化：parameterCount 按 dtype 解包（GPTQ I32×8 扣 qzeros、NVFP4 I8×2、
+// 跳过 scale 桶），再打 out×in；packing numel 不当逻辑参数量。
+// 图侧：config MTP 可能是空声明。两份声明（含/不含 MTP）里取更接近 header 的。
 const HEADER_SKIP = new Set(["moonshotai/Kimi-K3"]);
 const HEADER_TOLERANCE = 0.02;
-// 未量化行超差：图声明逻辑元素 vs header Σnumel。量化 checkpoint 的 header
-// numel 是打包存储（GPTQ qweight、NVFP4/MX I8），与 out×in 不是同一口径，
-// S3 只要求 sidecar 在场，不拿 packing 打逻辑恒等式。
 const HEADER_REGISTERED = {
   "Qwen/Qwen3.8-Flash-Next": 0.29, // 图 128B vs header 180B，建模少计约 29%
+  "Qwen/Qwen3.8-Flash-Next-FP8": 0.29, // 同图，解包后仍是 180B 量级
+  // MTP 空声明已被 header 否决（取 stem）。余下是主干建模 vs 该仓，不是 config 模块数。
+  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.04, // stem 更近；header 介于 1–2 个 MTP 之间，vision 声明偏小
+  "deepseek-ai/DeepSeek-V4-Pro": 0.03, // stem 1.634T vs header 1.599T（官方 1.6T），约一层量级
 };
 
 function isQuantizedConfig(config) {
@@ -202,32 +208,36 @@ test("S3 图声明对 header（有 sidecar 才断言）", async () => {
     if (!Number.isFinite(header?.parameterTotal) || header.parameterTotal <= 0) continue;
     const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "header-truth-identity" });
-    const declared = graphWeightCapacity(structure.graph).elements;
     const quantized = isQuantizedConfig(config);
-    const ratio = header.parameterTotal > 0 ? declared / header.parameterTotal : null;
+    const expected = quantized
+      ? logicalElementsFromHeader(header, quantizationConfigOf(config))
+      : header.parameterTotal;
+    const { declared, includeMtp } = declaredElementsForHeader(structure.graph, expected);
+    const ratio = expected > 0 ? declared / expected : null;
     rows.push({
       model: entry.model_id,
       quantized,
       graph: declared,
-      header: header.parameterTotal,
+      header: expected,
+      packing: header.parameterTotal,
+      includeMtp,
       ratio,
     });
   }
   for (const r of rows) {
-    console.error(`${r.model.padEnd(38)} ${r.quantized ? "quant" : "bf16 "} header=${r.header.toExponential(3)} graph=${r.graph.toExponential(3)} ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)}`);
+    console.error(`${r.model.padEnd(38)} ${r.quantized ? "quant" : "bf16 "} ${r.includeMtp ? "mtp " : "stem"} logical=${r.header == null ? "n/a" : r.header.toExponential(3)} packing=${r.packing.toExponential(3)} graph=${r.graph.toExponential(3)} ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)}`);
   }
   const skipped = catalog.models.filter((entry) => HEADER_SKIP.has(entry.model_id)).length;
   assert.equal(rows.length, catalog.models.length - skipped, "除 Kimi-K3 外每条 catalog 都应有 header-truth.json");
 
-  const dense = rows.filter((r) => !r.quantized);
-  const bad = dense.filter((r) => {
+  const bad = rows.filter((r) => {
     const slack = HEADER_REGISTERED[r.model] ?? HEADER_TOLERANCE;
     return r.ratio == null || Math.abs(r.ratio - 1) > slack;
   });
   if (bad.length > 0) {
-    console.error("S3 未量化超容差:\n" + bad.map((r) => `${r.model}: ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)} graph=${r.graph} header=${r.header}`).join("\n"));
+    console.error("S3 超容差:\n" + bad.map((r) => `${r.model}: ratio=${r.ratio == null ? "n/a" : r.ratio.toFixed(4)} graph=${r.graph} logical=${r.header}`).join("\n"));
   }
-  assert.deepEqual(bad.map((r) => r.model), [], "未量化图声明元素与 header parameterTotal 超差：先查声明漏计 / tied embedding");
+  assert.deepEqual(bad.map((r) => r.model), [], "图声明元素与 header 逻辑元素超差：先查声明漏计 / 解包因子 / tied embedding；MTP 空声明应被 header 否决");
 });
 
 // T4b：合成配置精确对账。目录内无纯 dense 模型（见 T4 注），dense 字段组合

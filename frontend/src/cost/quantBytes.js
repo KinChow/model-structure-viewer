@@ -96,6 +96,70 @@ function pathCandidates(path) {
   return [path];
 }
 
+/**
+ * 把 safetensors header 的 packing numel 解包成逻辑元素（out×in 口径）。
+ *
+ * header.parameterTotal / parameterCount 是存储单元计数（GPTQ qweight 一个
+ * I32 = 8 个 int4；NVFP4 一个 I8 = 2 个 fp4；scale / qzeros 也占 numel）。
+ * 图声明 `weightMatrices` 是逻辑 out×in，两边直接相除会差 0.7–1.8 倍。
+ *
+ * 解包只看 dtype 桶 + quant_method 的 bits/group_size，不读逐张量 shape
+ *（S3 sidecar 故意不落张量表）。scale 桶（F8_E8M0 / U8）不计逻辑元素；
+ * GPTQ 的 F16 scale 不计，并从 I32×8 里扣掉约等于 qzeros 的那份；
+ * compressed-tensors 的 scale 进了 BF16，按 packed/group_size 扣。
+ *
+ * 未知方案或缺少 parameterCount → null（调用方不要拿 packing 打恒等）。
+ */
+export function logicalElementsFromHeader(header, quant) {
+  const counts = header?.parameterCount;
+  if (!counts || typeof counts !== "object") return null;
+  const method = quant?.quant_method;
+  const bits = packedWeightBits(quant);
+  const i32Factor = 32 / bits;
+  let packedLogical = 0;
+  let passthrough = 0;
+  for (const [dtype, n] of Object.entries(counts)) {
+    if (!Number.isFinite(n) || n <= 0) continue;
+    const key = String(dtype).toUpperCase();
+    if (key === "F8_E8M0" || key === "U8") continue;
+    if (key === "F16" && method === "gptq") continue;
+    if (key === "I32") {
+      packedLogical += n * i32Factor;
+      continue;
+    }
+    if (key === "I8") {
+      packedLogical += n * 2;
+      continue;
+    }
+    passthrough += n;
+  }
+  let logical = packedLogical + passthrough;
+  if (method === "gptq") {
+    // I32×(32/bits) 把 qzeros 也解成了逻辑元素；qzeros 与 scales 同形，
+    // F16 scales 的 numel 就是多出来的那份。
+    logical -= counts.F16 || 0;
+  } else if (method === "compressed-tensors") {
+    const groupSize = compressedGroupSize(quant);
+    if (groupSize > 0 && packedLogical > 0) logical -= packedLogical / groupSize;
+  }
+  return logical > 0 ? logical : null;
+}
+
+function packedWeightBits(quant) {
+  if (!quant) return 4;
+  if (quant.quant_method === "gptq") return quant.bits || 4;
+  if (quant.quant_method === "compressed-tensors") {
+    const weights = Object.values(quant.config_groups || {})[0]?.weights;
+    return weights?.num_bits || 4;
+  }
+  return 4;
+}
+
+function compressedGroupSize(quant) {
+  const weights = Object.values(quant?.config_groups || {})[0]?.weights;
+  return weights?.group_size || 0;
+}
+
 export function isQuantizedPath(path, quant) {
   if (!quant) return false;
   // modules_to_not_convert（HF/vLLM 数组约定，GPTQ/FP8 常用）；compressed-tensors

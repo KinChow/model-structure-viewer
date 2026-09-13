@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activationTensorBytes, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
+import { activationTensorBytes, declaredElementsForHeader, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 import { aggregateCost } from "../aggregate.js";
 
@@ -90,6 +90,43 @@ test("offline weight fallback multiplies folded layer repeats", () => {
   ] }] };
   const result = aggregateCost({ graph: toGraph(root), config: { layers: 3, kvHeads: 1, headDim: 1 }, sequence: 1, activationPeak: 0, runtimeConst: 0 });
   assert.equal(result.memory.weightBytes, 3 * 2 * 2 * 2);
+});
+
+test("declaredElementsForHeader 以更接近 header 的 MTP 口径为准", () => {
+  const graph = toGraph({
+    id: "model",
+    children: [
+      {
+        id: "layers.mlp",
+        attributes: { weightMatrices: [{ out: 8, in: 4, count: 1, matrices: 1 }] },
+        children: [],
+      },
+      {
+        id: "mtp",
+        type: "mtp",
+        repeat: 0,
+        attributes: {
+          modules: 1,
+          weightMatrices: [{ out: 8, in: 4, count: 1, matrices: 1 }],
+        },
+        children: [
+          {
+            id: "mtp.eh_proj",
+            attributes: { weightMatrices: [{ out: 8, in: 4, count: 1, matrices: 1 }] },
+            children: [],
+          },
+        ],
+      },
+    ],
+  });
+  const stem = graphWeightCapacity(graph, { includeMtp: false }).elements;
+  const full = graphWeightCapacity(graph).elements;
+  assert.equal(stem, 32);
+  assert.ok(full > stem);
+  assert.equal(declaredElementsForHeader(graph, stem).declared, stem);
+  assert.equal(declaredElementsForHeader(graph, stem).includeMtp, false);
+  assert.equal(declaredElementsForHeader(graph, full).declared, full);
+  assert.equal(declaredElementsForHeader(graph, full).includeMtp, true);
 });
 
 test("empty parameterCount falls back to node weights", () => {

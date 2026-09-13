@@ -12,7 +12,7 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
-- S3：catalog 58/59 入库 `header-truth.json`（Kimi-K3 跳过）。未量化行图声明元素对 header Σnumel；量化 packing 不当逻辑参数量；Flash-Next 登记 29% 建模残差。
+- S3：catalog 58/59 入库 `header-truth.json`（Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素；量化按 dtype 解包；MTP 空声明以 header 为准（含/不含 MTP 取近者）。登记：Flash-Next 29%；V4-Flash-Vision-Exp 3.3%；V4-Pro 旧仓 2.2%。
 - `fromNode` 只抽 ctx：`countsForNode` = `FORMULAS[id].fromNode(env)` → `.counts(ctx)`。scores/context、SDPA bytes、稀疏叶、SWA/C128、causal conv、KDA state、embed gather 的动作向量升到 `counts.js`。`type=attention` 容器计费保留。
 - 结构对账补 params：meta `named_parameters().numel` ↔ 前端 `weightMatrices` 声明元素（catalog 无 `params` 时也能比；tied `shared` 组跳过）。
 - FlopCounterMode 矩阵抽查：独立 Linear / BMM / 深度可分 Conv1d 夹具，msv MAC × 2 == torch FLOPs。不对 catalog 整模型跑 forward。

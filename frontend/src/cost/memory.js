@@ -61,16 +61,23 @@ function groupBytes(group, fallbackBytes = 2) {
   return groupElements(group) * (group.param_dtype ? paramBytes(group.param_dtype) : fallbackBytes);
 }
 
+function isMtpPath(node) {
+  const id = String(node?.id || "");
+  return node?.type === "mtp" || /(^|\.)mtp(\.|$)/.test(id);
+}
+
 /**
  * 权重驻留容量：Σ weightMatrices × residentRepeat（MTP repeat=0 仍计入）。
  * 有 weight_shapes（checkpoint 绑定）的叶优先用形状字节，避免与声明双计。
+ * includeMtp=false 只用于身份对账：config 声明的投机头不是 checkpoint 实际。
  * ref: vLLM named_parameters；原则 §3.8。
  */
-export function graphWeightCapacity(graph, { fallbackBytes = 2 } = {}) {
+export function graphWeightCapacity(graph, { fallbackBytes = 2, includeMtp = true } = {}) {
   let elements = 0;
   let bytes = 0;
   if (!graph?.nodes?.length) return { elements: 0, bytes: 0 };
   walkStructure(graph, ({ node, resident }) => {
+    if (!includeMtp && isMtpPath(node)) return;
     const shaped = nodeWeightBytes(node);
     if (shaped > 0) {
       bytes += shaped * resident;
@@ -86,6 +93,20 @@ export function graphWeightCapacity(graph, { fallbackBytes = 2 } = {}) {
     }
   });
   return { elements, bytes };
+}
+
+/** 身份测试：header 是实际，config MTP 可能是空声明。两份图声明里取更接近 header 的。 */
+export function declaredElementsForHeader(graph, headerElements) {
+  const withMtp = graphWeightCapacity(graph).elements;
+  const withoutMtp = graphWeightCapacity(graph, { includeMtp: false }).elements;
+  if (!Number.isFinite(headerElements) || headerElements <= 0) return { declared: withMtp, withMtp, withoutMtp, includeMtp: true };
+  const closerWithout = Math.abs(withoutMtp - headerElements) < Math.abs(withMtp - headerElements);
+  return {
+    declared: closerWithout ? withoutMtp : withMtp,
+    withMtp,
+    withoutMtp,
+    includeMtp: !closerWithout,
+  };
 }
 
 export function graphShapedWeightBytes(graph) {

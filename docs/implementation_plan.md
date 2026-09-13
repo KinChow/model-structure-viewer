@@ -162,9 +162,10 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 **S3 header `parameterTotal` 入库** ✅ catalog 58/59 有 `header-truth.json`
 （Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素（容差 2%）。
 量化行按 `parameterCount` dtype 解包（GPTQ I32×8 扣 qzeros、NVFP4 I8×2、跳过 scale 桶）。
-身份图侧：含/不含 MTP 两份声明里取更接近 header 的（config 空声明不是实际；header 才是）。
-登记残差：Flash-Next 29%；V4-Flash-Vision-Exp 3.3%（stem 更近，vision/DSpark 未对齐）；
-V4-Pro 旧仓 2.2%（stem 1.634T vs header 1.599T）。整模型 FlopCounterMode 仍需要真实 `forward` + 权重，catalog 做不到。
+身份图侧：sidecar `mtp_tensor_count`（扫 header 张量名 `mtp.{i}` / 越界 `layers.{n}`，
+对标 vLLM load_weights）>0 才计入投机头；config 空声明不是实际。
+登记残差：Flash-Next 29%；V4-Flash-Vision-Exp 3.3%；V4-Pro 旧仓 2.2%。
+整模型 FlopCounterMode 仍需要真实 `forward` + 权重，catalog 做不到。
 
 **明确后置 / 不做**
 - 拆 59 个 modeling 文件（`ARCH_RECIPES` 过渡表可留）。

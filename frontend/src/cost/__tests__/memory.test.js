@@ -92,7 +92,7 @@ test("offline weight fallback multiplies folded layer repeats", () => {
   assert.equal(result.memory.weightBytes, 3 * 2 * 2 * 2);
 });
 
-test("declaredElementsForHeader 以更接近 header 的 MTP 口径为准", () => {
+test("declaredElementsForHeader 按 checkpoint MTP key 计数，不近邻总量", () => {
   const graph = toGraph({
     id: "model",
     children: [
@@ -123,10 +123,12 @@ test("declaredElementsForHeader 以更接近 header 的 MTP 口径为准", () =>
   const full = graphWeightCapacity(graph).elements;
   assert.equal(stem, 32);
   assert.ok(full > stem);
-  assert.equal(declaredElementsForHeader(graph, stem).declared, stem);
-  assert.equal(declaredElementsForHeader(graph, stem).includeMtp, false);
-  assert.equal(declaredElementsForHeader(graph, full).declared, full);
-  assert.equal(declaredElementsForHeader(graph, full).includeMtp, true);
+  assert.equal(declaredElementsForHeader(graph, { mtp_tensor_count: 0 }).declared, stem);
+  assert.equal(declaredElementsForHeader(graph, { mtp_tensor_count: 0 }).includeMtp, false);
+  assert.equal(declaredElementsForHeader(graph, { mtp_tensor_count: 12 }).declared, full);
+  assert.equal(declaredElementsForHeader(graph, { mtp_tensor_count: 12 }).includeMtp, true);
+  assert.equal(declaredElementsForHeader(graph, { parameterTotal: stem }).includeMtp, false);
+  assert.equal(declaredElementsForHeader(graph, { parameterTotal: full }).includeMtp, true);
 });
 
 test("empty parameterCount falls back to node weights", () => {

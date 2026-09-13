@@ -16,6 +16,31 @@ function isTensorKey(name) {
   return true;
 }
 
+const MTP_NAME = /(^|\.)mtp(\.|$)/;
+const LAYER_INDEX = /(^|\.)layers\.(\d+)(?:\.|$)/;
+
+/**
+ * checkpoint 里实际有多少 MTP 张量。对标 vLLM load_weights：
+ * 扫 safetensors header 的 name，不看 config.use_mtp。
+ * - `mtp.{i}.`（V4 / MiniMax / Qwen）
+ * - `layers.{n}` 且 n ≥ num_hidden_layers（V3 把 MTP 编进越界层号）
+ */
+export function mtpTensorCount(tensors, { hiddenLayers } = {}) {
+  const layers = Number.isFinite(hiddenLayers) && hiddenLayers > 0 ? hiddenLayers : null;
+  let count = 0;
+  for (const tensor of tensors || []) {
+    const name = String(tensor?.name || tensor || "");
+    if (MTP_NAME.test(name)) {
+      count += 1;
+      continue;
+    }
+    if (layers == null) continue;
+    const match = name.match(LAYER_INDEX);
+    if (match && Number(match[2]) >= layers) count += 1;
+  }
+  return count;
+}
+
 function normalizeFromHeaders(headers) {
   const tensors = [];
   for (const header of headers) {

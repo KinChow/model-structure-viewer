@@ -95,11 +95,27 @@ export function graphWeightCapacity(graph, { fallbackBytes = 2, includeMtp = tru
   return { elements, bytes };
 }
 
-/** 身份测试：header 是实际，config MTP 可能是空声明。两份图声明里取更接近 header 的。 */
-export function declaredElementsForHeader(graph, headerElements) {
+/**
+ * 身份测试：checkpoint header 的张量名是实际（vLLM load_weights）。
+ * mtp_tensor_count>0 → 计入投机头；=0 → 主干。
+ * 字段缺席（sidecar 尚未刷新）回退近邻，避免把「还没扫到」当成空声明。
+ */
+export function declaredElementsForHeader(graph, header) {
   const withMtp = graphWeightCapacity(graph).elements;
   const withoutMtp = graphWeightCapacity(graph, { includeMtp: false }).elements;
-  if (!Number.isFinite(headerElements) || headerElements <= 0) return { declared: withMtp, withMtp, withoutMtp, includeMtp: true };
+  if (Number.isFinite(header?.mtp_tensor_count)) {
+    const includeMtp = header.mtp_tensor_count > 0;
+    return {
+      declared: includeMtp ? withMtp : withoutMtp,
+      withMtp,
+      withoutMtp,
+      includeMtp,
+    };
+  }
+  const headerElements = Number(header?.parameterTotal);
+  if (!Number.isFinite(headerElements) || headerElements <= 0) {
+    return { declared: withMtp, withMtp, withoutMtp, includeMtp: true };
+  }
   const closerWithout = Math.abs(withoutMtp - headerElements) < Math.abs(withMtp - headerElements);
   return {
     declared: closerWithout ? withoutMtp : withMtp,

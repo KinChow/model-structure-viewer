@@ -4,6 +4,7 @@
   "endpoint": "hf-mirror",
   "method": "manual",
   "tensor_count": 44691,
+  "mtp_tensor_count": 502,
   "parameterTotal": 358337791296,
   "parameterCount": {
     "BF16": 358337776896,

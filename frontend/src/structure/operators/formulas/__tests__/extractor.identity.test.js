@@ -178,15 +178,16 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
 // 未量化：header.parameterTotal 即逻辑 Σnumel。
 // 量化：parameterCount 按 dtype 解包（GPTQ I32×8 扣 qzeros、NVFP4 I8×2、
 // 跳过 scale 桶），再打 out×in；packing numel 不当逻辑参数量。
-// 图侧：config MTP 可能是空声明。两份声明（含/不含 MTP）里取更接近 header 的。
+// 图侧：config MTP 不是实例。sidecar mtp_tensor_count>0 才计入投机头
+//（vLLM load_weights 扫 checkpoint key；缺席 = 空声明）。
 const HEADER_SKIP = new Set(["moonshotai/Kimi-K3"]);
 const HEADER_TOLERANCE = 0.02;
 const HEADER_REGISTERED = {
   "Qwen/Qwen3.8-Flash-Next": 0.29, // 图 128B vs header 180B，建模少计约 29%
-  "Qwen/Qwen3.8-Flash-Next-FP8": 0.29, // 同图，解包后仍是 180B 量级
-  // MTP 空声明已被 header 否决（取 stem）。余下是主干建模 vs 该仓，不是 config 模块数。
-  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.04, // stem 更近；header 介于 1–2 个 MTP 之间，vision 声明偏小
-  "deepseek-ai/DeepSeek-V4-Pro": 0.03, // stem 1.634T vs header 1.599T（官方 1.6T），约一层量级
+  "Qwen/Qwen3.8-Flash-Next-FP8": 0.29,
+  "deepseek-ai/DeepSeek-V4-Flash": 0.04, // 有 MTP key（1575）但少于 0731（4705）；图按完整一层
+  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.04,
+  "deepseek-ai/DeepSeek-V4-Pro": 0.04, // 有 MTP key（2343）但少于 0813（7009）
 };
 
 function isQuantizedConfig(config) {
@@ -212,7 +213,7 @@ test("S3 图声明对 header（有 sidecar 才断言）", async () => {
     const expected = quantized
       ? logicalElementsFromHeader(header, quantizationConfigOf(config))
       : header.parameterTotal;
-    const { declared, includeMtp } = declaredElementsForHeader(structure.graph, expected);
+    const { declared, includeMtp } = declaredElementsForHeader(structure.graph, header);
     const ratio = expected > 0 ? declared / expected : null;
     rows.push({
       model: entry.model_id,

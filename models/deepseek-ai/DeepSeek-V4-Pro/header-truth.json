@@ -4,6 +4,7 @@
   "endpoint": "modelscope",
   "method": "manual",
   "tensor_count": 145116,
+  "mtp_tensor_count": 2343,
   "parameterTotal": 861608274846,
   "parameterCount": {
     "BF16": 2816899328,

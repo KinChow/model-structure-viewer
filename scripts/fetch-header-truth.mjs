@@ -3,8 +3,8 @@
 //
 // 对照：@huggingface/hub parseSafetensorsMetadata（principles §4.1，禁止手写换算）。
 // 只 range-read header（名 / dtype / shape），不下载权重数据区。
-// 产物 models/<org>/<id>/header-truth.json 只存总量与按 dtype 计数，不落逐张量表
-//（K3 量级 59.7MB；轻量元数据纪律，与 source-ref sidecar 同形态）。
+// 产物只存总量、dtype 分桶、mtp_tensor_count（扫 name：mtp.{i} / 越界 layers.{n}，
+// 对标 vLLM load_weights），不落逐张量表（K3 量级 59.7MB）。
 //
 // 用法：
 //   node scripts/fetch-header-truth.mjs --model=Qwen/Qwen3.5-0.8B
@@ -13,7 +13,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchCheckpointTruth } from "../frontend/src/cost/weights.js";
+import { fetchCheckpointTruth, mtpTensorCount } from "../frontend/src/cost/weights.js";
+import { firstNumber, LAYER_KEYS } from "../frontend/src/structure/config/normalize.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SKIP = new Set(["moonshotai/Kimi-K3"]);
@@ -92,12 +93,20 @@ async function processEntry(entry) {
   }
   try {
     const truth = await fetchHeader(modelId);
+    let hiddenLayers;
+    try {
+      const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
+      hiddenLayers = firstNumber(config, LAYER_KEYS) ?? firstNumber(config.text_config, LAYER_KEYS);
+    } catch {
+      hiddenLayers = undefined;
+    }
     const payload = {
       generated: "safetensors header (fetch-header-truth)",
       source: `https://huggingface.co/${modelId}/`,
       endpoint: truth.endpoint,
       method: truth.method || "hub",
       tensor_count: Array.isArray(truth.tensors) ? truth.tensors.length : null,
+      mtp_tensor_count: mtpTensorCount(truth.tensors, { hiddenLayers }),
       parameterTotal: truth.parameterTotal,
       parameterCount: truth.parameterCount || null,
     };
@@ -107,9 +116,10 @@ async function processEntry(entry) {
       model_id: modelId,
       parameterTotal: payload.parameterTotal,
       tensor_count: payload.tensor_count,
+      mtp_tensor_count: payload.mtp_tensor_count,
       method: payload.method,
     });
-    console.log(`✓ ${modelId}  parameterTotal=${payload.parameterTotal.toLocaleString("en-US")}  tensors=${payload.tensor_count}  method=${payload.method}  via=${payload.endpoint}`);
+    console.log(`✓ ${modelId}  parameterTotal=${payload.parameterTotal.toLocaleString("en-US")}  tensors=${payload.tensor_count}  mtp=${payload.mtp_tensor_count}  method=${payload.method}  via=${payload.endpoint}`);
   } catch (error) {
     report.failed.push({ model_id: modelId, error: error.message });
     console.log(`✗ ${modelId}: ${error.message}`);

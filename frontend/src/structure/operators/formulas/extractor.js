@@ -10,7 +10,7 @@
 // - 分派：FORMULAS[operator_id].fromNode 抽 ctx，.counts(ctx) 计价（flop_registry）。
 //   type=attention / type=embedding 无 operator_id，仍在 countsForNode 入口处理。
 
-import { scoredPairs, embedGatherCounts, dsv4VisibleKeys } from "./counts.js";
+import { scoredPairs, embedGatherCounts } from "./counts.js";
 import { paramBytes } from "./paramDtypes.js";
 import { FORMULAS } from "./index.js";
 import { tensorDims } from "../../config/dims.js";
@@ -113,138 +113,6 @@ function attentionShapePatterns(config) {
     scores: [dims.attentionScores, v.scores],
     context: [dims.attentionContext, v.context],
   };
-}
-
-// ---------- 注意力/线性注意力的 matrix 权威实现（活代码，非旧链镜像） ----------
-// W5 时本区是新旧双轨的"镜像"区；P0 单源化盘点后：4 个 legacy*Macos 包装
-//（旧全量口径）无调用方已删除；余下函数全部被活 case 引用（:396-400 注意力
-// 模块解析、dsv4 sparse case、KDA state case、mhc ctx）——它们是权威实现，
-// "legacy" 字样仅保留在 deepseekV4 的历史命名里。
-
-// deepseekV4AttentionMacs：DSV4 压缩/滑窗/滑窗预算的 matrix 权威实现（dsv4 sparse case 与注意力模块节点解析在用——"legacy" 前缀是历史遗留，非镜像）。
-function deepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase = "prefill", layerIndex = 0 } = {}) {
-  const heads = config?.attentionHeads || 0;
-  const headDim = config?.headDim || 0;
-  const ratio = config?.compressRatios?.[layerIndex] ?? 0;
-  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  const visible = dsv4VisibleKeys({
-    sequence,
-    phase,
-    ratio,
-    slidingWindow: config?.slidingWindow,
-    indexerBudget: config?.indexerBudget,
-  });
-  return queryTokens * heads * visible * (headDim + headDim);
-}
-
-// 旧 linearShortConvolutionMacs。
-// 旧 linearAttentionDimensions。
-
-function attentionCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const heads = config?.attentionHeads || 0;
-  const qk = config?.headDim || 0;
-  const value = config?.valueHeadDim || qk;
-  const lengthTerm = phase === "decode" ? sequence : sequence ** 2;
-  return batch * heads * lengthTerm * (qk + value);
-}
-function linearAttentionCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  if (recipeLinearAttentionMode(config) === "glm5_next") return glm5NextLinearStateMacs(config, { batch, sequence, phase });
-  if (recipeLinearAttentionMode(config) === "kimi_k3") return kimiK3LinearStateMacs(config, { batch, sequence, phase });
-  if (recipeLinearAttentionMode(config) === "qwen4_exp") return qwen4ExpLinearStateMacs(config, { batch, sequence, phase });
-  if (recipeLinearAttentionMode(config) === "qwen3_5") return qwen35LinearStateMacs(config, { batch, sequence, phase });
-  const tokens = batch * (phase === "decode" ? 1 : sequence);
-  const hidden = config?.hiddenSize || 0;
-  const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
-  const valueHeads = config?.linearValueHeads || config?.attentionHeads || 0;
-  const keyDim = config?.linearKeyDim || config?.headDim || 0;
-  const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
-  return tokens * (hidden * (keyHeads * keyDim + valueHeads * valueDim) + keyHeads * valueHeads * keyDim * valueDim);
-}
-function qsaCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const heads = config?.attentionHeads || 0;
-  const qk = config?.headDim || 0;
-  const value = config?.valueHeadDim || qk;
-  const selected = Math.min(sequence, config?.indexerBudget || sequence);
-  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  return queryTokens * heads * selected * (qk + value);
-}
-function minimaxSparseCoreMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const heads = config?.attentionHeads || 0;
-  const headDim = config?.headDim || 0;
-  const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  const selectedBlocks = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
-  const selectedTokens = selectedBlocks * (config?.sparseBlockSize || 1);
-  return queryTokens * heads * selectedTokens * (headDim + headDim);
-}
-
-function qwen35LinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const tokens = batch * (phase === "decode" ? 1 : sequence);
-  const hidden = config?.hiddenSize || 0;
-  const keyHeads = config?.linearKeyHeads || 0;
-  const valueHeads = config?.linearValueHeads || 0;
-  const keyDim = config?.linearKeyDim || 0;
-  const valueDim = config?.linearValueDim || 0;
-  const keyProjection = keyHeads * keyDim;
-  const valueProjection = valueHeads * valueDim;
-  const convDim = 2 * keyProjection + valueProjection;
-  const kernel = config?.linearConvKernelSize || 0;
-  const qkvzProjection = hidden * (2 * keyProjection + 2 * valueProjection);
-  const baProjection = 2 * hidden * valueHeads;
-  const shortConvolution = convDim * kernel;
-  const recurrentState = 3 * valueHeads * valueDim * keyDim;
-  const gatedNorm = 3 * valueProjection;
-  const outputProjection = valueProjection * hidden;
-  return tokens * (qkvzProjection + baProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
-}
-function glm5NextLinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const tokens = batch * (phase === "decode" ? 1 : sequence);
-  const hidden = config?.hiddenSize || 0;
-  const heads = config?.linearKeyHeads || config?.attentionHeads || 0;
-  const headDim = config?.linearKeyDim || config?.headDim || 0;
-  const projection = heads * headDim;
-  const convKernel = config?.linearConvKernelSize || 0;
-  const fusedProjection = hidden * (3 * projection + heads + 2 * headDim);
-  const gateProjections = 2 * headDim * projection;
-  const shortConvolution = 3 * projection * convKernel;
-  const recurrentState = 3 * heads * headDim * headDim;
-  const gatedNorm = 3 * projection;
-  const outputProjection = projection * hidden;
-  return tokens * (fusedProjection + gateProjections + shortConvolution + recurrentState + gatedNorm + outputProjection);
-}
-function kimiK3LinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const tokens = batch * (phase === "decode" ? 1 : sequence);
-  const hidden = config?.hiddenSize || 0;
-  const heads = config?.linearKeyHeads || config?.attentionHeads || 0;
-  const headDim = config?.linearKeyDim || config?.headDim || 0;
-  const projection = heads * headDim;
-  const convKernel = config?.linearConvKernelSize || 0;
-  const fusedQkvg = hidden * 4 * projection;
-  const betaProjection = hidden * heads;
-  const decayProjection = hidden * headDim + headDim * projection;
-  const shortConvolution = 3 * projection * convKernel;
-  const recurrentState = 3 * heads * headDim * headDim;
-  const gatedNorm = 3 * projection;
-  const outputProjection = projection * hidden;
-  return tokens * (fusedQkvg + betaProjection + decayProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
-}
-function qwen4ExpLinearStateMacs(config, { batch = 1, sequence = 1, phase = "prefill" } = {}) {
-  const tokens = batch * (phase === "decode" ? 1 : sequence);
-  const hidden = config?.hiddenSize || 0;
-  const keyHeads = config?.linearKeyHeads || config?.attentionHeads || 0;
-  const valueHeads = config?.linearValueHeads || config?.attentionHeads || keyHeads;
-  const keyDim = config?.linearKeyDim || config?.headDim || 0;
-  const valueDim = config?.linearValueDim || config?.valueHeadDim || keyDim;
-  const keyProjection = keyHeads * keyDim;
-  const valueProjection = valueHeads * valueDim;
-  const convDim = 2 * keyProjection + valueProjection;
-  const kernel = config?.linearConvKernelSize || 0;
-  const qkvzProjection = hidden * (2 * keyProjection + 2 * valueProjection);
-  const baProjection = 2 * hidden * valueHeads;
-  const shortConvolution = convDim * kernel;
-  const recurrentState = 3 * valueHeads * valueDim * keyDim;
-  const gatedNorm = 3 * valueProjection;
-  const outputProjection = valueProjection * hidden;
-  return tokens * (qkvzProjection + baProjection + shortConvolution + recurrentState + gatedNorm + outputProjection);
 }
 
 function linearAttentionDimensions(config = {}) {
@@ -712,17 +580,9 @@ export function countsForNode(node, env = {}) {
     visionTokens: config?.visionTokens || 1,
   });
 
-  // 注意力模块节点（type === "attention"）：own 值 = 注意力核心公式（投影由独立叶子计费）
-  if (type === "attention") {
-    const macsOptions = { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase };
-    let matrix = null;
-    if (kind === "linear") matrix = linearAttentionCoreMacs(config, macsOptions);
-    else if (kind === "qsa") matrix = qsaCoreMacs(config, macsOptions);
-    else if (kind === "sparse") matrix = minimaxSparseCoreMacs(config, macsOptions);
-    else if (kind === "dsv4") matrix = deepseekV4AttentionMacs(config, { ...macsOptions, layerIndex: layerIndexOf(node?.id || path) ?? 0 });
-    else matrix = attentionCoreMacs(config, macsOptions);
-    return { matrix, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
-  }
+  // type=attention 是 nn.Module 容器（§2.4：不该挂融合 counts）。打分核在
+  // sdpa / sparse / swa / compressed 叶上，走 FORMULAS[operator_id]。
+  if (type === "attention") return null;
 
   // M11 bytes 补齐：embedding gather 是真实访存（每 token 读一行权重、写一行
   // hidden），但它是无 operatorId 的结构节点。gather 无 MACs，matrix 恒 0。

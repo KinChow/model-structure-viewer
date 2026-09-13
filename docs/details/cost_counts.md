@@ -452,10 +452,9 @@ countsForNode(node, env = { config, options, path, bytesPerElement }) → counts
 历史词汇；W5-1 后旧链已删除，extractor 是唯一提取路径。「旧链镜像」函数段
 （`extractor.js:125-372`）现状混杂：
 
-- type === "attention" 容器分支（`:393-402`）按 kind 分派镜像 macs——但主链对父节点
-  （有 children）一律不计费（`compute.js:45`），该分支返回值实际不被消费；
-- linearStateUpdateMacs（state_update 叶 matrix，`:364`）与 legacyDeepseekV4AttentionMacs
-  （dsv4_compressed_attention matrix，`:687`）仍是**权威路径**。
+- type === "attention" 容器按 §2.4 不计费（nn.Module 不是 kernel 边界；打分核在叶上走 FORMULAS）。
+- linearStateUpdateMacs（state_update 叶 matrix）与 dsv4CompressedAttentionCounts
+  （dsv4_compressed_attention matrix）仍是**权威路径**。
 
 同段内「死/活」混杂、注释「W5 切换后随旧链一并删除」已失效——**双源问题登记为代码侧
 待裁决（不改代码）**。
@@ -464,7 +463,7 @@ countsForNode(node, env = { config, options, path, bytesPerElement }) → counts
 
 | 分派 | operatorId / 判据 | ctx 来源与要点 |
 |---|---|---|
-| 模块容器 | type === "attention" | own 值 = 注意力核心 macs（kind 分派走旧链镜像）；主链父节点不计费，返回值不被消费（见上） |
+| 模块容器 | type === "attention" | §2.4：nn.Module 容器不计费，返回 null；打分核在叶上 |
 | 结构节点 | type === "embedding" | gather：actIn/actOut = T·H·b、weights = 0（`:407-415`） |
 | 线性 | linear；或无 operatorId 但 weight_shapes 有 ≥2 维形状（effectiveOperatorId 改写，`:419-423`） | `linearLogicalShape`：attributes.logical_weight_shape 优先 → weight_shapes 首个 ≥2 维 → `derivedLinearShape`（input/output 正维积）回退；packed 无逻辑形状 → null（诚实未知）；**bias = attributes.bias === true 已接线**；文本 token embed 结构化路径排除（真查表走 gather；视觉 patch embed 是 Conv3d 一次 GEMM，不排除）；routed ×xf |
 | scores/context matmul | matmul | `attentionShapePatterns`：**context 先判**（含具体 heads/value 维，更具体；scores 的全 -1 通配会吞掉一切 4D 输出）+ text/vision 两套 patterns（`:454-519`）；scoredPairs 分相位；MLA latent 共享 → kvHeads=1、K 读宽 kv_lora+rope、V 读宽 kv_lora（context 叶同 latent 不再读，W5 防双计）；kvRead 子桶 |

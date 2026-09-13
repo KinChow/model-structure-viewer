@@ -12,7 +12,7 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
-- T4：DSV4 打分项期望侧按 `compress_ratio` 分层（SWA/C4 走 `scoredPairs`，C128 走 `T·visible` 矩形），与叶 counts 共用 `dsv4VisibleKeys`。V4-Flash / 0731 / Vision-Exp 的 0.006 登记删除。
+- 删 extractor 容器 `*Macs`（`attentionCoreMacs` 的 T² 等）。`type=attention` 按 §2.4 返回 null，打分只走叶 `FORMULAS[operator_id]`。
 - PLE ngram 表改为 `type=embedding` 子叶（照抄 `Qwen4ExpTextNGramEmbedding` 的 `nn.Embedding` + 素数 pad）。S3 Flash-Next 29% 登记项删除。
 - S3：catalog 58/59 入库 `header-truth.json`（Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素；量化按 dtype 解包；MTP 是否计入扫 header 张量名（`mtp.{i}` / 越界 `layers.{n}`，对标 vLLM load_weights）。登记：V4-Flash / Vision-Exp / Pro 旧仓 MTP 层数不全。
 - `fromNode` 只抽 ctx：`countsForNode` = `FORMULAS[id].fromNode(env)` → `.counts(ctx)`。scores/context、SDPA bytes、稀疏叶、SWA/C128、causal conv、KDA state、embed gather 的动作向量升到 `counts.js`。`type=attention` 容器计费保留。

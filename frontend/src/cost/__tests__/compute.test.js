@@ -198,14 +198,17 @@ test("F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1", () => {
   assert.equal(nodeMacs(node, {}, { batch: 2, sequence: 3, phase: "decode" }), 16);
 });
 
-test("F9 Attention core MACs 区分 Prefill 的 T² 与 Decode 的 T", () => {
+test("F9 Attention 打分核走叶 operator_id，prefill 因果三角、decode 全长", () => {
+  // §2.4：type=attention 容器不计费。heads=2, D=4, dv=6, T=3。
+  // prefill scoredPairs=6 → scores=12 → matrix=12·10=120
+  // decode T=1,S=3 scoredPairs=3 → scores=6 → matrix=60
   const config = { attentionHeads: 2, headDim: 4, valueHeadDim: 6 };
-  const node = { type: "attention", attributes: { attention_kind: "gqa" }, id: "decoder.0.self_attn" };
-  assert.equal(nodeMacs(node, config, { batch: 2, sequence: 3, phase: "prefill" }), 360);
-  assert.equal(nodeMacs(node, config, { batch: 2, sequence: 3, phase: "decode" }), 120);
+  const node = { type: "operator", attributes: { operator_id: "sdpa_attention", attention_kind: "gqa" }, id: "decoder.0.self_attn.sdpa" };
+  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 3, phase: "prefill" }), 120);
+  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 3, phase: "decode" }), 60);
 });
 
-test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent state", () => {
+test("Qwen3.5 GDN 递推叶走 gated_delta_attention，不是容器融合公式", () => {
   const config = {
     linearAttentionMode: "qwen3_5",
     hiddenSize: 4,
@@ -215,15 +218,17 @@ test("Qwen3.5 GDN MACs include qkvz/ba projections and value-head recurrent stat
     linearValueDim: 2,
     linearConvKernelSize: 3,
   };
-  const node = { type: "attention", attributes: { attention_kind: "linear" }, id: "decoder.0.self_attn" };
-  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 5, phase: "prefill" }), 700);
-  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 5, phase: "decode" }), 140);
+  const node = { type: "operator", attributes: { operator_id: "gated_delta_attention", model_kind: "qwen3_5" }, id: "decoder.0.linear_attn.state_update" };
+  // stateUpdate = 3·valueHeads·valueDim·keyDim = 24；prefill T=5 → 120；decode T=1 → 24
+  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 5, phase: "prefill" }), 120);
+  assert.equal(nodeMacs(node, config, { batch: 1, sequence: 5, phase: "decode" }), 24);
 });
 
-test("MiniMax M3 sparse attention MACs use selected blocks plus local/init blocks", () => {
-  const node = { type: "attention", attributes: { attention_kind: "sparse" }, id: "text_decoder.3.self_attn" };
+test("MiniMax M3 稀疏打分核走叶，selected 夹可见长度", () => {
+  const node = { type: "operator", attributes: { operator_id: "minimax_sparse_attention" }, id: "text_decoder.3.self_attn.attention" };
   const config = { modelType: "minimax_m3_vl", attentionHeads: 2, headDim: 3, sparseTopkBlocks: 2, sparseBlockSize: 4, sparseInitBlock: 1, sparseLocalBlock: 0 };
-  assert.equal(computeNodeCosts(toGraph(node), config, { batch: 1, sequence: 5, phase: "prefill" })[0].compute_macs, 720);
+  // selected=min(5, 2·4+1)=5；scoredPairs(5,5)=15；scores=30；matrix=30·6=180
+  assert.equal(computeNodeCosts(toGraph(node), config, { batch: 1, sequence: 5, phase: "prefill" })[0].compute_macs, 180);
 });
 
 test("F16 MoE expert fraction 逐层应用且不影响 dense 层", () => {

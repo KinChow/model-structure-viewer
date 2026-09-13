@@ -714,9 +714,9 @@ S=`min(S, indexerBudget)`，按 kind 分派读宽与 kvWrite）。
   attention_kind 共用本 case：`qsa`（Qwen3.8-Flash-Next×2 逐头 GQA/MHA）、
   `dsa_sparse_mla`（DeepSeek-V3.2 + GLM-5 系×8，MLA latent）、
   `dsv4_sparse_mla`（V4×5，MQA 压缩态）。
-- **matrix**：`Nh·T·S_sel·(D+dv)`，S_sel=`min(S, indexerBudget)`。实现：case
-  "qsa_attention"（`extractor.js:422-476`，case "qsa_attention"；矩阵镜像
-  qsaCoreMacs `extractor.js:186-193`）。
+- **matrix**：`Nh·T·S_sel·(D+dv)`，S_sel=`min(S, indexerBudget)`。实现：叶
+  `qsa_sparse_attention` / `dsa_sparse_mla` / `dsv4_sparse_mla` 走
+  `sparseLeafAttentionCounts`（`counts.js`）。`type=attention` 容器不计费（§2.4）。
 - **vector / sfu**：精确零（融合核；softmax 段以 bytes 中间量体现）。
 - **bytes.weights**：0。
 - **bytes.actIn / actOut**（F2 整体口径，按 kind 分派读宽，`extractor.js:449-473`）：
@@ -796,10 +796,9 @@ S=`min(S, indexerBudget)`，按 kind 分派读宽与 kvWrite）。
 ##### minimax_sparse_attention — MiniMax M3 Block-Sparse GQA
 
 - **触发面**：2/59 模型——MiniMax-M3 / M3-MXFP8（1 节点×57）。
-- **matrix**：`Nh·T·(blocks·blockSize)·(D+dv)`，blocks=sparseTopkBlocks+Init+Local、
-  blockSize=sparseBlockSize。实现：case
-  （`extractor.js:477-508`，case "minimax_sparse_attention"；矩阵镜像
-  minimaxSparseCoreMacs `extractor.js:194-201`）。
+- **matrix**：`Nh·scoredPairs(T, selected)·(D+dv)`，selected=`min(S, (topk+init+local)·blockSize)`。
+  实现：叶 `minimax_sparse_attention` 走 `minimaxSparseAttentionCounts`（`counts.js`）。
+  `type=attention` 容器不计费（§2.4）。
 - **vector / sfu**：精确零（融合核）。
 - **bytes.weights**：0。
 - **bytes.actIn / actOut**：actIn=`(Nh·T·D + kvH·selected·(D+dv) + 2·Nh·T·selected)·b`
@@ -822,10 +821,8 @@ S=blocks·blockSize 实例化（构造恒等）。
 
 #### 4.3.5 KDA / 线性注意力 — [B-attn-kda](#b-attn-kda)
 
-**模块级融合公式**（legacy 镜像，`extractor.js:203-271`：qwen35LinearStateMacs /
-glm5NextLinearStateMacs / kimiK3LinearStateMacs / qwen4ExpLinearStateMacs）：
-以 Qwen3.5 形态为例 `T·(qkvzProjection + baProjection + shortConvolution +
-recurrentState + gatedNorm + outputProjection)`，其中 recurrentState=`3·vh·dv·dk`。
+**模块级融合公式已删**（原 `*Macs` 容器镜像，§2.4：整个 Attention 模块不该挂融合 counts）。
+打分 / 递推只走叶 `FORMULAS[operator_id]`（`gated_delta_attention` / `sdpa_attention` 等）。
 
 **一致性断言（KDA）**：模块镜像 ≡ Σ子级 matrix（linear qkvz + linear ba×2 + conv1d
 + stateUpdate）**除 norm 段**——镜像把 gatedNorm 折为 `3·vp·T` 计入 matrix，子级

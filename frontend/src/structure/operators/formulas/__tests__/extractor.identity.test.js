@@ -103,7 +103,7 @@ function extraMatmulWithoutWeights(normalized, T) {
         slidingWindow: normalized.slidingWindow,
         indexerBudget: normalized.indexerBudget,
       });
-      // C128 叶 matrix 是 T·visible 矩形（deepseekV4AttentionMacs / compressed counts），
+      // C128 叶 matrix 是 T·visible 矩形（dsv4CompressedAttentionCounts），
       // SWA/C4 才走 scoredPairs 因果三角。
       if (ratio > 4) {
         score += heads * T * keys * (dim + vDim);

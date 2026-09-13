@@ -500,10 +500,14 @@ export function minimaxSparseAttentionCounts({
   };
 }
 
-function dsv4SwaKeyTokens({ sequence, ratio, slidingWindow }) {
-  return ratio === 0
-    ? Math.min(sequence, slidingWindow || sequence)
-    : Math.ceil(sequence / Math.max(ratio, 1));
+/** DSV4 主注意力可见 key 数（SWA / C4 / C128）。T4 期望侧与叶 counts 共用。 */
+export function dsv4VisibleKeys({ sequence, phase = "prefill", ratio = 0, slidingWindow, indexerBudget }) {
+  const available = phase === "decode" ? 1 : sequence;
+  if (ratio === 0) return Math.min(available, slidingWindow || available);
+  if (ratio === 4) {
+    return Math.min(Math.ceil(available / ratio) + (slidingWindow || 0), indexerBudget || available);
+  }
+  return Math.ceil(available / Math.max(ratio, 1));
 }
 
 /** DeepSeek V4 sliding-window MQA（compress_ratio=0）。 */
@@ -512,7 +516,7 @@ export function dsv4SwaAttentionCounts({
   heads = 1, headDim = 1, valueDim = 1, kvHeads = 1, bytesPerElement = 1,
 }) {
   const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  const keyTokens = dsv4SwaKeyTokens({ sequence, ratio, slidingWindow });
+  const keyTokens = dsv4VisibleKeys({ sequence, ratio, slidingWindow });
   const scores = heads * scoredPairs({ phase, queryTokens, keyTokens });
   return {
     matrix: scores * (headDim + valueDim),
@@ -537,13 +541,8 @@ export function dsv4CompressedAttentionCounts({
   heads = 1, headDim = 1, valueDim = 1, kvHeads = 1, bytesPerElement = 1, windowTokens,
 }) {
   const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  const available = phase === "decode" ? 1 : sequence;
-  const visible = ratio === 0
-    ? Math.min(available, slidingWindow || available)
-    : ratio === 4
-      ? Math.min(Math.ceil(available / ratio) + (slidingWindow || 0), indexerBudget || available)
-      : Math.ceil(available / Math.max(ratio, 1));
-  const keyTokens = dsv4SwaKeyTokens({ sequence, ratio, slidingWindow });
+  const visible = dsv4VisibleKeys({ sequence, phase, ratio, slidingWindow, indexerBudget });
+  const keyTokens = dsv4VisibleKeys({ sequence, ratio, slidingWindow });
   const scores = heads * queryTokens * keyTokens;
   const window = windowTokens ?? Math.min(sequence, slidingWindow || 128);
   return {

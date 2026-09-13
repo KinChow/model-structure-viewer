@@ -8,6 +8,7 @@ import {
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts,
   moeDispatchCounts, moeCombineCounts, addCounts, hashRouteCounts,
   rearrangeCounts, softmaxCounts, scoredPairs, causalDensity, fusedMoeMlpCounts,
+  dsv4VisibleKeys,
 } from "../counts.js";
 
 const B = 2; // bf16 每元素 2 字节
@@ -221,6 +222,18 @@ test("因果对数解析检查：scoredPairs 与逐 token 暴力求和一致（�
   // 密度 = 对数 / 稠密对数
   assert.equal(causalDensity({ phase: "prefill", queryTokens: 4, keyTokens: 4 }), 10 / 16);
   assert.equal(causalDensity({ phase: "decode", queryTokens: 1, keyTokens: 8 }), 1);
+});
+
+test("DSV4 可见 key：SWA 夹窗、C4 压缩+窗、C128 只压缩", () => {
+  // T=128, window=128 → SWA 全长；T=256, window=128 → 夹到窗
+  assert.equal(dsv4VisibleKeys({ sequence: 128, ratio: 0, slidingWindow: 128 }), 128);
+  assert.equal(dsv4VisibleKeys({ sequence: 256, ratio: 0, slidingWindow: 128 }), 128);
+  // C4：ceil(128/4)+128 = 160，再夹 indexerBudget
+  assert.equal(dsv4VisibleKeys({ sequence: 128, ratio: 4, slidingWindow: 128, indexerBudget: 512 }), 160);
+  assert.equal(dsv4VisibleKeys({ sequence: 128, ratio: 4, slidingWindow: 128, indexerBudget: 64 }), 64);
+  // C128：ceil(128/128) = 1
+  assert.equal(dsv4VisibleKeys({ sequence: 128, ratio: 128 }), 1);
+  assert.equal(dsv4VisibleKeys({ sequence: 128, phase: "decode", ratio: 128 }), 1);
 });
 
 test("F2 分相位：prefill 因果三角、decode 全长", () => {

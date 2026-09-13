@@ -10,7 +10,7 @@
 // - 分派：FORMULAS[operator_id].fromNode 抽 ctx，.counts(ctx) 计价（flop_registry）。
 //   type=attention / type=embedding 无 operator_id，仍在 countsForNode 入口处理。
 
-import { scoredPairs, embedGatherCounts } from "./counts.js";
+import { scoredPairs, embedGatherCounts, dsv4VisibleKeys } from "./counts.js";
 import { paramBytes } from "./paramDtypes.js";
 import { FORMULAS } from "./index.js";
 import { tensorDims } from "../../config/dims.js";
@@ -127,12 +127,13 @@ function deepseekV4AttentionMacs(config, { batch = 1, sequence = 1, phase = "pre
   const headDim = config?.headDim || 0;
   const ratio = config?.compressRatios?.[layerIndex] ?? 0;
   const queryTokens = batch * (phase === "decode" ? 1 : sequence);
-  const available = phase === "decode" ? 1 : sequence;
-  const visible = ratio === 0
-    ? Math.min(available, config?.slidingWindow || available)
-    : ratio === 4
-      ? Math.min(Math.ceil(available / ratio) + (config?.slidingWindow || 0), config?.indexerBudget || available)
-      : Math.ceil(available / Math.max(ratio, 1));
+  const visible = dsv4VisibleKeys({
+    sequence,
+    phase,
+    ratio,
+    slidingWindow: config?.slidingWindow,
+    indexerBudget: config?.indexerBudget,
+  });
   return queryTokens * heads * visible * (headDim + headDim);
 }
 

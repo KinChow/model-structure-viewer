@@ -165,6 +165,7 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 身份图侧：sidecar `mtp_tensor_count`（扫 header 张量名 `mtp.{i}` / 越界 `layers.{n}`，
 对标 vLLM load_weights）>0 才计入投机头；config 空声明不是实际。
 登记残差：无。V4 `wo_a` 按 vLLM `ColumnParallelLinear(n_heads*head_dim/o_groups, o_groups*o_lora)` 声明，不再把 grouped 输出维乘进权重。Flash-Next ngram 表已按 Embedding 声明。
+T4 DSV4 打分项按 `compress_ratio` 分层（与 `dsv4VisibleKeys` 共用），不再按稠密三角登记。
 整模型 FlopCounterMode 仍需要真实 `forward` + 权重，catalog 做不到。
 
 **明确后置 / 不做**

@@ -255,6 +255,9 @@ gated_delta_attention case `:825-826` 与 linear_attention 的 /state|recurrent/
   Object.is 相等，护栏 `__tests__/countsAtomsConsistency.test.js`）→ 直接委托。
 - **scoredPairs / causalDensity**（`counts.js:31-41`）：相位助手（因果对数 / 稀疏密度），
   唯一实现在 counts.js，extractor 与 modules 共用。
+- **dsv4VisibleKeys**（`counts.js`）：DSV4 主注意力可见 key 数（ratio=0 夹 sliding_window；
+  ratio=4 为 ceil(T/4)+window 再夹 indexerBudget；ratio=128 为 ceil(T/128)）。叶 counts
+  与 T4 期望侧共用，禁止再抄一份。
 
 ## 复合节点（分解声明）
 
@@ -536,9 +539,10 @@ R1 逐项对账审计（2026-09-08）的归因路径，全部清零，方法保�
 > 校准方法（域拆分账本、四样东西、已排除假设纪律）见
 > [`identity_calibration.md`](./identity_calibration.md)（历史记录）。
 
-- **终态（`extractor.identity.test.js:41-42`）**：TOLERANCE = **0.005**、REGISTERED = {}
+- **终态（`extractor.identity.test.js`）**：TOLERANCE = **0.005**、REGISTERED = {}
   （**空**）。59 模型 matrix 恒等式 |ratio−1| ≤ 0.005（残留来自 tied embedding 与 norm
-  权重项的取整口径，量级稳定；vision 域由 v2 双 token 域拆分覆盖，REGISTERED 已清空）。
+  权重项的取整口径，量级稳定；vision 域由 v2 双 token 域拆分覆盖）。DSV4 打分项按
+  `compress_ratio` 分层，与叶 counts 共用 `dsv4VisibleKeys`。
 - 归零路径（方法论存档，每条有实测证据，不是放宽容差）：
   - GLM-5.3-Flash 1.0904 → 0.999x：ops 模板 glm5_next KDA 两处宽度错 + derivedWeights
     的 DSA 分支白名单漏 glm5_next（11 个 DSA 层退回泛化 GQA）；

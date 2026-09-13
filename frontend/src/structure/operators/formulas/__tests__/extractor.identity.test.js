@@ -14,7 +14,7 @@ import { declaredElementsForHeader, graphWeightCapacity } from "../../../../cost
 import { normalizeConfig } from "../../../config/normalize.js";
 import { graphRoot } from "../../../graph/selectors.js";
 import { attentionScheduleOf } from "../../../layers/schedule.js";
-import { scoredPairs } from "../counts.js";
+import { scoredPairs, dsv4VisibleKeys } from "../counts.js";
 import { logicalElementsFromHeader, quantizationConfigOf } from "../../../../cost/quantBytes.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../..");
@@ -38,14 +38,10 @@ const T = 128;
 //   0.5% 内，属无效登记，一并移除。
 // 残留 0.2%-0.5% 的行（Qwen3.5 小杯 / V4 系 / Kimi-K2.5 等）来自 tied embedding
 // 与 norm 权重项的取整口径，量级稳定，纳入 0.005 容差内。
+// DSV4 打分项：期望侧按 compress_ratio 分层（SWA/C4 走 scoredPairs，C128 走 T·visible
+// 矩形），与叶 counts / dsv4VisibleKeys 共用，不再按稠密三角登记。
 const TOLERANCE = 0.005;
-const REGISTERED = {
-  // DSV4 压缩/SWA 的 scoredPairs 期望侧仍按稠密 T(T+1)/2，counts 按 compress_ratio / window。
-  // wo_a 虚高修掉后这条残差露出，不是 MTP。
-  "deepseek-ai/DeepSeek-V4-Flash": 0.006,
-  "deepseek-ai/DeepSeek-V4-Flash-0731": 0.006,
-  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.006,
-};
+const REGISTERED = {};
 
 // T4 期望侧构建器（M8-V2 抽取共享）：文本域 = 非视觉参数 × T + 打分式层注意力 matmul；
 // 视觉域 = 视觉参数 × 视觉 token 数 + 视觉块注意力 matmul。
@@ -79,7 +75,7 @@ function declaredElementsByDomain(graph) {
 }
 
 function extraMatmulWithoutWeights(normalized, T) {
-  const pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: T });
+  const densePairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: T });
   const heads = normalized.attentionHeads || 0;
   const dim = normalized.headDim || 0;
   const vDim = normalized.valueHeadDim || dim;
@@ -87,15 +83,40 @@ function extraMatmulWithoutWeights(normalized, T) {
   const layers = normalized.layers || 0;
   let score = 0;
   let state = 0;
-  const kh = normalized.linearKeyHeads || heads;
   const kd = normalized.linearKeyDim || dim;
   const vh = normalized.linearValueHeads || heads;
   const vd = normalized.linearValueDim || dim;
+  const ratios = normalized.compressRatios || [];
   for (let i = 0; i < layers; i++) {
     const kind = schedule?.[i] || "gqa";
     if (kind === "linear") {
       state += T * 3 * vh * vd * kd;
       continue;
+    }
+    let pairs = densePairs;
+    if (kind === "dsv4") {
+      const ratio = ratios[i] ?? 0;
+      const keys = dsv4VisibleKeys({
+        sequence: T,
+        phase: "prefill",
+        ratio,
+        slidingWindow: normalized.slidingWindow,
+        indexerBudget: normalized.indexerBudget,
+      });
+      // C128 叶 matrix 是 T·visible 矩形（deepseekV4AttentionMacs / compressed counts），
+      // SWA/C4 才走 scoredPairs 因果三角。
+      if (ratio > 4) {
+        score += heads * T * keys * (dim + vDim);
+        continue;
+      }
+      pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: keys });
+    } else if (kind === "qsa") {
+      const selected = Math.min(T, normalized.indexerBudget || T);
+      pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: selected });
+    } else if (kind === "sparse") {
+      const selectedBlocks = (normalized.sparseTopkBlocks || 0) + (normalized.sparseInitBlock || 0) + (normalized.sparseLocalBlock || 0);
+      const selected = Math.min(T, selectedBlocks * (normalized.sparseBlockSize || 1));
+      pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: selected });
     }
     score += heads * pairs * (dim + vDim);
   }

@@ -36,6 +36,12 @@ test("diagnosticsModel：skeleton-truth 触发未适配 banner，歧义计数", 
   assert.equal(model.ambiguousCount, 1);
 });
 
+test("diagnosticsModel：template+header-truth 视为已适配，无未适配 banner", async () => {
+  const { diagnosticsModel } = await import("../ui.js");
+  const model = diagnosticsModel({ strategy: "template+header-truth", parameter_total: 12345 });
+  assert.equal(model.banner, null);
+});
+
 test("diagnosticsModel：template+truth 无 banner；mergeSemantics 旧键兼容", () => {
   const adapted = diagnosticsModel({ strategy: "template+truth", graph_truth_gaps: [], graph_ambiguous_truth_matches: [] });
   assert.equal(adapted.banner, null);

@@ -159,10 +159,10 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 
 剩余：
 
-**S3 有真值再接的验证**
-- 整模型 FlopCounterMode：需要真实 `forward` + 权重，catalog 做不到。
-- 有 checkpoint 时 W1 总量对 header `parameterTotal`。
-- Kimi-K3 继续不做 dump / verify。
+**S3 header `parameterTotal` 入库** ✅ 轻量 sidecar `header-truth.json`
+（`@huggingface/hub` `parseSafetensorsMetadata`，不下载权重、不落逐张量表）。
+有 sidecar 时身份测试把图声明元素对 header 总量；Kimi-K3 跳过。
+整模型 FlopCounterMode 仍需要真实 `forward` + 权重，catalog 做不到。
 
 **明确后置 / 不做**
 - 拆 59 个 modeling 文件（`ARCH_RECIPES` 过渡表可留）。

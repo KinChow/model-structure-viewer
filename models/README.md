@@ -17,6 +17,16 @@ models/<org>/<model>/config.json
 
 这里不放权重文件。`.safetensors`、`.bin`、`.gguf`、`.pt` 和 `.onnx` 已经在 `.gitignore` 里拦住。
 
+`header-truth.json` 是一次性 safetensors **header** 证据（`parameterTotal` / 按 dtype 计数），
+由 `@huggingface/hub` 的 `parseSafetensorsMetadata` 生成，不下载权重数据区：
+
+```bash
+node scripts/fetch-header-truth.mjs --model=Qwen/Qwen3.5-0.8B
+node scripts/fetch-header-truth.mjs              # catalog 全量，跳过 Kimi-K3
+```
+
+已有文件默认跳过；加 `--overwrite` 才重拉。Kimi-K3 不做 dump / verify。
+
 `catalog.json` 是前端静态部署使用的模型索引。新增或删除模型后，在仓库根目录执行：
 
 ```bash

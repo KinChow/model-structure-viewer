@@ -171,6 +171,42 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
   assert.deepEqual(bad.map((r) => r.model), [], "恒等式超差须先归因：要么修 counts/图声明，要么登记为建模边界并写入 REGISTERED");
 });
 
+// S3：有 header-truth.json 时，图声明元素对 header parameterTotal。
+// 期望侧是外部 oracle（@huggingface/hub parseSafetensorsMetadata 一次性产物），
+// 不是 counts 实现。缺席 sidecar 的模型跳过（Kimi-K3 永不取证）。
+const HEADER_SKIP = new Set(["moonshotai/Kimi-K3"]);
+const HEADER_TOLERANCE = 0.02;
+
+test("S3 图声明元素对 header parameterTotal（有 sidecar 才断言）", async () => {
+  const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models/catalog.json"), "utf8"));
+  const rows = [];
+  for (const entry of catalog.models) {
+    if (HEADER_SKIP.has(entry.model_id)) continue;
+    const sidecar = path.join(repoRoot, "models", path.dirname(entry.config_path), "header-truth.json");
+    let header;
+    try {
+      header = JSON.parse(await fs.readFile(sidecar, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!Number.isFinite(header?.parameterTotal) || header.parameterTotal <= 0) continue;
+    const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
+    const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "header-truth-identity" });
+    const declared = graphWeightCapacity(structure.graph).elements;
+    const ratio = declared / header.parameterTotal;
+    rows.push({ model: entry.model_id, declared, header: header.parameterTotal, ratio });
+  }
+  for (const r of rows) {
+    console.error(`${r.model.padEnd(38)} header=${r.header.toExponential(3)} graph=${r.declared.toExponential(3)} ratio=${r.ratio.toFixed(4)}`);
+  }
+  assert.ok(rows.length >= 1, "至少一份 header-truth.json 才能跑 S3 对账");
+  const bad = rows.filter((r) => Math.abs(r.ratio - 1) > HEADER_TOLERANCE);
+  if (bad.length > 0) {
+    console.error("S3 超容差:\n" + bad.map((r) => `${r.model}: ratio=${r.ratio.toFixed(4)} graph=${r.declared} header=${r.header}`).join("\n"));
+  }
+  assert.deepEqual(bad.map((r) => r.model), [], "图声明元素与 header parameterTotal 超差：先查声明漏计 / 量化打包 / tied embedding");
+});
+
 // T4b：合成配置精确对账。目录内无纯 dense 模型（见 T4 注），dense 字段组合
 // 由合成变体覆盖：GQA、tied embeddings、headDim 推导、MoE+shared。
   // 恒等式仍是独立 oracle：期望侧 walk 图声明，不读 counts 实现。

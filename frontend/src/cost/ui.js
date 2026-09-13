@@ -230,7 +230,7 @@ export function diagnosticsModel(diagnostics, { english = false } = {}) {
     ?? diagnostics?.graph_ambiguous_truth_matches
     ?? [];
   const strategy = diagnostics?.strategy || "no-truth";
-  const adapted = strategy === "template+truth";
+  const adapted = strategy === "template+truth" || strategy === "template+header-truth";
   // M11-P0-3：collectDiagnostics 产出的模板级信号此前零消费者——不支持的
   // 模型静默画出假图。§3.3：unsupported 必须显式告警。
   const unsupported = diagnostics?.unsupported ?? [];

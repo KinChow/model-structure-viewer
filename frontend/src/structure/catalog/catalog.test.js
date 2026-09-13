@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { catalogPath, modelConfigPath, normalizeCatalog, staticAssetPath } from "./manifest.js";
+import { catalogPath, headerTruthPath, modelConfigPath, normalizeCatalog, staticAssetPath } from "./manifest.js";
 
 test("normalizes catalog entries for verified built-in models", () => {
   const catalog = normalizeCatalog({
@@ -34,6 +34,10 @@ test("uses Vite base path for static deployment assets", () => {
       "/model-structure-viewer/",
     ),
     "/model-structure-viewer/models/Qwen/Qwen3.5-0.8B/config.json",
+  );
+  assert.equal(
+    headerTruthPath({ configPath: "Qwen/Qwen3.5-0.8B/config.json" }, "/model-structure-viewer/"),
+    "/model-structure-viewer/models/Qwen/Qwen3.5-0.8B/header-truth.json",
   );
 });
 

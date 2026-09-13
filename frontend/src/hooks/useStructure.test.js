@@ -184,6 +184,51 @@ test("built-in model enriches its config with remote safetensors truth", async (
   assert.equal(structure.summary.parameters_total, 32000 * 1024);
 });
 
+test("built-in header-truth sidecar supplies parameterTotal without remote tensors", async () => {
+  let remoteTruthCalls = 0;
+  const structure = await buildStructureForPayload(
+    {
+      source: "builtin",
+      model_id: "Qwen/Qwen3.5-0.8B",
+      endpoint: "huggingface",
+      revision: "main",
+    },
+    async () => { throw new Error("structure API should not be called"); },
+    async () => { throw new Error("local config should not be called"); },
+    async () => { throw new Error("HF config should not be called"); },
+    async ({ modelId }) => ({
+      model_id: modelId,
+      source: { kind: "built-in config" },
+      config: {
+        model_type: "qwen3",
+        architectures: ["Qwen3ForCausalLM"],
+        num_hidden_layers: 1,
+        hidden_size: 1024,
+        num_attention_heads: 16,
+        num_key_value_heads: 8,
+      },
+    }),
+    async () => {
+      remoteTruthCalls += 1;
+      throw new Error("remote header should not be fetched when sidecar exists");
+    },
+    undefined,
+    undefined,
+    async () => ({
+      generated: "safetensors header (fetch-header-truth)",
+      method: "hub",
+      tensor_count: 9,
+      parameterTotal: 123456789,
+      parameterCount: { BF16: 123456789 },
+    }),
+  );
+  assert.equal(remoteTruthCalls, 0);
+  assert.equal(structure.source.checkpoint_truth, "available");
+  assert.equal(structure.summary.strategy, "template+header-truth");
+  assert.equal(structure.summary.parameters_total, 123456789);
+  assert.deepEqual(structure.summary.parameters_by_dtype, { BF16: 123456789 });
+});
+
 test("built-in config returns before deferred safetensors truth and updates in background", async () => {
   let resolveTruth;
   let truthRequests = 0;

@@ -1,0 +1,12 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/Qwen/Qwen3.5-0.8B/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 488,
+  "parameterTotal": 873438784,
+  "parameterCount": {
+    "BF16": 873436192,
+    "F32": 2592
+  }
+}

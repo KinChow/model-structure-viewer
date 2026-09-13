@@ -12,12 +12,14 @@ export async function buildStructureForPayload(
   fetchTruth,
   onBackgroundUpdate,
   onProgress,
+  fetchBuiltinSkeletonTruth,
 ) {
   const artifacts = await loadModelArtifacts(payload, {
     fetchLocalConfig,
     fetchHfConfig,
     fetchBuiltinConfig,
     fetchTruth,
+    fetchBuiltinSkeletonTruth,
     deferCheckpointTruth: Boolean(onBackgroundUpdate && (payload.source === "builtin" || payload.source === "auto")),
     onProgress,
   });

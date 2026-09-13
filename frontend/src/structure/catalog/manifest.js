@@ -34,3 +34,11 @@ export function catalogPath(baseUrl) {
 export function modelConfigPath(entry, baseUrl) {
   return staticAssetPath(`models/${entry.configPath}`, baseUrl);
 }
+
+export function modelSidecarDir(entry) {
+  return String(entry?.configPath || "").replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+}
+
+export function headerTruthPath(entry, baseUrl) {
+  return staticAssetPath(`models/${modelSidecarDir(entry)}/header-truth.json`, baseUrl);
+}

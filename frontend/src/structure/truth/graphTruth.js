@@ -245,6 +245,17 @@ export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, arch
     };
   }
   if (!truth || !Array.isArray(truth.tensors) || truth.tensors.length === 0) {
+    if (Number.isFinite(truth?.parameterTotal) && truth.parameterTotal > 0) {
+      // S3：只有总量、没有逐张量。图仍是模板（或空网络），不改骨架。
+      return {
+        graph,
+        diagnostics: {
+          strategy: hasBuilder ? "template+header-truth" : "header-truth",
+          total_tensors: truth.tensor_count ?? null,
+          parameter_total: truth.parameterTotal,
+        },
+      };
+    }
     return { graph, diagnostics: { strategy: "no-truth" } };
   }
   const skeleton = buildSkeleton(truth.tensors);

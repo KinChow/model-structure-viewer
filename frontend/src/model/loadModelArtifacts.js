@@ -33,6 +33,8 @@ function statusForTruth(truth) {
   // 已折叠的 SkeletonNode），与 tensors 形态等价（N2-2）
   if (truth?.tensors?.length > 0) return CHECKPOINT_TRUTH_STATUS.AVAILABLE;
   if (truth?.skeleton) return CHECKPOINT_TRUTH_STATUS.AVAILABLE;
+  // header-truth.json：只存 parameterTotal，不落逐张量表（轻量 sidecar）。
+  if (Number.isFinite(truth?.parameterTotal) && truth.parameterTotal > 0) return CHECKPOINT_TRUTH_STATUS.AVAILABLE;
   if (truth) return CHECKPOINT_TRUTH_STATUS.EMPTY;
   return CHECKPOINT_TRUTH_STATUS.UNAVAILABLE;
 }
@@ -203,17 +205,18 @@ export async function loadModelArtifacts(
       const endpoint = payload.endpoint || "huggingface";
       const revision = revisionForEndpoint(endpoint, payload.revision);
       const sourceRef = await loadBuiltinSourceRef(fetchBuiltinSourceRef, payload, modelId);
-      // N2-2：离线 checkpoint 真值（skeleton-truth.json）可选接入——
-      // 在场即 AVAILABLE，走既有 truth 链路；缺席保持 NOT_REQUESTED。
-      if (!deferCheckpointTruth && fetchBuiltinSkeletonTruth) {
+      // 离线 sidecar 优先于远程 header：skeleton-truth.json（折叠树）或
+      // header-truth.json（只存 parameterTotal）。有则立即 AVAILABLE，不再下权重。
+      if (fetchBuiltinSkeletonTruth) {
         try {
           const skeletonTruth = await fetchBuiltinSkeletonTruth({ entry: payload.builtin_entry, modelId: payload.model_id });
-          if (skeletonTruth?.skeleton) {
+          if (skeletonTruth?.skeleton || (Number.isFinite(skeletonTruth?.parameterTotal) && skeletonTruth.parameterTotal > 0)) {
+            const kind = skeletonTruth.skeleton ? "skeleton-truth" : "header-truth";
             const artifacts = createModelArtifacts({
               config: data.config,
               modelId,
               revision,
-              source: `${data.source || "built-in config"} + skeleton-truth`,
+              source: `${data.source || "built-in config"} + ${kind}`,
               checkpointTruth: skeletonTruth,
               checkpointTruthStatus: statusForTruth(skeletonTruth),
               sourceRef,
@@ -221,7 +224,7 @@ export async function loadModelArtifacts(
             return { ...artifacts, payload };
           }
         } catch {
-          // 取证文件读取失败不阻断模型加载（诚实降级为无真值）
+          // 取证文件读取失败不阻断模型加载（诚实降级为无真值 / 远程）
         }
       }
       if (deferCheckpointTruth) {

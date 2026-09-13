@@ -73,19 +73,24 @@ export async function fetchBuiltinConfigApi({ entry, modelId }) {
 }
 
 /**
- * 离线 checkpoint 真值（N2-2）：models/<configPath 目录>/skeleton-truth.json，
- * 由 `node scripts/fetch-evidence.mjs <org>/<id> --headers` 从 safetensors
- * 头部构建后入库。文件是**可选**资产——404 视为该模型未取证，返回 null。
+ * 离线 checkpoint 真值：优先 skeleton-truth.json（折叠树 + 总量），
+ * 其次 header-truth.json（只存 parameterTotal，S3 一次性 header 证据）。
+ * 两者都由 safetensors header range-read 生成，不下载权重。
+ * 文件可选——404 视为该模型未取证，返回 null。
  */
 export async function fetchBuiltinSkeletonTruthApi({ entry, modelId }) {
   const target = entry || (await findBuiltinModelEntry(modelId));
   if (!target) return null;
-  try {
-    const truthDir = String(target.configPath).replace(/\\/g, "/").split("/").slice(0, -1).join("/");
-    return await requestJson(staticAssetPath(`models/${truthDir}/skeleton-truth.json`));
-  } catch {
-    return null;
+  const truthDir = String(target.configPath).replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+  for (const name of ["skeleton-truth.json", "header-truth.json"]) {
+    try {
+      const payload = await requestJson(staticAssetPath(`models/${truthDir}/${name}`));
+      if (payload) return payload;
+    } catch {
+      // 该 sidecar 缺席，试下一个
+    }
   }
+  return null;
 }
 
 /**

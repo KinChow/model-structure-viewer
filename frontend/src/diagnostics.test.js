@@ -45,6 +45,11 @@ test("structureStatus 区分 checkpoint 骨架真值与模板合并真值", () =
     tone: "truth",
     detail: "Template semantics with checkpoint values",
   });
+  assert.deepEqual(structureStatus({ summary: { strategy: "template+header-truth" } }), {
+    label: "模板 + header 总量",
+    tone: "truth",
+    detail: "Template semantics with stored safetensors header totals",
+  });
 });
 
 test("structureStatus explains repaired meta introspection", () => {

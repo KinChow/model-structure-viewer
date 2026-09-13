@@ -32,6 +32,26 @@ test("truth.skeleton（离线文件形态）与 truth.tensors 产出等价 truth
   assert.equal(dtypes(viaFile.graph), dtypes(viaTensors.graph));
 });
 
+test("只有 parameterTotal 时不改图，策略为 template+header-truth", () => {
+  const template = {
+    version: 2,
+    schema_version: 2,
+    root_id: "root",
+    nodes: [{ id: "root", module_id: "model", type: "model", children: [] }],
+    edges: [],
+  };
+  const withBuilder = enrichGraphWithTruth(template, { parameterTotal: 12345, parameterCount: { BF16: 12345 }, tensor_count: 9 }, {
+    hasBuilder: true, modelName: "fixture", architecture: "fixture",
+  });
+  assert.equal(withBuilder.diagnostics.strategy, "template+header-truth");
+  assert.equal(withBuilder.diagnostics.parameter_total, 12345);
+  assert.equal(withBuilder.graph.root_id, "root");
+  const without = enrichGraphWithTruth(template, { parameterTotal: 12345 }, {
+    hasBuilder: false, modelName: "fixture", architecture: "fixture",
+  });
+  assert.equal(without.diagnostics.strategy, "header-truth");
+});
+
 test("hasBuilder 时 skeleton 形态同样走绑定链（strategy: template+truth-file）", () => {
   const skeleton = buildSkeleton(TENSORS);
   const template = {

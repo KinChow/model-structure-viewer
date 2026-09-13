@@ -125,8 +125,8 @@ function normWeightMatrices(operatorId, inputShape, attributes) {
 // split 轴与 vLLM 的并行类一一对应（qwen3_moe.py:97,104,289）：gate_up/qkv =
 // MergedColumnParallelLinear → "output"；down/o_proj = RowParallelLinear → "input"。
 const VOCAB_LINEAR = /(^|\.)(lm_head|output)(\.linear)?$/;
-const REPLICATED_LINEAR = /(^|\.)(router|hash_router)$/;
-const OUTPUT_SPLIT_LINEAR = /(^|\.)(gate_proj|up_proj|gate_up|q_proj|k_proj|v_proj|qkv_proj|qkvz_proj|in_proj_qkvb|w13)$/;
+const REPLICATED_LINEAR = /(^|\.)(router|hash_router|main_proj|confidence_head|markov_w2|eh_proj|e_proj|h_proj)$/;
+const OUTPUT_SPLIT_LINEAR = /(^|\.)(gate_proj|up_proj|gate_up|q_proj|k_proj|v_proj|qkv_proj|qkvz_proj|in_proj_qkvb|w13|fc_embedding|fc_hidden|fc)$/;
 const INPUT_SPLIT_LINEAR = /(^|\.)(down_proj|o_proj|out_proj|w2)$/;
 
 /** 线性叶的自动声明：out/in 取正维乘积（与 extractor 的 derivedLinearShape 同口径）。 */
@@ -715,6 +715,14 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       output_groups: groups,
       output_rank: outputRank,
       implementation: ["vLLM.wo_a", "SGLang.wo_a"],
+      // vLLM DeepseekV4Attention：ColumnParallelLinear(
+      //   n_heads*head_dim/o_groups, o_groups*o_lora_rank)，is_bmm=True。
+      // 权重是 [o_groups*o_lora, head_dim*n_heads/o_groups]，不是 grouped
+      // 输出维乘积 (o_groups*o_lora) × (n_heads*head_dim)。
+      weightMatrices: [weightMatrixDecl("tp", {
+        shape: [(groups || 0) * (outputRank || 0), ((normalized.attentionHeads || 0) * (headDim || 0)) / Math.max(groups || 1, 1)],
+        split: "output",
+      })],
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, groups, outputRank] }),
     operatorSpec(`${prefix}.wo_b`, "output hidden projection", "linear", {
       ...shapeFlow(outputLatent, shapesForHidden(normalized)),

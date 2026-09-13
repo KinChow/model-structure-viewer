@@ -63,7 +63,7 @@ function groupBytes(group, fallbackBytes = 2) {
 
 function isMtpPath(node) {
   const id = String(node?.id || "");
-  return node?.type === "mtp" || /(^|\.)mtp(\.|$)/.test(id);
+  return node?.type === "mtp" || node?.type === "dspark" || /(^|\.)mtp(\.|$)/.test(id);
 }
 
 /**

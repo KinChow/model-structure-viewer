@@ -12,7 +12,9 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
-- S3：catalog 58/59 入库 `header-truth.json`（Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素；量化按 dtype 解包；MTP 是否计入扫 header 张量名（`mtp.{i}` / 越界 `layers.{n}`，对标 vLLM load_weights）。登记：Flash-Next 29%；V4-Flash-Vision-Exp 3.3%；V4-Pro 旧仓 2.2%。
+- MTP/DSpark 按 vLLM 各 `mtp.py`/`dspark.py` 类组网（`DeepSeekMultiTokenPredictorLayer` / `DeepSeekV4MultiTokenPredictorLayer` / `Qwen3_5MultiTokenPredictor` / `Qwen4ExpMultiTokenPredictor` / `DSparkDeepseekV4Model`），零件名用权重成员（enorm/eh_proj/e_proj/fc/fc_embedding/SharedHead.norm/hc_head/markov_head）。投机头挂在各组网 children 数组，不再走 `insertDraft` 出口包装。`residentRepeat` 对已展开 stage 不再乘 `modules`。V4 `wo_a` 按 grouped BMM 真实权重形状声明，S3 去掉 0.04 登记。
+- PLE ngram 表改为 `type=embedding` 子叶（照抄 `Qwen4ExpTextNGramEmbedding` 的 `nn.Embedding` + 素数 pad）。S3 Flash-Next 29% 登记项删除。
+- S3：catalog 58/59 入库 `header-truth.json`（Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素；量化按 dtype 解包；MTP 是否计入扫 header 张量名（`mtp.{i}` / 越界 `layers.{n}`，对标 vLLM load_weights）。登记：V4-Flash / Vision-Exp / Pro 旧仓 MTP 层数不全。
 - `fromNode` 只抽 ctx：`countsForNode` = `FORMULAS[id].fromNode(env)` → `.counts(ctx)`。scores/context、SDPA bytes、稀疏叶、SWA/C128、causal conv、KDA state、embed gather 的动作向量升到 `counts.js`。`type=attention` 容器计费保留。
 - 结构对账补 params：meta `named_parameters().numel` ↔ 前端 `weightMatrices` 声明元素（catalog 无 `params` 时也能比；tied `shared` 组跳过）。
 - FlopCounterMode 矩阵抽查：独立 Linear / BMM / 深度可分 Conv1d 夹具，msv MAC × 2 == torch FLOPs。不对 catalog 整模型跑 forward。

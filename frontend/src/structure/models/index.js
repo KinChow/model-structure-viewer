@@ -2,8 +2,6 @@ import { buildMlaMoeDecoderNetwork } from "./deepseek.js";
 import { buildMiniMaxM3Network } from "./minimax.js";
 import { buildGqaDecoderNetwork, buildGqaMoeDecoderNetwork, buildMlaMultimodalNetwork, buildQwenMultimodalNetwork } from "./qwen.js";
 import { networkSpec } from "./common.js";
-import { mtpModule, mtpModuleCount } from "../layers/mtp.js";
-import { attentionScheduleOf, layerScheduleOf } from "../layers/schedule.js";
 
 function assembleMlaText(resolved, normalized) {
   return normalized.hasVision
@@ -49,32 +47,10 @@ export const MODELS = {
 /** 支持的 architectures[0]；不支持诊断用它枚举（vLLM ModelRegistry._raise_for_unsupported）。 */
 export const SUPPORTED_MODEL_ARCHITECTURES = Object.keys(MODELS);
 
-/**
- * W4：把 MTP 挂成与 decoder 平级的模块。对标 vLLM —— MTP 在 registry 里是独立
- * 注册项（DeepseekV32MTPModel / Qwen3_5MTP / MiniMaxM3MTP / Glm5NextMTPModel /
- * KimiK3MTPModel），不是 decoder 的子层，所以这里统一在 buildNetwork 出口追加，
- * 不去改每个 builder。repeat=0 的计费口径见 layers/mtp.js 文件头。
- */
-function withMtp(network, normalized) {
-  if (!mtpModuleCount(normalized) || !network?.children?.length) return network;
-  const schedule = attentionScheduleOf(normalized) || [];
-  const layerSchedule = layerScheduleOf(normalized) || [];
-  const last = Math.max((normalized.layers || 1) - 1, 0);
-  const insertAt = Math.max(network.children.findIndex((c) => c?.type === "decoder" || c?.id === "layers" || c?.id === "language_model"), 0) + 1;
-  const mtp = mtpModule("mtp", normalized, {
-    attentionKind: schedule[last] || (normalized.kvLoraRank ? "mla" : "gqa"),
-    layerKind: layerSchedule[last] || (normalized.experts ? "moe" : "dense"),
-  });
-  return {
-    ...network,
-    children: [...network.children.slice(0, insertAt), mtp, ...network.children.slice(insertAt)],
-  };
-}
-
 export function buildNetwork(resolved, normalized) {
   const architecture = resolved?.architecture;
   const assemble = architecture && MODELS[architecture];
-  if (assemble) return withMtp(assemble(resolved, normalized), normalized);
+  if (assemble) return assemble(resolved, normalized);
   // vLLM ModelRegistry._raise_for_unsupported：显式不支持 + 枚举支持项。
   return networkSpec(
     "model",

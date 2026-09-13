@@ -104,7 +104,7 @@ architectures[0]
 
 ## 4. 顶层网络关系
 
-顶层 builder 由 `models/index.js` 的 `MODEL_BUILDERS` 分派，所有模板出口统一经过 `withMtp` 追加 optional MTP 模块（models/index.js:29-48）。MTP 对标 vLLM registry 的独立注册项（`DeepseekV32MTPModel` / `Qwen3_5MTP` / `MiniMaxM3MTP` / `Glm5NextMTPModel` / `KimiK3MTPModel`），实现见 `layers/mtp.js`：enorm(RMSNorm) + hnorm(RMSNorm) + eh_proj(2H→H) + 一个完整 decoder 层 + shared_head.norm，插在 decoder **之后、final norm 之前**——MTP 消费主干最后一层的 hidden state，不是 lm_head 的 logits（models/index.js:35-39）。`repeat: 0` 计费口径：投机解码缺省关闭，聚合乘子为 0（`cost/traverse.js` 的 `childRepeatMultiplier`），不参与每次前向的算力/访存；参数仍占显存（`residentRepeat` 计入，原则 §3.8）。51/59 内置模型带 MTP 字段（49 个 1 模块、2 个 3 模块）。
+顶层 builder 由 `models/index.js` 的 `MODELS` 分派。投机头由各组网函数的 children 数组显式挂上（`textDecoderNetwork` / `buildMultimodalDecoderNetwork` / `buildMiniMaxM3Network` 调 `mtpChild`），位置在 decoder 之后、final norm / HC mixer 之前。对标 vLLM：MTP/DSpark 是独立注册项，不是 decoder 子层；msv 画同一份 checkpoint，树 id 仍是 `mtp`。组网函数名 = vLLM 类名（`draftClassOf` 按字段分派，不按家族名）：`dspark_target_layer_ids` → `DSparkDeepseekV4Model`；`compress_ratios` → `DeepSeekV4MultiTokenPredictorLayer`（e_proj+h_proj+hc_head）；`mtp_num_hidden_layers` + HC → `Qwen4ExpMultiTokenPredictor`；`linear_attn_config` → `Qwen3_5MultiTokenPredictor`；其余 `DeepSeekMultiTokenPredictorLayer`。零件名 = 权重/成员名。decoder kind 写在该类组网里（V4 MTP/DSpark 强制 SWA；Qwen3.5 强制 full attention；Qwen4Exp 强制 QSA 且关 PLE；MiniMax 强制 sparse+MoE），不抄主干最后一层。`repeat: 0` 不算每次前向；参数仍占显存。一份模板 × N 写 `modules=N`；已展开 stage（DSpark `mtp.0/1/2`）写 `modules=1`，`residentRepeat` 不再乘。
 
 ### 4.1 Dense/GQA decoder
 
@@ -220,7 +220,8 @@ checkpoint truth 在场时（`truth.skeleton` 离线骨架文件形态或 `truth
 | Projector | `layers/projector.js` | visual features | text hidden width | Linear/projector activation |
 | Residual | `layers/residual.js` | residual streams | mixed hidden state | attention residual |
 | Hybrid | `layers/hybrid.js` | multi-stream hidden state | mixed/contracted state | mHC、PLE、Hyper Connection |
-| MTP | `layers/mtp.js` | 主干最后一层 hidden state | shared head norm 输出 | enorm/hnorm/eh_proj + decoder 层复用（repeat=0） |
+| MTP | `layers/mtp.js` | 主干最后一层 hidden | SharedHead.norm / hc_head / mixer | 按 vLLM 类：`DeepSeekMultiTokenPredictorLayer` / `DeepSeekV4MultiTokenPredictorLayer` / `Qwen3_5MultiTokenPredictor` / `Qwen4ExpMultiTokenPredictor`（repeat=0） |
+| DSpark | `layers/mtp.js` `dsparkDeepseekV4Model` | 主干 `dspark_target_layer_ids` hidden | hc_head hidden + Markov bias | 3 层 SWA MoE + main_proj/hc_head/markov/confidence（repeat=0） |
 | LM head | `layers/outputHead.js` | final hidden state | logits | Linear |
 
 普通 decoder layer 的**同级**逻辑关系（原则 §2.5，对标 Gallery）：
@@ -325,7 +326,7 @@ operator chain 只是可解释的结构语义，不表示 MSV 会调用 vLLM/SGL
 | `mla_output_gate` | `O' = sigmoid(W_g x) * O` | gated MLA output |
 | `attention_residual` | `s_i=<RMSNorm(x_i),w>; p=softmax(s); y=RMSNorm(sum_i p_i x_i)` | residual bank selection |
 | `hyper_connection` | `x_n=GroupedRMSNorm(H); gate=W_up SiLU(W_down x_n); H'=Combine(H,block_output,injection)` | multi-stream connection |
-| `ple` | `e=HashNGram(ids,context); [k,v]=W_kv e; y=ShortConv(GatedNorm(k,v,RMSNorm(H)))` | position learning enhancement |
+| `ple` | `[k,v]=W_kv e; y=ShortConv(GatedNorm(k,v,RMSNorm(H)))` | PLE inject（ngram 表是 sibling Embedding） |
 | `shared_expert_gate` | `y = y_routed + sigmoid(W_g x) * y_shared` | gated shared expert |
 | `qsa_indexer` | `I = topk((W_q x)(W_k K)^T/sqrt(d_i), budget)` | sparse token index |
 | `qsa_sparse_attention` | `O = softmax(Q K_I^T/sqrt(d)) V_I` | selected sparse attention |

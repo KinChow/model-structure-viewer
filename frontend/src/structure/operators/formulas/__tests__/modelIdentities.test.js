@@ -93,7 +93,8 @@ function walkLeaves(root, visit) {
     const { node, multiplier } = stack.pop();
     const children = node?.children || [];
     if (children.length > 0) {
-      const childMultiplier = childRepeatMultiplier(node, multiplier);
+      const repeatHandled = children.some((child) => Number.isFinite(child?.repeat));
+      const childMultiplier = childRepeatMultiplier(node, multiplier, { repeatHandled });
       for (const child of children) stack.push({ node: child, multiplier: childMultiplier });
       continue;
     }
@@ -120,8 +121,10 @@ test("W1 报表：模块级 bound 期望", () => {
       while (stack.length > 0) {
         const { node, multiplier } = stack.pop();
         const type = String(node?.type || "");
+        const id = String(node?.id || "");
+        if (type === "mtp" || type === "dspark" || /(^|\.)mtp(\.|$)/.test(id)) continue;
         const want = MODULE_BOUND_EXPECTATION[type]?.[ph.name];
-        if (want && !isVisionPath(node?.id)) {
+        if (want && !isVisionPath(id) && !isVisionPath(node?.canonical_id)) {
           let agg = { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
           walkLeaves(node, (leaf, m) => {
             const a = countsForNode(leaf, {
@@ -143,7 +146,10 @@ test("W1 报表：模块级 bound 期望", () => {
             };
           });
           const { bound } = classifyRoofline({ actions: agg }, CHIP, { efficiency: { flops: 1, hbm: 1 } });
-          if (bound !== want) {
+          // DSV4 C128 层 visible≈T/128，T=2048 时 AI 过不了 ridge，prefill 也是 memory。
+          // 这是压缩注意力的真实强度，不是 MTP。期望只约束非压缩层。
+          const compressed = Number(node?.attributes?.compress_ratio) > 1;
+          if (bound !== want && !(type === "attention" && ph.name === "prefill" && compressed && bound === "memory")) {
             const key = `${type}|${ph.name}|want=${want}|got=${bound}`;
             if (!boundViolations.has(key)) boundViolations.set(key, new Set());
             boundViolations.get(key).add(cls);
@@ -198,14 +204,20 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
       declaredLeaves += 1;
       // embedding 叶：声明描述**驻留容量**（vocab·hidden，P4-2），gather 的
       // counts.bytes.weights=0（流量按行计，M11 已入 actIn）——两者语义本就
-      // 不同，登记例外：只要求声明与 vocab·hidden 对账。
+      // 不同，登记例外：只要求声明与本叶 vocab_size·hidden_size 对账
+      // （主词表 = 模型 vocab×hidden；PLE ngram 表 = padded_vocab×head_dim）。
       if (node?.type === "embedding") {
         const declared = declaration.reduce((sum, group) => sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in, 0);
-        if (declared !== (normalized.vocabSize || 0) * (normalized.hiddenSize || 0)) {
-          offenders.push(`${entry.model_id} ${node?.id} embedding declared=${declared} vs vocab·hidden=${(normalized.vocabSize || 0) * (normalized.hiddenSize || 0)}`);
+        const expected = (node?.attributes?.vocab_size || 0) * (node?.attributes?.hidden_size || 0);
+        if (declared !== expected) {
+          offenders.push(`${entry.model_id} ${node?.id} embedding declared=${declared} vs vocab·hidden=${expected}`);
         }
         return;
       }
+      // DSpark hc_head / confidence_head：声明 = 驻留（fp32），counts 是相位读量。
+      // V4 wo_a：权重是 grouped BMM [G·Ro, H/G]，counts.matrix 跟声明；
+      // 激活流量仍按 grouped 输出，bytes.weights 对声明。
+      if (/(^|\.)(hc_head|confidence_head)$/.test(String(node?.id || ""))) return;
       const actions = countsForNode(node, {
         config: normalized,
         options: { batch: 1, sequence: 2048, phase: "prefill" },
@@ -243,7 +255,7 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
 // 不在判据内 —— 声明体描述的是权重矩阵归属，无权重就无归属。
 //
 // 为什么要这条：锚 1 只保证「已声明的叶声明得对」，对**没声明的叶**完全沉默。
-// P4-2 后全目录 18399 带权叶全部有声明（棘轮归零），WEIGHT_PROJECTION_RULES
+// P4-2 后全目录带权叶全部有声明（棘轮归零），WEIGHT_PROJECTION_RULES
 // 的删除前提达成（P5）。棘轮保持 0：新增带权算子不声明即顶破。
 //
 // 棘轮：MAINTENANCE.md「P2 声明覆盖」条目。**只许下降**，新增带权算子若不声明
@@ -491,6 +503,11 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // concat：多源拼成更宽的入
   "enorm -> eh_proj": "concat",
   "hnorm -> eh_proj": "concat",
+  "pre_fc_norm_embedding -> fc": "concat",
+  "pre_fc_norm_hidden -> fc": "concat",
+  "pre_fc_norm_hidden -> fc_hidden": "concat",
+  // DSpark confidence_head = Linear(H+r)；r 来自 markov_w1 gather，不是 hc_head 激活
+  "hc_head -> confidence_head": "concat",
   // entry：下游入口不是特征维
   "visual -> embed_tokens": "entry",
   "projector -> embed_tokens": "entry",

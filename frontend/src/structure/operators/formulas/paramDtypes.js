@@ -28,6 +28,9 @@ export const FP32_PARAMS = Object.freeze({
   //（deepseek_v4/amd/model.py:714-727，torch.float32、requires_grad=False），
   // 但它是**密读 GEMM 操作数**，走权重字节恒等式（不同于 tid2eid 的散读）。
   mhc_fn: 4,
+  // DSpark confidence_head.proj 是 ReplicatedLinear(params_dtype=float32)
+  // （vLLM qwen3_dspark.py:176-182）。
+  dspark_confidence: 4,
 });
 
 export const DEFAULT_PARAM_BYTES = 2;

@@ -413,14 +413,17 @@ export const FORMULAS = {
     ),
   },
   ple: {
-    title: "Position Learning Enhancement",
-    // ref: 三等分解声明 = hash 查表 + F1(W_kv) + F3(norm) + F7a(short conv) + add；
-    //      Qwen4Exp PLE（layers/hybrid.js；Qwen modeling 未入库，离线取证）。
-    formula: "e=HashNGram(input_ids,context); [k,v]=W_{kv}e; y=ShortConv(GatedNorm(k,v,RMSNorm(H)))",
-    explanation: "Qwen4Exp 指定层的 PLE：根据 input_ids/context 生成 ngram embedding，经 KV projection、grouped norm、gated output 和 dilated short-conv 后加到多流 hidden state。",
-    inputs: ["hidden_state", "input_ids", "ngram_context", "ngram_embedding", "W_kv"],
+    title: "Per-Layer Embedding",
+    // ref: 二等 modeling 对照 models/Qwen/Qwen3.8-Flash-Next/modeling_qwen4_exp.py
+    //      Qwen4ExpTextPLELayer（:1181-1253）。ngram 表是 sibling
+    //      `ple.ple_embedding.ngram_embedding` = nn.Embedding（:1111），
+    //      type=embedding 子叶走 embedGatherCounts，不进本叶。本叶 =
+    //      F1(W_kv) + F3(norm) + F7a(short conv) + add。
+    formula: "[k,v]=W_{kv}e; y=ShortConv(GatedNorm(k,v,RMSNorm(H)))",
+    explanation: "Qwen4Exp 指定层的 PLE 注入：ngram embedding（独立 Embedding 叶）经 KV projection、grouped norm、gated output 和 dilated short-conv 后加到多流 hidden state。",
+    inputs: ["hidden_state", "e", "W_kv"],
     outputs: ["hidden_state"],
-    counts: (ctx) => sumCounts(hashRouteCounts(ctx.embed), linearCounts(ctx.kv), rmsnormCounts(ctx.norm), causalConvCounts(ctx.conv), addCounts(ctx.add)),
+    counts: (ctx) => sumCounts(linearCounts(ctx.kv), rmsnormCounts(ctx.norm), causalConvCounts(ctx.conv), addCounts(ctx.add)),
   },
   shared_expert_gate: {
     title: "Shared Expert Gate",

@@ -44,6 +44,29 @@ test("residentRepeat keeps MTP repeat=0 resident", () => {
   assert.equal(rows[2].resident, 1);
 });
 
+test("residentRepeat multiplies a template MTP, not expanded DSpark stages", () => {
+  const template = [];
+  walkStructure(graph([
+    { id: "root", parent_id: null, order: 0, type: "model", repeat: null },
+    { id: "root.mtp", parent_id: "root", order: 0, type: "mtp", repeat: 0, attributes: { modules: 3 } },
+    { id: "root.mtp.layer", parent_id: "root.mtp", order: 0, type: "decoder", repeat: null },
+  ]), (row) => template.push(row));
+  assert.equal(template[2].multiplier, 0);
+  assert.equal(template[2].resident, 3);
+
+  const expanded = [];
+  walkStructure(graph([
+    { id: "root", parent_id: null, order: 0, type: "model", repeat: null },
+    { id: "root.mtp", parent_id: "root", order: 0, type: "dspark", repeat: 0, attributes: { modules: 3 } },
+    { id: "root.mtp.0", parent_id: "root.mtp", order: 0, type: "decoder", repeat: null },
+    { id: "root.mtp.1", parent_id: "root.mtp", order: 1, type: "decoder", repeat: null },
+    { id: "root.mtp.2", parent_id: "root.mtp", order: 2, type: "decoder", repeat: null },
+  ]), (row) => expanded.push(row));
+  assert.equal(expanded[2].resident, 1);
+  assert.equal(expanded[3].resident, 1);
+  assert.equal(expanded[4].resident, 1);
+});
+
 test("walkStructure consumes Graph IR nodes and preserves repeat multipliers", () => {
   const rows = [];
   walkStructure(graph([

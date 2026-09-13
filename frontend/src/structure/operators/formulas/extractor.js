@@ -76,9 +76,18 @@ function normWeightWidth(shape) {
 
 /** 线性逻辑形状：logical_weight_shape 属性优先，其次 weight_shapes 中首个 ≥2 维形状。
  *  packed（qweight）且无逻辑形状 → null（未知，沿用旧链诚实语义）。 */
+/** 线性逻辑形状：声明 shape 优先（grouped BMM 如 V4 wo_a 的激活末维乘积 ≠ 权重）。
+ *  其次 logical_weight_shape / weight_shapes；都没有才从 input/output 正维积推导。 */
+function declaredLinearShape(node) {
+  const group = node?.attributes?.weightMatrices?.find((entry) => Array.isArray(entry?.shape) && entry.shape.length >= 2);
+  if (group) return [group.out ?? group.shape[0], group.in ?? group.shape.slice(1).reduce((total, value) => total * value, 1)];
+  return null;
+}
+
 function linearLogicalShape(node) {
   if (node?.weight_shapes?.qweight && !node?.attributes?.logical_weight_shape) return null;
-  const logical = node?.attributes?.logical_weight_shape
+  const logical = declaredLinearShape(node)
+    || node?.attributes?.logical_weight_shape
     || Object.values(node?.weight_shapes || {}).find((shape) => Array.isArray(shape) && shape.length >= 2);
   return logical || null;
 }
@@ -626,7 +635,6 @@ const FROM_NODE = {
   ple: ({ config, bytesPerElement, tokens }) => {
     const H = config?.hiddenSize || 0;
     return {
-          embed: { tokens, topk: 1, bytesPerElement },
           kv: { logicalShape: [2 * (config?.pleEmbedDim || 0), H], tokens, bytesPerElement },
           norm: { tokens, hidden: config?.pleEmbedDim || 0, bytesPerElement },
           conv: { tokens, channels: config?.pleEmbedDim || 0, kernel: config?.pleNgramSize || 1, bytesPerElement },

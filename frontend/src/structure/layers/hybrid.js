@@ -3,6 +3,7 @@ import { operatorSpec, weightMatrixDecl } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
 import { hfNamedClass } from "../archs/index.js";
+import { ngramEmbeddingModule } from "./embedding.js";
 
 // P4-2：长尾复合算子的权重声明。每组的 shape/quantizable/param_dtype 与
 // formulas/index.js 对应 counts 的组成逐项同源（锚 1 执法），分片亲和按
@@ -76,9 +77,12 @@ export function hyperConnectionModule(id, normalized, phase = "branch") {
   ), dims.hidden, dims.hidden);
 }
 
-export function pleModule(id, normalized) {
+export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
+  const found = (normalized.pleLayerIds || []).indexOf(layerIndex + 1);
+  const pleLayerIndex = found >= 0 ? found : 0;
+  const embedOut = [-1, -1, normalized.pleEmbedDim || 0];
   return withShapeDims(moduleSpec(
     id,
     "PLE",
@@ -93,20 +97,33 @@ export function pleModule(id, normalized) {
       key_projection_size: normalized.hiddenSize * (normalized.hyperConnectionCount || 1),
       value_projection_size: normalized.hiddenSize,
       implementation: ["ngram_embedding", "kv_proj", "grouped_norm", "gated_output", "dilated_short_conv"],
+      dataflow_edges: [["ple_embedding", "inject"]],
       ...shapeFlow(shapes.hidden, shapes.hidden),
     },
-    [operatorSpec(`${id}.inject`, "PLE injection", "ple", {
-      ...shapeFlow(`${shapes.hidden}, input_ids, ngram_context`, shapes.hidden),
-      embed_dim: normalized.pleEmbedDim,
-      // P4-2：与 extractor ple ctx 逐项同源（W_kv [2E,H] + conv [E,k] +
-      // grouped norm [E]）。Qwen modeling 未入库（离线取证），无并行包装证据，
-      // W_kv/conv 跟随规则表现状 tp 并登记；norm 为向量参数 replicated。
-      weightMatrices: [
-        weightMatrixDecl("tp", { shape: [2 * (normalized.pleEmbedDim || 0), normalized.hiddenSize || 0], split: "output", quantizable: false }),
-        weightMatrixDecl("tp", { shape: [normalized.pleEmbedDim || 0, normalized.pleNgramSize || 1], split: "output", quantizable: false }),
-        weightMatrixDecl("replicated", { shape: [normalized.pleEmbedDim || 0], quantizable: false }),
-      ],
-    }, { input: dims.hidden, output: dims.hidden })],
+    [
+      withShapeDims(moduleSpec(
+        `${id}.ple_embedding`,
+        "PLE ngram embedding",
+        "ngram-embedding",
+        {
+          class: "Qwen4ExpTextNGramEmbedding",
+          ...shapeFlow(shapes.tokenIds, shapes.hidden),
+        },
+        [ngramEmbeddingModule(`${id}.ple_embedding.ngram_embedding`, normalized, { pleLayerIndex })],
+      ), dims.tokenIds, embedOut),
+      operatorSpec(`${id}.inject`, "PLE injection", "ple", {
+        ...shapeFlow(`${shapes.hidden}, input_ids, ngram_context`, shapes.hidden),
+        embed_dim: normalized.pleEmbedDim,
+        // P4-2：inject 叶只声明 W_kv / conv / norm。ngram 表是
+        // `ple.ple_embedding.ngram_embedding` 的 nn.Embedding（modeling_qwen4_exp.py:1111），
+        // 容量走 type=embedding 子叶，不进本叶 weightMatrices。
+        weightMatrices: [
+          weightMatrixDecl("tp", { shape: [2 * (normalized.pleEmbedDim || 0), normalized.hiddenSize || 0], split: "output", quantizable: false }),
+          weightMatrixDecl("tp", { shape: [normalized.pleEmbedDim || 0, normalized.pleNgramSize || 1], split: "output", quantizable: false }),
+          weightMatrixDecl("replicated", { shape: [normalized.pleEmbedDim || 0], quantizable: false }),
+        ],
+      }, { input: dims.hidden, output: dims.hidden }),
+    ],
   ), dims.hidden, dims.hidden);
 }
 

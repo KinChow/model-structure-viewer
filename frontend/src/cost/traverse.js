@@ -4,10 +4,15 @@ export function childRepeatMultiplier(node, inheritedMultiplier = 1, { repeatHan
   return inheritedMultiplier * (repeatHandled || childHasExplicitRepeat ? 1 : repeat);
 }
 
-/** 驻留容量用的 repeat：MTP `repeat=0` 仍占显存（原则 §3.8，对标 vLLM named_parameters）。 */
+/** 驻留容量用的 repeat：`repeat=0` 仍占显存（原则 §3.8，对标 vLLM named_parameters）。
+ *  一份模板 × N 读 `attributes.modules`；`mtp.0/1/2` 这种已展开 stage 不再乘。 */
 export function residentRepeat(node) {
   const repeat = Number.isFinite(node?.repeat) ? node.repeat : 1;
   if (repeat !== 0) return repeat;
+  const children = node?.children || [];
+  if (children.some((child) => Number.isFinite(child?.repeat))) return 1;
+  const stages = children.filter((child) => /(?:^|\.)\d+$/.test(String(child.id || ""))).length;
+  if (stages > 1) return 1;
   const modules = node?.attributes?.modules;
   return Number.isFinite(modules) && modules > 0 ? modules : 1;
 }

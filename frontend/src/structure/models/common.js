@@ -6,6 +6,7 @@
 import { decoderStackNetwork } from "../layers/decoderStack.js";
 import { embeddingModule } from "../layers/embedding.js";
 import { lmHeadModule } from "../layers/outputHead.js";
+import { mtpChild } from "../layers/mtp.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { outputAttentionResidualModule } from "../layers/residual.js";
 import { hfLayersAttr } from "../archs/index.js";
@@ -22,11 +23,14 @@ export function networkSpec(id, name, architecture, children, attributes = {}) {
 }
 
 export function textDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind }) {
-  // §2.1：网络级子节点（embed → decoder → norm → lm_head）显式声明顺序执行
+  // §2.1：网络级子节点（embed → decoder → draft → norm → lm_head）显式声明顺序执行。
+  // 投机头挂点对标 vLLM 各模型文件 children 顺序：decoder 之后、final norm 之前。
+  const draft = mtpChild(normalized);
   return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, [
     embeddingModule("embed_tokens", normalized),
     decoderStackNetwork(hfLayersAttr(normalized), normalized, { attentionKind, defaultLayerKind }),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
+    ...(draft ? [draft] : []),
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),
   ], { sequence: true });

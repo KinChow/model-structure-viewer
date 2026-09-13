@@ -530,6 +530,48 @@ test("maps DeepSeek V4 compression variants and hash MoE without duplicating fra
   assert.equal(compressedAttention.attributes.compress_ratio, 128);
   assert.equal(compressedAttention.children.find((node) => node.name === "compressed MLA attention").attributes.operator_id, "dsv4_compressed_attention");
   assert.equal(compressedLayer.children.find((node) => node.type === "moe").children.some((node) => node.name === "top-k expert routing"), true);
+  const mtp = treeView(structure).children.find((node) => node.id === "mtp");
+  assert.equal(mtp.name, "MTP");
+  assert.equal(mtp.attributes.modules, 1);
+  assert.equal(mtp.attributes.class, "DeepSeekV4MultiTokenPredictorLayer");
+  assert.ok(mtp.children.some((node) => node.id === "mtp.e_proj"));
+  assert.ok(mtp.children.some((node) => node.id === "mtp.h_proj"));
+  assert.ok(mtp.children.some((node) => node.id === "mtp.hc_head"));
+});
+
+test("maps DeepSeek V4 DSpark as an independent draft, not MTP-3", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/deepseek-ai/DeepSeek-V4-Flash-0731/config.json"), "utf8"));
+  const normalized = normalizeConfig(config);
+  assert.deepEqual(normalized.dsparkTargetLayerIds, [40, 41, 42]);
+  assert.equal(normalized.dsparkBlockSize, 5);
+  assert.equal(normalized.dsparkMarkovRank, 256);
+  assert.equal(normalized.mtpModules, 1);
+  const resolved = resolveArchitecture(normalized, { modelId: "deepseek-ai/DeepSeek-V4-Flash-0731" });
+  const structure = materializeModelStructure(createStructureIr({
+    network: buildNetwork(resolved, normalized),
+    normalized,
+    resolved,
+  }));
+  const root = treeView(structure);
+  const draft = root.children.find((node) => node.id === "mtp");
+  assert.equal(draft.name, "DSpark");
+  assert.equal(draft.attributes.class, "DSparkDeepseekV4Model");
+  assert.equal(draft.type, "dspark");
+  assert.equal(draft.attributes.modules, 1);
+  assert.equal(draft.attributes.stages, 3);
+  assert.deepEqual(draft.attributes.dspark_target_layer_ids, [40, 41, 42]);
+  assert.ok(draft.children.some((node) => node.id === "mtp.main_proj"));
+  assert.ok(draft.children.some((node) => node.id === "mtp.0"));
+  assert.ok(draft.children.some((node) => node.id === "mtp.1"));
+  assert.ok(draft.children.some((node) => node.id === "mtp.2"));
+  assert.ok(draft.children.some((node) => node.id === "mtp.markov_head"));
+  assert.ok(draft.children.some((node) => node.id === "mtp.confidence_head"));
+  const stage0 = draft.children.find((node) => node.id === "mtp.0");
+  const attn = stage0.children.find((node) => node.type === "attention");
+  assert.equal(attn.attributes.compress_ratio, 0);
+  assert.ok(attn.children.some((node) => node.attributes.operator_id === "dsv4_swa_attention"));
+  const decoder = root.children.find((node) => node.id === "layers");
+  assert.equal(decoder.attributes.num_hidden_layers, 43);
 });
 
 test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () => {
@@ -580,7 +622,24 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   assert.equal(ple.attributes.ngram_size, 3);
   assert.equal(ple.attributes.heads_per_ngram, 8);
   assert.equal(ple.attributes.conv_dilation, 3);
-  assert.equal(ple.children[0].attributes.operator_id, "ple");
+  const ngramWrap = ple.children[0];
+  const ngram = ngramWrap.children[0];
+  assert.equal(ngramWrap.type, "ngram-embedding");
+  assert.equal(ngramWrap.attributes.class, "Qwen4ExpTextNGramEmbedding");
+  assert.equal(ngram.type, "embedding");
+  assert.equal(ngram.attributes.class, "Embedding");
+  assert.equal(ngram.attributes.vocab_size, 320001536);
+  assert.equal(ngram.attributes.hidden_size, 160);
+  assert.equal(ngram.attributes.weightMatrices[0].class, "replicated");
+  assert.equal(ngram.attributes.weightMatrices[0].out * ngram.attributes.weightMatrices[0].in, 51200245760);
+  assert.equal(ple.children[1].attributes.operator_id, "ple");
+  const mtp = treeView(structure).children.find((node) => node.id === "mtp");
+  assert.equal(mtp.attributes.class, "Qwen4ExpMultiTokenPredictor");
+  assert.ok(mtp.children.some((node) => node.id === "mtp.fc_embedding"));
+  assert.ok(mtp.children.some((node) => node.id === "mtp.fc_hidden"));
+  assert.ok(mtp.children.some((node) => node.id === "mtp.hyper_connection_mixer"));
+  const mtpAttn = mtp.children.find((node) => node.id === "mtp.layer")?.children.find((node) => node.type === "attention");
+  assert.equal(mtpAttn?.attributes.attention_kind, "qsa");
 });
 
 test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics", () => {
@@ -619,6 +678,11 @@ test("maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
   assert.equal(full.children.find((node) => node.name === "rotary position embedding").attributes.partial_rotary_factor, 0.25);
   assert.equal(full.children.find((node) => node.name === "Q attention Gemma RMSNorm").attributes.operator_id, "gemma_rmsnorm");
   assert.equal(full.children.find((node) => node.name === "attention output gate").attributes.operator_id, "attention_output_gate");
+  const denseMtp = treeView(denseStructure).children.find((node) => node.id === "mtp");
+  assert.equal(denseMtp.attributes.class, "Qwen3_5MultiTokenPredictor");
+  assert.ok(denseMtp.children.some((node) => node.id === "mtp.fc"));
+  const denseMtpAttn = denseMtp.children.find((node) => node.id === "mtp.layer")?.children.find((node) => node.type === "attention");
+  assert.equal(denseMtpAttn?.attributes.attention_kind, "qwen35_full");
 
   const moeConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/Qwen/Qwen3.5-35B-A3B/config.json"), "utf8"));
   const moeNormalized = normalizeConfig(moeConfig);

@@ -322,6 +322,8 @@ export function normalizeConfig(config) {
     pleNgramSize: pick(["ngram_size"]),
     pleHeadsPerNgram: pick(["heads_per_ngram"]),
     pleConvKernelSize: pick(["ple_conv_kernel_size"]),
+    ngramVocabSizeBase: pick(["ngram_vocab_size_base"]),
+    makeNgramVocabSizeDivisibleBy: pick(["make_ngram_vocab_size_divisible_by"]),
     attnResBlockSize: pick(["attn_res_block_size"]),
     mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
     multiHyperConnection: Boolean(
@@ -338,8 +340,16 @@ export function normalizeConfig(config) {
       ?? (modelTypeProbe.includes("deepseek_v4") ? 2 : undefined),
     // W4：MTP 模块数。三种键名分别来自 DeepSeek/GLM 系、Qwen 系、MiniMax 系；
     // use_mtp 为布尔开关（MiniMax-M2 用），命中时按 1 个模块计。
+    // DSpark（vLLM models/deepseek_v4/nvidia/dspark.py）有独立字段，不能把
+    // dspark_target_layer_ids 长度写进 MTP 计数。
     mtpModules: pick(["num_nextn_predict_layers", "mtp_num_hidden_layers", "num_mtp_modules"])
       ?? ((textConfig?.use_mtp ?? config?.use_mtp) ? 1 : undefined),
+    dsparkTargetLayerIds: Array.isArray(textConfig?.dspark_target_layer_ids)
+      ? textConfig.dspark_target_layer_ids
+      : Array.isArray(config?.dspark_target_layer_ids) ? config.dspark_target_layer_ids : [],
+    dsparkBlockSize: pick(["dspark_block_size"]),
+    dsparkMarkovRank: pick(["dspark_markov_rank"]),
+    dsparkNoiseTokenId: pick(["dspark_noise_token_id"]),
     contextLength: pick(CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
   };

@@ -61,12 +61,12 @@ function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, has
   return edges;
 }
 
-export function decoderLayerModule(id, normalized, { layerKind, attentionKind, layerIndex = 0 }) {
+export function decoderLayerModule(id, normalized, { layerKind, attentionKind, layerIndex = 0, forceLastMhc = false }) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const isMhc = normalized.multiHyperConnection;
   const layerMix = recipeValue(normalized, "layerMix");
-  const isLastLayer = isMhc && layerIndex === (normalized.layers || 0) - 1;
+  const isLastLayer = forceLastMhc || (isMhc && layerIndex === (normalized.layers || 0) - 1);
   const hasPle = Boolean(normalized.pleLayerIds?.includes(layerIndex + 1));
   const hasHyper = Boolean(normalized.hyperConnectionCount);
   const hasAttnRes = Boolean(normalized.attnResBlockSize);
@@ -87,7 +87,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
       multiHyperConnectionModule(`${id}.mhc_contract`, normalized, "contract"),
     ] : []),
   ] : layerMix === "hyper_connection" ? [
-    ...(hasPle ? [pleModule(`${id}.ple`, normalized)] : []),
+    ...(hasPle ? [pleModule(`${id}.ple`, normalized, { layerIndex })] : []),
     hyperConnectionModule(`${id}.attn_hyper_connection`, normalized, "attn_mix"),
     attentionModule(`${id}.${attnAttr}`, normalized, attentionKind, layerIndex),
     residualAddSpec(`${id}.attn_residual_add`, normalized, "attention"),
@@ -102,7 +102,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     rmsNormModule(`${id}.post_attention_layernorm`, "post attention layernorm", normalized),
     ffn,
     residualAddSpec(`${id}.ffn_residual_add`, normalized, "feed-forward"),
-    ...(hasPle ? [pleModule(`${id}.ple`, normalized)] : []),
+    ...(hasPle ? [pleModule(`${id}.ple`, normalized, { layerIndex })] : []),
     ...(hasHyper ? [
       hyperConnectionModule(`${id}.attn_hyper_connection`, normalized),
       hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized),

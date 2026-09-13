@@ -320,7 +320,7 @@ cost 只认三类输入：**图**、**负载**（B/S/phase/visionTokens）、**�
 | 数字 | 怎么加 | 对标 |
 |---|---|---|
 | 算力 / 前向流量 | 计费主语节点的 `counts` | FlopCounterMode / Accelergy |
-| 权重**容量** | Σ `weightMatrices` × `residentRepeat`（MTP `repeat=0` 仍计入：投机关闭时不参与前向，但参数占显存） | vLLM `named_parameters` |
+| 权重**容量** | Σ `weightMatrices` × `residentRepeat`（`repeat=0` 仍计入。一份模板 × N 读 `modules`；已展开 stage 如 DSpark `mtp.0/1/2` 不再乘） | vLLM `named_parameters` |
 | KV **容量** | attention 叶声明的每 token cache 元素 × repeat × B × S | vLLM `AttentionSpec` 挂在该层模块上 |
 | KDA **态容量** | linear 叶声明的 request state 元素 × repeat × B | vLLM `MambaStateShapeCalculator.kda_state_shape` |
 

@@ -35,9 +35,9 @@ e2e 注：2026-09-10 出现两轮全量单用例失败（不同用例/project，
 | 语义边登记（形状连续性） | 只许缩短 | 未登记的不连续边即失败 |
 | `graph_ambiguous_truth_matches` | 0 | 任何模型非 0 即绑定回归 |
 | 未知算子（unknown 叶子） | 0 | 新模型接入时允许临时 >0，须登记 |
-| N2-4 声明单源（锚 1） | 18399 声明叶（dtype-aware），违例 **0** | 声明元素 × (param_dtype ? paramDtypes 字节宽 : 2B) == 叶 counts.bytes.weights，全目录逐叶容差 0；embedding 走登记例外（声明=驻留，gather 流量按行计） |
+| N2-4 声明单源（锚 1） | 18401 声明叶（dtype-aware），违例 **0** | 声明元素 × (param_dtype ? paramDtypes 字节宽 : 2B) == 叶 counts.bytes.weights，全目录逐叶容差 0；embedding 走登记例外（声明=驻留，gather 流量按行计） |
 | N2-4 EP 组合自洽（锚 2） | M2.7 三方一致 | 专家块÷moe_ep + 其余÷tp 与聚合投影、expertWeightRange 闭式互证（DP 切专家 / EP+DP attention / 混合 ETP） |
-| P2 声明覆盖（缺声明带权叶） | **0** / 带权叶 18399 | 判据：counts.bytes.weights>0 或 weight_shapes 非空或 type=embedding ⇒ 必须有 weightMatrices。**只许下降**；新增带权算子不声明即顶破基线。缺口台账见 details/sharding_matrix.md 附录；归零后方可删 WEIGHT_PROJECTION_RULES |
+| P2 声明覆盖（缺声明带权叶） | **0** / 带权叶 18401 | 判据：counts.bytes.weights>0 或 weight_shapes 非空或 type=embedding ⇒ 必须有 weightMatrices。**只许下降**；新增带权算子不声明即顶破基线。缺口台账见 details/sharding_matrix.md 附录；归零后方可删 WEIGHT_PROJECTION_RULES |
 
 ## 变更纪律
 

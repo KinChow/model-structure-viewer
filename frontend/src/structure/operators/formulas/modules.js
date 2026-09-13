@@ -337,21 +337,18 @@ const MODULE_LIST = [
     ],
   },
   {
-    // Qwen4Exp 指定层的 PLE（Position Learning Enhancement）：ngram 查表
-    // （tid2eid 同类——ngram 嵌入表是 buffer，不进权重字节）→ KV 投影 →
-    // grouped norm → 短卷积（silu 融合）→ 注回多流状态。
+    // Qwen4Exp 指定层的 PLE 注入叶。ngram 表是 sibling Embedding
+    // （modeling_qwen4_exp.py:1111 nn.Embedding），容量/gather 不在本模块。
     id: "ple",
-    title: "Position Learning Enhancement",
-    source: { framework: "vLLM", symbol: "Qwen4Exp PLE", ref: "models/qwen4_exp/（Qwen modeling 未入库，离线取证）" },
+    title: "Per-Layer Embedding",
+    source: { framework: "transformers", symbol: "Qwen4ExpTextPLELayer", ref: "models/Qwen/Qwen3.8-Flash-Next/modeling_qwen4_exp.py:1181-1253" },
     fused: (p) => sumCounts(
-      hashRouteCounts({ tokens: p.tokens, topk: 1, bytesPerElement: p.b }),
       linearCounts({ logicalShape: [2 * p.embedDim, p.hidden], tokens: p.tokens, bytesPerElement: p.b }),
       rmsnormCounts({ tokens: p.tokens, hidden: p.embedDim, bytesPerElement: p.b }),
       causalConvCounts({ tokens: p.tokens, channels: p.embedDim, kernel: p.ngram, bytesPerElement: p.b }),
       addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
     ),
     decompose: (p) => [
-      { atom: "gather", args: { rows: p.tokens, width: 1, bytesPerElement: p.b } },
       ...linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: 2 * p.embedDim, b: p.b }).decompose,
       ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.embedDim, b: p.b }).decompose,
       { atom: "conv1d", args: { tokens: p.tokens, channels: p.embedDim, kernel: p.ngram, bytesPerElement: p.b } },
@@ -367,7 +364,7 @@ const MODULE_LIST = [
       return (p.tokens * p.hidden * 2 + p.tokens * p.embedDim * 2) * p.b + kvWeights + convWeights;
     },
     notes: [
-      "ngram 嵌入表是 buffer（与 tid2eid 同类），容量不在本模块（取证待 Qwen modeling 入库）",
+      "ngram 表是 nn.Embedding（ple.ple_embedding.ngram_embedding），容量走 type=embedding 子叶",
       "conv 的 silu 融合段 = conv1d + silu 两原子（bytes 落夹逼）",
     ],
   },

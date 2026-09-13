@@ -164,7 +164,7 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 量化行按 `parameterCount` dtype 解包（GPTQ I32×8 扣 qzeros、NVFP4 I8×2、跳过 scale 桶）。
 身份图侧：sidecar `mtp_tensor_count`（扫 header 张量名 `mtp.{i}` / 越界 `layers.{n}`，
 对标 vLLM load_weights）>0 才计入投机头；config 空声明不是实际。
-登记残差：Flash-Next 29%；V4-Flash-Vision-Exp 3.3%；V4-Pro 旧仓 2.2%。
+登记残差：无。V4 `wo_a` 按 vLLM `ColumnParallelLinear(n_heads*head_dim/o_groups, o_groups*o_lora)` 声明，不再把 grouped 输出维乘进权重。Flash-Next ngram 表已按 Embedding 声明。
 整模型 FlopCounterMode 仍需要真实 `forward` + 权重，catalog 做不到。
 
 **明确后置 / 不做**

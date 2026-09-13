@@ -387,13 +387,15 @@ W1 时点在 principles §10 登记两条结构级缺口，均已修复：
 - 归一化族与线性族的声明由 `operatorSpec` 工厂按形状**自动产出**（`ops/index.js:30-34`、
   归一化族 `:110-120`），显式传 weightMatrices 的调用点覆盖自动值。
 - **锚 1 dtype-aware**（MAINTENANCE 棘轮）：声明元素 × (param_dtype ? paramDtypes 字节宽
-  : 2B) == 叶 counts.bytes.weights，全目录逐叶容差 **0**（18399 声明叶、违例 0）。
-- **登记例外 1 处：embedding**（`embedding.js:13-16`）——声明 = **驻留**（vocab×hidden
-  容量口径），gather 流量按行计（actIn/actOut = T·H·b、counts.bytes.weights = 0），声明
-  不等于该相位读量；vocab 亲和 = ParallelLMEmbedding 语义；quantizable = false（vLLM
-  ParallelEmbedding 无 quant_method）。
+  : 2B) == 叶 counts.bytes.weights，全目录逐叶容差 **0**（18401 声明叶、违例 0）。
+- **登记例外 1 处：embedding**（`embedding.js`）——声明 = **驻留**（本叶
+  `vocab_size×hidden_size`：主词表 = 模型 vocab×hidden，PLE ngram 表 =
+  padded_vocab×head_dim），gather 流量按行计（actIn/actOut = T·H·b、
+  counts.bytes.weights = 0），声明不等于该相位读量。主词表 vocab 亲和 =
+  ParallelLMEmbedding；ngram 表 replicated（HF `_no_placement_params`）。
+  quantizable = false（vLLM ParallelEmbedding 无 quant_method）。
 - **P5 回退删除**：WEIGHT_PROJECTION_RULES 与 QUANTIZABLE_OPS 已删——**无声明带权叶 =
-  unknown**（不再静默回退）；P2 声明覆盖 18399/18399 带权叶全声明。
+  unknown**（不再静默回退）；P2 声明覆盖 18401/18401 带权叶全声明。
 
 ## 通信与并行项（P10，2026-09-10 落地；协议 Q4/Q6/Q7）
 

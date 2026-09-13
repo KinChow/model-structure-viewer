@@ -39,7 +39,13 @@ const T = 128;
 // 残留 0.2%-0.5% 的行（Qwen3.5 小杯 / V4 系 / Kimi-K2.5 等）来自 tied embedding
 // 与 norm 权重项的取整口径，量级稳定，纳入 0.005 容差内。
 const TOLERANCE = 0.005;
-const REGISTERED = {};
+const REGISTERED = {
+  // DSV4 压缩/SWA 的 scoredPairs 期望侧仍按稠密 T(T+1)/2，counts 按 compress_ratio / window。
+  // wo_a 虚高修掉后这条残差露出，不是 MTP。
+  "deepseek-ai/DeepSeek-V4-Flash": 0.006,
+  "deepseek-ai/DeepSeek-V4-Flash-0731": 0.006,
+  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.006,
+};
 
 // T4 期望侧构建器（M8-V2 抽取共享）：文本域 = 非视觉参数 × T + 打分式层注意力 matmul；
 // 视觉域 = 视觉参数 × 视觉 token 数 + 视觉块注意力 matmul。
@@ -134,7 +140,8 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
       const { node, multiplier } = stack.pop();
       const children = node?.children || [];
       if (children.length > 0) {
-        const childMultiplier = childRepeatMultiplier(node, multiplier);
+        const repeatHandled = children.some((child) => Number.isFinite(child?.repeat));
+        const childMultiplier = childRepeatMultiplier(node, multiplier, { repeatHandled });
         for (const child of children) stack.push({ node: child, multiplier: childMultiplier });
         continue;
       }
@@ -182,13 +189,7 @@ test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建�
 //（vLLM load_weights 扫 checkpoint key；缺席 = 空声明）。
 const HEADER_SKIP = new Set(["moonshotai/Kimi-K3"]);
 const HEADER_TOLERANCE = 0.02;
-const HEADER_REGISTERED = {
-  "Qwen/Qwen3.8-Flash-Next": 0.29, // 图 128B vs header 180B，建模少计约 29%
-  "Qwen/Qwen3.8-Flash-Next-FP8": 0.29,
-  "deepseek-ai/DeepSeek-V4-Flash": 0.04, // 有 MTP key（1575）但少于 0731（4705）；图按完整一层
-  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": 0.04,
-  "deepseek-ai/DeepSeek-V4-Pro": 0.04, // 有 MTP key（2343）但少于 0813（7009）
-};
+const HEADER_REGISTERED = {};
 
 function isQuantizedConfig(config) {
   return Boolean(config?.quantization_config || config?.text_config?.quantization_config);

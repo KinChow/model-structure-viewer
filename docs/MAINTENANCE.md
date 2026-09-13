@@ -7,7 +7,7 @@
 
 | # | 命令（cwd） | 守护什么 | 基线 |
 |---|---|---|---|
-| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b fromNode 查表、§3.1d 来源标注、§3.5b /tmp 引用棘轮、P0 root 复活棘轮 | §8.1 ≤8/16 |
+| 1 | `bash scripts/check_principles.sh`（根） | 原则护栏：§8.1 家族名棘轮、§3.2 显示名全禁、§3.1 counts 完整性、§3.1b fromNode 查表、§3.1d 来源标注、§3.5b /tmp 引用棘轮、P0 root 复活棘轮 | §8.1 ≤9/16 |
 | 2 | `cd frontend && npm test` | 前端单测：四条恒等式**容差 0**、N2-4 锚 1/锚 2、S3 图声明对 header 逻辑元素（量化解包后）、量化 per-matrix、原子 exact、golden、全链路 | 全绿 |
 | 3 | `cd frontend && npm run verify:models` | 59 内置模型结构可构建 | `"failed": 0` |
 | 4 | `.venv/bin/python -m pytest -q`（根） | 后端 transformers 对照、params numel 对账、FlopCounterMode 独立算子抽查 | 184 passed |
@@ -28,7 +28,7 @@ e2e 注：2026-09-10 出现两轮全量单用例失败（不同用例/project，
 
 | 指标 | 当前 | 说明 |
 |---|---|---|
-| §8.1 家族名文件 | 8 / 16 | 删 plan.js + 共享 layer 家族分派后 10→8 |
+| §8.1 家族名文件 | 9 / 16 | MTP 组网回升 10；Task #41 去掉 normalize `model_type` 子串得 9 |
 | 四条恒等式容差 | **0** | 权重字节/KV/形状连续性/融合分解全部 error 模式；超差用 checkpoint header 或锚 1（声明 vs 叶 counts）归因，禁止放宽 |
 | `/tmp` 取证引用（operators_reference） | 15（§3.5b 棘轮） | 只许下降；新证据落 models/<org>/<id>/ 证据库 |
 | DECOMPOSE_PENDING | **0** | 新模块进 formulas/modules.js 必须同时声明 decompose |

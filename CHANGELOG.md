@@ -12,6 +12,7 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- Task #41：normalize 瘦到字段别名。删 `indexer*` 兼容字段；DSA/QSA 分族是唯一入口。`sharedExperts` / `sharedExpertGate` 看 `shared_expert_intermediate_size`（vLLM qwen3_moe / Qwen4Exp），不再用 `model_type` 子串——Flash-Next 因此补上 shared expert 分支。MHC 看 `mhc`/`hc_mult`；缺 `mhc_post_mult_value` 时开了 MHC 用 vLLM 默认 2.0。vision gated MLP 看 `hidden_act`。`StructureNodeBase` 抽出共用字段；解析入口收成 `model_structure_viewer.resolve`。
 - 删 extractor 容器 `*Macs`（`attentionCoreMacs` 的 T² 等）。`type=attention` 按 §2.4 返回 null，打分只走叶 `FORMULAS[operator_id]`。
 - PLE ngram 表改为 `type=embedding` 子叶（照抄 `Qwen4ExpTextNGramEmbedding` 的 `nn.Embedding` + 素数 pad）。S3 Flash-Next 29% 登记项删除。
 - S3：catalog 58/59 入库 `header-truth.json`（Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素；量化按 dtype 解包；MTP 是否计入扫 header 张量名（`mtp.{i}` / 越界 `layers.{n}`，对标 vLLM load_weights）。登记：V4-Flash / Vision-Exp / Pro 旧仓 MTP 层数不全。

@@ -35,7 +35,6 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
   const tokens = ph.tokens;
   const S = ph.sequence;
   const heads = c.attentionHeads || 0;
-  const dim = c.indexerHeadDim || 0;
   switch (id) {
     case "linear":
       return { tokens, inDim: c.hiddenSize || 0, out: c.hiddenSize || 0, bias: false, b };
@@ -101,19 +100,19 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
         headDim: c.headDim || 0, valueDim: c.valueHeadDim || c.headDim || 0, phase: ph.name, b,
       } : null;
     case "dsa_indexer":
-      return (c.indexerBudget && c.kvLoraRank && !(c.raw?.index_kpool > 1)) ? {
-        heads: c.indexerNHeads || 0, dim, queryTokens: tokens, keyTokens: S,
-        budget: c.indexerBudget, pool: 1, perHeadWeights: true, phase: ph.name, b,
+      return (c.dsaIndexTopk && c.kvLoraRank && !(c.dsaIndexKpool > 1)) ? {
+        heads: c.dsaIndexHeads || 0, dim: c.dsaIndexHeadDim || 0, queryTokens: tokens, keyTokens: S,
+        budget: c.dsaIndexTopk, pool: 1, perHeadWeights: true, phase: ph.name, b,
       } : null;
     case "dsa_kpool_indexer":
-      return (c.raw?.index_kpool > 1) ? {
-        heads: c.indexerNHeads || 0, dim, queryTokens: tokens, keyTokens: S,
-        budget: c.indexerBudget, pool: c.raw.index_kpool, perHeadWeights: true, phase: ph.name, b,
+      return (c.dsaIndexKpool > 1) ? {
+        heads: c.dsaIndexHeads || 0, dim: c.dsaIndexHeadDim || 0, queryTokens: tokens, keyTokens: S,
+        budget: c.dsaIndexTopk, pool: c.dsaIndexKpool, perHeadWeights: true, phase: ph.name, b,
       } : null;
     case "qsa_indexer":
-      return c.indexerKVHeads ? {
-        heads: c.indexerNHeads || 0, dim, queryTokens: tokens, keyTokens: S,
-        budget: c.indexerBudget, pool: c.indexerCompressRatio || 1, perHeadWeights: false, phase: ph.name, b,
+      return c.qsaIndexerKVHeads ? {
+        heads: c.qsaIndexerHeads || 0, dim: c.qsaIndexerHeadDim || 0, queryTokens: tokens, keyTokens: S,
+        budget: c.qsaIndexerBudget, pool: c.qsaIndexerCompressRatio || 1, perHeadWeights: false, phase: ph.name, b,
       } : null;
     case "minimax_block_indexer":
       return c.sparseBlockSize ? {

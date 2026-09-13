@@ -10,16 +10,17 @@ EndpointKind = Literal["huggingface", "modelscope"]
 ExportFormat = Literal["json", "mermaid", "dot"]
 
 
-class StructureNode(BaseModel):
+# 树节点与图节点共用的字段。Pydantic 继承：
+# https://docs.pydantic.dev/latest/concepts/models/#model-inheritance
+# 树还要 children；图还要 parent_id / order / canonical_id（扁平邻接）。
+class StructureNodeBase(BaseModel):
     id: str
-    name: str
-    type: str
+    name: str = ""
+    type: str = "module"
     repeat: int | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
     source_fields: list[str] = Field(default_factory=list)
     confidence: str = "high"
-    children: list["StructureNode"] = Field(default_factory=list)
-    # 结构节点扩展字段（None 表示未知）；图边位于 ModelStructure.graph。
     params: int | None = None  # 本节点自有参数（不含子树）
     weight_shapes: dict[str, list[int]] | None = None  # 数值形状，如 {"weight": [4096, 4096]}
     dtype: str | None = None  # 实际 dtype：BF16/F8_E4M3/I32…
@@ -29,25 +30,15 @@ class StructureNode(BaseModel):
     tensor_names: list[str] | None = None  # 绑定到本节点的 header 张量名
 
 
-class StructureGraphNode(BaseModel):
-    id: str
+class StructureNode(StructureNodeBase):
+    children: list["StructureNode"] = Field(default_factory=list)
+
+
+class StructureGraphNode(StructureNodeBase):
     canonical_id: str | None = None
     module_id: str | None = None
     parent_id: str | None = None
     order: int = 0
-    name: str = ""
-    type: str = "module"
-    repeat: int | None = None
-    attributes: dict[str, Any] = Field(default_factory=dict)
-    source_fields: list[str] = Field(default_factory=list)
-    confidence: str = "high"
-    params: int | None = None
-    weight_shapes: dict[str, list[int]] | None = None
-    dtype: str | None = None
-    input_shape: list[int] | None = None
-    output_shape: list[int] | None = None
-    value_source: str | None = None
-    tensor_names: list[str] | None = None
 
 
 class StructureGraphEdge(BaseModel):

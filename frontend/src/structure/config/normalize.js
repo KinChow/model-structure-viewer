@@ -20,6 +20,9 @@ const EXPERT_KEYS = ["num_local_experts", "n_routed_experts", "num_experts", "mo
 const EXPERTS_PER_TOKEN_KEYS = ["num_experts_per_tok", "num_experts_per_token", "moe_top_k"];
 const SHARED_EXPERT_KEYS = ["num_shared_experts", "n_shared_experts"];
 const SHARED_EXPERT_INTERMEDIATE_KEYS = ["shared_expert_intermediate_size", "shared_expert_hidden_size", "shared_intermediate_size"];
+// Qwen 系 gate / 个数回退只认这两键。MiniMax 的 shared_intermediate_size 是宽度
+// （0 = 无 shared expert），不能拿来当 gate。vLLM qwen3_moe.py:178：`> 0`。
+const QWEN_SHARED_EXPERT_WIDTH_KEYS = ["shared_expert_intermediate_size", "shared_expert_hidden_size"];
 const CONTEXT_KEYS = ["max_position_embeddings", "seq_length", "max_sequence_length"];
 const KV_LORA_RANK_KEYS = ["kv_lora_rank", "kv_lora_dim"];
 const Q_LORA_RANK_KEYS = ["q_lora_rank", "q_lora_dim"];
@@ -108,11 +111,6 @@ function visionTokenCount(config) {
   return patchTokens ? Math.floor(patchTokens / (merge * merge)) : undefined;
 }
 
-
-
-
-
-
 export function normalizeConfig(config) {
   const textConfig = typeof config?.text_config === "object" && config.text_config ? config.text_config : config;
   const nestedVisionConfig = typeof config?.vision_config === "object" && config.vision_config ? config.vision_config : null;
@@ -145,17 +143,10 @@ export function normalizeConfig(config) {
   const pickSparse = (keys) =>
     firstNumber(textConfig?.sparse_attention_config, keys)
       ?? firstNumber(config?.sparse_attention_config, keys);
-  // 主流探测（A 变体）：先顶层后 text_config。
-  // 本文件有意保留两种语义不同的变体——
-  //   B 变体（仅顶层）：visionInternalMerger / visionMlpGated；
-  //   C 变体（A 再兜一层 textConfig）：linearAttentionMode 的 kimi 分支。
-  // 它们在"顶层 model_type 与 text_config 不同"时结果不同，统一属功能决策，不在重构范围。
-  const modelTypeProbe = String(config?.model_type || textConfig?.model_type || "");
   // fused shared expert（多个 shared expert 打包为单个 gate/up/down 张量）决定
   // sharedExpertIntermediateSize 回退语义是"模块宽"而非"单专家宽"。
-  // P3：判定权归 archs 配方（§4.7 —— normalize 只归一字段，方案由 plan 决定），
-  // 此前这里另有一份 `modelTypeProbe.includes("kimi_k3")` 判定，与
-  // ARCH_RECIPES.sharedExpertsAreFused 构成双源。
+  // 判定权归 archs 配方（§4.7 —— normalize 只归一字段；
+  // ARCH_RECIPES.sharedExpertsAreFused 是写不出字段判据的家族知识）。
   const sharedExpertsFused = Boolean(archRecipe(
     Array.isArray(config?.architectures) ? config.architectures[0] : undefined,
   ).sharedExpertsAreFused);
@@ -165,6 +156,11 @@ export function normalizeConfig(config) {
   const attentionHeads = pick(HEAD_KEYS);
   const headDim = attentionHeadDim(textConfig) ?? attentionHeadDim(config) ?? derivedHeadDim(hiddenSize, attentionHeads);
   const quantization = quantizationEstimate(config, textConfig);
+  // MHC 开：显式 mhc，或流数字段存在（V4 只发 hc_mult，GLM-Flash 发 mhc+hc_mult）。
+  // vLLM glm5_next 把 hc_mult 别名到 mhc_num_residual_streams；V4 modeling 读 hc_mult。
+  const mhcStreams = pick(["mhc_num_residual_streams", "hc_mult"]);
+  const mhcOn = Boolean(textConfig?.mhc ?? config?.mhc) || mhcStreams != null;
+  const qwenSharedExpertWidth = pick(QWEN_SHARED_EXPERT_WIDTH_KEYS);
 
   return {
     raw: config,
@@ -221,12 +217,6 @@ export function normalizeConfig(config) {
     qsaIndexerHeadDim: pick(["indexer_head_dim"]),
     qsaIndexerBudget: pick(["indexer_budget"]),
     qsaIndexerCompressRatio: pick(["indexer_compress_ratio"]),
-    // 合并口径的兼容字段（下游未迁移的消费者仍读这些；迁完即删）
-    indexerNHeads: pick(["index_n_heads", "indexer_n_heads", "index_heads"]),
-    indexerKVHeads: pick(["indexer_kv_heads"]),
-    indexerHeadDim: pick(["indexer_head_dim", "index_head_dim"]),
-    indexerBudget: pick(["index_topk", "indexer_budget"]),
-    indexerCompressRatio: pick(["indexer_compress_ratio"]),
     sparseIndexHeads: pickSparse(["sparse_num_index_heads"]),
     sparseIndexDim: pickSparse(["sparse_index_dim"]),
     sparseTopkBlocks: pickSparse(["sparse_topk_blocks"]),
@@ -279,19 +269,22 @@ export function normalizeConfig(config) {
     visionTokens: visionConfig ? visionTokenCount(visionConfig) : undefined,
     visionPatchTokens: visionConfig ? visionPatchTokenCount(visionConfig) : undefined,
     visionMergeSize: visionConfig ? visionMergeSize(visionConfig) : 1,
-        // B 变体（仅顶层 model_type）：与 modelTypeProbe 语义不同，有意保留（W0.5）。
     visionMergerIntermediateSize: visionConfig ? firstNumber(visionConfig, ["projection_intermediate_size"]) : undefined,
+    // gated vision MLP = SwiGLU。判据是 vision hidden_act（silu/swish），
+    // 不是 model_type 子串；GLM-5.3-Flash vision_config.hidden_act 已是 silu。
     visionMlpGated: visionConfig
       ? String(visionConfig.hidden_act || "").toLowerCase().includes("silu")
-        || String(config?.model_type || "").toLowerCase().includes("glm5_next")
+        || String(visionConfig.hidden_act || "").toLowerCase().includes("swish")
       : false,
     ...quantization,
     experts: pick(EXPERT_KEYS),
     routedExpertHiddenSize: pick(["routed_expert_hidden_size"]),
     expertsPerToken: pick(EXPERTS_PER_TOKEN_KEYS),
+    // Qwen 系（含 qwen4_exp）checkpoint 只给 shared_expert_intermediate_size、
+    // 不给 n_shared_experts。vLLM qwen3_moe / Qwen4ExpTextSparseMoeBlock：
+    // width > 0 ⇒ 1 个 shared expert。个数字段优先，否则按 Qwen 宽度补 1。
     sharedExperts: pick(SHARED_EXPERT_KEYS)
-      ?? (modelTypeProbe.includes("qwen3_5_moe")
-        && firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null ? 1 : undefined),
+      ?? (qwenSharedExpertWidth > 0 ? 1 : undefined),
     sharedExpertIntermediateSize: pick(SHARED_EXPERT_INTERMEDIATE_KEYS)
       // 通用 MoE 回退：shared expert 模块中间维 = moeIntermediateSize；融合形态
       // （sharedExpertsFused，判定归 archs 配方）乘 n_shared 得模块宽。非融合模型的
@@ -305,8 +298,10 @@ export function normalizeConfig(config) {
             : moeI;
         })()
         : undefined),
-    sharedExpertGate: firstNumber(textConfig, SHARED_EXPERT_INTERMEDIATE_KEYS) != null
-      && (textConfig?.output_gate_type != null || modelTypeProbe.includes("qwen3_5_moe")),
+    // vLLM qwen3_moe.py: shared_expert_intermediate_size > 0 时实例化
+    // self.shared_expert_gate；Qwen4Exp 同构。output_gate_type 是激活种类，不是有无。
+    // MiniMax 有 shared_intermediate_size 但无 gate（modeling 直接加分支）。
+    sharedExpertGate: qwenSharedExpertWidth > 0,
     attentionBias: Boolean(textConfig?.attention_bias ?? config?.attention_bias),
     outputGateType: String(textConfig?.output_gate_type ?? config?.output_gate_type ?? "silu"),
     partialRotaryFactor: firstNumber(textConfig, ["partial_rotary_factor"])
@@ -326,18 +321,14 @@ export function normalizeConfig(config) {
     makeNgramVocabSizeDivisibleBy: pick(["make_ngram_vocab_size_divisible_by"]),
     attnResBlockSize: pick(["attn_res_block_size"]),
     mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
-    multiHyperConnection: Boolean(
-      textConfig?.mhc
-      ?? config?.mhc
-      ?? (modelTypeProbe.includes("deepseek_v4")
-        && firstNumber(textConfig, ["hc_mult"]) != null),
-    ),
-    mhcNumResidualStreams: pick(["mhc_num_residual_streams", "hc_mult"]),
+    multiHyperConnection: mhcOn,
+    mhcNumResidualStreams: mhcStreams,
     mhcSinkhornIterations: pick(["mhc_sinkhorn_iterations", "hc_sinkhorn_iters"]),
     mhcTau: pick(["mhc_tau"]),
     mhcEps: pick(["hc_eps", "mhc_eps"]),
-    mhcPostMultValue: pick(["mhc_post_mult_value"])
-      ?? (modelTypeProbe.includes("deepseek_v4") ? 2 : undefined),
+    // vLLM glm5_next PretrainedConfig 默认 mhc_post_mult_value=2.0；
+    // V4 modeling 硬编码 hc_post_alpha=2.0。字段缺失时，开了 MHC 就用该默认。
+    mhcPostMultValue: pick(["mhc_post_mult_value"]) ?? (mhcOn ? 2 : undefined),
     // W4：MTP 模块数。三种键名分别来自 DeepSeek/GLM 系、Qwen 系、MiniMax 系；
     // use_mtp 为布尔开关（MiniMax-M2 用），命中时按 1 个模块计。
     // DSpark（vLLM models/deepseek_v4/nvidia/dspark.py）有独立字段，不能把

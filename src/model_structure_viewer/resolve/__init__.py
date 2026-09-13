@@ -1,16 +1,14 @@
-"""Resolution layer: split into HTTP client / local cache / remote-code fetcher / orchestrator.
+"""Resolution layer: HTTP client / local cache / remote-code fetcher / orchestrator.
 
-Public surface preserved for backwards compatibility with the old single-file
-``model_structure_viewer.resolver`` module: ``ModelSourceResolver``,
-``ResolvedConfig``, and ``SourceResolutionError``.
+Public surface: ``ModelSourceResolver``, ``ResolvedConfig``, and
+``SourceResolutionError`` (alias of ``ViewerError``).
 """
 from __future__ import annotations
 
 from ..errors import ViewerError
 from .resolver import ModelSourceResolver, ResolvedConfig
 
-# Backward-compatible alias: external callers that catch SourceResolutionError
-# now catch the broader ViewerError hierarchy.
+# Callers that catch SourceResolutionError catch the ViewerError hierarchy.
 SourceResolutionError = ViewerError
 
 __all__ = ["ModelSourceResolver", "ResolvedConfig", "SourceResolutionError"]

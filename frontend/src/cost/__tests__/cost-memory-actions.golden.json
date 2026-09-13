@@ -897,15 +897,15 @@
  },
  "Qwen/Qwen3.8-Flash-Next": {
   "actions": {
-   "matrix": 3507585769470,
-   "vector": 6933294656,
-   "sfu": 2001575872,
-   "weights": 250179430400,
-   "actIn": 11992504320,
-   "actOut": 9405286400
+   "matrix": 3628381724670,
+   "vector": 7027666496,
+   "sfu": 2033033152,
+   "weights": 250651289600,
+   "actIn": 12590192640,
+   "actOut": 9751316480
   },
   "memory": {
-   "weightBytes": 359021051904,
+   "weightBytes": 359502741504,
    "activationBytes": 1610612736,
    "kvBytes": 14155776,
    "stateBytes": 58834944
@@ -913,27 +913,27 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 380418842624,
+   "bytesMoved": 381844250624,
    "times": {
-    "matrix": 0.0321207488047,
-    "vector": 0.000355553572103,
-    "sfu": 0.000410579666051,
-    "memory": 0.207301423696,
+    "matrix": 0.0332269388706,
+    "vector": 0.000360393153641,
+    "sfu": 0.000417032441436,
+    "memory": 0.208078170467,
     "comm": 0
    }
   }
  },
  "Qwen/Qwen3.8-Flash-Next-FP8": {
   "actions": {
-   "matrix": 3507585769470,
-   "vector": 6933294656,
-   "sfu": 2001575872,
-   "weights": 250179430400,
-   "actIn": 11992504320,
-   "actOut": 9405286400
+   "matrix": 3628381724670,
+   "vector": 7027666496,
+   "sfu": 2033033152,
+   "weights": 250651289600,
+   "actIn": 12590192640,
+   "actOut": 9751316480
   },
   "memory": {
-   "weightBytes": 233267312208,
+   "weightBytes": 233508215808,
    "activationBytes": 1610612736,
    "kvBytes": 14155776,
    "stateBytes": 58834944
@@ -941,12 +941,12 @@
   "commBytes": 0,
   "roofline": {
    "bound": "memory",
-   "bytesMoved": 254665102928,
+   "bytesMoved": 255849724928,
    "times": {
-    "matrix": 0.0321207488047,
-    "vector": 0.000355553572103,
-    "sfu": 0.000410579666051,
-    "memory": 0.138774509797,
+    "matrix": 0.0332269388706,
+    "vector": 0.000360393153641,
+    "sfu": 0.000417032441436,
+    "memory": 0.13942004519,
     "comm": 0
    }
   }

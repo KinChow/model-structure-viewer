@@ -12,7 +12,7 @@ from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
-from .resolver import ModelSourceResolver
+from .resolve import ModelSourceResolver
 from .resolve.endpoints import endpoint_revision, endpoint_url
 from .schemas import ModelStructure, StructureRequest, VerifyRequest, VerifyResponse
 from .settings import AppSettings, parse_bool

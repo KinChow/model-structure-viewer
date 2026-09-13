@@ -643,11 +643,10 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
    → 收进 `repair/` 的 Protocol registry。
 3. `api.py:106,114` 用 `assert model_id is not None` 做入参校验 → 客户端拿 500 而非 400，
    且 `-O` 下失效 → 改 `HTTPException(400)`。
-4. `resolver.py` 三层 re-export（`resolver.py` → `resolve/__init__.py` → `resolve/resolver.py`），
-   而 api/cli/service/tests 都从最外层导入 → 收敛为一层。
+4. ~~`resolver.py` 三层 re-export~~ ✅ `cli`/`api`/`service`/`tests` 从
+   `model_structure_viewer.resolve` 导入；顶层 `resolver.py` shim 已删。
 5. 删仅测试引用的 `repair/runtime.py:21 NoopRuntimePatch`、`introspect.py:163 _walk`。
-6. `schemas.py:13-50` 的 `StructureNode` / `StructureGraphNode` 逐字重复 13 字段 → 抽公共基模型
-   （此项也登记在 `implementation_plan.md` 的"统一结构协议"下）。
+6. ~~`schemas.py` 逐字重复 13 字段~~ ✅ 抽 `StructureNodeBase`（Pydantic 继承）。
 
 - **依赖**：无（但若旁路 B 先做，第 2、5 项的范围会缩小）
 - **验收**：`pytest` 全绿；新增"加一个 repair 策略只改一处"的用例

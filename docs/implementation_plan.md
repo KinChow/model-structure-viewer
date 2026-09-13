@@ -135,7 +135,7 @@ W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
 Graph/evidence 对账测试。schema-first 生成仅用于协议字段，不能让后端
 重新成为第二个产品结构事实源。
 
-`schemas.py:13-50` 的 `StructureNode` 与 `StructureGraphNode` 逐字重复 14 个字段，`materializeStructureGraph.js:76-95` 在 JS 侧再抄一遍；抽公共基模型属本项范围。
+`schemas.py` 已抽 `StructureNodeBase`（Pydantic 继承）；树还要 `children`，图还要 `parent_id` / `order` / `canonical_id`。JS `materializeStructureGraph.js` 仍是图投影，不与 Python schema 生成绑定。
 
 ### 模型 catalog 维护自动化
 
@@ -167,6 +167,15 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 登记残差：无。V4 `wo_a` 按 vLLM `ColumnParallelLinear(n_heads*head_dim/o_groups, o_groups*o_lora)` 声明，不再把 grouped 输出维乘进权重。Flash-Next ngram 表已按 Embedding 声明。
 T4 DSV4 打分项按 `compress_ratio` 分层（与 `dsv4VisibleKeys` 共用），不再按稠密三角登记。
 整模型 FlopCounterMode 仍需要真实 `forward` + 权重，catalog 做不到。
+
+**normalize 瘦视图 / schema / resolver** ✅
+- 删 `indexer*` 兼容别名；DSA/QSA 分族字段是唯一入口。
+- `model_type` 子串退出 normalize：`sharedExperts` / `sharedExpertGate` 看
+  `shared_expert_intermediate_size`（vLLM qwen3_moe / Qwen4Exp）；MHC 看
+  `mhc` / `hc_mult`；`mhcPostMultValue` 缺省时 MHC 开则用 vLLM 默认 2.0；
+  vision gated MLP 看 `hidden_act`。
+- `StructureNodeBase` 抽出共用字段；`cli`/`api`/`service`/`tests` 从
+  `model_structure_viewer.resolve` 导入，删顶层 `resolver.py` shim。
 
 **明确后置 / 不做**
 - 拆 59 个 modeling 文件（`ARCH_RECIPES` 过渡表可留）。

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .exporters import export_structure
-from .resolver import ModelSourceResolver, SourceResolutionError
+from .resolve import ModelSourceResolver, SourceResolutionError
 from .schemas import StructureRequest, VerifyRequest
 from .service import build_structure_response, verify_structure_response
 from .settings import AppSettings

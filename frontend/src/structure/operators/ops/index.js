@@ -612,9 +612,9 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
   const headDim = normalized.headDim;
   const groups = normalized.oGroups;
   const outputRank = normalized.oLoraRank;
-  const indexHeads = normalized.indexerNHeads;
-  const indexDim = normalized.indexerHeadDim;
-  const budget = normalized.indexerBudget;
+  const indexHeads = normalized.dsaIndexHeads;
+  const indexDim = normalized.dsaIndexHeadDim;
+  const budget = normalized.dsaIndexTopk;
   const qLatent = `[batch, sequence, q latent=${qRank ?? "unknown"}]`;
   const kvLatent = `[batch, sequence, kv latent=${headDim ?? "unknown"}]`;
   const query = `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim ?? "unknown"}]`;
@@ -747,10 +747,10 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
     return dsaAttentionOperatorSpecs(prefix, normalized, layerIndex);
   }
   const { shapes, dims } = shapesAndDims(normalized);
-  const indexerHeads = normalized.qsaIndexerHeads ?? normalized.indexerNHeads ?? 0;
-  const indexerKVHeads = normalized.qsaIndexerKVHeads ?? normalized.indexerKVHeads ?? 0;
-  const indexerDim = normalized.qsaIndexerHeadDim ?? normalized.indexerHeadDim ?? 0;
-  const budget = normalized.qsaIndexerBudget ?? normalized.indexerBudget ?? 0;
+  const indexerHeads = normalized.qsaIndexerHeads ?? 0;
+  const indexerKVHeads = normalized.qsaIndexerKVHeads ?? 0;
+  const indexerDim = normalized.qsaIndexerHeadDim ?? 0;
+  const budget = normalized.qsaIndexerBudget ?? 0;
   // 融合 QKV 的宽度：vLLM qwen4_exp/nvidia/qsa.py:233-241
   //   QKVParallelLinear(hidden, head_dim, total_num_heads*(1+attn_output_gate), total_num_kv_heads)
   // ⇒ head_dim·(heads·(1+gate) + 2·kv_heads)。此前只声明了 q 的宽度（heads·head_dim），
@@ -780,7 +780,7 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
       indexer_kv_heads: indexerKVHeads,
       indexer_head_dim: indexerDim,
       budget,
-      compress_ratio: normalized.qsaIndexerCompressRatio ?? normalized.indexerCompressRatio,
+      compress_ratio: normalized.qsaIndexerCompressRatio,
       implementation: ["vLLM.QSAIndexer", "SGLang.qwen4_exp indexer"],
     }, { input: dims.hidden, output: [-1, -1, budget] }),
     operatorSpec(`${prefix}.sparse_attention`, "QSA sparse attention", "qsa_sparse_attention", {
@@ -953,9 +953,9 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const ropeDim = normalized.qkRopeHeadDim || 0;
   const qkDim = qkNope + ropeDim;
   const valueDim = normalized.valueHeadDim || normalized.headDim || 0;
-  const indexHeads = normalized.dsaIndexHeads ?? normalized.indexerNHeads ?? 0;
-  const indexDim = normalized.dsaIndexHeadDim ?? normalized.indexerHeadDim ?? 0;
-  const budget = normalized.dsaIndexTopk ?? normalized.indexerBudget ?? 0;
+  const indexHeads = normalized.dsaIndexHeads ?? 0;
+  const indexDim = normalized.dsaIndexHeadDim ?? 0;
+  const budget = normalized.dsaIndexTopk ?? 0;
   const kpool = normalized.dsaIndexKpool ?? 1;
   const indexerMode = indexerScheduleOf(normalized)?.[layerIndex] || "compute";
   const qLatentShape = `[batch, sequence, q latent=${qRank}]`;

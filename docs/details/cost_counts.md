@@ -96,7 +96,7 @@ S 的取法与 kvHeads 由条目/提取器决定：
 | MHA / GQA | matmul（scores/context 两叶） | seq / 上下文全长 | =heads / config.kvHeads | D | D | matrix 不随 kvHeads 变（每个 query head 做完整点积），只有 K/V 流量随 kvHeads 缩小 |
 | MQA / SWA | dsv4_swa_attention | min(S, slidingWindow) | 1 | D | D | KV 读/写宽 D（swa 缓存每 token 一份 headDim 宽 latent，K/V 共享） |
 | 块稀疏 | minimax_sparse_attention | min(可见, (topk+init+local)·blockSize) | config.kvHeads | D | D | 选中必须夹到可见长度（W5）；计 kvWrite |
-| QSA | qsa_sparse_attention | indexerBudget | config.kvHeads | D | D | 计 kvWrite（paged cache 写回在模板内无叶承担） |
+| QSA | qsa_sparse_attention | qsaIndexerBudget | config.kvHeads | D | D | 计 kvWrite（paged cache 写回在模板内无叶承担） |
 | DSA 吸收式 | dsa_sparse_mla | index_topk | 1（共享 latent） | kv_lora_rank+rope | kv_lora_rank | 读宽取 max(kWidth, vWidth)（W5 防双计）；无 kvWrite（latent 写归 kv_a_proj） |
 | DSV4 C4 稀疏 | dsv4_sparse_mla | index_topk | 1 | D | D | + 原始滑窗混合读（[t-128,t]）；无 kvWrite |
 | DSV4 压缩 | dsv4_compressed_attention | ⌈S/ratio⌉ | 1 | D | D | + 滑窗读；压缩态写归 compressor 叶（无 kvWrite）；matrix 走旧链镜像 |
@@ -256,7 +256,7 @@ gated_delta_attention case `:825-826` 与 linear_attention 的 /state|recurrent/
 - **scoredPairs / causalDensity**（`counts.js:31-41`）：相位助手（因果对数 / 稀疏密度），
   唯一实现在 counts.js，extractor 与 modules 共用。
 - **dsv4VisibleKeys**（`counts.js`）：DSV4 主注意力可见 key 数（ratio=0 夹 sliding_window；
-  ratio=4 为 ceil(T/4)+window 再夹 indexerBudget；ratio=128 为 ceil(T/128)）。叶 counts
+  ratio=4 为 ceil(T/4)+window 再夹 dsaIndexTopk；ratio=128 为 ceil(T/128)）。叶 counts
   与 T4 期望侧共用，禁止再抄一份。
 
 ## 复合节点（分解声明）
@@ -332,7 +332,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | 36 | dsa_indexer | 分解 | sparseIndexerCounts（`extractor.js:894-905`） | DSA 参数组（逐 token、逐头权重） |
 | 37 | dsa_kpool_indexer | 分解 | sparseIndexerCounts（`extractor.js:906-917`） | kpool 参数组（pool 粒度 topk + tail） |
 | 38 | dsv4_indexer | 分解 | sparseIndexerCounts（`extractor.js:918-929`） | 同 DSA 参数组（C4 压缩 latent 打分） |
-| 39 | qsa_sparse_attention | 计算+访存 | F2 变体（`extractor.js:522-588` 三 id 共用 case） | S = indexerBudget；计 kvWrite；top-k 索引读 T·selected |
+| 39 | qsa_sparse_attention | 计算+访存 | F2 变体（`extractor.js` qsa/dsa/dsv4 分族） | S = qsaIndexerBudget；计 kvWrite；top-k 索引读 T·selected |
 | 40 | dsa_sparse_mla | 计算+访存 | 同上 | latent 共享（读宽 max(k,v)）；无 kvWrite |
 | 41 | dsv4_sparse_mla | 计算+访存 | 同上 | MQA 行 + 原始滑窗混合读；无 kvWrite |
 | 42 | qwen_qkvz_split | 仅搬运（零） | F9 | A1 |

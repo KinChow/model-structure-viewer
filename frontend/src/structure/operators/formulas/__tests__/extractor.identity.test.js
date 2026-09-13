@@ -23,7 +23,7 @@ const T = 128;
 // 校准状态（2026-09-08 二次收敛）：score 项 2× 双计修复 + normsTerm 修层后，
 // 全部 21 个 MoE 行 |ratio-1| <= 1.7%，MiniMax-M2.7 / GLM-4.7 精确闭合。
 // dense 字段组合由 T4b 合成变体覆盖（GQA/tied/headDim 推导/MoE+shared，全部精确闭合）。
-// 残差归因：V4-Flash ≈-1.7%（dsa 期望侧近似 S=T，counts 侧按 indexerBudget）；
+// 残差归因：V4-Flash ≈-1.7%（dsa 期望侧近似 S=T，counts 侧按 dsaIndexTopk）；
 // GLM-5/Qwen3.8 ≈+0.5% 正向残差未完全归因（登记于 cost_counts.md）。
 // W5（2026-09-09）验收收口：容差从 0.02 收到 **0.005**，REGISTERED **清空**。
 // 归零路径（每一条都有实测证据，不是放宽容差）：
@@ -101,7 +101,7 @@ function extraMatmulWithoutWeights(normalized, T) {
         phase: "prefill",
         ratio,
         slidingWindow: normalized.slidingWindow,
-        indexerBudget: normalized.indexerBudget,
+        indexerBudget: normalized.dsaIndexTopk,
       });
       // C128 叶 matrix 是 T·visible 矩形（dsv4CompressedAttentionCounts），
       // SWA/C4 才走 scoredPairs 因果三角。
@@ -111,7 +111,7 @@ function extraMatmulWithoutWeights(normalized, T) {
       }
       pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: keys });
     } else if (kind === "qsa") {
-      const selected = Math.min(T, normalized.indexerBudget || T);
+      const selected = Math.min(T, normalized.qsaIndexerBudget || T);
       pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: selected });
     } else if (kind === "sparse") {
       const selectedBlocks = (normalized.sparseTopkBlocks || 0) + (normalized.sparseInitBlock || 0) + (normalized.sparseLocalBlock || 0);

@@ -172,7 +172,7 @@ node scripts/gen-operators-reference.mjs --json    # 探针原始数据打到 st
 | topk | [B-layer-moe](#b-layer-moe) | — | 44/59 |
 | moe_dispatch | 同上 | — | 44/59 |
 | moe_combine | 同上 | — | 44/59 |
-| moe_add | 同上（双分支合并） | — | 41/59 |
+| moe_add | 同上（双分支合并） | — | 43/59 |
 | shared_expert_gate | 同上（shared 分支门） | — | 16/59 |
 | dsv4_hash_route | [B-layer-moe](#b-layer-moe)（V4 hash 层替代 topk） | — | 5/59 |
 | mhc_pre / mhc_fused_post_pre | [B-layer-streams](#b-layer-streams) | — | 7/59 |
@@ -213,7 +213,7 @@ node scripts/gen-operators-reference.mjs --json    # 探针原始数据打到 st
 | <a id="b-layer-res"></a>B-layer-res | 残差槽位 | `attention_residual`（仅 K3，attn 前+MLP 前） | F3×2+F1+F2+add | **普通残差加（+x）无算子节点**：2TH·b×2/层未计（60 层 ≈6MB/token，量化暂缓，见 `moe_add` 节登记） |
 | <a id="b-layer-post"></a>B-layer-post | post-norm | `rmsnorm` / `gemma_rmsnorm` | — | — |
 | <a id="b-layer-mlp"></a>B-layer-mlp | MLP 子块 | `linear`(gate/up fused) → `swiglu` → `linear`(down) | gate/up 融合按语义分解（A7） | 残差加同上 |
-| <a id="b-layer-moe"></a>B-layer-moe | MoE 子块 | `topk` → `moe_dispatch` → `swiglu`(routed expert_mlp 压缩叶) → `moe_combine` → [`moe_add` + `shared_expert_gate`]（有 shared 分支的模型）；V4 前 3 层 `dsv4_hash_route` 替代 `topk` | routed GEMM 记 swiglu matrix 段 | Flash-Next×2 有 gate 无 shared_experts 分支（normalize 接线缺口，见 `moe_add`） |
+| <a id="b-layer-moe"></a>B-layer-moe | MoE 子块 | `topk` → `moe_dispatch` → `swiglu`(routed expert_mlp 压缩叶) → `moe_combine` → [`moe_add` + `shared_expert_gate`]（有 shared 分支的模型）；V4 前 3 层 `dsv4_hash_route` 替代 `topk` | routed GEMM 记 swiglu matrix 段 | — |
 | <a id="b-layer-streams"></a>B-layer-streams | 多流残差（层间槽位） | V4/GLM-Flash：`mhc_pre` → …层… → `mhc_fused_post_pre`（中间层）→ 末层 `mhc_post`+`mhc_contract`；Flash-Next：`hyper_connection`(每层 attn/mlp 两叶) + `ple`(指定层) | 融合叶 = post+pre 层间融合（A7） | snapshot bank 存储流量不计（`attention_residual`） |
 
 **双向自检**：表 A 每行槽位锚在表 B 存在、表 B 每行算子在表 A 回指——见 §7 自检清单
@@ -665,7 +665,7 @@ mla_kv_compress），核心 scores/context/softmax 仍走 dense 分解链三叶�
 #### 4.3.3 DSA / QSA 稀疏注意力（三分支共用 qsa_attention case）— [B-attn-dsa](#b-attn-dsa) / [B-attn-qsa](#b-attn-qsa)
 
 **模块级融合公式**：indexer（F2 打分 + F8 topk）+ 稀疏核心（F2 变体，
-S=`min(S, indexerBudget)`，按 kind 分派读宽与 kvWrite）。
+S=`min(S, qsaIndexerBudget|dsaIndexTopk)`，按 kind 分派读宽与 kvWrite）。
 
 ##### qsa_indexer — QSA Indexer
 
@@ -676,7 +676,7 @@ S=`min(S, indexerBudget)`，按 kind 分派读宽与 kvWrite）。
 - **matrix**：indexer 打分 `Nh_i·T·S·D_i` ×2（F2 双 bmm，S=上下文全长）。实现：
   ctxBuilder 组合 `F2(score) + F8(topk)`
   （`index.js:352-363`，FORMULAS.qsa_indexer；`extractor.js:715-718`，
-  ctxBuilders.qsa_indexer：indexerNHeads/indexerHeadDim 独立参数）。
+  ctxBuilders.qsa_indexer：qsaIndexerHeads/qsaIndexerHeadDim 独立参数）。
 - **vector / sfu**：F2 段 `3·Nh_i·T·S` + `2·Nh_i·T·S`；topk 段 vector=`T·S`
   （experts=S）、sfu=`T·budget`（normTopkProb 除法）。
 - **bytes.weights**：0（indexer 投影 W_q/W_k 由相邻 linear 叶计）。
@@ -692,8 +692,8 @@ S=`min(S, indexerBudget)`，按 kind 分派读宽与 kvWrite）。
   = F2 5,242,880 + topk 131,072，三项合计 ≈3.0MB ≈54.5%；V4-Flash actIn
   10,518,528 B、actOut 10,616,832 B 逐位吻合——verify-attention F3）。若后续做
   indexer 专用 F2 变体，应消去这三项并同步 minimax_sparse_indexer。
-- **单位与换算**：budget=indexerBudget（`index_topk`/`indexer_budget` 直读，
-  normalize.js:180）。
+- **单位与换算**：budget 分族直读（DSA `index_topk` → `dsaIndexTopk`，
+  QSA `indexer_budget` → `qsaIndexerBudget`）。
 - **基础分解**：`matmul`×2 + `softmax` + topk 原语（词汇表外，诚实计）。
 - **来源**：二等（vLLM.SparseAttnIndexer / DeepseekV4Indexer，
   ops/index.js:393-405 implementation 指针；V3.2/V4 modeling 未入库——离线取证）+
@@ -714,7 +714,7 @@ S=`min(S, indexerBudget)`，按 kind 分派读宽与 kvWrite）。
   attention_kind 共用本 case：`qsa`（Qwen3.8-Flash-Next×2 逐头 GQA/MHA）、
   `dsa_sparse_mla`（DeepSeek-V3.2 + GLM-5 系×8，MLA latent）、
   `dsv4_sparse_mla`（V4×5，MQA 压缩态）。
-- **matrix**：`Nh·T·S_sel·(D+dv)`，S_sel=`min(S, indexerBudget)`。实现：叶
+- **matrix**：`Nh·T·S_sel·(D+dv)`，S_sel=`min(S, qsaIndexerBudget|dsaIndexTopk)`。实现：叶
   `qsa_sparse_attention` / `dsa_sparse_mla` / `dsv4_sparse_mla` 走
   `sparseLeafAttentionCounts`（`counts.js`）。`type=attention` 容器不计费（§2.4）。
 - **vector / sfu**：精确零（融合核；softmax 段以 bytes 中间量体现）。
@@ -1143,15 +1143,12 @@ qsa_attention dsv4 分支 kvWrite=0——C2 修复后无三重计费）。
 
 #### moe_add — MoE Branch Add
 
-- **触发面**：41/59 模型（873 节点/2422 实例）：结构中物化了 shared expert /
-  双分支合并的 MoE——DeepSeek 系 8、Kimi 系 8、GLM 系 9、Qwen3.5/3.8 MoE 14、
-  M3 系 2。无此叶的 3 个模型：MiniMax-M2.7（`shared_intermediate_size=0`，
-  真无 shared 分支）；Qwen3.8-Flash-Next×2（modeling 有 shared 分支——
-  `modeling_qwen4_exp.py:984-996`，config 有 `shared_expert_intermediate_size=640`
-  但无 `n_shared_experts` 键 → `normalize.js:12`（SHARED_EXPERT_KEYS）取空 →
-  `moeModule`（`layers/moe.js:20-25,32`）不物化 shared_experts 与本叶、仅物化
-  shared_expert_gate；合并加法欠覆盖 + gate/分支不对称，均登记待修——
-  2026-09-09 双向验证发现，verify-moe-norm F2）。
+- **触发面**：43/59 模型（966 节点/2518 实例）：结构中物化了 shared expert /
+  双分支合并的 MoE——DeepSeek 系 8、Kimi 系 8、GLM 系 9、Qwen3.5/3.8 MoE 16、
+  M3 系 2。无此叶：MiniMax-M2.7（`shared_intermediate_size=0`，真无 shared 分支）。
+  Qwen3.8-Flash-Next×2 按 vLLM qwen3_moe / `modeling_qwen4_exp.py:984-996`：
+  `shared_expert_intermediate_size > 0` ⇒ `sharedExperts=1`，物化
+  `shared_experts` / `shared_expert_gate` / `moe_add`。
 - **matrix**：精确零。
 - **vector / sfu**：vector=`T·H`。实现：`addCounts`（`counts.js:184-191`；
   `extractor.js:672-673`，case "moe_add"）。
@@ -1161,7 +1158,7 @@ qsa_attention dsv4 分支 kvWrite=0——C2 修复后无三重计费）。
 - **来源**：一等 `aten::add`（`index.js:173-181`）。
 - **全局假设**：无特别引用。
 - **已知近似/登记**：cost_counts.md「结构级缺口」：decoder 层普通残差加法（+x）
-  无算子节点，2TH·b×2/层未计——量化暂缓决定（§4.2.4）；Flash-Next 欠覆盖（上）。
+  无算子节点，2TH·b×2/层未计——量化暂缓决定（§4.2.4）。
 - **运行时 actions 实证（a4d709a）**：Kimi-K3 单实例（H=7168）：vector=917,504=
   128·7168、actIn=3,673,216=2·128·7168·2、actOut=1,836,544（hidden 宽合并，
   `ops/index.js:867-870` dims.hidden，probe-c12-rewrite 实测）。
@@ -1178,12 +1175,11 @@ qsa_attention dsv4 分支 kvWrite=0——C2 修复后无三重计费）。
 - **bytes.actIn / actOut**：各 `T·W·b`。W 来自 2D 输出 `[−1,−1,3072]`，
   `staticWidth`=正维积=3072。
 - **基础分解**：`elementwise`。
-- **来源**：二等 modeling 对照（Qwen3.5/3.6 MoE shared expert sigmoid gate；
-  Qwen modeling 未入库——normalize.js sharedExpertGate 字段驱动）+
-  A5（`index.js:341-351` ref 注释）。
+- **来源**：二等 modeling 对照（Qwen3.5/3.6/4Exp MoE shared expert sigmoid
+  gate；`shared_expert_intermediate_size` 存在即发射，对标 vLLM qwen3_moe.py /
+  modeling_qwen4_exp.py）+ A5（`index.js` ref 注释）。
 - **全局假设**：A5。
-- **已知近似/登记**：Flash-Next×2「有 gate 无被门控分支」结构自洽性问题
-  （同 moe_add 登记）。
+- **已知近似/登记**：无。
 - **运行时 actions 实证**：T=128、W=6144 对照组逐位吻合（verify-linear §1.8/§3.2）。
 - **对齐状态**：- [ ] 用户已对齐（2026-09-__）
 
@@ -1665,12 +1661,12 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | matrix | vector | sfu | bytes | 来源 | 触发模型 | 节点 | 实例 | 出现槽位 |
 |---|---|---|---|---|---|---|---|---|---|
-| `linear` | ✓ | ✓ | 0 | ✓ | 一 | 59/59 | 10311 | 28643 | attn_residual · block_sparse_moe · indexer · linear_attn 等 15 |
+| `linear` | ✓ | ✓ | 0 | ✓ | 一 | 59/59 | 10473 | 28931 | attn_residual · block_sparse_moe · indexer · linear_attn 等 15 |
 | `residual_add` | 0 | ✓ | 0 | ✓ | 一 | 59/59 | 2682 | 6604 | language_model · layer · layers · mtp |
 | `rope` | 0 | ✓ | 0 | ✓ | 三 | 59/59 | 1171 | 2393 | self_attn |
+| `swiglu` | 0 | ✓ | ✓ | ✓ | 一 | 58/59 | 1343 | 3290 | merger · mlp · shared_experts · visual |
 | `embedding` | 0 | 0 | 0 | ✓ | — | 57/59 | 62 | 59 | markov_head · ple_embedding · root |
 | `rmsnorm` | 0 | ✓ | ✓ | ✓ | 三 | 57/59 | 2040 | 8637 | attn_residual · block_sparse_moe · enorm · hnorm 等 16 |
-| `swiglu` | 0 | ✓ | ✓ | ✓ | 一 | 56/59 | 1289 | 3194 | merger · mlp · shared_experts · visual |
 | `identity` | 0 | 0 | 0 | 0 | 一 | 50/59 | 982 | 2865 | language_model · layer · layers |
 | `matmul` | ✓ | 0 | 0 | ✓ | 一 | 48/59 | 940 | 4162 | sdpa |
 | `softmax` | 0 | ✓ | ✓ | ✓ | 一 | 48/59 | 470 | 2081 | sdpa |
@@ -1678,7 +1674,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_combine` | 0 | ✓ | 0 | ✓ | 三 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
 | `moe_dispatch` | 0 | 0 | 0 | ✓ | 一 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
 | `topk` | 0 | ✓ | ✓ | ✓ | 一 | 44/59 | 958 | 2565 | block_sparse_moe · mlp |
-| `moe_add` | 0 | ✓ | 0 | ✓ | 一 | 41/59 | 912 | 2422 | block_sparse_moe · mlp |
+| `moe_add` | 0 | ✓ | 0 | ✓ | 一 | 43/59 | 966 | 2518 | block_sparse_moe · mlp |
 | `attention_qkv_split` | 0 | 0 | 0 | 0 | 二 | 40/59 | 43 | 1147 | self_attn · vision_tower · visual |
 | `vision_position` | 0 | ✓ | 0 | ✓ | 三 | 38/59 | 38 | 38 | vision_tower · visual |
 | `split` | 0 | 0 | 0 | 0 | 一 | 36/59 | 647 | 726 | self_attn |
@@ -1721,8 +1717,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
-| `fused_moe_mlp` | 8.513e+13 | 41.63% | 5.751e+13 | 96.40% |
-| `linear` | 1.131e+14 | 55.30% | 1.667e+12 | 2.79% |
+| `fused_moe_mlp` | 8.513e+13 | 41.62% | 5.751e+13 | 96.40% |
+| `linear` | 1.131e+14 | 55.31% | 1.668e+12 | 2.80% |
 | `matmul` | 2.815e+12 | 1.38% | 8.339e+10 | 0.14% |
 | `mla_query_compress` | 1.665e+12 | 0.81% | 2.844e+10 | 0.05% |
 | `mla_kv_compress` | 8.238e+11 | 0.40% | 1.541e+10 | 0.03% |
@@ -1737,15 +1733,15 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mhc_fused_post_pre` | 2.177e+10 | 0.01% | 6.903e+9 | 0.01% |
 | `mhc_pre` | 2.177e+10 | 0.01% | 5.996e+9 | 0.01% |
 
-合计：matrix 2.0447e+14 MACs · bytes 5.9660e+13（前 15 名之外的算子占比均 < 前列末位）
+合计：matrix 2.0453e+14 MACs · bytes 5.9662e+13（前 15 名之外的算子占比均 < 前列末位）
 
 ## 算力/访存占比（decode，T=1 S=4096，59 模型实例加权求和）
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
-| `linear` | 1.651e+13 | 73.02% | 1.589e+12 | 48.20% |
+| `linear` | 1.651e+13 | 73.03% | 1.590e+12 | 48.22% |
 | `matmul` | 5.347e+12 | 23.65% | 1.526e+11 | 4.63% |
-| `fused_moe_mlp` | 6.651e+11 | 2.94% | 1.330e+12 | 40.37% |
+| `fused_moe_mlp` | 6.651e+11 | 2.94% | 1.330e+12 | 40.36% |
 | `softmax` | 0.000e+0 | 0.00% | 1.341e+11 | 4.07% |
 | `mla_query_compress` | 1.301e+10 | 0.06% | 2.603e+10 | 0.79% |
 | `dsa_sparse_mla` | 3.146e+10 | 0.14% | 1.969e+9 | 0.06% |
@@ -1759,7 +1755,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `minimax_sparse_attention` | 4.064e+9 | 0.02% | 6.390e+8 | 0.02% |
 | `hyper_connection` | 1.279e+9 | 0.01% | 2.603e+9 | 0.08% |
 
-合计：matrix 2.2604e+13 MACs · bytes 3.2957e+12（前 15 名之外的算子占比均 < 前列末位）
+合计：matrix 2.2604e+13 MACs · bytes 3.2966e+12（前 15 名之外的算子占比均 < 前列末位）
 
 ## 注册表 ↔ 触发面对账（生成物）
 
@@ -1773,12 +1769,12 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 槽位（节点数） |
 |---|---|
-| `linear` | `layers.self_attn`(2602) · `layers.mlp.shared_experts`(2475) · `layers.mlp`(1935) · `layers.linear_attn`(1532) · `layers.self_attn.indexer`(606) · `visual`(162) · `layers.block_sparse_moe`(139) · `layers.block_sparse_moe.shared_experts`(138) · `mtp.layer.self_attn`(111) · `layers.attn_residual`(94) · `mtp.layer.mlp.shared_experts`(90) · `mtp.layer.mlp`(77) · `visual.merger`(66) · `mtp`(63) · `lm_head`(59) · `mtp.self_attn`(36) · `vision_tower`(30) · `mtp.mlp.shared_experts`(27) · `mtp.layer.self_attn.indexer`(22) · `projector`(11) · `mtp.mlp`(9) · `language_model.mlp`(8) · `language_model.self_attn`(8) · `language_model.mlp.shared_experts`(6) · `mtp.markov_head`(3) · `mtp.layer.block_sparse_moe`(1) · `output_attn_residual`(1) |
+| `linear` | `layers.mlp.shared_experts`(2631) · `layers.self_attn`(2602) · `layers.mlp`(1935) · `layers.linear_attn`(1532) · `layers.self_attn.indexer`(606) · `visual`(162) · `layers.block_sparse_moe`(139) · `layers.block_sparse_moe.shared_experts`(138) · `mtp.layer.self_attn`(111) · `mtp.layer.mlp.shared_experts`(96) · `layers.attn_residual`(94) · `mtp.layer.mlp`(77) · `visual.merger`(66) · `mtp`(63) · `lm_head`(59) · `mtp.self_attn`(36) · `vision_tower`(30) · `mtp.mlp.shared_experts`(27) · `mtp.layer.self_attn.indexer`(22) · `projector`(11) · `mtp.mlp`(9) · `language_model.mlp`(8) · `language_model.self_attn`(8) · `language_model.mlp.shared_experts`(6) · `mtp.markov_head`(3) · `mtp.layer.block_sparse_moe`(1) · `output_attn_residual`(1) |
 | `residual_add` | `layers`(2560) · `mtp.layer`(96) · `mtp`(18) · `language_model`(8) |
 | `rope` | `layers.self_attn`(1095) · `mtp.layer.self_attn`(52) · `mtp.self_attn`(18) · `language_model.self_attn`(6) |
+| `swiglu` | `layers.mlp.shared_experts`(877) · `layers.mlp`(356) · `layers.block_sparse_moe.shared_experts`(46) · `mtp.layer.mlp.shared_experts`(32) · `mtp.layer.mlp`(15) · `mtp.mlp.shared_experts`(9) · `language_model.mlp`(2) · `language_model.mlp.shared_experts`(2) · `visual`(2) · `visual.merger`(2) |
 | `embedding` | `root`(57) · `mtp.markov_head`(3) · `layers.ple.ple_embedding`(2) |
 | `rmsnorm` | `layers.self_attn`(988) · `layers.input_layernorm`(226) · `layers.post_attention_layernorm`(226) · `layers.self_attn.indexer`(180) · `layers.attn_residual`(94) · `visual`(64) · `layers.block_sparse_moe`(46) · `mtp.layer.self_attn`(34) · `visual.merger`(33) · `norm`(28) · `mtp.self_attn`(18) · `mtp.enorm`(15) · `mtp.hnorm`(15) · `mtp.shared_head.norm`(15) · `vision_tower`(12) · `mtp.layer.input_layernorm`(11) · `mtp.layer.post_attention_layernorm`(11) · `mtp.layer.self_attn.indexer`(11) · `projector`(4) · `mtp.main_norm`(3) · `mtp.norm`(3) · `mtp.pre_fc_norm_embedding`(2) · `output_attn_residual`(1) |
-| `swiglu` | `layers.mlp.shared_experts`(825) · `layers.mlp`(356) · `layers.block_sparse_moe.shared_experts`(46) · `mtp.layer.mlp.shared_experts`(30) · `mtp.layer.mlp`(15) · `mtp.mlp.shared_experts`(9) · `language_model.mlp`(2) · `language_model.mlp.shared_experts`(2) · `visual`(2) · `visual.merger`(2) |
 | `identity` | `layers`(936) · `mtp.layer`(42) · `language_model`(4) |
 | `matmul` | `layers.self_attn.sdpa`(798) · `visual.sdpa`(64) · `mtp.layer.self_attn.sdpa`(62) · `vision_tower.sdpa`(12) · `language_model.self_attn.sdpa`(4) |
 | `softmax` | `layers.self_attn.sdpa`(399) · `visual.sdpa`(32) · `mtp.layer.self_attn.sdpa`(31) · `vision_tower.sdpa`(6) · `language_model.self_attn.sdpa`(2) |
@@ -1786,7 +1782,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_combine` | `layers.mlp`(877) · `layers.block_sparse_moe`(47) · `mtp.layer.mlp`(32) · `mtp.mlp`(9) · `language_model.mlp`(2) · `mtp.layer.block_sparse_moe`(1) |
 | `moe_dispatch` | `layers.mlp`(877) · `layers.block_sparse_moe`(47) · `mtp.layer.mlp`(32) · `mtp.mlp`(9) · `language_model.mlp`(2) · `mtp.layer.block_sparse_moe`(1) |
 | `topk` | `layers.mlp`(867) · `layers.block_sparse_moe`(47) · `mtp.layer.mlp`(32) · `mtp.mlp`(9) · `language_model.mlp`(2) · `mtp.layer.block_sparse_moe`(1) |
-| `moe_add` | `layers.mlp`(825) · `layers.block_sparse_moe`(46) · `mtp.layer.mlp`(30) · `mtp.mlp`(9) · `language_model.mlp`(2) |
+| `moe_add` | `layers.mlp`(877) · `layers.block_sparse_moe`(46) · `mtp.layer.mlp`(32) · `mtp.mlp`(9) · `language_model.mlp`(2) |
 | `attention_qkv_split` | `visual`(32) · `vision_tower`(6) · `layers.self_attn`(3) · `mtp.layer.self_attn`(2) |
 | `vision_position` | `visual`(32) · `vision_tower`(6) |
 | `split` | `layers.self_attn`(601) · `mtp.layer.self_attn`(33) · `mtp.self_attn`(9) · `language_model.self_attn`(4) |
@@ -2265,8 +2261,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mhc_pre` | decode | 24/45 | 1.769e+7 | 1.135e+6 | 3.975e+5 | 7.115e+7 | 3.169e+6 | 1.219e+6 | 0.23 | memory | — | — | — |
 | `causal_conv1d` | prefill | 12/34 | 6.845e+9 | 0 | 0 | 6.685e+6 | 3.423e+9 | 3.423e+9 | 1.00 | memory | — | — | — |
 | `causal_conv1d` | decode | 12/34 | 3.342e+6 | 0 | 0 | 6.685e+6 | 6.685e+6 | 6.685e+6 | 0.17 | memory | — | — | — |
-| `dsa_kpool_indexer` | prefill | 12/11 | 5.917e+9 | 1.871e+8 | 0 | 0 | 7.912e+8 | 3.754e+8 | 5.07 | memory | — | — | — |
-| `dsa_kpool_indexer` | decode | 12/11 | 4.614e+7 | 5.767e+6 | 0 | 0 | 1.599e+7 | 2.233e+6 | 2.53 | memory | — | — | — |
+| `dsa_kpool_indexer` | prefill | 12/11 | 5.917e+9 | 1.871e+8 | 0 | 0 | 7.912e+8 | 3.754e+8 | 5.07 | memory | 计算✓ 字节✓ | 6.750e+7 | 0 |
+| `dsa_kpool_indexer` | decode | 12/11 | 4.614e+7 | 5.767e+6 | 0 | 0 | 1.599e+7 | 2.233e+6 | 2.53 | memory | 计算✓ 字节✓ | 1.049e+6 | 0 |
 | `moe_combine` | prefill | 23/42 | 0 | 5.637e+9 | 0 | 0 | 5.639e+9 | 7.046e+8 | 0.00 | memory | — | — | — |
 | `moe_combine` | decode | 23/42 | 0 | 2.753e+6 | 0 | 0 | 2.753e+6 | 3.441e+5 | 0.00 | memory | — | — | — |
 | `residual_add` | prefill | 48/90 | 0 | 7.550e+8 | 0 | 0 | 3.020e+9 | 1.510e+9 | 0.00 | memory | — | — | — |
@@ -2400,8 +2396,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `linear` | prefill | 119/328 | 6.795e+12 | 0 | 0 | 7.277e+9 | 3.234e+9 | 4.726e+9 | 445.97 | matrix | 计算✓ 字节✓ | 0 | 0 |
-| `linear` | decode | 119/328 | 2.600e+11 | 0 | 0 | 7.277e+9 | 2.552e+8 | 3.248e+8 | 33.09 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `linear` | prefill | 200/472 | 7.278e+12 | 0 | 0 | 7.749e+9 | 4.366e+9 | 5.481e+9 | 413.64 | matrix | 计算✓ 字节✓ | 0 | 0 |
+| `linear` | decode | 200/472 | 2.602e+11 | 0 | 0 | 7.749e+9 | 2.558e+8 | 3.251e+8 | 31.24 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `fused_moe_mlp` | prefill | 27/48 | 4.832e+12 | 1.258e+9 | 1.258e+9 | 2.416e+11 | 2.517e+9 | 1.258e+9 | 19.69 | memory | — | — | — |
 | `fused_moe_mlp` | decode | 27/48 | 2.359e+9 | 6.144e+5 | 6.144e+5 | 4.719e+9 | 1.229e+6 | 6.144e+5 | 0.50 | memory | — | — | — |
 | `hyper_connection` | prefill | 56/97 | 1.310e+12 | 1.430e+10 | 4.196e+9 | 1.281e+9 | 2.462e+10 | 1.653e+10 | 30.87 | memory | — | — | — |
@@ -2422,6 +2418,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `residual_add` | decode | 54/96 | 0 | 2.458e+5 | 0 | 0 | 9.830e+5 | 4.915e+5 | 0.00 | memory | — | — | — |
 | `gated_rmsnorm` | prefill | 14/36 | 0 | 2.265e+9 | 9.060e+8 | 9.216e+3 | 1.812e+9 | 9.060e+8 | 0.00 | memory | 计算✓ 字节✓ | 4.196e+7 | 0 |
 | `gated_rmsnorm` | decode | 14/36 | 0 | 1.106e+6 | 4.424e+5 | 9.216e+3 | 8.847e+5 | 4.424e+5 | 0.00 | memory | 计算✓ 字节✓ | 2.049e+4 | 0 |
+| `moe_add` | prefill | 27/48 | 0 | 2.517e+8 | 0 | 0 | 1.007e+9 | 5.033e+8 | 0.00 | memory | — | — | — |
+| `moe_add` | decode | 27/48 | 0 | 1.229e+5 | 0 | 0 | 4.915e+5 | 2.458e+5 | 0.00 | memory | — | — | — |
 | `qsa_indexer` | prefill | 13/12 | 8.069e+8 | 2.755e+7 | 0 | 0 | 1.070e+8 | 1.196e+8 | 3.56 | memory | 计算✓ 字节✓ | 8.667e+6 | 0 |
 | `qsa_indexer` | decode | 13/12 | 6.291e+6 | 4.866e+6 | 0 | 0 | 1.284e+7 | 1.751e+5 | 0.48 | memory | 计算✓ 字节✓ | 5.898e+5 | 0 |
 | `moe_dispatch` | prefill | 27/48 | 0 | 0 | 0 | 0 | 5.033e+8 | 5.033e+9 | 0.00 | memory | — | — | — |
@@ -2432,6 +2430,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `rmsnorm` | decode | 31/80 | 0 | 1.542e+8 | 3.171e+4 | 1.510e+5 | 7.714e+7 | 7.714e+7 | 0.00 | memory | 计算✓ 字节✓ | 2.049e+4 | 0 |
 | `vision_activation` | prefill | 2/28 | 0 | 1.392e+8 | 1.392e+8 | 0 | 2.784e+8 | 1.392e+8 | 0.00 | memory | — | — | — |
 | `vision_activation` | decode | 2/28 | 0 | 1.392e+8 | 1.392e+8 | 0 | 2.784e+8 | 1.392e+8 | 0.00 | memory | — | — | — |
+| `swiglu` | prefill | 27/48 | 0 | 1.258e+8 | 1.258e+8 | 0 | 2.517e+8 | 1.258e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `swiglu` | decode | 27/48 | 0 | 6.144e+4 | 6.144e+4 | 0 | 1.229e+5 | 6.144e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | prefill | 13/12 | 0 | 1.227e+8 | 0 | 0 | 1.636e+8 | 8.179e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 13/12 | 0 | 5.990e+4 | 0 | 0 | 7.987e+4 | 3.994e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `softmax` | prefill | 1/27 | 0 | 2.154e+8 | 1.436e+8 | 0 | 1.436e+8 | 1.436e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |

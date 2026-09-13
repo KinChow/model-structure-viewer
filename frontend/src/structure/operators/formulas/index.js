@@ -427,9 +427,9 @@ export const FORMULAS = {
   },
   shared_expert_gate: {
     title: "Shared Expert Gate",
-    // ref: 二等 modeling 对照（Qwen3.5/3.6 MoE shared expert sigmoid gate；目录 16
-    //      模型发射此叶；Qwen modeling 未入库——normalize.js sharedExpertGate
-    //      字段驱动）；A5 sigmoid = 2 SFU。
+    // ref: 二等 modeling 对照（Qwen3.5/3.6/4Exp MoE shared expert sigmoid gate；
+    //      shared_expert_intermediate_size 存在即发射；vLLM qwen3_moe.py /
+    //      modeling_qwen4_exp.py）；A5 sigmoid = 2 SFU。
     formula: "y = y_routed + sigmoid(W_g x) * y_shared",
     explanation: "用输入相关 gate 调制 shared expert 输出后与 routed MoE 合并。",
     inputs: ["x", "y_routed", "y_shared", "W_g"],

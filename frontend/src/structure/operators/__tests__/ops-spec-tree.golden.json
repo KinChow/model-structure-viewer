@@ -31,8 +31,8 @@
  "Qwen/Qwen3.8-2.4T-A95B-FP8": "b05614f084e4fca0",
  "Qwen/Qwen3.8-27B": "86d56e28279fe43f",
  "Qwen/Qwen3.8-27B-FP8": "86d56e28279fe43f",
- "Qwen/Qwen3.8-Flash-Next": "4dbfd7bfc2e19244",
- "Qwen/Qwen3.8-Flash-Next-FP8": "4dbfd7bfc2e19244",
+ "Qwen/Qwen3.8-Flash-Next": "491ac3ee3323c79e",
+ "Qwen/Qwen3.8-Flash-Next-FP8": "491ac3ee3323c79e",
  "deepseek-ai/DeepSeek-R1": "b8a9ac4e0521537c",
  "deepseek-ai/DeepSeek-V3.1": "b8a9ac4e0521537c",
  "deepseek-ai/DeepSeek-V3.2": "e9c0b345104ec7f0",
@@ -56,6 +56,6 @@
  "zai-org/GLM-5.2-FP8": "3c299f28a7197880",
  "zai-org/GLM-5.3": "3c299f28a7197880",
  "zai-org/GLM-5.3-BF16": "3c299f28a7197880",
- "zai-org/GLM-5.3-Flash": "9ce7133d19e023c5",
- "zai-org/GLM-5.3-Flash-BF16": "9ce7133d19e023c5"
+ "zai-org/GLM-5.3-Flash": "64ce515b64fcab14",
+ "zai-org/GLM-5.3-Flash-BF16": "64ce515b64fcab14"
 }

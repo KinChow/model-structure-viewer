@@ -497,7 +497,7 @@ test("maps DeepSeek V4 compression variants and hash MoE without duplicating fra
   assert.deepEqual((attentionScheduleOf(normalized) || []).every((kind) => kind === "dsv4"), true);
   assert.deepEqual(normalized.compressRatios.slice(0, 4), [0, 0, 4, 128]);
   assert.equal(normalized.numHashLayers, 3);
-  assert.equal(normalized.indexerHeadDim, 128);
+  assert.equal(normalized.dsaIndexHeadDim, 128);
   assert.equal(normalized.multiHyperConnection, true);
   assert.equal(normalized.mhcNumResidualStreams, 4);
 
@@ -585,6 +585,10 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   assert.equal(normalized.hyperConnectionCount, 4);
   assert.equal(normalized.hyperConnectionLowrank, 320);
   assert.deepEqual(normalized.pleLayerIds, [2]);
+  // Qwen4Exp checkpoint 只给 shared_expert_intermediate_size，不给 n_shared_experts。
+  // vLLM / modeling_qwen4_exp：intermediate_size > 0 ⇒ 1 个 shared expert + gate。
+  assert.equal(normalized.sharedExperts, 1);
+  assert.equal(normalized.sharedExpertGate, true);
 
   const resolved = resolveArchitecture(normalized, { modelId: "Qwen/Qwen3.8-Flash-Next" });
   const structure = materializeModelStructure(createStructureIr({
@@ -610,6 +614,10 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   assert.equal(linear.children.find((node) => node.name === "qkvz split").attributes.operator_id, "qwen_qkvz_split");
   assert.equal(linear.children.find((node) => node.name === "output projection").attributes.communication_role, "tp_attention_output");
   assert.equal(linear.children.find((node) => node.name === "KDA recurrent state").attributes.decay_activation, "softplus");
+  const firstMoe = firstLayer.children.find((node) => node.type === "moe");
+  assert.ok(firstMoe.children.some((node) => node.id.endsWith(".shared_experts")));
+  assert.ok(firstMoe.children.some((node) => node.name === "Shared Expert Gate"));
+  assert.ok(firstMoe.children.some((node) => node.name === "shared expert branch add"));
   const pleLayer = decoder.children.find((node) => node.attributes.range === "1..1");
   assert.equal(pleLayer.children[0].name, "PLE");
   const qsaLayer = decoder.children.find((node) => node.attributes.range === "3..3");

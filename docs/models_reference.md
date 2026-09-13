@@ -69,8 +69,8 @@
 | `Qwen/Qwen3.8-2.4T-A95B-FP8` | `qwen3_5_moe_text` | `Qwen3_5MoeForCausalLM` | 2,446,181,963,648（2.45T） | 有 | 2026-08-08 |
 | `Qwen/Qwen3.8-27B` | `qwen3_5` | `Qwen3_5ForConditionalGeneration` | 27,778,431,232（27.8B） | 有 | 2026-08-12 |
 | `Qwen/Qwen3.8-27B-FP8` | `qwen3_5` | `Qwen3_5ForConditionalGeneration` | 27,778,431,232（27.8B） | 有 | 2026-08-13 |
-| `Qwen/Qwen3.8-Flash-Next` | `qwen4_exp` | `Qwen4ExpForConditionalGeneration` | 179,510,522,496（179.5B） | manifest | 2026-08-24 |
-| `Qwen/Qwen3.8-Flash-Next-FP8` | `qwen4_exp` | `Qwen4ExpForConditionalGeneration` | 179,510,522,496（179.5B） | 有 | 2026-08-24 |
+| `Qwen/Qwen3.8-Flash-Next` | `qwen4_exp` | `Qwen4ExpForConditionalGeneration` | 179,751,367,296（179.8B） | manifest | 2026-08-24 |
+| `Qwen/Qwen3.8-Flash-Next-FP8` | `qwen4_exp` | `Qwen4ExpForConditionalGeneration` | 179,751,367,296（179.8B） | 有 | 2026-08-24 |
 | `deepseek-ai/DeepSeek-R1` | `deepseek_v3` | `DeepseekV3ForCausalLM` | 682,636,481,024（682.6B） | 有 | 2025-01-20 |
 | `deepseek-ai/DeepSeek-V3.1` | `deepseek_v3` | `DeepseekV3ForCausalLM` | 682,636,481,024（682.6B） | 有 | 2025-08-21 |
 | `deepseek-ai/DeepSeek-V3.2` | `deepseek_v32` | `DeepseekV32ForCausalLM` | 683,501,948,672（683.5B） | 有 | 2025-12-01 |

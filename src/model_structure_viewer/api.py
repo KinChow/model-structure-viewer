@@ -13,7 +13,7 @@ from .errors import ConfigError, ViewerError
 from .exporters import export_structure
 from .resolve.local_cache import LocalModelCache
 from .resolve.endpoints import endpoint_revision, endpoint_url
-from .resolver import ModelSourceResolver
+from .resolve import ModelSourceResolver
 from .schemas import EndpointKind, ExportRequest, SettingsPayload, StructureRequest, VerifyRequest
 from .service import build_structure_response, verify_structure_response
 from .settings import AppSettings

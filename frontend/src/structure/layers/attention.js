@@ -65,7 +65,7 @@ const ATTENTION_COMPONENTS = [
       if ((normalized.kvLoraRank || 0) > 0) {
         return [["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"], ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"], ["kv_b_proj", "rope"], ["q_a_norm", "q_proj"], ["q_proj", "indexer"], ["wk_weights_proj", "k_norm"], ["k_norm", "indexer"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
       }
-      if (recipeLinearAttentionMode(normalized) === "qwen4_exp" || (normalized.qsaIndexerHeads || normalized.indexerNHeads)) {
+      if (recipeLinearAttentionMode(normalized) === "qwen4_exp" || normalized.qsaIndexerHeads) {
         return [["qkv_proj", "q_norm"], ["qkv_proj", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "out_proj"]];
       }
       return undefined;

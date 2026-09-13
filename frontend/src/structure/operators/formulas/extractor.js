@@ -207,7 +207,7 @@ const FROM_NODE = {
           const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
           const budget = (operatorId === "qsa_sparse_attention"
             ? config?.qsaIndexerBudget
-            : config?.dsaIndexTopk) ?? config?.indexerBudget ?? keyTokens;
+            : config?.dsaIndexTopk) ?? keyTokens;
           const selected = Math.min(keyTokens, budget || keyTokens);
           const latentRead = kind !== "qsa" && (config?.kvLoraRank || 0) > 0;
           const kvHeads = latentRead ? 1 : config?.kvHeads || heads;
@@ -264,7 +264,7 @@ const FROM_NODE = {
             phase,
             ratio: config?.compressRatios?.[layerIndex] ?? 0,
             slidingWindow,
-            indexerBudget: config?.indexerBudget,
+            indexerBudget: config?.dsaIndexTopk,
             heads: config?.attentionHeads || 0,
             headDim,
             valueDim: config?.valueHeadDim || headDim,
@@ -416,11 +416,11 @@ const FROM_NODE = {
         };
   },
   qsa_indexer: ({ config, options, bytesPerElement, tokens, phase }) => ({
-          heads: config?.qsaIndexerHeads ?? config?.indexerNHeads ?? 0,
-          dim: config?.qsaIndexerHeadDim ?? config?.indexerHeadDim ?? 0,
+          heads: config?.qsaIndexerHeads ?? 0,
+          dim: config?.qsaIndexerHeadDim ?? 0,
           queryTokens: tokens,
           keyTokens: options.sequence ?? 1,
-          budget: config?.qsaIndexerBudget ?? config?.indexerBudget ?? 0,
+          budget: config?.qsaIndexerBudget ?? 0,
           pool: config?.qsaIndexerCompressRatio ?? 1,
           poolStage: (config?.qsaIndexerCompressRatio ?? 1) > 1 ? "key" : "none",
           perHeadWeights: false,
@@ -428,11 +428,11 @@ const FROM_NODE = {
           b: bytesPerElement,
         }),
   dsa_indexer: ({ config, options, bytesPerElement, tokens, phase }) => ({
-          heads: config?.dsaIndexHeads ?? config?.indexerNHeads ?? 0,
-          dim: config?.dsaIndexHeadDim ?? config?.indexerHeadDim ?? 0,
+          heads: config?.dsaIndexHeads ?? 0,
+          dim: config?.dsaIndexHeadDim ?? 0,
           queryTokens: tokens,
           keyTokens: options.sequence ?? 1,
-          budget: config?.dsaIndexTopk ?? config?.indexerBudget ?? 0,
+          budget: config?.dsaIndexTopk ?? 0,
           pool: 1,
           poolStage: "none",
           perHeadWeights: true,
@@ -440,11 +440,11 @@ const FROM_NODE = {
           b: bytesPerElement,
         }),
   dsa_kpool_indexer: ({ config, options, bytesPerElement, tokens, phase }) => ({
-          heads: config?.dsaIndexHeads ?? config?.indexerNHeads ?? 0,
-          dim: config?.dsaIndexHeadDim ?? config?.indexerHeadDim ?? 0,
+          heads: config?.dsaIndexHeads ?? 0,
+          dim: config?.dsaIndexHeadDim ?? 0,
           queryTokens: tokens,
           keyTokens: options.sequence ?? 1,
-          budget: config?.dsaIndexTopk ?? config?.indexerBudget ?? 0,
+          budget: config?.dsaIndexTopk ?? 0,
           pool: config?.dsaIndexKpool ?? 1,
           poolStage: "key",
           perHeadWeights: true,
@@ -452,11 +452,11 @@ const FROM_NODE = {
           b: bytesPerElement,
         }),
   dsv4_indexer: ({ config, options, bytesPerElement, tokens, phase }) => ({
-          heads: config?.dsaIndexHeads ?? config?.indexerNHeads ?? 0,
-          dim: config?.dsaIndexHeadDim ?? config?.indexerHeadDim ?? 0,
+          heads: config?.dsaIndexHeads ?? 0,
+          dim: config?.dsaIndexHeadDim ?? 0,
           queryTokens: tokens,
           keyTokens: options.sequence ?? 1,
-          budget: config?.dsaIndexTopk ?? config?.indexerBudget ?? 0,
+          budget: config?.dsaIndexTopk ?? 0,
           pool: 1,
           poolStage: "none",
           perHeadWeights: true,

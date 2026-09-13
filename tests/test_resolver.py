@@ -6,7 +6,7 @@ import pytest
 from model_structure_viewer.errors import RemoteError
 from model_structure_viewer.resolve.hf_client import HuggingFaceClient
 from model_structure_viewer.resolve.remote_code import RemoteCodeFetcher
-from model_structure_viewer.resolver import ModelSourceResolver, SourceResolutionError
+from model_structure_viewer.resolve import ModelSourceResolver, SourceResolutionError
 from model_structure_viewer.settings import AppSettings
 
 FIXTURE = Path(__file__).parent / "fixtures" / "minimax_m3" / "config.json"

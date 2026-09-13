@@ -5,7 +5,7 @@ import { paramBytes } from "../structure/operators/formulas/paramDtypes.js";
 import { walkStructure } from "./traverse.js";
 
 const BYTES_PER_DTYPE = {
-  BF16: 2, F16: 2, FP16: 2, F32: 4, FP32: 4, F8_E4M3: 1, F8_E5M2: 1, I8: 1,
+  BF16: 2, F16: 2, FP16: 2, F32: 4, FP32: 4, F8_E4M3: 1, F8_E5M2: 1, F8_E8M0: 1, I8: 1,
   U8: 1, I16: 2, I32: 4, I64: 8,
 };
 

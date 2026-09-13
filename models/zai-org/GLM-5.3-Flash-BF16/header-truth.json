@@ -1,0 +1,12 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/zai-org/GLM-5.3-Flash-BF16/",
+  "endpoint": "hf-mirror",
+  "method": "manual",
+  "tensor_count": 38770,
+  "parameterTotal": 321323031390,
+  "parameterCount": {
+    "BF16": 321322735872,
+    "F32": 295518
+  }
+}

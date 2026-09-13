@@ -1,0 +1,12 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 1658,
+  "parameterTotal": 179999981459,
+  "parameterCount": {
+    "BF16": 179999981424,
+    "I64": 35
+  }
+}

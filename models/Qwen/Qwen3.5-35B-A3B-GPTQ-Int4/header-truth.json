@@ -1,0 +1,14 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B-GPTQ-Int4/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 124611,
+  "parameterTotal": 8096401264,
+  "parameterCount": {
+    "BF16": 3739563184,
+    "F32": 4800,
+    "I32": 4105175040,
+    "F16": 251658240
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/MiniMaxAI/MiniMax-M2.7/",
+  "endpoint": "hf-mirror",
+  "method": "manual",
+  "tensor_count": 96103,
+  "parameterTotal": 228703644928,
+  "parameterCount": {
+    "BF16": 1230021632,
+    "F32": 62654720,
+    "F8_E4M3": 227410968576
+  }
+}

@@ -19,16 +19,22 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const SKIP = new Set(["moonshotai/Kimi-K3"]);
 const overwrite = process.argv.includes("--overwrite");
 const only = process.argv.find((arg) => arg.startsWith("--model="))?.slice("--model=".length);
+const concurrency = Math.max(1, Number(process.env.HEADER_TRUTH_CONCURRENCY || 3));
+const endpointTimeoutMs = Math.max(5000, Number(process.env.HEADER_TRUTH_TIMEOUT_MS || 25000));
 
 const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models", "catalog.json"), "utf8"));
 const entries = (catalog.models || []).filter((entry) => !only || entry.model_id === only);
 
-// 与 loadModelArtifacts.withRemoteTruth 同序：HF 直连失败再镜像 / ModelScope。
+// 本机 HF 直连不通（实测 fetch failed），优先 ModelScope / hf-mirror。
 const ENDPOINTS = [
-  { name: "huggingface", hubUrl: "https://huggingface.co", revision: "main", resolvePrefix: "" },
-  { name: "hf-mirror", hubUrl: "https://hf-mirror.com", revision: "main", resolvePrefix: "" },
   { name: "modelscope", hubUrl: "https://www.modelscope.cn", revision: "master", resolvePrefix: "/models" },
+  { name: "hf-mirror", hubUrl: "https://hf-mirror.com", revision: "main", resolvePrefix: "" },
+  { name: "huggingface", hubUrl: "https://huggingface.co", revision: "main", resolvePrefix: "" },
 ];
+
+function fetchWithTimeout(url, opts = {}) {
+  return fetch(url, { ...opts, signal: AbortSignal.timeout(endpointTimeoutMs) });
+}
 
 async function fetchHeader(modelId) {
   let lastError = null;
@@ -39,6 +45,7 @@ async function fetchHeader(modelId) {
         revision: endpoint.revision,
         hubUrl: endpoint.hubUrl,
         resolvePrefix: endpoint.resolvePrefix,
+        fetchImpl: fetchWithTimeout,
       });
       if (Number.isFinite(truth?.parameterTotal) && truth.parameterTotal > 0) {
         return { ...truth, endpoint: endpoint.name };
@@ -70,16 +77,18 @@ async function exists(filePath) {
 
 const report = { wrote: [], skipped: [], failed: [] };
 
-for (const entry of entries) {
+async function processEntry(entry) {
   const modelId = entry.model_id;
   if (SKIP.has(modelId)) {
     report.skipped.push({ model_id: modelId, reason: "kimi-k3-no-dump" });
-    continue;
+    console.log(`· ${modelId} skipped (kimi-k3-no-dump)`);
+    return;
   }
   const dest = sidecarPath(entry);
   if (!overwrite && await exists(dest)) {
     report.skipped.push({ model_id: modelId, reason: "exists" });
-    continue;
+    console.log(`· ${modelId} skipped (exists)`);
+    return;
   }
   try {
     const truth = await fetchHeader(modelId);
@@ -106,6 +115,20 @@ for (const entry of entries) {
     console.log(`✗ ${modelId}: ${error.message}`);
   }
 }
+
+async function runPool(items, limit, worker) {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      await worker(items[index]);
+    }
+  });
+  await Promise.all(workers);
+}
+
+await runPool(entries, concurrency, processEntry);
 
 console.log(JSON.stringify({
   wrote: report.wrote.length,

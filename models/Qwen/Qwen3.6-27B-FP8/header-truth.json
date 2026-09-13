@@ -1,0 +1,12 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/Qwen/Qwen3.6-27B-FP8/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 1606,
+  "parameterTotal": 27782935472,
+  "parameterCount": {
+    "BF16": 3083727792,
+    "F8_E4M3": 24699207680
+  }
+}

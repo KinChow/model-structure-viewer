@@ -159,9 +159,9 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 
 剩余：
 
-**S3 header `parameterTotal` 入库** ✅ 轻量 sidecar `header-truth.json`
-（`@huggingface/hub` `parseSafetensorsMetadata`，不下载权重、不落逐张量表）。
-有 sidecar 时身份测试把图声明元素对 header 总量；Kimi-K3 跳过。
+**S3 header `parameterTotal` 入库** ✅ catalog 58/59 有 `header-truth.json`
+（Kimi-K3 跳过）。未量化行图声明元素对 header Σnumel（容差 2%；Flash-Next 登记 29% 建模残差）。
+量化 checkpoint 的 header numel 是打包存储，不拿来打逻辑恒等式。
 整模型 FlopCounterMode 仍需要真实 `forward` + 权重，catalog 做不到。
 
 **明确后置 / 不做**

@@ -1,0 +1,13 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/moonshotai/Kimi-K2-Thinking/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 208276,
+  "parameterTotal": 170267046016,
+  "parameterCount": {
+    "BF16": 43431131776,
+    "I32": 126835891200,
+    "F32": 23040
+  }
+}

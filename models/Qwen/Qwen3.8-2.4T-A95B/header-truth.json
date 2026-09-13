@@ -1,0 +1,11 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 1609,
+  "parameterTotal": 2446182725504,
+  "parameterCount": {
+    "BF16": 2446182725504
+  }
+}

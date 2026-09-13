@@ -1,0 +1,13 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/moonshotai/Kimi-K2.6/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 208550,
+  "parameterTotal": 170738182128,
+  "parameterCount": {
+    "BF16": 43902267888,
+    "I32": 126835891200,
+    "F32": 23040
+  }
+}

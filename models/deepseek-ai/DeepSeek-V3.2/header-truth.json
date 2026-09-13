@@ -1,0 +1,13 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3.2/",
+  "endpoint": "modelscope",
+  "method": "manual",
+  "tensor_count": 92425,
+  "parameterTotal": 685396921376,
+  "parameterCount": {
+    "BF16": 3946184704,
+    "F32": 42667040,
+    "F8_E4M3": 681408069632
+  }
+}

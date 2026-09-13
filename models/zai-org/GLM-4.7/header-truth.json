@@ -1,0 +1,12 @@
+{
+  "generated": "safetensors header (fetch-header-truth)",
+  "source": "https://huggingface.co/zai-org/GLM-4.7/",
+  "endpoint": "hf-mirror",
+  "method": "manual",
+  "tensor_count": 44691,
+  "parameterTotal": 358337791296,
+  "parameterCount": {
+    "BF16": 358337776896,
+    "F32": 14400
+  }
+}

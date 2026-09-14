@@ -22,26 +22,42 @@ export function buildNodeLens(structure, chip, {
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, nodes: {} };
 
-  // P7（步骤 7）：computeNodeCosts 首参即 Graph IR（root 占位与 options.graph 透传退役）。
-  const rows = aggregateNodeCosts(computeNodeCosts(structure.graph, config, { batch, sequence, phase }));
-  const tokens = phase === "decode" ? 1 : sequence;
-  const forwardTokens = batch * tokens;
+  // 切分是叶的事：对本行 own 权重 nodeCostPerCard 一次，再 aggregate。
+  // 禁止把已切的 aggregate_weightBytes 再送进 nodeCostPerCard（会 /TP²）。
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };
-  const nodes = Object.fromEntries(rows.map((row) => {
+  const ownPerCard = computeNodeCosts(structure.graph, config, { batch, sequence, phase }).map((row) => {
     const nodeShapeOptions = {
       ...shapeOptions,
       vision: row.node.attributes?.modality === "vision",
       visionTokens: config.visionTokens || 1,
     };
-    const perCardCost = nodeCostPerCard({
-      macs: row.aggregate_macs,
-      weightBytes: row.aggregate_weightBytes,
-      // M11-P0-4：counts 通道——子树动作向量随行携带（叶子直产、父节点汇总），
-      // 访存侧 actIn/actOut 暂仍走 memory.js（P0-5 统一进 counts.bytes）。
-      actions: row.aggregate_actions,
+    const perCard = nodeCostPerCard({
+      macs: row.compute_macs,
+      weightBytes: row.weightBytes,
+      actions: row.actions,
       actInBytes: activationTensorBytes(row.node.input_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
       actOutBytes: activationTensorBytes(row.node.output_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
     }, row.node, checked.plan);
+    return {
+      ...row,
+      compute_macs: perCard.macs,
+      weightBytes: perCard.weightBytes,
+      actions: perCard.actions,
+      actInBytes: perCard.actInBytes,
+      actOutBytes: perCard.actOutBytes,
+    };
+  });
+  const rows = aggregateNodeCosts(ownPerCard);
+  const tokens = phase === "decode" ? 1 : sequence;
+  const forwardTokens = batch * tokens;
+  const nodes = Object.fromEntries(rows.map((row) => {
+    const perCardCost = {
+      macs: row.aggregate_macs,
+      weightBytes: row.aggregate_weightBytes,
+      actions: row.aggregate_actions,
+      actInBytes: row.actInBytes,
+      actOutBytes: row.actOutBytes,
+    };
     perCardCost.commBytes = nodeCommunicationBytes(
       row.node,
       config,
@@ -62,8 +78,8 @@ export function buildNodeLens(structure, chip, {
         computeSeconds: roofline.times.matrix,
         memorySeconds: roofline.times.memory,
         communicationSeconds: roofline.times.comm,
-        vramBytes: (perCardCost.weightBytes || 0) + (perCardCost.actInBytes || 0) + (perCardCost.actOutBytes || 0),
-        memoryBytes: (perCardCost.actInBytes || 0) + (perCardCost.actOutBytes || 0),
+        vramBytes: (row.aggregate_weightBytes || 0) + (row.actInBytes || 0) + (row.actOutBytes || 0),
+        memoryBytes: (row.actInBytes || 0) + (row.actOutBytes || 0),
       },
     }];
   }));

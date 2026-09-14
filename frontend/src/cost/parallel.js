@@ -1,10 +1,10 @@
 // 给定 TP/PP/EP/DP 计划的资源投影；不搜索计划，也不预测吞吐或延迟。
 // 容量 walk 图声明；切分规则见 details/parallel_protocol.md。不再参考 llm-analysis。
 
-import { nodeWeightBytes } from "./memory.js";
+import { nodeWeightCapacityBytes } from "./memory.js";
 import { childResidentRepeat, graphNodeToNode, walkStructure } from "./traverse.js";
 import { LAYER_INDEX_RE } from "../structure/operators/formulas/extractor.js";
-import { declaredWeightBytesPerCard, declaredWeightElements, expertShardDivisor } from "./sharding.js";
+import { declaredWeightBytesPerCard, expertShardDivisor } from "./sharding.js";
 import { normalizeParallelPlan } from "./parallelPlan.js";
 
 function positiveInteger(value) {
@@ -176,14 +176,19 @@ export function projectPlan({ graph, weightBytes = 0, kvBytes = 0, stateBytes = 
     ok: true,
     errors: [],
     plan: checked.plan,
-    stages: Array.from({ length: pp }, (_, stage) => ({
-      stage,
-      ranks: checked.plan.tp * dp,
-      weightBytes: perStageWeight,
-      kvBytes: kv.bytes,
-      stateBytes: state.bytes / pp,
-      dpRanks: dp,
-    })),
+    stages: Array.from({ length: pp }, (_, stage) => {
+      const kvStage = kv.bytes;
+      const stateStage = state.bytes / pp;
+      return {
+        stage,
+        ranks: checked.plan.tp * dp,
+        weightBytes: perStageWeight,
+        kvBytes: kvStage,
+        stateBytes: stateStage,
+        dpRanks: dp,
+        totalBytes: perStageWeight + kvStage + (stateStage || 0),
+      };
+    }),
   };
 }
 
@@ -194,15 +199,10 @@ export function projectPlan({ graph, weightBytes = 0, kvBytes = 0, stateBytes = 
  * 声明计驻留字节（bf16）——此前派生路径全零，专家/非专家的 EP/TP 切分塌缩，
  * 树投影整体死路（stages 恒 0 → 退平摊）。
  */
-function nodeResidentWeightBytes(node) {
-  return nodeWeightBytes(node) || declaredWeightElements(node?.attributes?.weightMatrices) * 2;
-}
-
-// P7（步骤 7）：tree root 入参退役——自然权重直接沿 Graph IR 汇总。
 function graphWeightBytes(graph) {
   let total = 0;
   walkStructure(graph, ({ node, resident }) => {
-    total += nodeResidentWeightBytes(node) * resident;
+    total += nodeWeightCapacityBytes(node) * resident;
   });
   return total;
 }
@@ -220,7 +220,7 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
     const path = String(node?.id || "").toLowerCase();
     const ownLayerSpan = layerSpanForNode(nodeForScope);
     const layerSpan = ownLayerSpan || inheritedLayerSpan;
-    const rawWeight = nodeResidentWeightBytes(node) * inheritedRepeat * weightScale;
+    const rawWeight = nodeWeightCapacityBytes(node) * inheritedRepeat * weightScale;
     const projected = weightBytesPerCard(rawWeight, node, checked.plan).bytes;
     // P5：专家块识别改走声明（ep 组在场）——与权重归属同一事实源，路径正则
     // 随规则表一起退役。
@@ -299,6 +299,7 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
     stage.weightWorstBytes = expertRange.averageBytes != null
       ? stage.weightBytes - expertRange.averageBytes + expertRange.worstBytes
       : stage.weightBytes;
+    stage.totalBytes = stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0);
     delete stage.expertWeightBytes;
     delete stage.expertCount;
   }
@@ -314,7 +315,7 @@ export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvByt
     const projection = projectPlan({ graph, weightBytes, kvBytes: sideKvBytes, stateBytes: sideStateBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
-      const totalBytes = stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0);
+      const totalBytes = stage.totalBytes;
       const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + (stage.stateBytes || 0);
       return { ...stage, totalBytes, worstTotalBytes,
         fit: positiveNumber(capacity) ? totalBytes <= capacity : null,
@@ -329,6 +330,14 @@ export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvByt
     prefill: side(checked.prefillPlan, prefillChip, prefillKvBytes ?? kvBytes, prefillStateBytes ?? stateBytes),
     decode: side(checked.decodePlan, decodeChip, decodeKvBytes ?? kvBytes, decodeStateBytes ?? stateBytes),
   };
+}
+
+/** 集中式 Fit / card：只比投影后每卡驻留和芯片容量。plan 无效 → 未知。 */
+export function planFitsCard(projection, capacityBytes) {
+  if (projection == null) return undefined;
+  if (!projection.ok) return null;
+  if (!positiveNumber(capacityBytes) || !projection.stages?.length) return null;
+  return projection.stages.every((stage) => stage.totalBytes <= capacityBytes);
 }
 
 /** 给定 stage 投影下，由最紧张 stage 决定最大上下文。 */

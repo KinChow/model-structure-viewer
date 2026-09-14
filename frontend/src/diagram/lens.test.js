@@ -37,3 +37,38 @@ test("节点 lens 使用校验后的逐卡并行投影", () => {
   assert.equal(result.nodes["root.0"].bytesMoved, 24);
   assert.equal(buildNodeLens(structure, chip, { plan: { tp: 0 } }).ok, false);
 });
+
+test("叶子 VRAM 只按声明轴切一次；父 = Σ 子每卡权重 + 自身边界", () => {
+  const structure = {
+    extra_config: { hidden_size: 4, num_attention_heads: 1, num_hidden_layers: 1 },
+    graph: {
+      root_id: "root",
+      nodes: [
+        { id: "root", canonical_id: "model", type: "model", parent_id: null, order: 0, input_shape: [-1, -1, 4], output_shape: [-1, -1, 4] },
+        {
+          id: "root.0",
+          canonical_id: "model.layers.0.self_attn.o_proj",
+          type: "linear",
+          parent_id: "root",
+          order: 0,
+          input_shape: [-1, -1, 4],
+          output_shape: [-1, -1, 4],
+          attributes: { operator_id: "linear", weightMatrices: [{ class: "tp", out: 4, in: 4, split: "input" }] },
+        },
+      ],
+    },
+  };
+  const chip = {
+    memory_bandwidth: 100,
+    peak_flops: { bf16: 1000 },
+    interconnect: { intra_node: { bandwidth: 100 } },
+  };
+  const result = buildNodeLens(structure, chip, { phase: "decode", sequence: 8, plan: { tp: 2 } });
+  const leaf = result.nodes["root.0"].metrics;
+  const parent = result.nodes["root"].metrics;
+  // 模板叶无 weight_shapes：4×4×2B / TP2 = 16；decode 边界 8/2 + 8/2 = 8
+  assert.equal(leaf.vramBytes, 24);
+  assert.notEqual(leaf.vramBytes, 16);
+  // 父无声明，divisor=1，不再二次 /TP；子树每卡权重 16 + 父边界 8+8
+  assert.equal(parent.vramBytes, 32);
+});

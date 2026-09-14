@@ -2,7 +2,7 @@
 // 旧 nodeMacs 分派链已删除；公式唯一来源是 structure/operators/formulas/（含 20 处
 // legacy 镜像同步删除）。芯片参数不得进入本文件（§3.4，ERT 分离见 W5-2）。
 import { countsForNode } from "../structure/operators/formulas/extractor.js";
-import { nodeWeightBytes } from "./memory.js";
+import { nodeWeightCapacityBytes } from "./memory.js";
 import { walkStructure } from "./traverse.js";
 function countsFor(node, config, options = {}) {
   const vision = node?.attributes?.modality === "vision";
@@ -63,7 +63,7 @@ function scaleActions(counts, multiplier) {
 export function computeNodeCosts(graph, config, options = {}) {
   const rows = [];
   const billedAncestors = new Set();
-  walkStructure(graph, ({ node, path, multiplier }) => {
+  walkStructure(graph, ({ node, path, multiplier, resident }) => {
     const counts = countsFor(node, config, options);
     const billingParent = isBillingParent(node, counts);
     const coveredByAncestor = [...billedAncestors].some((prefix) => path.startsWith(`${prefix}.`));
@@ -75,7 +75,7 @@ export function computeNodeCosts(graph, config, options = {}) {
     rows.push({ path, node, multiplier, compute_macs: compute,
       macs_source: coveredByAncestor ? "aggregate" : macsSource(node, counts, billingParent),
       actions,
-      weightBytes: nodeWeightBytes(node) * multiplier,
+      weightBytes: nodeWeightCapacityBytes(node) * resident,
       estimate_status: compute == null ? "unknown" : "estimated" });
   });
   return rows;

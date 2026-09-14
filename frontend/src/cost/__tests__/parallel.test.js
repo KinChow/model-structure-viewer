@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, projectNodePlan, projectPdFit, projectPlan, stateBytesPerCard, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
+import { expertWeightRange, kvBytesPerCard, maxContextForStages, nodeCostPerCard, planFitsCard, projectNodePlan, projectPdFit, projectPlan, stateBytesPerCard, validatePdPlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 
 // P7（步骤 7）：projectPlan/projectNodePlan/projectPdFit 只收 Graph IR——
@@ -176,6 +176,34 @@ test("PD fit accepts independent prefill and decode KV footprints", () => {
 test("计划最大上下文由最紧张 stage 决定", () => {
   const value = maxContextForStages([{ weightBytes: 40, kvBytes: 20 }, { weightBytes: 60, kvBytes: 10 }], { capacityBytes: 100, sequence: 10 });
   assert.equal(value, 30);
+});
+
+test("Fit / card 读 stage.totalBytes，不拿未分片总量比单卡", () => {
+  const root = {
+    id: "model",
+    children: [{
+      id: "layers.0.q_proj",
+      dtype: "BF16",
+      weight_shapes: { weight: [64, 64] },
+      attributes: { weightMatrices: [{ class: "tp", out: 64, in: 64 }] },
+      children: [],
+    }],
+  };
+  const unsharded = 64 * 64 * 2;
+  const projection = projectPlan({
+    graph: toGraph(root),
+    weightBytes: unsharded,
+    kvBytes: 0,
+    config: { layers: 1, kvHeads: 1 },
+    plan: { tp: 8, pp: 1, dp: 1 },
+  });
+  const capacity = 2000;
+  assert.equal(projection.ok, true);
+  assert.equal(projection.stages[0].weightBytes, unsharded / 8);
+  assert.equal(projection.stages[0].totalBytes, unsharded / 8);
+  assert.equal(unsharded <= capacity, false);
+  assert.equal(planFitsCard(projection, capacity), true);
+  assert.equal(planFitsCard({ ok: false, errors: ["invalid"], stages: [] }, capacity), null);
 });
 
 test("权重 what-if 比例同步应用到节点级 stage 投影", () => {

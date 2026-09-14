@@ -61,6 +61,17 @@ function groupBytes(group, fallbackBytes = 2) {
   return groupElements(group) * (group.param_dtype ? paramBytes(group.param_dtype) : fallbackBytes);
 }
 
+/** 单节点驻留权重：checkpoint shape 优先，否则 weightMatrices（shared 跳过）。 */
+export function nodeWeightCapacityBytes(node, { fallbackBytes = 2 } = {}) {
+  const shaped = nodeWeightBytes(node);
+  if (shaped > 0) return shaped;
+  const declaration = node?.attributes?.weightMatrices;
+  if (!Array.isArray(declaration) || declaration.length === 0) return 0;
+  return declaration.reduce((total, group) => (
+    total + (group.shared ? 0 : groupBytes(group, fallbackBytes))
+  ), 0);
+}
+
 function isMtpPath(node) {
   const id = String(node?.id || "");
   return node?.type === "mtp" || node?.type === "dspark" || /(^|\.)mtp(\.|$)/.test(id);

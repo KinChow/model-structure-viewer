@@ -58,6 +58,45 @@ test("二维专家投影按逻辑输入输出宽度估算 MACs", () => {
   assert.equal(nodeMacs(node, {}, { batch: 2, sequence: 3, phase: "prefill" }), 192);
 });
 
+test("节点权重走 weightMatrices × resident，不依赖 checkpoint shape", () => {
+  const root = {
+    id: "root",
+    children: [{
+      id: "decoder.linear",
+      type: "operator",
+      attributes: { operator_id: "linear", weightMatrices: [{ class: "tp", out: 8, in: 4, count: 1, matrices: 1 }] },
+      children: [],
+    }],
+  };
+  const rows = computeNodeCosts(toGraph(root), {}, { batch: 1, sequence: 1 });
+  const aggregate = aggregateNodeCosts(rows);
+  assert.equal(rows.find((row) => row.path === "root.0").weightBytes, 64);
+  assert.equal(aggregate.find((row) => row.path === "root").aggregate_weightBytes, 64);
+  assert.equal(rows.find((row) => row.path === "root").weightBytes, 0);
+});
+
+test("MTP repeat=0 仍计入驻留权重", () => {
+  const root = {
+    id: "root",
+    children: [{
+      id: "mtp",
+      type: "mtp",
+      repeat: 0,
+      attributes: { modules: 1 },
+      children: [{
+        id: "mtp.eh_proj",
+        type: "operator",
+        attributes: { operator_id: "linear", weightMatrices: [{ class: "tp", out: 8, in: 4 }] },
+        children: [],
+      }],
+    }],
+  };
+  const rows = computeNodeCosts(toGraph(root), {}, { batch: 1, sequence: 1 });
+  const leaf = rows.find((row) => row.node.id === "mtp.eh_proj");
+  assert.equal(leaf.weightBytes, 64);
+  assert.equal(leaf.multiplier, 0);
+});
+
 test("父节点 lens 可以汇总叶子成本，但模型总量不重复计费", () => {
   const root = { id: "root", children: [{ id: "decoder", children: [{ id: "decoder.linear", type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] }] }] };
   const rows = computeNodeCosts(toGraph(root), {}, { batch: 1, sequence: 2, phase: "prefill" });

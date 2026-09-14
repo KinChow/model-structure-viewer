@@ -515,7 +515,7 @@ vramBytes            = subtreeWeightPerCard + nodeActivation
 - 节点激活禁止 Σ 子节点。容器展示的是子树驻留权重 + 本节点边界，不是子树执行峰值。
 - 切分是叶的事。禁止对已切分的 `aggregate_weightBytes` 再送进 `nodeCostPerCard`（会 `/TP²`）。
 - 算力倍率用 `multiplier`，容量用 `resident`（MTP/DSpark `repeat=0` 仍占显存）。
-- 权重入口唯一：`nodeWeightCapacityBytes`（checkpoint shape 优先，否则 `weightMatrices`，`shared` 跳过）。`projectNodePlan` 的 `nodeResidentWeightBytes` 改调它，禁止写死 `*2`。
+- 权重入口唯一：`nodeWeightCapacityBytes`（checkpoint shape 优先，否则 `weightMatrices`，`shared` 跳过）。`projectNodePlan` 与 `computeNodeCosts` 都调它，禁止写死 `*2`。
 - `projectPlan` 给每个 stage 写 `totalBytes`（抄 `projectPdFit` 已有那一行）。CostSummary 不内联加法，不新增 `peakStageMemoryBytes`。
 - 不单开「节点总显存」投影。芯片行已有单卡容量；拓扑行已有 nodes × GPUs。
 

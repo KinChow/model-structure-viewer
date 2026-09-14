@@ -176,7 +176,7 @@ MAINTENANCE.md 棘轮已回写。
 > - P0：`lens.js:32-55` 叶子权重二次 `/TP`。
 > - P1：Fit / card 混用拓扑；测试未锁错误口径；e2e 文案必红。
 > - P2：MTP `repeat=0` 用 `multiplier` 漏驻留；三条权重入口
->   （`nodeWeightCapacityBytes` / `nodeResidentWeightBytes` / `graphWeightCapacity`）；
+>    （`nodeWeightCapacityBytes` / `graphWeightCapacity`）；
 >   峰值公式三处拷（`planFitsMemory` 内联 / PD `Math.max(totalBytes)` /
 >   `peakStageMemoryBytes`）。
 > - 格式闸（quotes/curly/max-len 等）与仓库既有风格一致，修正确性时顺手带过，
@@ -198,10 +198,9 @@ MAINTENANCE.md 棘轮已回写。
 > lens 的 `vramBytes` = `aggregate_weightBytes` + 本节点 actIn/actOut，
 > 第二次不要再传权重。父卡激活路径本来就是本节点 shape，不要改成 Σ 子激活。
 >
-> **落地（先确认再动 `frontend/src`）**
-> 1. 权重入口 + resident + 先切后卷；删 `perCardWeightByPath`。
-> 2. `projectPlan.stage.totalBytes`；CostSummary 去掉内联加法。
-> 3. 测试锁叶子只切一次、MTP resident、父 = Σ 子每卡权重 + 自身边界、Fit 不读 totalBytes。
+> **落地（2026-09-14，两条消费者断链分开修，不绑成一套并行方案）**
+> 1. 产品层 Fit：`projectPlan` 写 `stage.totalBytes`；`planFitsCard` 只比投影后每卡驻留；测试锁「未分片总量不适配、切后适配」。
+> 2. 节点层 VRAM：`computeNodeCosts` 改 `nodeWeightCapacityBytes × resident`；lens 先对 own 权重 `nodeCostPerCard` 再 `aggregateNodeCosts`；测试锁叶子只切一次、MTP resident、父 = Σ 子每卡权重 + 自身边界。
 
 ### M12 之后的收口工作
 

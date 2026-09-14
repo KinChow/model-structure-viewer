@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeConfig } from "../structure/config/normalize.js";
 import { aggregateCost } from "../cost/aggregate.js";
-import { maxContextForStages, projectPdFit, projectPlan } from "../cost/parallel.js";
+import { maxContextForStages, planFitsCard, projectPdFit, projectPlan } from "../cost/parallel.js";
 import { pdKvTransferBytes, planCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 import ManualChipForm from "./ManualChipForm.jsx";
@@ -154,9 +154,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const planInvalid = projected != null && projected.ok === false;
   const planFitsMemory = mode === "pd"
     ? pdFit?.[phase]?.fit
-    : projected?.ok
-      ? projected.stages.every((stage) => stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0) <= available)
-      : projected ? null : undefined;
+    : planFitsCard(projected, available);
   const planStatus = !planFitsTopology ? text.needsGpus(requiredGpus) : planInvalid ? text.planInvalid : planFitsMemory === false ? text.memoryNoFit : text.planValid;
   useEffect(() => {
     if (!cost || !machine) {
@@ -188,7 +186,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     </div>}
     <div className="cost-breakdown">{[["Weights", cost.memory.weightBytes], ["Buffers", cost.memory.bufferBytes || 0], ["KV", cost.memory.kvBytes], ["KDA state", cost.memory.stateBytes]].map(([label, value]) => <span key={label}><b>{label}</b>{formatBytes(value)}</span>)}</div>
     <div className="cost-metrics"><span>Total VRAM <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>{text.fitCard} <b className={planFitsMemory === true ? "fit" : "no-fit"}>{fitText(planFitsMemory, english)}</b></span><span>Max context <b>{planMaxContext == null ? "-" : planMaxContext.toLocaleString()}</b></span><span>MACs / token <b>{formatMacs(cost.macsPerToken)}</b></span><span>MACs / forward <b>{formatMacs(cost.totalMacs)}</b></span>{summary.macsSources.length > 0 && <span className="cost-macs-sources" title={english ? "MACs totals by origin: formula-derived, summed from children, non-compute, or missing" : "MACs 总量按来源分组：公式推导 / 子树汇总 / 非计算节点 / 无公式"}>{english ? "MACs origin" : "MACs 来源"} <b>{summary.macsSources.map((entry) => `${entry.label} ${entry.count}`).join(" · ")}</b></span>}{summary.valueSourceCounts && <span className="cost-value-source" title={summary.valueSourceCounts.title}>{english ? "Weight origin" : "权重来源"} <b>{summary.valueSourceCounts.text}</b></span>}<span>FLOPs / forward <b>{formatMacs(cost.totalFlops)}</b></span><span data-bound={roofline?.bound || "unknown"}>Roofline <b>{summary.boundLabel}</b></span><span>Communication <b>{formatBytes(communication?.totalBytes)}</b></span>{summary.unknownComputeCount > 0 && <span className="cost-coverage-warn">{english ? "Cost not covered" : "成本未覆盖"} <b>{summary.unknownComputeCount}</b></span>}<span className="cost-weight-source"><b className={cost.weightSource === "checkpoint" ? "fit" : ""}>{summary.weightSourceLabel}</b></span></div>
-    {projected?.ok && <div className="cost-stages">{stageRates && projected.stages.map((stage) => <span key={stage.stage}><b>Stage {stage.stage}</b> {formatBytes(stage.weightBytes)} weights · {formatBytes(stage.kvBytes)} KV · {formatBytes(stage.stateBytes || 0)} KDA state · HBM ≈{formatSeconds((stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0)) / stageRates.bytesPerSecond)}</span>)}</div>}
+    {projected?.ok && <div className="cost-stages">{stageRates && projected.stages.map((stage) => <span key={stage.stage}><b>Stage {stage.stage}</b> {formatBytes(stage.weightBytes)} weights · {formatBytes(stage.kvBytes)} KV · {formatBytes(stage.stateBytes || 0)} KDA state · HBM ≈{formatSeconds(stage.totalBytes / stageRates.bytesPerSecond)}</span>)}</div>}
     {projected && !projected.ok && <div className="cost-plan-error">{english ? "Plan invalid — per-stage projection unavailable: " : "方案无效——分阶段投影不可用："}{projected.errors.join(english ? "; " : "；")}</div>}
     {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>KV + KDA State Transfer</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes + (pd.perDecodeRankStateBytes || 0))} / Decode rank</span><span>{pd.linkSource}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}{pd.transferSeconds != null ? ` · ≈${pd.transferSeconds >= 1 ? pd.transferSeconds.toFixed(2) + " s" : (pd.transferSeconds * 1000).toFixed(1) + " ms"}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, english)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, english)}</span></div>}
     {mode === "pd" && pd && !pd.ok && <div className="cost-plan-error">PD plan invalid: {pd.errors.join("; ")}</div>}

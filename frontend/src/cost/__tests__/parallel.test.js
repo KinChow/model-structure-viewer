@@ -48,6 +48,17 @@ test("权重按声明 class 选择 TP/EP/复制投影；无声明带权叶 = unk
   });
 });
 
+test("DP-attention 下 attention 权重复制，MLP 仍按 TP 切", () => {
+  const dp = { tp: 4, dp: 2, attnMode: "dp" };
+  const q = { id: "decoder.0.self_attn.q_proj", attributes: { weightMatrices: [{ class: "tp", out: 1, in: 1, split: "output" }] } };
+  const o = { id: "decoder.0.self_attn.o_proj", attributes: { communication_role: "tp_attention_output", weightMatrices: [{ class: "tp", out: 1, in: 1, split: "input" }] } };
+  const down = { id: "decoder.0.mlp.down_proj", attributes: { communication_role: "tp_mlp_output", weightMatrices: [{ class: "tp", out: 1, in: 1, split: "input" }] } };
+  assert.deepEqual(weightBytesPerCard(100, q, dp), { bytes: 100, divisor: 1, axis: "tp" });
+  assert.deepEqual(weightBytesPerCard(100, o, dp), { bytes: 100, divisor: 1, axis: "tp" });
+  assert.deepEqual(weightBytesPerCard(100, down, dp), { bytes: 25, divisor: 4, axis: "tp" });
+  assert.equal(weightBytesPerCard(100, q, { tp: 4, attnMode: "tp" }).bytes, 25);
+});
+
 test("节点 roofline 成本按声明 class 投影到单卡（P5：声明式）", () => {
   const cost = { macs: 80, weightBytes: 40, actInBytes: 24, actOutBytes: 16 };
   const q = { id: "decoder.0.self_attn.q_proj", attributes: { weightMatrices: [{ class: "tp", out: 1, in: 1 }] } };

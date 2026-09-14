@@ -76,7 +76,7 @@ function stateBytesForLayerRange(graph, totalStateBytes, start = 0, end = -1) {
 export function weightBytesPerCard(totalBytes, node, plan = {}) {
   const declaration = node?.attributes?.weightMatrices;
   if (Array.isArray(declaration) && declaration.length > 0) {
-    return declaredWeightBytesPerCard(totalBytes, declaration, plan);
+    return declaredWeightBytesPerCard(totalBytes, declaration, plan, node);
   }
   if (totalBytes > 0) {
     // 无声明但确有驻留权重：unknown（不伪造归属，不静默按复制处理）。

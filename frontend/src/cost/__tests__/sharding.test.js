@@ -85,6 +85,8 @@ test("declaredClassDivisor / declaredWeightBytesPerCard：四类 class 的单卡
   assert.equal(declaredClassDivisor("vocab", { ...plan, vocabParallel: true }), 4);
   assert.equal(declaredClassDivisor("vocab", { ...plan, vocabParallel: false }), 1);
   assert.equal(declaredClassDivisor("replicated", plan), 1);
+  assert.equal(declaredClassDivisor("tp", { tp: 4, attnMode: "dp" }, { id: "decoder.0.self_attn.q_proj" }), 1);
+  assert.equal(declaredClassDivisor("tp", { tp: 4, attnMode: "dp" }, { id: "decoder.0.mlp.down_proj", attributes: { communication_role: "tp_mlp_output" } }), 4);
 
   // 专家叶：3×E 矩阵一个 ep 组，totalBytes 按元素占比全额进组
   const expertGroups = [{ class: "ep", out: 1536, in: 3072, count: 256, matrices: 3 }];
@@ -171,15 +173,19 @@ test("锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其�
   assert.ok(Math.abs(projected.stages[0].weightBytes - expected) < 1e-6 * natural,
     `每卡权重 ${projected.stages[0].weightBytes} 与 专家块÷ep+复制类+其余÷tp ${expected} 不一致`);
 
-  // 无 EP 的 DP：专家集合 ÷dp、矩阵 ÷tp（DP attention 复制其余）
+  // 无 EP 的 DP：attnMode 缺省 tp，专家集合 ÷dp、矩阵 ÷tp；attention 仍 ÷tp
   const dpPlan = projectNodePlan({ graph: structure.graph, config, plan: { tp: 2, dp: 2 } });
   const expectedDp = routed / (2 * 2) + replicated + rest / 2;
   assert.ok(Math.abs(dpPlan.stages[0].weightBytes - expectedDp) < 1e-6 * natural);
 
-  // EP + DP attention（vLLM 组合语义 ep_size = tp×dp）：专家 ÷4、attention 复制
+  // EP + DP attention：专家 ÷ep=4；attention 权重复制（rest 里含 attention+dense，
+  // 此处 rest 仍按 ÷tp 是旧口径——attention 复制后每卡应更大）。
   const epDpPlan = projectNodePlan({ graph: structure.graph, config, plan: { tp: 2, dp: 2, ep: 4, attnMode: "dp" } });
-  const expectedEpDp = routed / 4 + replicated + rest / 2;
-  assert.ok(Math.abs(epDpPlan.stages[0].weightBytes - expectedEpDp) < 1e-6 * natural);
+  const expectedEpDpOld = routed / 4 + replicated + rest / 2;
+  assert.ok(epDpPlan.stages[0].weightBytes > expectedEpDpOld,
+    `DP-attention 权重复制后每卡应大于旧口径 ${expectedEpDpOld}，实际 ${epDpPlan.stages[0].weightBytes}`);
+  assert.ok(epDpPlan.stages[0].weightBytes < routed / 4 + replicated + rest,
+    "MLP tp 组仍应 ÷tp，不得把 rest 全额复制");
 });
 
 test("锚 2：expertWeightRange 接声明的专家数与组合 setDegree（平均/最坏区间一致）", () => {

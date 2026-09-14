@@ -12,7 +12,9 @@
 //   （parallel.js kvBytesPerCard / stateBytesPerCard 既有实现，KV 是数据类）。
 //
 // 层 3 内存类响应（每类对轴的响应不同）：
-//   weights(tp 组)   → ÷tp；weights(ep 组) → ÷moe_ep（无 EP 时 ÷moe_tp×dp）；
+//   weights(tp 组)   → ÷tp；attnMode=dp 且 attention 叶 → 复制（协议 attnMode 行）
+//                      MLP tp 组仍 ÷tp。
+//   weights(ep 组) → ÷moe_ep（无 EP 时 ÷moe_tp×dp）；
 //   weights(vocab 组) → vocabParallel ? ÷tp : 复制；weights(replicated) → 复制。
 //   KV / KDA state / activations 的响应见 parallel.js 与 §七范围外登记。
 
@@ -54,17 +56,17 @@ export function expertShardDivisor(plan = {}) {
 }
 
 /**
- * 声明组 class → 单卡除数。与 parallel.js 路径规则表的语义逐条对应
- * （声明优先，规则表是无声明叶子的回退，两者必须同义——锚 3）：
- *   ep → expertShardDivisor；tp → ÷tp；vocab → vocabParallel ? ÷tp : 复制；
- *   replicated → 复制（norm/router 等小件）。
+ * 声明组 class → 单卡除数。
+ *   ep → expertShardDivisor；tp → ÷tp（attnMode=dp 的 attention 叶除外，复制）；
+ *   vocab → vocabParallel ? ÷tp : 复制；replicated → 复制。
+ * node 只用于 attnMode=dp 时区分 attention / MLP，缺省按 ÷tp（与旧行为一致）。
  */
-export function declaredClassDivisor(klass, plan = {}) {
+export function declaredClassDivisor(klass, plan = {}, node) {
   switch (klass) {
     case "ep":
       return expertShardDivisor(plan).divisor;
     case "tp":
-      return plan.tp ?? plan.TP ?? 1;
+      return attentionReplicatedUnderDp(plan, node) ? 1 : (plan.tp ?? plan.TP ?? 1);
     case "vocab":
       return (plan.vocabParallel ?? plan.vocab_parallel ?? true) ? (plan.tp ?? plan.TP ?? 1) : 1;
     case "replicated":
@@ -74,6 +76,19 @@ export function declaredClassDivisor(klass, plan = {}) {
   }
 }
 
+/** 协议 attnMode=dp：attention 权重复制、KV 按 rank 分区。MLP 的 tp 组仍 ÷tp。 */
+function attentionReplicatedUnderDp(plan = {}, node) {
+  const attnMode = plan.attnMode ?? plan.attn_mode ?? "tp";
+  if (attnMode !== "dp") return false;
+  const role = node?.attributes?.communication_role;
+  if (role === "tp_mlp_output" || role === "ep_dispatch" || role === "ep_combine") return false;
+  if (role === "tp_attention_output") return true;
+  const path = String(node?.id || "").toLowerCase();
+  if (!path) return false;
+  if (/(^|\.)(mlp|moe|experts|expert_mlp|shared_expert)(\.|$)/.test(path)) return false;
+  return /(^|\.)(self_attn|attn|attention|q_proj|k_proj|v_proj|qkv|o_proj|out_proj)(\.|$)/.test(path);
+}
+
 /**
  * 声明叶子在单卡上的权重字节（组级投影）。
  * @param totalBytes 该叶的（已乘 repeat/scale 的）驻留权重字节；组内按元素数占比分摊，
@@ -81,13 +96,13 @@ export function declaredClassDivisor(klass, plan = {}) {
  * @returns { bytes, axis, divisor } —— axis/divisor 取字节占比最大的组（nodeCostPerCard
  *          用它分摊 compute；混合 class 的叶 compute 归属跟随主导组）。
  */
-export function declaredWeightBytesPerCard(totalBytes, groups, plan = {}) {
+export function declaredWeightBytesPerCard(totalBytes, groups, plan = {}, node) {
   if (!Array.isArray(groups) || groups.length === 0) {
     return { bytes: totalBytes, axis: "replicated", divisor: 1 };
   }
   const shares = groups.map((group) => ({
     klass: group.class,
-    divisor: declaredClassDivisor(group.class, plan),
+    divisor: declaredClassDivisor(group.class, plan, node),
     elements: (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in,
   }));
   const totalElements = shares.reduce((sum, share) => sum + share.elements, 0);

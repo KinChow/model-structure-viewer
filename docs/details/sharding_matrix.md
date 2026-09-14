@@ -110,7 +110,7 @@ plan schema 扩展（validatePlan 同步）：
 
 | 内存类 | tp | ep/moe 轴 | dp | pp | 现状 |
 |---|---|---|---|---|---|
-| weights（tp 组） | ÷tp | — | 复制 | stage | 已实现（规则表）→ 声明化 |
+| weights（tp 组） | ÷tp；attnMode=dp 且 attention 叶复制 | — | MLP 仍 ÷tp | stage | 声明化；DP-attention 权重复制已接 `declaredClassDivisor` |
 | weights（ep 组） | ÷moe_tp | ÷moe_ep（不均衡区间见下） | 无 EP 时 ÷dp | stage | 缺声明 → 本方案 |
 | KV cache | ÷min(tp, kv_heads)；MLA/MQA 复制 | — | attnMode=dp 复制 | stage | **已实现**（kvBytesPerCard isMla/attnMode 分支） |
 | KDA state | ÷tp | — | attnMode=dp 复制 | stage | 已实现（stateBytesPerCard） |

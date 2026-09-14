@@ -18,6 +18,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: pip install pre-commit
+      - run: pre-commit run --all-files
+
   backend-test:
     runs-on: ubuntu-latest
     steps:
@@ -53,7 +66,7 @@ jobs:
           path: frontend/dist
 
   deploy:
-    needs: [backend-test, build]
+    needs: [pre-commit, backend-test, build]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

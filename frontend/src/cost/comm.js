@@ -118,4 +118,3 @@ export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 
   const ppBytes = pipelineP2PBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, pp: plan.pp ?? plan.PP ?? 1 });
   return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes };
 }
-

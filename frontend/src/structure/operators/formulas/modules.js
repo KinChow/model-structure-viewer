@@ -777,4 +777,3 @@ export const MODULES = Object.fromEntries([...MODULE_LIST, ...ATTENTION_MODULES]
 /** 已登记但尚未声明分解的模块（W1 清单；报表逐条打印，W2-W4 消化）。 */
 export const DECOMPOSE_PENDING = {
 };
-

@@ -587,4 +587,3 @@ test("W5 恒等式：激活流形状连续性（全 59 模型声明边）", () =
   assert.deepEqual(regroupViolations.map(([key, v]) => `${key}(${v.out} vs ${v.inn})`), [], "登记为 regroup 的边两端末维不成整数倍：不是换视图，重新归因");
   assert.ok(matched / (total - noShape) > 0.85, `形状连续率 ${(matched / (total - noShape) * 100).toFixed(1)}% 低于 85%：语义边占比异常上升`);
 });
-

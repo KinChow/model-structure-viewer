@@ -41,6 +41,8 @@ python3 -m venv .venv
 cd frontend && npm install
 ```
 
+开发提交另装 `.[dev]` 并执行 `pre-commit install`，见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+
 ## 版本与变更记录
 
 项目使用 Semantic Versioning（SemVer）：

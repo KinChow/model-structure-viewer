@@ -176,4 +176,3 @@ runtime-unknown 项一律输出 `unknown` 或 `requires runtime benchmark`，
 - `moe_dp`、EP 全开时 shared expert 复制、Wide-EP / DWDP / expert replication；
 - ZeRO/FSDP ÷dp、activations 的 CP/SP 响应、EP 负载不均衡动态建模；
 - plan 搜索与自动推荐（五支柱越界，指向 Vidur）。
-

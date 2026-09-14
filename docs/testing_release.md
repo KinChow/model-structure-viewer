@@ -12,7 +12,7 @@ python3 -m venv .venv
 npm --prefix frontend install
 ```
 
-后端默认使用仓库内置模型目录时传入 `--root ./models`。
+提交闸另装 `.[dev]` 并执行 `pre-commit install`，见 [`CONTRIBUTING.md`](../CONTRIBUTING.md)。后端默认使用仓库内置模型目录时传入 `--root ./models`。
 
 ## 1. 单元测试
 

@@ -1,5 +1,18 @@
 # Contributing
 
+## 提交闸
+
+克隆后安装一次 pre-commit（配置在 `.pre-commit-config.yaml`）：
+
+```bash
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/pre-commit install
+```
+
+之后 `git commit` 会跑：JSON/YAML/TOML 合法性、合并冲突标记、私钥、大文件（>1MB）、LF 换行、以及 `scripts/check_principles.sh`。pytest、前端单测、内置模型验证和 e2e **不进 hook**，仍按 [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md) 五重 oracle 手动跑。
+
+手动全量：`.venv/bin/pre-commit run --all-files`。临时跳过：`git commit --no-verify`。
+
 ## 发布与版本管理
 
 项目版本遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)，变更记录遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。日常开发先把变更写入 `CHANGELOG.md` 的 `[Unreleased]`，发布时再归档到 `## [X.Y.Z] - YYYY-MM-DD`。

@@ -1,0 +1,33 @@
+# 提交闸：便宜的仓库卫生 + 原则护栏。
+# 五重 oracle（pytest / npm test / verify:models / e2e）不进 hook，见 docs/MAINTENANCE.md。
+# 安装：.venv/bin/pip install -e '.[dev]' && .venv/bin/pre-commit install
+# 手动：.venv/bin/pre-commit run --all-files
+# 临时跳过：git commit --no-verify
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+        exclude: ^(models/|docs/details/models/|frontend/public/providers/)
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: trailing-whitespace
+        exclude: ^(models/|docs/details/models/)
+  - repo: local
+    hooks:
+      - id: check-principles
+        name: check principles
+        entry: bash scripts/check_principles.sh
+        language: system
+        pass_filenames: false
+        always_run: true

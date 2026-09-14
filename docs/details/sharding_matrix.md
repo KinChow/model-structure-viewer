@@ -214,5 +214,3 @@ P4 的四处口径修正（都由锚 1/锚 2/golden 三条护栏抓出，非事�
    （vLLM/SGLang quant config `targets: ["Linear"]`），norm scale 与 bias 不在
    其中。**不能用"维度>1"当判据** —— K3 的 `attn_residual.res_proj` 是
    out=1 的真 GEMM（[1, 7168] 打分投影），会被误伤（实测 K3 容量差 1.97e6 B）。
-
-

@@ -12,6 +12,7 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- 增加 pre-commit（`.pre-commit-config.yaml`）：仓库卫生 + `check_principles.sh`。五重 oracle 不进 hook。
 - 增加 `scripts/dev-frontend.sh`，从仓库根启动 Vite 前端。
 - 删死接口 `POST /api/export`（前端本地 `exporters.js`，CLI `msv inspect --format`）。清真死代码：`scorePairsLegacy` / `graphPaths` / `product` / `StructureDiagram.jsx` 壳、`ModelSourceResolver.ensure_remote_code`、`reset_package_roots`、`flatten_source_refs`、`semantics.family`、`NoopRuntimePatch`、空操作 `exclude={"root"}`、自研 `sourceCacheKey`。动作向量合计接通 `kvRead`/`indexRead` 与 `computeDtypes.tf32→matrixTf32`（Accelergy action 名不丢）；同步 layout 返回 containerFrames。
 - 文档把已闭合项从「缺口 / 未排期」改成触发池；`layoutGraph` 只接受 `structure.graph`，删除裸树 / `structure.root` 兼容入口。Graph 是唯一结构载荷。

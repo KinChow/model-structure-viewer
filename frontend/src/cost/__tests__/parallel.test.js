@@ -174,8 +174,8 @@ test("PD fit accepts independent prefill and decode KV footprints", () => {
 });
 
 test("计划最大上下文由最紧张 stage 决定", () => {
-  const value = maxContextForStages([{ weightBytes: 40, kvBytes: 20 }, { weightBytes: 60, kvBytes: 10 }], { capacityBytes: 100, activationBytes: 10, runtimeBytes: 10, sequence: 10 });
-  assert.equal(value, 20);
+  const value = maxContextForStages([{ weightBytes: 40, kvBytes: 20 }, { weightBytes: 60, kvBytes: 10 }], { capacityBytes: 100, sequence: 10 });
+  assert.equal(value, 30);
 });
 
 test("权重 what-if 比例同步应用到节点级 stage 投影", () => {

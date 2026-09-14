@@ -40,7 +40,7 @@ parallel.js 的路径正则规则表。每处都对各自消费者负责，彼�
 对标成熟方案：
 - vLLM/SGLang 量化：按**模块**应用（FusedMoE 模块持打包 w13/w2，ignore
   list 按模块名）——模块即单位，模块自描述权重；
-- HF/llm-analysis 类显存工具：per-tensor checkpoint 元数据（safetensors
+- HF / safetensors 类显存工具：per-tensor checkpoint 元数据（safetensors
   index/header）——每个张量天然可见，无需按算子类型推断。msv 的
   checkpoint 路径（parameters_by_dtype per-dtype）已是该方案且正确；
   缺口仅在无 checkpoint 的派生路径。

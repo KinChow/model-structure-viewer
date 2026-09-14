@@ -134,9 +134,8 @@ export function valueSourceCountsModel(cost, { english = false } = {}) {
  * `eta.sfu ?? 1` 兜底（cost/chips/rates.js:31,34），而 resolveEfficiency
  * （cost/efficiency.js）不产出这两个键，芯片级 efficiency.vector/sfu 声明
  * 同样被丢弃——即 vector/SFU 路恒按 100% 效率计算，且 ηF/ηHBM/ηComm 滑块
- * 均不作用于它。1.0 是显式乐观上界假设而非测量值：本仓库效率默认值承袭
- * llm-analysis 的单一 flops_efficiency 折扣设计（ηF=0.7 即来源于此），
- * 该设计没有 vector/SFU 分项折扣的文献值，故计算侧暂无可引用的替代数。
+ * 均不作用于它。1.0 是显式乐观上界假设而非测量值：ηF 默认 0.7 是 UI 可调
+ * 旋钮（原则 §3.6），没有独立的 vector/SFU 分项折扣，故计算侧暂不另给替代数。
  * 计算侧（rates/efficiency）归另一路修改，UI 只做披露，不伪造可调滑块。
  */
 export const ETA_VECTOR_SFU_DEFAULT = 1;
@@ -147,8 +146,8 @@ export function etaDisclosureModel({ english = false } = {}) {
       ? "vector/SFU η=1.0 fixed (optimistic, not adjustable)"
       : "vector/SFU 固定 η=1.0（乐观上界，暂不可调）",
     detail: english
-      ? "Vector/SFU rates are computed at 100% efficiency (rates.js falls back to eta.vector ?? 1 / eta.sfu ?? 1; resolveEfficiency does not emit these keys, so neither the sliders nor chip-level declarations reach them). The efficiency defaults follow llm-analysis's single flops_efficiency design (ηF=0.7), which has no literature-backed vector/SFU split, so 1.0 is an explicit optimistic upper bound, not a measurement. The ηF slider does not affect vector/SFU paths."
-      : "vector/SFU 费率固定按 100% 效率计算（rates.js 兜底 eta.vector ?? 1 / eta.sfu ?? 1；resolveEfficiency 不产出这两个键，滑块与芯片级声明均无法触及）。效率默认值承袭 llm-analysis 的单一 flops_efficiency 折扣设计（ηF=0.7 即来源于此），无文献支撑的 vector/SFU 分项折扣，1.0 为显式乐观上界假设，非实测值。ηF 滑块不作用于 vector/SFU 路。",
+      ? "Vector/SFU rates are computed at 100% efficiency (rates.js falls back to eta.vector ?? 1 / eta.sfu ?? 1; resolveEfficiency does not emit these keys, so neither the sliders nor chip-level declarations reach them). ηF defaults to 0.7 as an adjustable assumption (principles §3.6) with no separate vector/SFU discount, so 1.0 is an explicit optimistic upper bound, not a measurement. The ηF slider does not affect vector/SFU paths."
+      : "vector/SFU 费率固定按 100% 效率计算（rates.js 兜底 eta.vector ?? 1 / eta.sfu ?? 1；resolveEfficiency 不产出这两个键，滑块与芯片级声明均无法触及）。ηF 默认 0.7 是可调假设（原则 §3.6），无独立的 vector/SFU 分项折扣，1.0 为显式乐观上界假设，非实测值。ηF 滑块不作用于 vector/SFU 路。",
   };
 }
 

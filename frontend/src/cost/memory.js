@@ -180,16 +180,12 @@ export function kvBytesPerToken(graph, kvBytes = 2) {
   return residentMemoryFromGraph(graph, { kvBytes }).kvBytesPerToken;
 }
 
-function activationPeakBytes({ activationPeak = 1.5 * 1024 ** 3 } = {}) {
-  return activationPeak;
-}
-
-export function memoryBreakdown({ weightBytes = 0, bufferBytes, graph, batch = 1, tokens = 1, kvBytes = 2,
-  activationPeak, runtimeConst = 1.5 * 1024 ** 3, commBuffer = 0 } = {}) {
+/** 图能证明的驻留合计。activation workspace / CUDA runtime / comm scratch
+ *  无法从 config 得到，不计（runtime-unknown，原则 §3.8 / protocol §四）。 */
+export function memoryBreakdown({ weightBytes = 0, bufferBytes, graph, batch = 1, tokens = 1, kvBytes = 2 } = {}) {
   const resident = residentMemoryFromGraph(graph, { kvBytes, batch, tokens });
   const buffers = bufferBytes ?? bufferBytesFromGraph(graph);
-  const activation = activationPeakBytes({ activationPeak });
-  const total = weightBytes + buffers + resident.kvBytes + resident.stateBytes + activation + runtimeConst + commBuffer;
+  const total = weightBytes + buffers + resident.kvBytes + resident.stateBytes;
   return {
     weightBytes,
     bufferBytes: buffers,
@@ -197,9 +193,6 @@ export function memoryBreakdown({ weightBytes = 0, bufferBytes, graph, batch = 1
     kvBytesPerToken: resident.kvBytesPerToken,
     stateBytes: resident.stateBytes,
     stateBytesPerSequence: resident.stateBytesPerSequence,
-    activationBytes: activation,
-    runtimeBytes: runtimeConst,
-    commBufferBytes: commBuffer,
     totalBytes: total,
   };
 }

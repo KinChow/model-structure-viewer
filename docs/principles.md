@@ -162,17 +162,19 @@ modelmap 主图把残差藏在兄弟顺序链里、micro-view 只在子层后塞
 
 ### 3.1 公式表是算子的**唯一注册点**，条目产出**动作向量**
 
-计价机制照抄 PyTorch `FlopCounterMode` / onnx-tool，不照抄 llm-analysis 的整层闭式：
+计价机制照抄 PyTorch `FlopCounterMode` / onnx-tool：
 
 ```text
 边上传入张量 shape → 节点公式只吃本节点 in/out/weight shape → 产出 counts
 ```
 
-换 B/S = 重新传播运行时维，不改公式。llm-analysis 只留给并行投影的**除法规则**
-（GQA KV `/ min(TP, kv_heads)`、MLA 不切、DP-attention 复制）与效率因子 / roofline
-下界。Accelergy 仍是「次数 × 芯片单价」（§3.4）的参考。
+换 B/S = 重新传播运行时维，不改公式。并行投影的除法规则写在
+[`details/parallel_protocol.md`](details/parallel_protocol.md)
+（GQA KV `/ min(TP, kv_heads)`、MLA 不切、DP-attention 复制）。
+Accelergy 仍是「次数 × 芯片单价」（§3.4）的参考。
 **禁止**再维护一套 `config + layer schedule → 整层 Σ` 的旁路。
 容量与算力同一主语：walk 图。
+**不再参考 llm-analysis**（整层闭式、`get_memory_*_per_gpu`、效率因子出处均不引用）。
 
 本仓在 FlopCounterMode 之上**有意多计**：flop_counter 只数矩阵系 FLOPs，softmax/norm
 贡献 0。注册条目产出四维动作向量（Accelergy Action Counts 形态）：
@@ -344,7 +346,16 @@ layer schedule 闭式。
 - 新增 KV/KDA 变体必须在对应叶上声明容量字段，不得在 `memory.js` 加
   `if (schedule[i] === ...)` 分支。
 
+**逐卡 fit 比较的是投影后的每卡驻留，不是未分片总量。**
+`memoryBreakdown.totalBytes` 是整模型理论合计（Total VRAM）。
+Fit / card 只比 `projectPlan` / `projectPdFit` 最紧 stage 的每卡字节和 `chip.memory_bytes`。
+拓扑（卡数够不够）走独立状态，不折进 Fit。节点 Cost Lens 的 VRAM 是
+「已切分的子树权重 + 本节点 dataflow 边界」，不是 Σ 子节点激活。
+Activation workspace / CUDA runtime / comm scratch 无法从配置得到，
+不计进 Total VRAM / Fit（runtime-unknown），不提供手填旋钮。
+
 **检查**：`cost/` 生产文件对调度函数 / 闭式容量的 import 为零。
+CostSummary 的 Fit 断言不得读 `cost.memory.totalBytes`。
 
 组网仍可读 `layer_types` / `first_k_dense_replace`（那是
 `nn.Module.__init__(layer_idx)`，对标 vLLM）。那是组网私有 helper
@@ -681,6 +692,9 @@ registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling �
   （flop_registry）。护栏 §3.1b = switch case 0。
 - **§3.8**：生产链已切到图 walk（叶声明 KV/KDA/buffer、`graphWeightCapacity`、
   MTP `repeat=0` 走 `residentRepeat`）。config 闭式已删；身份测试期望侧 walk 图。
+- **不再参考 llm-analysis**（2026-09-14）：整层闭式、`get_memory_*_per_gpu`、
+  效率因子出处均不引用。并行除法规则的住址是 `details/parallel_protocol.md`；
+  效率默认值是 UI 可调假设（§3.6）。外部参考表见 `details/modules.md` §8。
 
 **触发池**（触发未到不动工；住址 `implementation_plan.md`）：
 

@@ -18,9 +18,9 @@ test("unknown linear MACs remain unknown in model totals", () => {
     type: "operator",
     attributes: { operator_id: "linear" },
     weight_shapes: { qweight: [4, 1] },
-    children: [],
+    children: []
   };
-  const result = aggregateCost({ graph: toGraph({ children: [node] }), config: {}, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph({ children: [node] }), config: {}});
 
   assert.equal(result.totalMacs, null);
   assert.equal(result.totalFlops, null);
@@ -33,9 +33,9 @@ test("checkpoint skeleton linear leaves contribute to model totals", () => {
     id: "model.layers.0.mlp.gate_proj",
     type: "module",
     weight_shapes: { weight: [4, 2] },
-    children: [],
+    children: []
   };
-  const result = aggregateCost({ graph: toGraph({ children: [node] }), config: {}, batch: 1, sequence: 3, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph({ children: [node] }), config: {}, batch: 1, sequence: 3});
 
   assert.equal(result.totalMacs, 24);
   assert.equal(result.computeComplete, true);
@@ -45,7 +45,7 @@ test("checkpoint skeleton linear leaves contribute to model totals", () => {
 test("template linear operators derive MACs from numeric tensor shapes", () => {
   const node = { type: "operator", attributes: { operator_id: "linear" }, input_shape: [-1, -1, 4], output_shape: [-1, -1, 8], children: [] };
   assert.equal(nodeMacs(node, {}, { batch: 1, sequence: 3, phase: "prefill" }), 96);
-  const result = aggregateCost({ graph: toGraph({ children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }), config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph({ children: [node, { type: "normalization", output_shape: [-1, -1, 8], children: [] }] }), config: { hiddenSize: 4, vocabSize: 0, tieWordEmbeddings: true }, sequence: 3});
   assert.equal(result.totalMacs, 96);
   assert.equal(result.macsPerToken, 32);
   assert.equal(result.totalFlops, 192);
@@ -76,15 +76,13 @@ test("Graph IR 父节点只做汇总，不能把父级 attention 再计一次", 
       { id: "root.0.0", canonical_id: "decoder.0.self_attn.scores", parent_id: "root.0", order: 0, type: "operator", name: "attention scores", attributes: { operator_id: "matmul" }, input_shape: [-1, -1, 2, 4], output_shape: [-1, 2, -1, -1] },
       { id: "root.0.1", canonical_id: "decoder.0.self_attn.context", parent_id: "root.0", order: 1, type: "operator", name: "weighted value", attributes: { operator_id: "matmul" }, input_shape: [-1, 2, -1, -1], output_shape: [-1, -1, 2, 6] },
     ],
-    edges: [],
+    edges: []
   };
   const result = aggregateCost({
     graph,
     config: { attentionHeads: 2, headDim: 4, valueHeadDim: 6 },
     batch: 1,
-    sequence: 3,
-    activationPeak: 0,
-    runtimeConst: 0,
+    sequence: 3
   });
   // W3-①因果口径手算：T=S=3 → 每头可见对数 = 1+2+3 = 6，两头共 12 对。
   // scores = 12·headDim(4) = 48；context = 12·valueDim(6) = 72；合计 120。
@@ -105,7 +103,7 @@ test("父有 counts 用父、子孙不进账（§2.4 计费主语）", () => {
         order: 0,
         type: "operator",
         name: "SDPA attention",
-        attributes: { operator_id: "sdpa_attention", attention_kind: "gqa" },
+        attributes: { operator_id: "sdpa_attention", attention_kind: "gqa" }
       },
       {
         id: "root.0.0",
@@ -116,7 +114,7 @@ test("父有 counts 用父、子孙不进账（§2.4 计费主语）", () => {
         name: "attention scores",
         attributes: { operator_id: "matmul" },
         input_shape: [-1, -1, 2, 4],
-        output_shape: [-1, 2, -1, -1],
+        output_shape: [-1, 2, -1, -1]
       },
       {
         id: "root.0.1",
@@ -127,18 +125,16 @@ test("父有 counts 用父、子孙不进账（§2.4 计费主语）", () => {
         name: "weighted value",
         attributes: { operator_id: "matmul" },
         input_shape: [-1, 2, -1, -1],
-        output_shape: [-1, -1, 2, 6],
+        output_shape: [-1, -1, 2, 6]
       },
     ],
-    edges: [],
+    edges: []
   };
   const result = aggregateCost({
     graph,
     config: { attentionHeads: 2, headDim: 4, valueHeadDim: 6, kvHeads: 2 },
     batch: 1,
-    sequence: 3,
-    activationPeak: 0,
-    runtimeConst: 0,
+    sequence: 3
   });
   const parent = result.nodes.find((row) => row.path === "root.0");
   const scores = result.nodes.find((row) => row.path === "root.0.0");
@@ -157,10 +153,10 @@ test("参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度�
       { type: "operator", name: "gated RMSNorm", attributes: { operator_id: "gated_rmsnorm" }, output_shape: [-1, -1, 8], children: [] },
       { type: "operator", name: "qkv causal short convolution", attributes: { operator_id: "causal_conv1d" }, output_shape: [-1, -1, 8], children: [] },
       { type: "operator", name: "KDA recurrent state", attributes: { operator_id: "gated_delta_attention" }, output_shape: [-1, -1, 8], children: [] },
-    ],
+    ]
   };
   const config = { linearAttentionMode: "qwen3_5", hiddenSize: 16, linearKeyHeads: 1, linearValueHeads: 1, linearKeyDim: 2, linearValueDim: 2, linearConvKernelSize: 3 };
-  const result = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 2, activationPeak: 0, runtimeConst: 0 });
+  const result = aggregateCost({ graph: toGraph(root), config, batch: 1, sequence: 2});
   assert.equal(result.nodes[1].compute_macs, 0);
   assert.equal(result.nodes[2].compute_macs, 36);
   assert.equal(result.nodes[3].compute_macs, 24);
@@ -176,14 +172,14 @@ test("模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs",
     type: "operator",
     name: "expert MLP",
     attributes: { operator_id: "fused_moe_mlp" },
-    children: [],
+    children: []
   };
   const latent = {
     id: "decoder.0.mlp.expert_mlp",
     type: "operator",
     name: "latent expert MLP",
     attributes: { operator_id: "fused_moe_mlp", latent_size: 2 },
-    children: [],
+    children: []
   };
   const config = { hiddenSize: 4, intermediateSize: 6, experts: 8, expertsPerToken: 2 };
   // W5-1 语义修正：routed swiglu 按 k 全激活（T·k·3·EH·EI），旧链的 ·(k/E) 少乘 E
@@ -216,7 +212,7 @@ test("Qwen3.5 GDN 递推叶走 gated_delta_attention，不是容器融合公式"
     linearValueHeads: 2,
     linearKeyDim: 2,
     linearValueDim: 2,
-    linearConvKernelSize: 3,
+    linearConvKernelSize: 3
   };
   const node = { type: "operator", attributes: { operator_id: "gated_delta_attention", model_kind: "qwen3_5" }, id: "decoder.0.linear_attn.state_update" };
   // stateUpdate = 3·valueHeads·valueDim·keyDim = 24；prefill T=5 → 120；decode T=1 → 24
@@ -262,7 +258,7 @@ test("父节点和范围子节点同时有 repeat 时只计算一次范围倍数
 test("V3 用户可调 visionTokens：vision 域随 tokens 线性变化，文本域不变", () => {
   const config = normalizeConfig({
     text_config: { hidden_size: 4, num_attention_heads: 2 },
-    vision_config: { hidden_size: 4, num_attention_heads: 2, num_position_embeddings: 4096, spatial_merge_size: 2 },
+    vision_config: { hidden_size: 4, num_attention_heads: 2, num_position_embeddings: 4096, spatial_merge_size: 2 }
   });
   assert.equal(config.visionTokens, 1024); // normalize 推导兜底值
   const root = { children: [
@@ -288,14 +284,14 @@ test("子树与模型合计保留 kvRead/indexRead（Accelergy action 名不丢�
       attributes: { operator_id: "sdpa_attention" },
       input_shape: [-1, -1, 8],
       output_shape: [-1, -1, 8],
-      children: [],
-    }],
+      children: []
+    }]
   });
   const rows = computeNodeCosts(graph, { hiddenSize: 8, attentionHeads: 2, headDim: 4, numKeyValueHeads: 2 }, { batch: 1, sequence: 4, phase: "prefill" });
   const leaf = rows.find((row) => row.path === "root.0");
   assert.ok((leaf.actions?.bytes?.kvRead ?? 0) > 0);
   const aggregate = aggregateNodeCosts(rows);
   assert.equal(aggregate.find((row) => row.path === "root").aggregate_actions.bytes.kvRead, leaf.actions.bytes.kvRead);
-  const cost = aggregateCost({ graph, config: { hiddenSize: 8, attentionHeads: 2, headDim: 4, numKeyValueHeads: 2 }, batch: 1, sequence: 4, phase: "prefill", activationPeak: 0, runtimeConst: 0 });
+  const cost = aggregateCost({ graph, config: { hiddenSize: 8, attentionHeads: 2, headDim: 4, numKeyValueHeads: 2 }, batch: 1, sequence: 4, phase: "prefill"});
   assert.equal(cost.actions.kvRead, leaf.actions.bytes.kvRead);
 });

@@ -4,14 +4,14 @@ import { materializeStructureGraph } from "../../structure/graph/materializeStru
 import { memoryBreakdown } from "../memory.js";
 import { classifyRoofline } from "../roofline.js";
 
-test("KV bytes 和常数项使用用户可调假设", () => {
+test("KV bytes 使用用户可调假设，不计入无来源常数", () => {
   const graph = materializeStructureGraph({
     id: "model",
     children: [{ id: "layers.0.sdpa", attributes: { cache_kv_elements: 2 }, children: [] }],
   });
-  const result = memoryBreakdown({ weightBytes: 0, graph, tokens: 2, kvBytes: 1, activationPeak: 3, runtimeConst: 4, bufferBytes: 0 });
+  const result = memoryBreakdown({ weightBytes: 0, graph, tokens: 2, kvBytes: 1, bufferBytes: 0 });
   assert.equal(result.kvBytes, 4);
-  assert.equal(result.totalBytes, 11);
+  assert.equal(result.totalBytes, 4);
 });
 
 test("roofline 使用用户提供的效率因子", () => {

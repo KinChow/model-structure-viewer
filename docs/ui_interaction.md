@@ -74,12 +74,17 @@
 
 成本区域默认折叠，摘要始终展示当前部署模式、芯片、节点/GPU 数和 fit 状态。
 
-- Cost Lens 支持 `None`、`VRAM`、`Compute`、`Memory` 和 `KV Cache` 多选。
+- Cost Lens 支持 `None`、`VRAM`、`Compute`、`Memory` 和 `KV Cache` 多选。VRAM 徽标是节点 `vramBytes`（子树每卡权重 + 本节点边界激活），不是整模型 Total VRAM。
 - 模式支持集中式和 PD；PD 分别保存 Prefill/Decode 的负载、节点数和并行方案。
 - 并行输入包括 TP、PP、EP、DP、MoE TP、MoE EP、Attention 模式和词表并行开关（MoE TP/EP 留空走缺省链，world size 为 tp×pp×dp 的只读派生显示——P6 第四消费者）。
 - 对比模式互斥：关闭、芯片对比、方案对比。
 - 芯片规格缺失时显示 unknown 或警告，不填入估算值伪装真值。
 - 所有成本结果必须标注为理论计算，不表示调度、流水线气泡、传输重叠或实际吞吐预测。
+- Cost assumptions 只保留能作用在图内已有量上的项（KV bytes / element、Weight what-if）。不提供 Activation peak / Runtime / Comm buffer 手填：这三项无法从配置得到，属 runtime-unknown，Fit 不计。
+- 显存三行不得混比（口径见 [`details/modules.md`](details/modules.md) §9.7）：
+  - `Total VRAM`：未分片理论合计，文案保持这个名字（e2e 契约）。
+  - `Peak / card`：当前方案最紧 PP stage 的每卡字节，读 `projectPlan` / `projectPdFit`，不在 UI 里重算。
+  - `Fit / card`：`Peak / card <=` 芯片行的单卡容量。GPU 不够或方案无效走旁边的 `planStatus`，Fit 显示未知而不是「否」。
 
 ### 导出和原始配置
 

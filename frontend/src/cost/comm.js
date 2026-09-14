@@ -1,5 +1,5 @@
 // 给定并行计划的通信量估算；不建模 overlap、调度和实际链路拥塞。
-// 来源：llm-analysis 的 TP 通信公式，以及 evolution_design.md §5.3(6.3) F11-F12。
+// 公式见 details/modules.md §9.5 与 details/parallel_protocol.md Q6。不再参考 llm-analysis。
 
 import { kvBytesPerCard, stateBytesPerCard, validatePdPlan } from "./parallel.js";
 import { walkStructure } from "./traverse.js";
@@ -7,7 +7,7 @@ import { walkStructure } from "./traverse.js";
 
 /**
  * Ring all-reduce 的每层通信字节数。
- * 来源：llm-analysis 的 get_latency_fwd_per_layer_tp_comm；o_proj 与 MLP down 各触发一次。
+ * o_proj 与 MLP down 各触发一次；字节公式见 details/modules.md §9.5。
  */
 export function ringAllReduceBytes({ batch = 1, tokens = 1, hidden, bytesPerElement = 2, tp = 1, operations = 2 } = {}) {
   if (!Number.isInteger(tp) || tp < 1 || !Number.isFinite(hidden) || hidden < 0) return 0;

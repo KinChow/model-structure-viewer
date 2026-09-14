@@ -384,20 +384,19 @@ operator chain 只是可解释的结构语义，不表示 MSV 会调用 vLLM/SGL
 |---|---|---|
 | MSV 语义公式 | `structure/operators/formulas/index.js` | 页面展示公式，由 MSV 按结构语义维护 |
 | 参考实现 | `operators/ops/index.js` 的 `implementation` | vLLM/SGLang 类、算子或 backend 名称，不在浏览器执行 |
-| 成本方法论 | `cost/*.js` 注释和函数 | 逐算子 counts 对标 FlopCounterMode / onnx-tool（shape → 公式）；并行、显存 fit、效率因子、roofline 下界仍借鉴 llm-analysis。FlopCounterMode 独立算子夹具在 `verification/flop_counter.py`（Linear / BMM / 深度可分 Conv1d）。 |
+| 成本方法论 | `cost/*.js` 注释和函数 | 逐算子 counts 对标 FlopCounterMode / onnx-tool（shape → 公式）。容量 walk 图（§3.8）。并行除法规则见 `details/parallel_protocol.md`（GQA `min(TP, kv_heads)`、MLA 不切、DP-attention 复制）。**不再参考 llm-analysis**。FlopCounterMode 独立算子夹具在 `verification/flop_counter.py`（Linear / BMM / 深度可分 Conv1d）。 |
 | shape/协议事实 | safetensors、`@huggingface/hub`、模型 config | 参数量、dtype、shape、cache 和模型识别事实 |
 
 外部参考：
 
 - [PyTorch FlopCounterMode](https://github.com/pytorch/pytorch/blob/main/torch/utils/flop_counter.py)：逐算子 shape → FLOP 公式（mm/bmm/conv/SDPA）；msv counts 的机制对标。
 - [onnx-tool](https://github.com/ThanatosShinji/onnx-tool)：ONNX shape inference + 每节点 MACs。
-- [llm-analysis](https://github.com/cli99/llm-analysis)：KV cache、并行投影、效率因子、延迟下界；**不再**作为逐算子 counts 来源。
 - [vLLM](https://github.com/vllm-project/vllm)：模型执行、KDA state、attention/MoE 算子和实现名称参考。
 - [SGLang](https://github.com/sgl-project/sglang)：模型执行、attention/MoE/backend 实现名称参考。
 - [safetensors](https://github.com/huggingface/safetensors)：header、dtype、shape、offset 和 tensor key 事实来源。
 - [@huggingface/hub](https://github.com/huggingface/huggingface.js)：浏览器端 safetensors metadata 和参数量解析实现。
 
-限制：`formulas/index.js` 当前没有逐公式的外部 URL 字段。上述外部来源是方法论或参考实现来源，不表示每条公式都逐行复制自外部函数。新增公式时应同步记录来源类别。
+限制：`formulas/index.js` 当前没有逐公式的外部 URL 字段。上述外部来源是方法论或参考实现来源，不表示每条公式都逐行复制自外部函数。新增公式时应同步记录来源类别。**不再参考 llm-analysis**（闭式容量、per-GPU 函数、效率因子出处均不引用）。
 
 ## 9. 成本公式关系
 
@@ -433,7 +432,7 @@ KDA state/layer = conv_history_elements
                 + value_heads * value_dim * key_dim
 ```
 
-线性 attention 的 recurrent state 是 request state，不是 token KV。代码：`cost/memory.js`。KV 注释来源为 llm-analysis `get_memory_kv_cache_per_layer`；KDA state shape 来源为 vLLM `MambaStateShapeCalculator.kda_state_shape`。
+线性 attention 的 recurrent state 是 request state，不是 token KV。代码：`cost/memory.js`。KV/KDA **容量** walk 叶声明（`cache_*_elements` / `state_elements`）；除法规则见 §9.4。KDA state shape 对标 vLLM `MambaStateShapeCalculator.kda_state_shape`。
 
 ### 9.3 MACs/FLOPs
 
@@ -447,7 +446,7 @@ MACs_attention = query_tokens * heads * context_tokens
                  * (query_key_dim + value_dim)
 ```
 
-QSA 使用 `min(sequence, indexer_budget)`；MiniMax sparse 使用 `(topk + init + local) * block_size`；linear attention 按各模型投影、卷积、状态更新和输出投影分解。公式唯一来源是 `structure/operators/formulas/`——`formulas/extractor.js` 的 `countsForNode` 查 `FORMULAS` counts 注册表；`cost/compute.js` 只做 Graph IR 遍历（`walkStructure`）和 repeat 倍乘，旧 nodeMacs 分派链已于 W5-1 删除。方法论注释指向 llm-analysis 的 linear/attention FLOPs 函数。
+QSA 使用 `min(sequence, indexer_budget)`；MiniMax sparse 使用 `(topk + init + local) * block_size`；linear attention 按各模型投影、卷积、状态更新和输出投影分解。公式唯一来源是 `structure/operators/formulas/`——`formulas/extractor.js` 的 `countsForNode` 查 `FORMULAS` counts 注册表；`cost/compute.js` 只做 Graph IR 遍历（`walkStructure`）和 repeat 倍乘，旧 nodeMacs 分派链已于 W5-1 删除。
 
 ### 9.4 并行投影
 
@@ -482,14 +481,45 @@ bound     = max(matrix, vector, sfu, memory, comm)   # 五路时间取 max（W5-
 
 bound 是五路时间（matrix/vector/sfu/memory/comm）取 max 的 **overlap 静态上限**：comm 与 compute 取最大而非求和是闭式不等式口径，结果带 `overlapUpperBound: true` 标记（P10，roofline.js:119-125）。费率单源在 `cost/chips/rates.js`（`chipRates`），效率因子来自 `cost/efficiency.js`。动作向量声明了 `computeDtype` 时（N2-1，如 mHC 的 TF32 pre-GEMM），矩阵时间拆两段费率：tf32 桶按 `peak_flops.tf32` 计、其余按全局 dtype 费率；芯片无 tf32 行时整段回退全局费率（roofline.js:19-21,84-95）。数量未知或费率缺失时对应路为 null，bound 返回 `unknown`——已知零参与 max 但不主导，未知不得冒充零。
 
-### 9.7 显存 fit
+### 9.7 显存：总量、每卡峰值、节点 VRAM 三套数字，禁止混比
+
+主语仍是图（§9 数据流）。Fit 不另开公式，只读投影。
 
 ```text
-total = weights + KV + request_state
-      + activation_peak + runtime_const + communication_buffer
+# 产品层 CostSummary（放得下吗）
+Total VRAM = memoryBreakdown.totalBytes
+           = 未分片（weights + 图 buffer + KV + KDA）
+             # 图能证明的驻留下界。activation workspace / CUDA runtime /
+             # comm scratch 无法从 config 得到，不计（runtime-unknown）
+
+stage.totalBytes = 该 PP stage 已切权重 + 已切 KV + 已切 KDA
+
+Peak / card = max_s stage.totalBytes          # projectPlan 与 projectPdFit 同式
+Fit / card  = Peak / card <= chip.memory_bytes
+              # 拓扑（requiredGpus <= totalGpus）走 planStatus，不进 Fit
+              # plan 无效 → Fit 未知，不得谎报显存不足
+              # 结论是图内驻留下界，不是「含框架开销刚好能跑」
+
+# 节点层 Cost Lens（算子可解释）
+ownWeightPerCard     = nodeCostPerCard(nodeWeightCapacityBytes × resident)
+                       # 只切本节点 weightMatrices；无声明则 unknown/0
+subtreeWeightPerCard = aggregate_weightBytes   # 先切后上卷，复用 aggregateNodeCosts
+nodeActivation       = 本节点 dataflow 边界
+                       （counts.bytes.actIn+actOut，否则 input/output_shape）
+vramBytes            = subtreeWeightPerCard + nodeActivation
 ```
 
-`activation_peak`、`runtime_const` 和 `communication_buffer` 是显式用户假设，不是权重百分比，也不代表 allocator 实测峰值。
+纪律：
+
+- 不提供 Activation peak / Runtime / Comm buffer 旋钮，也不把它们默认成 0 再加进 Fit。真实峰值显存是 runtime-unknown。
+- 节点激活禁止 Σ 子节点。容器展示的是子树驻留权重 + 本节点边界，不是子树执行峰值。
+- 切分是叶的事。禁止对已切分的 `aggregate_weightBytes` 再送进 `nodeCostPerCard`（会 `/TP²`）。
+- 算力倍率用 `multiplier`，容量用 `resident`（MTP/DSpark `repeat=0` 仍占显存）。
+- 权重入口唯一：`nodeWeightCapacityBytes`（checkpoint shape 优先，否则 `weightMatrices`，`shared` 跳过）。`projectNodePlan` 的 `nodeResidentWeightBytes` 改调它，禁止写死 `*2`。
+- `projectPlan` 给每个 stage 写 `totalBytes`（抄 `projectPdFit` 已有那一行）。CostSummary 不内联加法，不新增 `peakStageMemoryBytes`。
+- 不单开「节点总显存」投影。芯片行已有单卡容量；拓扑行已有 nodes × GPUs。
+
+测试锁：叶子 `vramBytes` 只按声明轴切一次；父 = Σ 子每卡权重 + 自身边界激活；Fit 读 `stage.totalBytes` 不读 `cost.memory.totalBytes`；MTP `repeat=0` 权重非 0。
 
 ## 10. UI、导出和诊断关系
 
@@ -516,7 +546,7 @@ ModelStructure.graph（Graph IR 唯一结构载荷；App.jsx:96、DetailWorkspac
 | 算子树/权重声明/unsupported | `structure/operators/__tests__/`：`declaration`、`ops-spec-tree.diff`、`unsupportedArchitecture` |
 | 公式与 counts 恒等 | `structure/operators/formulas/__tests__/`：`atoms`、`counts`、`identities`、`modelIdentities`、`extractor.identity`、`countsAtomsConsistency` |
 | shape/dtype/safetensors | `cost/__tests__/dims.test.js`、`safetensorsReader.test.js` |
-| 成本链（counts/computeDtype/量化/字节/roofline/声明接缝） | `cost/__tests__/`：`compute`、`computeDtype`、`quantBytes`、`sharding`、`bytesCompleteness`、`rooflineChain`、`memory`、`aggregateWeights`（aggregate 接缝）、`traverse`、golden diff（`cost-memory-actions.diff`） |
+| 成本链（counts/computeDtype/量化/字节/roofline/声明接缝） | `cost/__tests__/`：`compute`、`computeDtype`、`quantBytes`、`sharding`、`bytesCompleteness`、`rooflineChain`、`memory`、`aggregateWeights`（aggregate 接缝）、`traverse` |
 | TP/PP/EP/DP/PD | `cost/__tests__/parallel.test.js`、`comm.test.js`、`pdSummary.test.js` |
 | 芯片来源和缺项 | `cost/__tests__/publicChips.test.js`、`coverage.test.js`、`manualChip.test.js` |
 | 图和交互 | `diagram/__tests__/edgeStyle.test.js`、`components/ModelEntry.test.js`、`hooks/useStructure.test.js`、`diagnostics.test.js` |

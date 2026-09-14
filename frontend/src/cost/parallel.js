@@ -1,5 +1,5 @@
 // 给定 TP/PP/EP/DP 计划的资源投影；不搜索计划，也不预测吞吐或延迟。
-// 来源：llm-analysis 的并行内存分解方法，以及 evolution_design.md §5.3(6)。
+// 容量 walk 图声明；切分规则见 details/parallel_protocol.md。不再参考 llm-analysis。
 
 import { nodeWeightBytes } from "./memory.js";
 import { childResidentRepeat, graphNodeToNode, walkStructure } from "./traverse.js";
@@ -25,7 +25,7 @@ export function validatePlan(plan = {}, config = {}) {
 
 /**
  * 计算单卡 KV cache 字节数。
- * 来源：llm-analysis 的 get_memory_kv_cache_per_gpu；GQA/MLA/DP-attention 分支依据设计文档 F5-F7。
+ * 除法规则见 details/parallel_protocol.md 与原则 §3.6：GQA = min(TP, kv_heads)，MLA 不切，DP-attention 复制。
  */
 export function kvBytesPerCard(totalKvBytes, config = {}, plan = {}) {
   const checked = validatePlan(plan, config);
@@ -87,9 +87,8 @@ export function weightBytesPerCard(totalBytes, node, plan = {}) {
 
 /**
  * 把单个图节点的理论成本投影到一个 rank。
- * 来源：llm-analysis@d841e40aec8c 的 get_latency_fwd_per_layer_attn/mlp 与
- * get_activation_memory_per_layer_attn/mlp：逐卡计算量、权重和激活按并行轴切分；
- * MoE 专家沿用本文件的 EP 归属规则。这里仅做解析式除法，不模拟 kernel、通信重叠或负载不均衡。
+ * 权重按该叶 weightMatrices.class 切分（协议唯一入口）；无声明则 unknown。
+ * 仅做解析式除法，不模拟 kernel、通信重叠或负载不均衡。
  */
 export function nodeCostPerCard(cost = {}, node, plan = {}) {
   const projection = weightBytesPerCard(cost.weightBytes || 0, node, plan);
@@ -190,7 +189,7 @@ export function projectPlan({ graph, weightBytes = 0, kvBytes = 0, stateBytes = 
 
 /**
  * 根据 IR 节点路径把权重归属到 PP stage，避免 embedding/lm_head 被平均摊薄。
- * 来源：llm-analysis 的 get_memory_weight_per_stage；具体模块切分复用本文件的 TP/EP 规则。
+ * 模块切分走本文件的 TP/EP 规则（weightMatrices）。
  * N2-4 W-B：无 weight_shapes 的声明叶（内置模型默认路径）按 weightMatrices
  * 声明计驻留字节（bf16）——此前派生路径全零，专家/非专家的 EP/TP 切分塌缩，
  * 树投影整体死路（stages 恒 0 → 退平摊）。
@@ -308,15 +307,15 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
 
 /** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。
  *  P7（步骤 7）：root 入参退役，projectPlan 与本函数一致只收 Graph IR。 */
-export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, stateBytes = 0, prefillStateBytes, decodeStateBytes, config = {}, pdPlan = {}, prefillChip, decodeChip, activationBytes = 0, runtimeBytes = 0, commBufferBytes = 0 } = {}) {
+export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, stateBytes = 0, prefillStateBytes, decodeStateBytes, config = {}, pdPlan = {}, prefillChip, decodeChip } = {}) {
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
   function side(plan, chip, sideKvBytes, sideStateBytes) {
     const projection = projectPlan({ graph, weightBytes, kvBytes: sideKvBytes, stateBytes: sideStateBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
-      const totalBytes = stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0) + activationBytes + runtimeBytes + commBufferBytes;
-      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + (stage.stateBytes || 0) + activationBytes + runtimeBytes + commBufferBytes;
+      const totalBytes = stage.weightBytes + stage.kvBytes + (stage.stateBytes || 0);
+      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + (stage.stateBytes || 0);
       return { ...stage, totalBytes, worstTotalBytes,
         fit: positiveNumber(capacity) ? totalBytes <= capacity : null,
         worstFit: positiveNumber(capacity) ? worstTotalBytes <= capacity : null };
@@ -333,12 +332,12 @@ export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvByt
 }
 
 /** 给定 stage 投影下，由最紧张 stage 决定最大上下文。 */
-export function maxContextForStages(stages = [], { capacityBytes, activationBytes = 0, runtimeBytes = 0, sequence = 1 } = {}) {
+export function maxContextForStages(stages = [], { capacityBytes, sequence = 1 } = {}) {
   if (!positiveNumber(capacityBytes) || !positiveNumber(sequence) || stages.length === 0) return null;
   const limits = stages.map((stage) => {
     const kvPerContextToken = stage.kvBytes / sequence;
     if (!positiveNumber(kvPerContextToken)) return null;
-    return Math.max(0, Math.floor((capacityBytes - stage.weightBytes - (stage.stateBytes || 0) - activationBytes - runtimeBytes) / kvPerContextToken));
+    return Math.max(0, Math.floor((capacityBytes - stage.weightBytes - (stage.stateBytes || 0)) / kvPerContextToken));
   }).filter((value) => value != null);
   return limits.length ? Math.min(...limits) : null;
 }

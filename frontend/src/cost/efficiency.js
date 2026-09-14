@@ -1,5 +1,5 @@
 // 理论分析使用的效率因子默认值与芯片级覆盖。
-// 来源：llm-analysis 的 flops_efficiency、hbm_memory_efficiency、interconnect efficiency 设计。
+// 默认值是 UI 可调假设（原则 §3.6），不是实测。不再参考 llm-analysis。
 
 export const DEFAULT_EFFICIENCY = Object.freeze({
   flops: 0.7,

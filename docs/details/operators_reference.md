@@ -1113,7 +1113,7 @@ qsa_attention dsv4 分支 kvWrite=0——C2 修复后无三重计费）。
   （C1，a4d709a）**：修复前传 `config.hiddenSize`，对 K3 各放大 H/latent=2×
   （92 层实例 ≈ +21.6MB/token @decode，bpe=2；2026-09-09 双向验证发现，
   verify-moe-norm F1）；修法 W=staticWidth(node.input_shape)||H，golden/恒等式基线
-  已同步重生（`cost-memory-actions.golden.json` 42 行翻新）。
+  已同步重生。
 - **运行时 actions 实证（a4d709a）**：Kimi-K3 单实例（T=128、latent=3584、k=16）：
   actIn=917,504 B=128·3584·2、actOut=14,680,064 B=128·16·3584·2——latent 宽逐位
   吻合（/tmp/m11-formulas/probe-c12-rewrite.mjs 实测；修复前 actIn=1,835,008）。
@@ -1599,7 +1599,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
         （该值已被权重字节恒等式锚定，单源）。
       成熟方案对照：vLLM/SGLang 量化按**模块**应用（FusedMoE 模块持有
       w13/w2 打包权重，ignore list 按模块名）——模块即单位，叶子自描述；
-      HF/llm-analysis 类显存工具走 per-tensor checkpoint 元数据（msv 的
+      HF / safetensors 类显存工具走 per-tensor checkpoint 元数据（msv 的
       checkpoint 路径 parameters_by_dtype 已是该方案且正确），缺口仅在
       无 checkpoint 的派生路径。
 

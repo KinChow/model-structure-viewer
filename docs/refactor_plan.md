@@ -141,6 +141,68 @@ MAINTENANCE.md 棘轮已回写。
    死包装删除、活权威正名；linear_attention 保留槽位注释。剩余登记：
    causalConvCounts 仅供 PLE 复合（不同算子，非双源）。
 
+> **review 补记（2026-09-14，本轮仅登记不改）**：工作区未提交 diff
+> （CostSummary / compute / memory / parallel / lens + 两份测试）试图修两件事，
+> 改法不对，不要合、不要在现 diff 上打补丁凑绿。触发：回过头修「单卡适配 /
+> 父节点 VRAM」时先读本块，再动 `frontend/src`。
+>
+> **原始问题**
+> 1. 页面 Total VRAM 是整模型总显存；「单卡适配」却拿它和单卡容量比
+>    （8 卡仍显示 74.51 GiB / card，判断却是 Total VRAM ≤ 74.51 GiB → 误报不适配）。
+>    应区分四口径：模型总显存 / 单卡显存 / 节点总显存 / 当前 TP/PP/EP/DP 方案每卡显存。
+>    适配判断只用方案投影后的每卡显存。
+> 2. 父节点只汇总子节点算力；权重只读 checkpoint shape、不读 `weightMatrices`，
+>    父节点只显示激活张量（例：32 MiB）。
+>
+> **现 diff 为什么不对**
+> 1. `planFitsMemory` 已改成按 `projected.stages` 每卡字节比 `available`（判断源对了）；
+>    「单卡适配」文案却折进 `planFitsTopology && !planInvalid`，绿标用 `!== false`、
+>    文案用 `=== true`。拓扑应继续走 `planStatus`。
+> 2. `lens.js` `perCardWeightByPath` 先按叶声明 `/TP`，再把结果喂给 `nodeCostPerCard`，
+>    叶子 `/TP²`；父节点无 `weightMatrices` 时第二次 divisor=1，`root.0=32800` 假绿。
+> 3. 新测试不锁叶子只 `/TP` 一次，也不锁 Fit 用每卡峰值而非 `totalBytes`。
+> 4. `Total VRAM` → `Total footprint`，e2e `viewer.spec.js:58` 仍找旧文案；
+>    中文「总显存占用」仍像 GPU 总需求。四口径里「节点总显存」缺席。
+> 5. 旁路已有 `aggregate_weightBytes`，手写 DFS 接近 O(n²)（~1.8 万带权叶）。
+>
+> **正确改法（未做）**：切分是叶的事，父节点只求和已经是每卡的数。
+> `row.weightBytes = nodeWeightCapacityBytes(node) * resident`（算力仍用 `multiplier`）；
+> own 权重只 `nodeCostPerCard` 一次，再走 `aggregateNodeCosts`；lens 不要第二次传权重。
+> Fit / card = `projectedCardBytes <= available`（未知用 `fitText(null)`）。
+> 文案「模型总显存 / 方案每卡」，改 e2e。`nodeWeightCapacityBytes` 若留，替掉
+> `parallel.js` `nodeResidentWeightBytes` 的写死 `*2`。
+>
+> **登记项（纠偏，不进触发池）**
+> - P0：`lens.js:32-55` 叶子权重二次 `/TP`。
+> - P1：Fit / card 混用拓扑；测试未锁错误口径；e2e 文案必红。
+> - P2：MTP `repeat=0` 用 `multiplier` 漏驻留；三条权重入口
+>   （`nodeWeightCapacityBytes` / `nodeResidentWeightBytes` / `graphWeightCapacity`）；
+>   峰值公式三处拷（`planFitsMemory` 内联 / PD `Math.max(totalBytes)` /
+>   `peakStageMemoryBytes`）。
+> - 格式闸（quotes/curly/max-len 等）与仓库既有风格一致，修正确性时顺手带过，
+>   不单独开 lint 波次。
+>
+> **方案终态（2026-09-14 收短）**：规范住址
+> [`details/modules.md`](details/modules.md) §9.7、[`ui_interaction.md`](ui_interaction.md)
+> 「成本与部署」、原则 §3.8 逐卡 fit 句。**不再参考 llm-analysis**。
+> Activation peak / Runtime / Comm buffer 旋钮已删（2026-09-14）：无法从配置得到，
+> 不计进 Total VRAM / Fit，属 runtime-unknown。现 Fit/lens 工作区 diff 仍不要合。
+>
+> **产品层**：`projectPlan` 给 stage 写 `totalBytes`（抄 `projectPdFit` 已有行）。
+> CostSummary 只读：`Total VRAM` 保持文案 = `memoryBreakdown.totalBytes`；
+> `Peak / card` = `max(stage.totalBytes)`；`Fit / card` = Peak <= 芯片行单卡容量。
+> 拓扑走 `planStatus`。PD 两侧各读 `projectPdFit.*.fit`。
+>
+> **节点层**：`computeNodeCosts` 的权重改 `nodeWeightCapacityBytes × resident`；
+> 对本行 own 权重 `nodeCostPerCard` 一次；`aggregateNodeCosts` 上卷；
+> lens 的 `vramBytes` = `aggregate_weightBytes` + 本节点 actIn/actOut，
+> 第二次不要再传权重。父卡激活路径本来就是本节点 shape，不要改成 Σ 子激活。
+>
+> **落地（先确认再动 `frontend/src`）**
+> 1. 权重入口 + resident + 先切后卷；删 `perCardWeightByPath`。
+> 2. `projectPlan.stage.totalBytes`；CostSummary 去掉内联加法。
+> 3. 测试锁叶子只切一次、MTP resident、父 = Σ 子每卡权重 + 自身边界、Fit 不读 totalBytes。
+
 ### M12 之后的收口工作
 
 以下事项不属于 M12 的通信功能本身，但必须在下一轮协议收口中处理：

@@ -12,6 +12,14 @@ export function resolveEndpoint(endpoint = "huggingface") {
   return HF_ENDPOINTS[endpoint] || HF_ENDPOINTS.huggingface;
 }
 
+/** ModelScope 把空 revision / HF 风格的 `main` 收成该端点默认 ref。 */
+export function revisionForEndpoint(endpoint, revision) {
+  const { defaultRevision } = resolveEndpoint(endpoint);
+  return endpoint === "modelscope" && (!revision || revision === "main")
+    ? defaultRevision
+    : revision || defaultRevision;
+}
+
 /** huggingface_hub snapshot 同构：repo_id + revision + cache_dir 唯一键。 */
 export function sourceCacheKey({ repoId, revision, cacheDir }) {
   if (!repoId) throw new Error("repo_id is required");

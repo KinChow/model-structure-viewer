@@ -1656,60 +1656,61 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 > 触发面按 `models/catalog.json` 全量模型实跑（prefill T=128 / decode T=1,S=4096 两相位）；
 > `matrix|vector|sfu|bytes` 列的 ✓/0 表示该分量在任一相位是否非零（0 = 精确零，principles §3.3）。
 > `来源` = principles §3.5 的三级体系（一 aten 锚点 / 二 modeling 对照 / 三 分解声明）。
+> `group` = SGLang `kernels/ops/` 功能域（`FORMULAS[id].group`）；`ple` 暂不归组。
 
 ## 总览表（生成物：49 个算子 / 59 个模型）
 
-| 算子 | matrix | vector | sfu | bytes | 来源 | 触发模型 | 节点 | 实例 | 出现槽位 |
-|---|---|---|---|---|---|---|---|---|---|
-| `linear` | ✓ | ✓ | 0 | ✓ | 一 | 59/59 | 10473 | 28931 | attn_residual · block_sparse_moe · indexer · linear_attn 等 15 |
-| `residual_add` | 0 | ✓ | 0 | ✓ | 一 | 59/59 | 2682 | 6604 | language_model · layer · layers · mtp |
-| `rope` | 0 | ✓ | 0 | ✓ | 三 | 59/59 | 1171 | 2393 | self_attn |
-| `swiglu` | 0 | ✓ | ✓ | ✓ | 一 | 58/59 | 1343 | 3290 | merger · mlp · shared_experts · visual |
-| `embedding` | 0 | 0 | 0 | ✓ | — | 57/59 | 62 | 59 | markov_head · ple_embedding · root |
-| `rmsnorm` | 0 | ✓ | ✓ | ✓ | 三 | 57/59 | 2040 | 8637 | attn_residual · block_sparse_moe · enorm · hnorm 等 16 |
-| `identity` | 0 | 0 | 0 | 0 | 一 | 50/59 | 982 | 2865 | language_model · layer · layers |
-| `matmul` | ✓ | 0 | 0 | ✓ | 一 | 48/59 | 940 | 4162 | sdpa |
-| `softmax` | 0 | ✓ | ✓ | ✓ | 一 | 48/59 | 470 | 2081 | sdpa |
-| `fused_moe_mlp` | ✓ | ✓ | ✓ | ✓ | 一 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
-| `moe_combine` | 0 | ✓ | 0 | ✓ | 三 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
-| `moe_dispatch` | 0 | 0 | 0 | ✓ | 一 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
-| `topk` | 0 | ✓ | ✓ | ✓ | 一 | 44/59 | 958 | 2565 | block_sparse_moe · mlp |
-| `moe_add` | 0 | ✓ | 0 | ✓ | 一 | 43/59 | 966 | 2518 | block_sparse_moe · mlp |
-| `attention_qkv_split` | 0 | 0 | 0 | 0 | 二 | 40/59 | 43 | 1147 | self_attn · vision_tower · visual |
-| `vision_position` | 0 | ✓ | 0 | ✓ | 三 | 38/59 | 38 | 38 | vision_tower · visual |
-| `split` | 0 | 0 | 0 | 0 | 一 | 36/59 | 647 | 726 | self_attn |
-| `vision_activation` | 0 | ✓ | ✓ | ✓ | 一 | 36/59 | 69 | 978 | merger · projector · vision_tower · visual |
-| `causal_conv1d` | ✓ | 0 | 0 | ✓ | 一 | 34/59 | 431 | 1274 | linear_attn · self_attn |
-| `gated_delta_attention` | ✓ | ✓ | ✓ | ✓ | 二 | 34/59 | 431 | 1274 | linear_attn · self_attn |
-| `gated_rmsnorm` | 0 | ✓ | ✓ | ✓ | 二 | 34/59 | 431 | 1274 | linear_attn · self_attn |
-| `gemma_rmsnorm` | 0 | ✓ | ✓ | ✓ | 三 | 33/59 | 2404 | 4289 | enorm · hnorm · input_layernorm · norm 等 8 |
-| `qwen_qkvz_split` | 0 | 0 | 0 | 0 | 二 | 31/59 | 383 | 1137 | linear_attn |
-| `vision_merge` | 0 | 0 | 0 | ✓ | 三 | 31/59 | 31 | 31 | merger |
-| `attention_output_gate` | 0 | ✓ | ✓ | ✓ | 二 | 29/59 | 384 | 355 | self_attn |
-| `mla_kv_compress` | ✓ | 0 | 0 | ✓ | 三 | 24/59 | 475 | 1369 | self_attn |
-| `mla_kv_split` | 0 | 0 | 0 | 0 | 一 | 19/59 | 232 | 1124 | self_attn |
-| `mla_query_compress` | ✓ | 0 | 0 | ✓ | 三 | 19/59 | 232 | 1124 | self_attn |
-| `shared_expert_gate` | 0 | ✓ | ✓ | ✓ | 二 | 16/59 | 442 | 844 | shared_expert_gate |
-| `dsa_sparse_mla` | ✓ | 0 | 0 | ✓ | 二 | 11/59 | 191 | 551 | self_attn |
-| `dsa_indexer` | ✓ | ✓ | 0 | ✓ | 二 | 9/59 | 167 | 529 | self_attn |
-| `mhc_contract` | 0 | ✓ | 0 | ✓ | 三 | 7/59 | 12 | 7 | mhc_contract |
-| `mhc_fused_post_pre` | ✓ | ✓ | ✓ | ✓ | 三 | 7/59 | 305 | 341 | mhc_ffn_pre |
-| `mhc_post` | ✓ | ✓ | 0 | ✓ | 三 | 7/59 | 12 | 7 | mhc_final_post |
-| `mhc_pre` | ✓ | ✓ | ✓ | ✓ | 三 | 7/59 | 305 | 341 | mhc_attn_pre |
-| `dsv4_compressed_attention` | ✓ | 0 | 0 | ✓ | 二 | 5/59 | 120 | 122 | self_attn |
-| `dsv4_hash_route` | 0 | 0 | 0 | ✓ | 二 | 5/59 | 10 | 15 | mlp |
-| `dsv4_indexer` | ✓ | ✓ | 0 | ✓ | 二 | 5/59 | 123 | 123 | self_attn |
-| `dsv4_sparse_mla` | ✓ | 0 | 0 | ✓ | 二 | 5/59 | 123 | 123 | self_attn |
-| `dsv4_swa_attention` | ✓ | 0 | 0 | ✓ | 二 | 5/59 | 14 | 6 | self_attn |
-| `dsa_kpool_indexer` | ✓ | ✓ | 0 | ✓ | 二 | 2/59 | 24 | 22 | self_attn |
-| `hyper_connection` | ✓ | ✓ | ✓ | ✓ | 二 | 2/59 | 112 | 194 | attn_hyper_connection · hyper_connection_mixer · mlp_hyper_connection |
-| `minimax_sparse_attention` | ✓ | 0 | 0 | ✓ | 二 | 2/59 | 4 | 114 | self_attn |
-| `minimax_sparse_indexer` | ✓ | ✓ | 0 | ✓ | 二 | 2/59 | 4 | 114 | self_attn |
-| `ple` | ✓ | ✓ | ✓ | ✓ | 二 | 2/59 | 2 | 2 | ple |
-| `qsa_indexer` | ✓ | ✓ | 0 | ✓ | 二 | 2/59 | 26 | 24 | self_attn |
-| `qsa_sparse_attention` | ✓ | 0 | 0 | ✓ | 二 | 2/59 | 26 | 24 | self_attn |
-| `attention_residual` | 0 | ✓ | ✓ | ✓ | 二 | 1/59 | 47 | 93 | attn_residual |
-| `mla_output_gate` | 0 | ✓ | ✓ | ✓ | 二 | 1/59 | 23 | 24 | self_attn |
+| 算子 | group | matrix | vector | sfu | bytes | 来源 | 触发模型 | 节点 | 实例 | 出现槽位 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `linear` | gemm | ✓ | ✓ | 0 | ✓ | 一 | 59/59 | 10473 | 28931 | attn_residual · block_sparse_moe · indexer · linear_attn 等 15 |
+| `residual_add` | elementwise | 0 | ✓ | 0 | ✓ | 一 | 59/59 | 2682 | 6604 | language_model · layer · layers · mtp |
+| `rope` | attention | 0 | ✓ | 0 | ✓ | 三 | 59/59 | 1171 | 2393 | self_attn |
+| `swiglu` | activation | 0 | ✓ | ✓ | ✓ | 一 | 58/59 | 1343 | 3290 | merger · mlp · shared_experts · visual |
+| `embedding` | embeddings | 0 | 0 | 0 | ✓ | — | 57/59 | 62 | 59 | markov_head · ple_embedding · root |
+| `rmsnorm` | layernorm | 0 | ✓ | ✓ | ✓ | 三 | 57/59 | 2040 | 8637 | attn_residual · block_sparse_moe · enorm · hnorm 等 16 |
+| `identity` | elementwise | 0 | 0 | 0 | 0 | 一 | 50/59 | 982 | 2865 | language_model · layer · layers |
+| `matmul` | gemm | ✓ | 0 | 0 | ✓ | 一 | 48/59 | 940 | 4162 | sdpa |
+| `softmax` | attention | 0 | ✓ | ✓ | ✓ | 一 | 48/59 | 470 | 2081 | sdpa |
+| `fused_moe_mlp` | moe | ✓ | ✓ | ✓ | ✓ | 一 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
+| `moe_combine` | moe | 0 | ✓ | 0 | ✓ | 三 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
+| `moe_dispatch` | moe | 0 | 0 | 0 | ✓ | 一 | 44/59 | 968 | 2580 | block_sparse_moe · mlp |
+| `topk` | moe | 0 | ✓ | ✓ | ✓ | 一 | 44/59 | 958 | 2565 | block_sparse_moe · mlp |
+| `moe_add` | moe | 0 | ✓ | 0 | ✓ | 一 | 43/59 | 966 | 2518 | block_sparse_moe · mlp |
+| `attention_qkv_split` | memory | 0 | 0 | 0 | 0 | 二 | 40/59 | 43 | 1147 | self_attn · vision_tower · visual |
+| `vision_position` | embeddings | 0 | ✓ | 0 | ✓ | 三 | 38/59 | 38 | 38 | vision_tower · visual |
+| `split` | memory | 0 | 0 | 0 | 0 | 一 | 36/59 | 647 | 726 | self_attn |
+| `vision_activation` | activation | 0 | ✓ | ✓ | ✓ | 一 | 36/59 | 69 | 978 | merger · projector · vision_tower · visual |
+| `causal_conv1d` | mamba | ✓ | 0 | 0 | ✓ | 一 | 34/59 | 431 | 1274 | linear_attn · self_attn |
+| `gated_delta_attention` | mamba | ✓ | ✓ | ✓ | ✓ | 二 | 34/59 | 431 | 1274 | linear_attn · self_attn |
+| `gated_rmsnorm` | layernorm | 0 | ✓ | ✓ | ✓ | 二 | 34/59 | 431 | 1274 | linear_attn · self_attn |
+| `gemma_rmsnorm` | layernorm | 0 | ✓ | ✓ | ✓ | 三 | 33/59 | 2404 | 4289 | enorm · hnorm · input_layernorm · norm 等 8 |
+| `qwen_qkvz_split` | memory | 0 | 0 | 0 | 0 | 二 | 31/59 | 383 | 1137 | linear_attn |
+| `vision_merge` | memory | 0 | 0 | 0 | ✓ | 三 | 31/59 | 31 | 31 | merger |
+| `attention_output_gate` | attention | 0 | ✓ | ✓ | ✓ | 二 | 29/59 | 384 | 355 | self_attn |
+| `mla_kv_compress` | gemm | ✓ | 0 | 0 | ✓ | 三 | 24/59 | 475 | 1369 | self_attn |
+| `mla_kv_split` | memory | 0 | 0 | 0 | 0 | 一 | 19/59 | 232 | 1124 | self_attn |
+| `mla_query_compress` | gemm | ✓ | 0 | 0 | ✓ | 三 | 19/59 | 232 | 1124 | self_attn |
+| `shared_expert_gate` | moe | 0 | ✓ | ✓ | ✓ | 二 | 16/59 | 442 | 844 | shared_expert_gate |
+| `dsa_sparse_mla` | attention | ✓ | 0 | 0 | ✓ | 二 | 11/59 | 191 | 551 | self_attn |
+| `dsa_indexer` | attention | ✓ | ✓ | 0 | ✓ | 二 | 9/59 | 167 | 529 | self_attn |
+| `mhc_contract` | elementwise | 0 | ✓ | 0 | ✓ | 三 | 7/59 | 12 | 7 | mhc_contract |
+| `mhc_fused_post_pre` | elementwise | ✓ | ✓ | ✓ | ✓ | 三 | 7/59 | 305 | 341 | mhc_ffn_pre |
+| `mhc_post` | elementwise | ✓ | ✓ | 0 | ✓ | 三 | 7/59 | 12 | 7 | mhc_final_post |
+| `mhc_pre` | elementwise | ✓ | ✓ | ✓ | ✓ | 三 | 7/59 | 305 | 341 | mhc_attn_pre |
+| `dsv4_compressed_attention` | attention | ✓ | 0 | 0 | ✓ | 二 | 5/59 | 120 | 122 | self_attn |
+| `dsv4_hash_route` | moe | 0 | 0 | 0 | ✓ | 二 | 5/59 | 10 | 15 | mlp |
+| `dsv4_indexer` | attention | ✓ | ✓ | 0 | ✓ | 二 | 5/59 | 123 | 123 | self_attn |
+| `dsv4_sparse_mla` | attention | ✓ | 0 | 0 | ✓ | 二 | 5/59 | 123 | 123 | self_attn |
+| `dsv4_swa_attention` | attention | ✓ | 0 | 0 | ✓ | 二 | 5/59 | 14 | 6 | self_attn |
+| `dsa_kpool_indexer` | attention | ✓ | ✓ | 0 | ✓ | 二 | 2/59 | 24 | 22 | self_attn |
+| `hyper_connection` | elementwise | ✓ | ✓ | ✓ | ✓ | 二 | 2/59 | 112 | 194 | attn_hyper_connection · hyper_connection_mixer · mlp_hyper_connection |
+| `minimax_sparse_attention` | attention | ✓ | 0 | 0 | ✓ | 二 | 2/59 | 4 | 114 | self_attn |
+| `minimax_sparse_indexer` | attention | ✓ | ✓ | 0 | ✓ | 二 | 2/59 | 4 | 114 | self_attn |
+| `ple` | — | ✓ | ✓ | ✓ | ✓ | 二 | 2/59 | 2 | 2 | ple |
+| `qsa_indexer` | attention | ✓ | ✓ | 0 | ✓ | 二 | 2/59 | 26 | 24 | self_attn |
+| `qsa_sparse_attention` | attention | ✓ | 0 | 0 | ✓ | 二 | 2/59 | 26 | 24 | self_attn |
+| `attention_residual` | elementwise | 0 | ✓ | ✓ | ✓ | 二 | 1/59 | 47 | 93 | attn_residual |
+| `mla_output_gate` | attention | 0 | ✓ | ✓ | ✓ | 二 | 1/59 | 23 | 24 | self_attn |
 
 未识别叶子（无 operator_id 且非 embedding）：**0**
 
@@ -1762,6 +1763,21 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 - 注册表条目：**51**
 - 实际被触发：**49**（含结构节点 `embedding`）
 - 零触发条目：**3** —— `sdpa_attention` · `linear_attention` · `linear_attention_gate`
+
+## 按 group 聚合（生成物，SGLang kernels/ops）
+
+| group | 算子 |
+|---|---|
+| `gemm` | `linear` · `matmul` · `mla_query_compress` · `mla_kv_compress` |
+| `attention` | `softmax` · `sdpa_attention` · `rope` · `linear_attention_gate` · `qsa_indexer` · `dsa_indexer` · `dsa_kpool_indexer` · `dsv4_indexer` · `qsa_sparse_attention` · `dsa_sparse_mla` · `dsv4_sparse_mla` · `minimax_sparse_indexer` · `minimax_sparse_attention` · `dsv4_swa_attention` · `dsv4_compressed_attention` · `attention_output_gate` · `mla_output_gate` |
+| `moe` | `topk` · `moe_dispatch` · `moe_combine` · `fused_moe_mlp` · `moe_add` · `shared_expert_gate` · `dsv4_hash_route` |
+| `layernorm` | `rmsnorm` · `gemma_rmsnorm` · `gated_rmsnorm` |
+| `activation` | `swiglu` · `vision_activation` |
+| `embeddings` | `vision_position` |
+| `elementwise` | `residual_add` · `identity` · `mhc_pre` · `mhc_fused_post_pre` · `mhc_post` · `mhc_contract` · `hyper_connection` · `attention_residual` |
+| `memory` | `split` · `mla_kv_split` · `qwen_qkvz_split` · `attention_qkv_split` · `vision_merge` |
+| `mamba` | `linear_attention` · `gated_delta_attention` · `causal_conv1d` |
+| —（ungrouped） | `ple` |
 
 ## 双向表 A（生成物）· 算子 → 结构槽位
 

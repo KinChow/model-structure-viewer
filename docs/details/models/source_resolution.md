@@ -32,6 +32,8 @@ MiniMaxAI/MiniMax-M3
 
 `offline=true` is stronger than cache policy. If offline is enabled, `hf` lookup and HF search fail immediately.
 
+Shared contract (frontend static Hub + Python cache, runtimes not merged): [`source_contract.json`](source_contract.json). Unique key = `repo_id + revision + cache_dir`. `auto` fallback = builtin → local → hf. ModelScope empty/`main` revision maps to `master`.
+
 ## Hugging Face Endpoint
 
 Default:

@@ -13,6 +13,7 @@ Model Structure Viewer 的重要变更记录。
 ## [Unreleased]
 
 - 落地后续终态首批实现：A17 `topk` 写出 `(values, indices)`（`actOut = T·k·(b+4)`）；`FORMULAS[id].group` 抄 SGLang 有对位的组，`ple` 暂不归组，护栏缺/非法=0；embedding/RMSNorm 增加 bytes+SFU 身份测试（不改 T4）；resolver 共享键 `repo_id+revision+cache_dir`；`details/models.md` 模型清单改由 `gen-model-reference.mjs` 生成。
+- 终态收口：`operators_reference` 按 `FORMULAS.group` 聚合；跨端契约 [`docs/details/models/source_contract.json`](docs/details/models/source_contract.json) 锁来源类型 / auto fallback / revision 默认 / 错误分类 / Graph 协议字段；前后端测试对这份 JSON。
 - 后续终态写入 [`docs/implementation_plan.md`](docs/implementation_plan.md)（2026-09-14）：产品图保持折叠（`repeat`，不展开全层）；四本账并行（容量 / GEMM / vector+sfu / bytes）互不塞入；`FORMULAS[id].group` 抄 SGLang `kernels/ops/` 有对位的组，不自造 `residual_mixing`，ple 暂不归组；topk 终态写出 `(values, indices)`；embedding/RMSNorm 走 bytes+SFU 身份，不进 T4 matrix；resolver 共享键 `repo_id+revision+cache_dir`，运行时不合并；`details/models.md` 只生成清单。明确不做：59 个 checkpoint 文件、产品图展开、对账 DSL、Kimi-K3 dump、整模型 FlopCounter。
 - `models/` 按 `architectures[0]` 拆文件（对标 vLLM `models/<arch>`）。MTP/DSpark 写在该架构文件里（`deepseek_v4.js`、`qwen3_5.js`、`qwen4_exp.js`）；SharedHead 留在 `deepseek_mtp.js` 给 GLM-5 Next 引用。删 `layers/mtp.js` 共享 dispatcher。
 - T4 C4 期望侧对齐叶 `dsv4_sparse_mla`：`min(T, index_topk)` 因果三角；窗口混合读只进 bytes。

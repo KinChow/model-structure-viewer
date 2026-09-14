@@ -4,7 +4,7 @@ import {
   fetchBuiltinSourceRefApi,
   fetchLocalConfigApi,
 } from "../api/client.js";
-import { fetchHfConfigDirect, resolveEndpoint } from "../api/hf.js";
+import { fetchHfConfigDirect, resolveEndpoint, revisionForEndpoint } from "../api/hf.js";
 import { fetchCheckpointTruth } from "../cost/weights.js";
 
 export const CHECKPOINT_TRUTH_STATUS = {
@@ -15,13 +15,6 @@ export const CHECKPOINT_TRUTH_STATUS = {
 };
 
 const REMOTE_REQUEST_TIMEOUT_MS = 10000;
-
-function revisionForEndpoint(endpoint, revision) {
-  const { defaultRevision } = resolveEndpoint(endpoint);
-  return endpoint === "modelscope" && (!revision || revision === "main")
-    ? defaultRevision
-    : revision || defaultRevision;
-}
 
 function remoteEndpoints(endpoint) {
   const primary = endpoint || "huggingface";

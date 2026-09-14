@@ -1,0 +1,33 @@
+{
+  "comment": "前后端共享契约。运行时不合并：前端静态直连 Hub，Python 服务走磁盘缓存。键对标 huggingface_hub snapshot。",
+  "sources": ["auto", "builtin", "local", "hf", "config"],
+  "cache_policies": ["prefer-local", "refresh", "offline"],
+  "auto_fallback": ["builtin", "local", "hf"],
+  "endpoints": {
+    "huggingface": {
+      "hub_url": "https://huggingface.co",
+      "default_revision": "main"
+    },
+    "modelscope": {
+      "hub_url": "https://www.modelscope.cn",
+      "default_revision": "master"
+    }
+  },
+  "cache_key": ["repo_id", "revision", "cache_dir"],
+  "errors": {
+    "config": 400,
+    "not_found": 404,
+    "remote": 502
+  },
+  "graph_protocol": {
+    "schema_version": 2,
+    "graph_fields": ["version", "schema_version", "root_id", "nodes", "edges"],
+    "node_base_fields": [
+      "id", "name", "type", "repeat", "attributes", "source_fields", "confidence",
+      "params", "weight_shapes", "dtype", "input_shape", "output_shape",
+      "value_source", "tensor_names"
+    ],
+    "graph_node_extra": ["canonical_id", "module_id", "parent_id", "order"],
+    "edge_fields": ["id", "source", "target", "source_canonical_id", "target_canonical_id", "kind", "evidence"]
+  }
+}

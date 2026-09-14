@@ -99,15 +99,15 @@ GEMM     counts.matrix  ↔ T4 / flop_registry      MAC；torch FLOP = 2×MAC
 
 ### 来源与对账
 
-- 前后端两套 resolver 运行时不合并。共享契约：键 `repo_id + revision + cache_dir`（`cache_dir` = `model_root`）；来源类型；endpoint fallback / revision 默认；错误分类；fixture。跨端契约样例覆盖 builtin / local / hf / auto / config。
+- 前后端两套 resolver 运行时不合并。共享契约见 [`details/models/source_contract.json`](details/models/source_contract.json)：键 `repo_id + revision + cache_dir`；来源 `auto|builtin|local|hf|config`；`auto` fallback = builtin → local → hf；ModelScope 空/`main` → `master`；错误分类 config=400 / not_found=404 / remote=502。前后端测试对这份 JSON。
 - verify triage 继续 fixture（`canonical_path_contract.json` 四桶）。不写 DSL。`.root` 清零纳入 `check_principles` 棘轮。
 - `source_ref`：58/59 已入库。Kimi-K3 永不 dump / verify。缺席产物节点 `source_ref` 为 null。
-- schema：`StructureNodeBase` 已抽。跨端契约样例只锁协议字段；后端不成为第二份产品结构源。
+- schema：`StructureNodeBase` 已抽。Graph 协议字段（`schema_version` / `parent_id` / `order` / `canonical_id`）锁在同一份 `source_contract.json`；后端不当第二份产品结构源。
 
 ### 文档与护栏
 
-- `details/models.md`：清单（结构类表 + 按 canonical 的模型列表）由生成器 + `docs:check` 守护。「读」段手写。不要整篇生成。
-- `operators_reference.md` 按 group 聚合，判断只写进 `FORMULAS`。
+- `details/models.md`：清单按 `architectures[0]` 由生成器 + `docs:check` 守护。「读」段（结构类表、判据、S13）手写。不要整篇生成。
+- `operators_reference.md` 按 `FORMULAS[id].group` 聚合，判断只写进 `FORMULAS`。`ple` 为 ungrouped。
 - §8.1 家族名文件数只许下降。§7 芯片字段无公开来源保持 unknown。
 
 ### 明确不做（终态里也不做）

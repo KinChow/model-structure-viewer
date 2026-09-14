@@ -17,7 +17,7 @@ import { buildNetwork } from "../frontend/src/structure/models/index.js";
 import { createStructureIr } from "../frontend/src/structure/ir/createStructureIr.js";
 import { materializeModelStructure } from "../frontend/src/structure/materializers/modelStructure.js";
 import { graphRoot } from "../frontend/src/structure/graph/selectors.js";
-import { FORMULAS } from "../frontend/src/structure/operators/formulas/index.js";
+import { FORMULAS, FORMULA_GROUPS, UNGROUPED_FORMULAS } from "../frontend/src/structure/operators/formulas/index.js";
 import { MODULES, DECOMPOSE_PENDING } from "../frontend/src/structure/operators/formulas/modules.js";
 import { OPERATOR_TO_MODULE, moduleParamsFor } from "../frontend/src/structure/operators/formulas/moduleProbeParams.js";
 import { evaluateDecomposition } from "../frontend/src/structure/operators/formulas/atoms.js";
@@ -282,14 +282,16 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
   out.push("> 触发面按 `models/catalog.json` 全量模型实跑（prefill T=128 / decode T=1,S=4096 两相位）；");
   out.push("> `matrix|vector|sfu|bytes` 列的 ✓/0 表示该分量在任一相位是否非零（0 = 精确零，principles §3.3）。");
   out.push("> `来源` = principles §3.5 的三级体系（一 aten 锚点 / 二 modeling 对照 / 三 分解声明）。");
+  out.push("> `group` = SGLang `kernels/ops/` 功能域（`FORMULAS[id].group`）；`ple` 暂不归组。");
   out.push("");
   out.push(`## 总览表（生成物：${rows.length} 个算子 / ${total} 个模型）`);
   out.push("");
-  out.push("| 算子 | matrix | vector | sfu | bytes | 来源 | 触发模型 | 节点 | 实例 | 出现槽位 |");
-  out.push("|---|---|---|---|---|---|---|---|---|---|");
+  out.push("| 算子 | group | matrix | vector | sfu | bytes | 来源 | 触发模型 | 节点 | 实例 | 出现槽位 |");
+  out.push("|---|---|---|---|---|---|---|---|---|---|---|");
   for (const [op, r] of rows) {
     const slots = [...r.slots].sort().slice(0, 4).join(" · ") + (r.slots.size > 4 ? ` 等 ${r.slots.size}` : "");
-    out.push(`| \`${op}\` | ${mark(r.nonzero.matrix)} | ${mark(r.nonzero.vector)} | ${mark(r.nonzero.sfu)} | ${mark(r.nonzero.bytes)} | ${refOf(op) || "—"} | ${r.models.size}/${total} | ${r.nodes} | ${r.instances} | ${slots} |`);
+    const group = FORMULAS[op]?.group || (op === "embedding" ? "embeddings" : UNGROUPED_FORMULAS.has(op) ? "—" : "—");
+    out.push(`| \`${op}\` | ${group} | ${mark(r.nonzero.matrix)} | ${mark(r.nonzero.vector)} | ${mark(r.nonzero.sfu)} | ${mark(r.nonzero.bytes)} | ${refOf(op) || "—"} | ${r.models.size}/${total} | ${r.nodes} | ${r.instances} | ${slots} |`);
   }
   out.push("");
   out.push(`未识别叶子（无 operator_id 且非 embedding）：**${unknownLeaves}**`);
@@ -325,6 +327,16 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
   out.push(`- 注册表条目：**${registered.length}**`);
   out.push(`- 实际被触发：**${triggered.size}**（含结构节点 \`embedding\`）`);
   out.push(`- 零触发条目：**${zeroTrigger.length}**${zeroTrigger.length ? " —— " + zeroTrigger.map((o) => `\`${o}\``).join(" · ") : ""}`);
+  out.push("");
+
+  out.push("## 按 group 聚合（生成物，SGLang kernels/ops）");
+  out.push("");
+  out.push("| group | 算子 |");
+  out.push("|---|---|");
+  for (const [group, ids] of Object.entries(FORMULA_GROUPS)) {
+    out.push(`| \`${group}\` | ${ids.map((id) => `\`${id}\``).join(" · ")} |`);
+  }
+  out.push(`| —（ungrouped） | ${[...UNGROUPED_FORMULAS].map((id) => `\`${id}\``).join(" · ")} |`);
   out.push("");
 
   // ---- 双向表（生成物）：与手写 §3 的表 A/表 B 同义，但覆盖面由探针保证 ----

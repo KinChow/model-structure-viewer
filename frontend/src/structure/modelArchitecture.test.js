@@ -262,6 +262,14 @@ test("builds network modules and materializes operator formulas", () => {
   assert.equal(ir.version, 3);
   assert.equal(structure.graph.version, 2);
   assert.equal(structure.graph.schema_version, 2);
+  const proto = JSON.parse(fs.readFileSync(path.join(repoRoot, "docs/details/models/source_contract.json"), "utf8")).graph_protocol;
+  for (const field of proto.graph_fields) assert.ok(field in structure.graph, `graph missing ${field}`);
+  const node = structure.graph.nodes[0];
+  for (const field of [...proto.node_base_fields, ...proto.graph_node_extra]) {
+    assert.ok(field in node, `graph node missing protocol field ${field}`);
+  }
+  const edge = structure.graph.edges[0];
+  for (const field of proto.edge_fields) assert.ok(field in edge, `graph edge missing ${field}`);
   assert.ok(structure.graph.nodes.length > 0);
   assert.ok(structure.graph.edges.some((edge) => edge.evidence === "declared"));
   assert.equal(ir.diagnostics.operator_count > 0, true);

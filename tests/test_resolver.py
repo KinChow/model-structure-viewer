@@ -462,3 +462,29 @@ def test_source_cache_key_is_repo_revision_cache_dir():
     assert a != b
     assert a != c
     assert a == ("Qwen/Qwen3.5-0.8B", "main", "/tmp/models")
+
+
+def test_source_contract_matches_python_resolver():
+    import json
+    from model_structure_viewer.errors import ConfigError, NotFoundError, RemoteError
+    from model_structure_viewer.resolve.endpoints import DEFAULT_REVISIONS, endpoint_revision
+    from model_structure_viewer.schemas import SourceKind, CachePolicy, StructureGraph, StructureGraphNode, StructureNodeBase
+
+    contract = json.loads((Path(__file__).resolve().parents[1] / "docs" / "details" / "models" / "source_contract.json").read_text(encoding="utf-8"))
+    assert list(SourceKind.__args__) == contract["sources"]
+    assert list(CachePolicy.__args__) == contract["cache_policies"]
+    assert contract["auto_fallback"] == ["builtin", "local", "hf"]
+    assert DEFAULT_REVISIONS["huggingface"] == contract["endpoints"]["huggingface"]["default_revision"]
+    assert DEFAULT_REVISIONS["modelscope"] == contract["endpoints"]["modelscope"]["default_revision"]
+    assert endpoint_revision("huggingface", None) == "main"
+    assert endpoint_revision("modelscope", "main") == "master"
+    assert endpoint_revision("modelscope", "v1") == "v1"
+    assert ConfigError.http_status == contract["errors"]["config"]
+    assert NotFoundError.http_status == contract["errors"]["not_found"]
+    assert RemoteError.http_status == contract["errors"]["remote"]
+    proto = contract["graph_protocol"]
+    assert StructureGraph.model_fields["schema_version"].default == proto["schema_version"]
+    base_fields = set(StructureNodeBase.model_fields)
+    graph_extra = set(StructureGraphNode.model_fields) - base_fields
+    assert set(proto["node_base_fields"]) <= base_fields
+    assert set(proto["graph_node_extra"]) <= graph_extra

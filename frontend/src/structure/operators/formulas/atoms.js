@@ -206,12 +206,14 @@ export function conv1d({ tokens, channels, kernel, bytesPerElement, stateElement
 }
 
 // A17 topk —— aten.topk。candidates 个候选里选 k 个：一趟扫描 candidates 次比较。
-// 输出索引按 int32（4 字节）计，与激活的 bytesPerElement 无关。
+// aten.topk 返回 (values, indices)。values 按激活字节宽写出，供下游 reduce_sum /
+// div 读；indices 按 int32（indexBytes，默认 4）写出。matrix 恒 0。
 export function topk({ rows, candidates, k, bytesPerElement, indexBytes = 4 }) {
+  const selected = rows * Math.min(k, candidates);
   return actions({
     vector: rows * candidates,
     actIn: rows * candidates * bytesPerElement,
-    actOut: rows * Math.min(k, candidates) * indexBytes,
+    actOut: selected * bytesPerElement + selected * indexBytes,
   });
 }
 

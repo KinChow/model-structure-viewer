@@ -8,7 +8,7 @@ import {
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts,
   moeDispatchCounts, moeCombineCounts, addCounts, hashRouteCounts,
   rearrangeCounts, softmaxCounts, scoredPairs, causalDensity, fusedMoeMlpCounts,
-  dsv4VisibleKeys,
+  dsv4VisibleKeys, embedGatherCounts,
 } from "../counts.js";
 
 const B = 2; // bf16 每元素 2 字节
@@ -90,12 +90,24 @@ test("F2 prefill vs decode：因果三角 vs 全长，decode 的 K/V 读即读 c
   assert.equal(prefill.bytes.actOut - prefillIntermediate, prefillKvWrite);
 });
 
+test("embedding gather：无 MAC，行拷贝 T·H，不扫全表", () => {
+  const c = embedGatherCounts({ tokens: 3, hidden: 8, bytesPerElement: B });
+  assert.equal(c.matrix, 0);
+  assert.equal(c.vector, 0);
+  assert.equal(c.sfu, 0);
+  assert.equal(c.bytes.weights, 0);
+  assert.equal(c.bytes.actIn, 3 * 8 * B);
+  assert.equal(c.bytes.actOut, 3 * 8 * B);
+});
+
 test("F3 rmsnorm：3TH 向量 + T 次 rsqrt；gemma 多 TH；gated 多一路门", () => {
   const base = rmsnormCounts({ tokens: 5, hidden: 10, bytesPerElement: B });
   assert.equal(base.matrix, 0);
   assert.equal(base.vector, 4 * 5 * 10 - 5); // 均方求和每 token 少一次加法
   assert.equal(base.sfu, 5);
   assert.equal(base.bytes.weights, 10 * B);
+  assert.equal(base.bytes.actIn, 5 * 10 * B);
+  assert.equal(base.bytes.actOut, 5 * 10 * B);
   const gemma = rmsnormCounts({ tokens: 5, hidden: 10, bytesPerElement: B, weightOne: true });
   assert.equal(gemma.vector, 5 * 5 * 10 - 5);
   const gated = rmsnormCounts({ tokens: 5, hidden: 10, bytesPerElement: B, gated: true });
@@ -159,6 +171,10 @@ test("F8 MoE：topk 选择 + dispatch/combine 搬运 + combine 加权求和计 v
   // W5：T·E 扫描 + 归一化求和 T·(k-1) = 16 + 2 = 18
   assert.equal(top.vector, 2 * 8 + 2 * (2 - 1));
   assert.equal(top.sfu, 2 * 2); // norm_topk_prob
+  assert.equal(top.matrix, 0);
+  assert.equal(top.bytes.actIn, 2 * 8 * B);
+  // values T·k·B + indices T·k·4
+  assert.equal(top.bytes.actOut, 2 * 2 * (B + 4));
   const dispatch = moeDispatchCounts({ tokens: 2, hidden: 16, topk: 2, bytesPerElement: B });
   assert.equal(dispatch.matrix, 0);
   assert.equal(dispatch.bytes.actOut, 2 * 2 * 16 * B);

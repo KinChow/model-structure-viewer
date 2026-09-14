@@ -168,8 +168,8 @@ const MODULE_LIST = [
       ] : []),
     ],
     residentIntermediates: (p) => (p.normTopkProb ? [{ name: "top-k 权重和", elements: p.tokens }] : []),
-    notes: ["F8 的 sfu = T·k 即归一化除法；逐原子分解为 reduce_sum + div"],
-    compulsoryBytes: (p) => p.tokens * p.experts * p.b + p.tokens * p.topk * 4,
+    notes: ["F8 的 sfu = T·k 即归一化除法；逐原子分解为 reduce_sum + div", "aten.topk 写出 values+indices，values 供 reduce_sum 读"],
+    compulsoryBytes: (p) => p.tokens * p.experts * p.b + p.tokens * p.topk * (p.b + 4),
   },
   {
     // 复合模块：运行时 counts 就是 F1(q_a)（formulas/index.js）。
@@ -768,10 +768,12 @@ function indexerCompulsory(p) {
   const stage = p.poolStage ?? "none";
   const scored = stage === "key" ? Math.ceil(p.keyTokens / pool) : p.keyTokens;
   const candidates = stage === "none" ? p.keyTokens : Math.ceil(p.keyTokens / pool);
+  const selected = p.queryTokens * Math.min(Math.ceil(p.budget / (stage === "none" ? 1 : pool)), candidates);
+  const scoreBytes = p.scoreBytes ?? 4;
   return p.queryTokens * p.heads * p.dim * p.b
     + scored * p.dim * p.b
     + p.queryTokens * p.dim * p.b
-    + p.queryTokens * Math.min(Math.ceil(p.budget / (stage === "none" ? 1 : pool)), candidates) * 4;
+    + selected * (scoreBytes + 4);
 }
 
 /** 模块注册表：id -> 条目。 */

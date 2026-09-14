@@ -1,6 +1,6 @@
 # 待实现计划
 
-本文只记录当前仍待实现或需要继续维护的事项。已经完成的能力以代码、测试和 [`CHANGELOG.md`](../CHANGELOG.md) 为准；历史版本通过 Git 提交记录追溯。
+本文记录当前仍待实现的事项，以及已拍板的**后续终态**。已经完成的能力以代码、测试和 [`CHANGELOG.md`](../CHANGELOG.md) 为准；历史版本通过 Git 提交记录追溯。终态正文见「后续终态（2026-09-14）」。
 
 ## 当前基线
 
@@ -72,18 +72,47 @@ framework profile = vLLM/SGLang/TensorRT-LLM 的执行映射
    （2026-09-10，P9：models/architectures 台账生成器并入 docs:check；
    版本边界文档化为 IR version:3 / graph schema_version:2 两轨）。
 
-**收尾登记（下一步计划池；大件已迁「后续立项池」——refactor_plan.md，带触发判据）**：
-- `.root` 清零 grep 纳入 check_principles 棘轮（P8 建议，防"root 复活"）；
-- 折叠语义前后端双源（前端模板产 repeat vs 后端 fold.py）单源化；
-- details/models.md 的 Qwen3.5 分组漂移按 models_reference 机器段回改（P9 登记）；
-- verify 对账 diff 的 triage（linear_attn 命名/融合投影/类名后缀三类系统性
-  噪声），fixture 优先再谈规则（P7 登记）；
-- per-stage roofline 的计算路（stage 级 actions）与 evidence 的 I/O shape
-  （P10/P7 登记的诚实缺项）。
-8. **版本和文档治理**：统一版本字段，从 registry 自动生成公式、
-   architecture、operator 和模型台账，扩大 `docs:check`。
-9. **通信成本扩展**：在上述协议稳定后，再实现 AllToAll `dp > 1`、
-   inter-node/PD 时间、KV keep-ratio、overlap 和 per-stage roofline。
+**后续终态（2026-09-14）**：不是最短路径，是各账本收口后的目标态。已完成能力见上文基线与 ✅ 条目。
+
+### 结构
+
+- 产品 Graph IR = 折叠后的图。同构 decoder / 专家列表只留一份代表 + `repeat`；walker 用 `childRepeatMultiplier` / `residentRepeat` 还原容量与计算。UI 若展开某一层，是视图，不写进 IR。
+- 前端 `compactRanges` 是产品折叠；后端 `fold.py` 是 Transformers evidence 适配器。两套实现不合并。同构谓词若对账漂移，再抽共享规则；未漂移不抽。
+- 组网按 `architectures[0]`（16 类文件）。MTP/DSpark 写在该架构文件里。未知架构 `unsupported`。
+- 节点 id = HF `_modules`。checkpoint 绑定剥 `model.` / `language_model.` 后路径相等。
+
+### 算子与成本（四本账并行，互不塞入）
+
+```text
+容量     graphWeightCapacity / weightMatrices     驻留多少（tied shared 不双计）
+GEMM     counts.matrix  ↔ T4 / flop_registry      MAC；torch FLOP = 2×MAC
+增量计算 counts.vector / counts.sfu               flop_registry 记 0 的部分
+流量     counts.bytes.{weights,actIn,actOut}      torch 明确不算 memory movement
+```
+
+- `operator_id` = 算法身份（QSA/DSA/MSA 分条）。`FORMULAS[id].group` = SGLang `kernels/ops/` 功能域元数据，不改 id。抄有对位的组：`gemm` `attention` `moe` `layernorm` `activation` `embeddings` `elementwise` `memory` `mamba`。不抄执行域。不自造 `residual_mixing`。vision 不单列。ple 暂不归组（SGLang `qwen4_ple.py` 也未进 `_GROUPS`）。缺 group / 非法组名由护栏棘轮=0。
+- A17 `topk` 写出 `(values, indices)`：`actOut` = `T·k·bytesPerElement`（values）+ `T·k·4`（int32 索引）。分解链 `reduce_sum` 的读有写来源。matrix 仍为 0。
+- embedding：容量走表声明；forward gather 走 `embedGatherCounts`（matrix=0，bytes=行拷贝，不扫全表）。tied lm_head `shared:true`；T4 仅在 tied 时把 embedding 加回 `N_eff`（那张表当 GEMM 用了一次）。
+- RMSNorm：`rmsnormCounts` 的 vector / sfu / `bytes.weights` 进入身份测试。T4 继续从 `N_eff` 剥 norm 元素。
+- 身份测试三套并存：T4 matrix（GEMM）；S3 图声明对 header（容量）；新增 bytes + SFU 身份（流量与超越运算）。REGISTERED 保持空。
+- `{matrix, vector, sfu, bytes}` 单位约定不变。matrix 夹具继续 Linear / BMM / 深度可分 Conv1d。不对 catalog 整模型跑 FlopCounter。
+
+### 来源与对账
+
+- 前后端两套 resolver 运行时不合并。共享契约：键 `repo_id + revision + cache_dir`（`cache_dir` = `model_root`）；来源类型；endpoint fallback / revision 默认；错误分类；fixture。跨端契约样例覆盖 builtin / local / hf / auto / config。
+- verify triage 继续 fixture（`canonical_path_contract.json` 四桶）。不写 DSL。`.root` 清零纳入 `check_principles` 棘轮。
+- `source_ref`：58/59 已入库。Kimi-K3 永不 dump / verify。缺席产物节点 `source_ref` 为 null。
+- schema：`StructureNodeBase` 已抽。跨端契约样例只锁协议字段；后端不成为第二份产品结构源。
+
+### 文档与护栏
+
+- `details/models.md`：清单（结构类表 + 按 canonical 的模型列表）由生成器 + `docs:check` 守护。「读」段手写。不要整篇生成。
+- `operators_reference.md` 按 group 聚合，判断只写进 `FORMULAS`。
+- §8.1 家族名文件数只许下降。§7 芯片字段无公开来源保持 unknown。
+
+### 明确不做（终态里也不做）
+
+拆 59 个 checkpoint 文件；产品图展开全层；把 embedding/norm 乘进 T4 matrix；对账 triage DSL；合并前后端 resolver 运行时；Kimi-K3 dump/verify；整模型 FlopCounter；前端下权重；plan 搜索；服务指标；自造 operator group。
 
 成本输出必须区分：
 
@@ -120,9 +149,12 @@ W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
   M2 全程 `block_sparse_moe`；K3 MoE 层 `block_sparse_moe`。类名偏离写 HF 全名。
   FlopCounterMode 独立算子夹具已接（`verification/flop_counter.py`：Linear /
   BMM / 深度可分 Conv1d）；整模型 forward 抽查未接（catalog 无权重）。
-- **§6.4 来源解析契约**：前后端保持两套 resolver，以支持静态前端和 Python
-  服务；需要共享来源类型、revision、fallback、错误分类和 fixture 契约，
-  不强行合并运行时代码。
+- **§6.4 来源解析契约**：前后端保持两套 resolver（静态前端直连 Hub + Python
+  服务），不强行合并运行时代码。共享契约键 = `repo_id + revision + cache_dir`
+  （huggingface_hub snapshot；`cache_dir` = `settings.model_root`）。还要共享
+  来源类型、fallback、错误分类和 fixture。前端 `loadModelArtifacts.js` 已持有
+  endpoint fallback / revision 默认；后端 `resolve/` 已按 revision 哈希 ref。
+  缺口是跨端契约样例，不是再写第三套路由。
 - **§7 国产芯片条目**：每字段必须有公开来源，缺项保持 unknown。
 - **§3.8 删 llm-analysis 容量旁路**：cost 只 walk 图。叶上声明 KV/KDA
   数值容量与 hash buffer；`memoryBreakdown` / Params / PP 切层改 walk；
@@ -157,8 +189,6 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 **共享 layer 家族分派** ✅ 改读配方旗标 / config 字段。
 **1.1 fromNode 只抽 ctx** ✅ `countsForNode` = `fromNode(env)` → `FORMULAS[id].counts(ctx)`；动作向量只在 `counts.js`。
 
-剩余：
-
 **S3 header `parameterTotal` 入库** ✅ catalog 58/59 有 `header-truth.json`
 （Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素（容差 2%）。
 量化行按 `parameterCount` dtype 解包（GPTQ I32×8 扣 qzeros、NVFP4 I8×2、跳过 scale 桶）。
@@ -177,11 +207,7 @@ T4 DSV4 打分项按 `compress_ratio` 分层（与 `dsv4VisibleKeys` 共用）�
 - `StructureNodeBase` 抽出共用字段；`cli`/`api`/`service`/`tests` 从
   `model_structure_viewer.resolve` 导入，删顶层 `resolver.py` shim。
 
-**明确后置 / 不做**
-- 拆 59 个 checkpoint 文件。组网按 `architectures[0]`（16 类）拆，对标 vLLM `models/<arch>`。
-- 对账 triage DSL 重写（继续当 fixture）。
-- `{matrix, vector, sfu, bytes}` 保留。
-- 前端下权重、plan 搜索、服务指标。
+**明确后置 / 不做**：见上文「后续终态」末节，不在此重复。
 
 ## P2：条件性需求
 

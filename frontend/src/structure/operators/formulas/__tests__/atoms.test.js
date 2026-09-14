@@ -151,13 +151,15 @@ test("A16 conv1d: decode 相位带 conv state（channels·(kernel-1)=2）", () =
     { matrix: 4, weights: 8, actIn: 8, actOut: 8 });
 });
 
-test("A17 topk: 2 行 x 4 候选选 2，索引按 int32", () => {
-  // vector = 2·4 = 8；actIn = 8 元素 = 16B；actOut = 2·2·4B = 16B
-  expect(topk({ rows: 2, candidates: 4, k: 2, bytesPerElement: B }), { vector: 8, actIn: 16, actOut: 16 });
+test("A17 topk: 2 行 x 4 候选选 2，写出 values + int32 索引", () => {
+  // vector = 2·4 = 8；actIn = 8 元素 = 16B
+  // actOut = values 2·2·2B + indices 2·2·4B = 8+16 = 24B
+  expect(topk({ rows: 2, candidates: 4, k: 2, bytesPerElement: B }), { vector: 8, actIn: 16, actOut: 24 });
 });
 
 test("A17 topk: k 大于候选数时按候选数截断", () => {
-  expect(topk({ rows: 1, candidates: 2, k: 8, bytesPerElement: B }), { vector: 2, actIn: 4, actOut: 8 });
+  // selected = 1·2；actOut = 2·2B + 2·4B = 12
+  expect(topk({ rows: 1, candidates: 2, k: 8, bytesPerElement: B }), { vector: 2, actIn: 4, actOut: 12 });
 });
 
 test("A18 decay_scan: 2 步 x state 4，单头每步 1 次 exp", () => {

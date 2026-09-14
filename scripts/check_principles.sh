@@ -125,6 +125,29 @@ else
   echo "§3.5b /tmp 取证引用: ${TMP_CITE_COUNT} / 基线 ${TMP_CITE_BASELINE}（只许下降）"
 fi
 
+# ---------- FORMULAS.group（SGLang kernels/ops 功能域，缺/非法 = 0） ----------
+GROUP_CHECK=$(node --input-type=module -e "
+import { FORMULAS, FORMULA_GROUPS, UNGROUPED_FORMULAS } from './frontend/src/structure/operators/formulas/index.js';
+const allowed = new Set(Object.keys(FORMULA_GROUPS));
+const missing = [];
+const illegal = [];
+for (const [id, entry] of Object.entries(FORMULAS)) {
+  if (UNGROUPED_FORMULAS.has(id)) {
+    if (entry.group) illegal.push(id + '=grouped-but-ungrouped');
+    continue;
+  }
+  if (!entry.group) missing.push(id);
+  else if (!allowed.has(entry.group)) illegal.push(id + '=' + entry.group);
+}
+if (missing.length || illegal.length) {
+  if (missing.length) console.log('✗ FORMULAS.group 缺 group：' + missing.join(', '));
+  if (illegal.length) console.log('✗ FORMULAS.group 非法组名：' + illegal.join(', '));
+  process.exit(1);
+}
+console.log('FORMULAS.group: ' + Object.keys(FORMULAS).length + ' 条（ungrouped=' + [...UNGROUPED_FORMULAS].join(',') + '）');
+") || FAIL=1
+[ -n "$GROUP_CHECK" ] && echo "$GROUP_CHECK"
+
 # ---------- P0：legacy root 复活棘轮（步骤 7 收口，基线 0） ----------
 # P8（2026-09-10）删除 root 与 graph-to-tree projection 后，`.root` 活引用必须
 # 保持为零：selectors.graphViewNode/graphRoot 是**按需树视图出口**（root 从协议

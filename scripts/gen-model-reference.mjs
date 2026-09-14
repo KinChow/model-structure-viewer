@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// gen-model-reference.mjs —— 生成 docs/models_reference.md 与
-// docs/architectures_reference.md 的机器段。
+// gen-model-reference.mjs —— 生成 docs/models_reference.md、
+// docs/architectures_reference.md 与 docs/details/models.md 清单机器段。
 //
 // 背景（route-closeout Task 9 / P9 版本和文档治理）：模型清单此前只有
 // docs/details/models.md 的人工段（按 canonical 分组的手写列表 + 结构类台账），
@@ -39,6 +39,9 @@ const MODELS_END = "<!-- END GENERATED: models -->";
 const ARCH_DOC = path.join(repoRoot, "docs", "architectures_reference.md");
 const ARCH_BEGIN = "<!-- BEGIN GENERATED: architectures -->";
 const ARCH_END = "<!-- END GENERATED: architectures -->";
+const DETAILS_DOC = path.join(repoRoot, "docs", "details", "models.md");
+const DETAILS_BEGIN = "<!-- BEGIN GENERATED: details-models -->";
+const DETAILS_END = "<!-- END GENERATED: details-models -->";
 
 // 千分位：不用 toLocaleString（locale 随运行环境变化，破坏逐字节比对），手写分组。
 const group3 = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -83,6 +86,8 @@ function collectModels() {
       modelType: dash(entry.model_type),
       arch0: dash(Array.isArray(entry.architectures) ? entry.architectures[0] : ""),
       architecture: resolved.architecture || "unsupported",
+      hasVision: Boolean(normalized.hasVision),
+      mtpLayers: Number(normalized.mtpModules || 0) || 0,
       params,
       evidence: exists ? (manifest ? "manifest" : "有") : "无",
       // release_time 只取日期段（catalog 里是 ISO 8601 UTC 串，完整时刻以 catalog 为准）。
@@ -194,6 +199,31 @@ function renderArchitectures({ arch0Counts }) {
   return out.join("\n");
 }
 
+/** docs/details/models.md 的机器清单：按 architectures[0] 分组。读段（结构类表、判据、S13）手写。 */
+function renderDetailsModels({ rows, total }) {
+  const out = [];
+  out.push(DETAILS_BEGIN);
+  out.push("");
+  out.push("> **本节由 `node scripts/gen-model-reference.mjs` 生成，请勿手改。**");
+  out.push(`> 当前 \`models/catalog.json\` 收录 ${total} 个内置模型，按 \`architectures[0]\` 分组。`);
+  out.push("");
+  out.push(`## 当前已支持模型（${total} 个，按 architectures[0]）`);
+  out.push("");
+  const byArch = new Map();
+  for (const row of rows) {
+    if (!byArch.has(row.arch0)) byArch.set(row.arch0, []);
+    byArch.get(row.arch0).push(row.modelId);
+  }
+  for (const [arch, models] of [...byArch.entries()].sort((a, b) => b[1].length - a[1].length || (a[0] < b[0] ? -1 : 1))) {
+    out.push(`### \`${arch}\`：${models.length} 个`);
+    out.push("");
+    for (const id of models) out.push(`- \`${id}\``);
+    out.push("");
+  }
+  out.push(DETAILS_END);
+  return out.join("\n");
+}
+
 // ---- 驱动：扫描一次（两份文档共用同一份扫描结果），再渲染 / 比对 / 写盘 ----
 const data = collectModels();
 const targets = [
@@ -206,6 +236,11 @@ const targets = [
     doc: ARCH_DOC, begin: ARCH_BEGIN, end: ARCH_END,
     render: () => renderArchitectures(data), label: "architectures_reference.md",
     stat: `${Object.keys(MODELS).length} MODELS + ${Object.keys(ARCH_RECIPES).length} 配方`,
+  },
+  {
+    doc: DETAILS_DOC, begin: DETAILS_BEGIN, end: DETAILS_END,
+    render: () => renderDetailsModels(data), label: "details/models.md",
+    stat: `${data.total} 模型清单`,
   },
 ];
 

@@ -451,3 +451,14 @@ def test_auto_map_modules_handles_list_and_invalid():
         "modeling_extra",
         "modeling_x",
     ]
+
+
+def test_source_cache_key_is_repo_revision_cache_dir():
+    from model_structure_viewer.resolve.endpoints import source_cache_key
+
+    a = source_cache_key(repo_id="Qwen/Qwen3.5-0.8B", revision="main", cache_dir="/tmp/models")
+    b = source_cache_key(repo_id="Qwen/Qwen3.5-0.8B", revision="v1", cache_dir="/tmp/models")
+    c = source_cache_key(repo_id="Qwen/Qwen3.5-0.8B", revision="main", cache_dir="/other")
+    assert a != b
+    assert a != c
+    assert a == ("Qwen/Qwen3.5-0.8B", "main", "/tmp/models")

@@ -76,11 +76,14 @@
 `visionTokens || 1` 计。config 里的 `vision_max_n_token` 未被消费，是补齐这项的
 候选来源。登记为 W4 视觉部件项。
 
-## 当前已支持模型
+<!-- BEGIN GENERATED: details-models -->
 
-当前 `models/catalog.json` 收录 59 个内置模型。下表按运行时 `resolveArchitecture` 得到的 canonical architecture 分组；这些模型均可通过 `builtin` 入口读取仓库配置并进入前端结构生成链路，模型列表以 catalog 为准。
+> **本节由 `node scripts/gen-model-reference.mjs` 生成，请勿手改。**
+> 当前 `models/catalog.json` 收录 59 个内置模型，按 `architectures[0]` 分组。
 
-### `multimodal-gqa-decoder`：15 个
+## 当前已支持模型（59 个，按 architectures[0]）
+
+### `Qwen3_5ForConditionalGeneration`：15 个
 
 - `Qwen/Qwen3.5-0.8B`
 - `Qwen/Qwen3.5-0.8B-Base`
@@ -98,9 +101,8 @@
 - `Qwen/Qwen3.8-27B`
 - `Qwen/Qwen3.8-27B-FP8`
 
-### `gqa-moe-decoder`：16 个
+### `Qwen3_5MoeForConditionalGeneration`：12 个
 
-- `MiniMaxAI/MiniMax-M2.7`
 - `Qwen/Qwen3.5-122B-A10B`
 - `Qwen/Qwen3.5-122B-A10B-FP8`
 - `Qwen/Qwen3.5-122B-A10B-GPTQ-Int4`
@@ -113,27 +115,18 @@
 - `Qwen/Qwen3.5-397B-A17B-GPTQ-Int4`
 - `Qwen/Qwen3.6-35B-A3B`
 - `Qwen/Qwen3.6-35B-A3B-FP8`
-- `Qwen/Qwen3.8-2.4T-A95B`
-- `Qwen/Qwen3.8-2.4T-A95B-FP8`
-- `zai-org/GLM-4.7`
 
-### `mla-moe-decoder`：21 个
+### `DeepseekV3ForCausalLM`：6 个
 
 - `deepseek-ai/DeepSeek-R1`
 - `deepseek-ai/DeepSeek-V3.1`
-- `deepseek-ai/DeepSeek-V3.2`
-- `deepseek-ai/DeepSeek-V4-Flash`
-- `deepseek-ai/DeepSeek-V4-Flash-0731`
-- `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp`
-- `deepseek-ai/DeepSeek-V4-Pro`
-- `deepseek-ai/DeepSeek-V4-Pro-0813`
 - `moonshotai/Kimi-K2-Base`
 - `moonshotai/Kimi-K2-Instruct`
 - `moonshotai/Kimi-K2-Instruct-0905`
 - `moonshotai/Kimi-K2-Thinking`
-- `moonshotai/Kimi-K2.5`
-- `moonshotai/Kimi-K2.6`
-- `moonshotai/Kimi-K2.7-Code`
+
+### `GlmMoeDsaForCausalLM`：6 个
+
 - `zai-org/GLM-5`
 - `zai-org/GLM-5.1`
 - `zai-org/GLM-5.2`
@@ -141,21 +134,57 @@
 - `zai-org/GLM-5.3`
 - `zai-org/GLM-5.3-BF16`
 
-### `multimodal-sparse-moe-decoder`：2 个
+### `DeepseekV4ForCausalLM`：5 个
+
+- `deepseek-ai/DeepSeek-V4-Flash`
+- `deepseek-ai/DeepSeek-V4-Flash-0731`
+- `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp`
+- `deepseek-ai/DeepSeek-V4-Pro`
+- `deepseek-ai/DeepSeek-V4-Pro-0813`
+
+### `KimiK25ForConditionalGeneration`：3 个
+
+- `moonshotai/Kimi-K2.5`
+- `moonshotai/Kimi-K2.6`
+- `moonshotai/Kimi-K2.7-Code`
+
+### `Glm5NextForConditionalGeneration`：2 个
+
+- `zai-org/GLM-5.3-Flash`
+- `zai-org/GLM-5.3-Flash-BF16`
+
+### `MiniMaxM3SparseForConditionalGeneration`：2 个
 
 - `MiniMaxAI/MiniMax-M3`
 - `MiniMaxAI/MiniMax-M3-MXFP8`
 
-### `multimodal-gqa-moe-decoder`：2 个
+### `Qwen3_5MoeForCausalLM`：2 个
+
+- `Qwen/Qwen3.8-2.4T-A95B`
+- `Qwen/Qwen3.8-2.4T-A95B-FP8`
+
+### `Qwen4ExpForConditionalGeneration`：2 个
 
 - `Qwen/Qwen3.8-Flash-Next`
 - `Qwen/Qwen3.8-Flash-Next-FP8`
 
-### `hybrid-multimodal-moe-decoder`：3 个
+### `DeepseekV32ForCausalLM`：1 个
+
+- `deepseek-ai/DeepSeek-V3.2`
+
+### `Glm4MoeForCausalLM`：1 个
+
+- `zai-org/GLM-4.7`
+
+### `KimiK3ForConditionalGeneration`：1 个
 
 - `moonshotai/Kimi-K3`
-- `zai-org/GLM-5.3-Flash`
-- `zai-org/GLM-5.3-Flash-BF16`
+
+### `MiniMaxM2ForCausalLM`：1 个
+
+- `MiniMaxAI/MiniMax-M2.7`
+
+<!-- END GENERATED: details-models -->
 
 列表校验命令：
 

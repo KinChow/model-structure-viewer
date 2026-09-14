@@ -276,8 +276,9 @@ export function topkCounts({ tokens, experts, topk, bytesPerElement, normTopkPro
     // 除法计 sfu。此前漏了求和段（分解恒等式实测 fused/decompose = 0.9734）。
     vector: tokens * experts + (normTopkProb ? tokens * Math.max(topk - 1, 0) : 0),
     sfu: normTopkProb ? tokens * topk : 0,
-    // 选中的专家 id 是 int32（4B），与激活的 bytesPerElement 无关
-    bytes: { weights: 0, actIn: tokens * experts * bytesPerElement, actOut: tokens * topk * 4 },
+    // aten.topk 写出 (values, indices)：values 按激活宽、indices 按 int32。
+    // 分解链 reduce_sum 读的就是这份 values。
+    bytes: { weights: 0, actIn: tokens * experts * bytesPerElement, actOut: tokens * topk * (bytesPerElement + 4) },
   };
 }
 

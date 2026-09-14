@@ -215,7 +215,7 @@ gated_delta_attention case `:825-826` 与 linear_attention 的 /state|recurrent/
   **vector = T·E + (normTopkProb ? T·(k−1) : 0)**（top-k 扫描 + 归一化权重求和——W5 补
   求和段，此前分解恒等式实测 fused/decompose = 0.9734）；
   sfu = normTopkProb ? T·k : 0（除法，A5）；
-  **bytes = { 0, T·E·b, T·k·4 }**——选中专家 id 是 int32（4B），与激活 b 无关。aten: `aten.topk`。
+  **bytes = { 0, T·E·b, T·k·(b+4) }**——aten.topk 写出 (values, indices)：values 按激活宽、indices 按 int32。分解链 reduce_sum 读的就是这份 values。
 - **moe_dispatch**（`counts.js:256-261`）：全零计算；bytes = { 0, T·H·b, T·k·H·b }（gather）。
   aten: `aten.index_select`。
 - **moe_combine**（`counts.js:263-270`）：**vector = 2·T·k·H**（scatter + 加权合并
@@ -307,7 +307,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | 11 | gemma_rmsnorm | 仅访存 | F3 weightOne | (1+w) |
 | 12 | swiglu | 仅访存 | F5（`counts.js:147`；`extractor.js:762-766`） | 纯激活（SiluAndMul）；不乘 expertFraction |
 | 13 | fused_moe_mlp | 计算+访存 | fusedMoeMlpCounts（`counts.js:283`；`extractor.js:767-783`） | gate/up/down + SwiGLU；权重读 min(k·T, E) 份；EH = latent_size→routedExpertHiddenSize→hiddenSize |
-| 14 | topk | 仅访存 | F8（`counts.js:244`；`extractor.js:827-828`） | vector = TE + norm?T(k−1)；actOut = T·k·4（int32） |
+| 14 | topk | 仅访存 | F8（`counts.js:244`；`extractor.js:827-828`） | vector = TE + norm?T(k−1)；actOut = T·k·(b+4)（values + int32） |
 | 15 | moe_dispatch | 仅搬运 | F8 gather（`counts.js:256`） | actIn = TH·b、actOut = TkH·b |
 | 16 | moe_combine | 仅搬运+加权 | F8 scatter+加权（`counts.js:263`） | vector = 2·TkH |
 | 17 | moe_add | 仅访存 | addCounts（`extractor.js:836-837`） | routed/shared 合并 |
@@ -539,10 +539,13 @@ R1 逐项对账审计（2026-09-08）的归因路径，全部清零，方法保�
 > [`identity_calibration.md`](./identity_calibration.md)（历史记录）。
 
 - **终态（`extractor.identity.test.js`）**：TOLERANCE = **0.005**、REGISTERED = {}
-  （**空**）。59 模型 matrix 恒等式 |ratio−1| ≤ 0.005（残留来自 tied embedding 与 norm
-  权重项的取整口径，量级稳定；vision 域由 v2 双 token 域拆分覆盖）。DSV4：SWA
-  走窗口夹紧三角，C4 期望侧与叶同用 `min(T, index_topk)` 因果三角，C128 走
-  `T·visible` 矩形。
+  （**空**）。59 模型 matrix 恒等式 |ratio−1| ≤ 0.005。T4 只验 GEMM：`N_eff` 剥
+  embedding / RMSNorm 元素（gather / norm 无 MAC）；tied 时把 embedding 加回
+  `N_eff`（那张表当 lm_head GEMM 用了一次，不是第二份权重）。embedding / RMSNorm
+  的访存与 SFU 走独立身份（`embedGatherCounts` / `rmsnormCounts`），不乘进 matrix。
+  vision 域由 v2 双 token 域拆分覆盖。DSV4：SWA 走窗口夹紧三角，C4 期望侧与叶
+  同用 `min(T, index_topk)` 因果三角，C128 走 `T·visible` 矩形。
+  完整后续终态见 [`../implementation_plan.md`](../implementation_plan.md)。
 - 归零路径（方法论存档，每条有实测证据，不是放宽容差）：
   - GLM-5.3-Flash 1.0904 → 0.999x：ops 模板 glm5_next KDA 两处宽度错 + derivedWeights
     的 DSA 分支白名单漏 glm5_next（11 个 DSA 层退回泛化 GQA）；

@@ -24,7 +24,8 @@ const T = 128;
 // 全部 21 个 MoE 行 |ratio-1| <= 1.7%，MiniMax-M2.7 / GLM-4.7 精确闭合。
 // dense 字段组合由 T4b 合成变体覆盖（GQA/tied/headDim 推导/MoE+shared，全部精确闭合）。
 // 残差归因：V4 打分项按 compress_ratio 分层后，C4 期望侧与叶同用 min(T, index_topk)
-// 因果三角；SWA 走窗口夹紧三角，C128 走 T·visible 矩形。tied/norm 取整远小于 0.005。
+// 因果三角；SWA 走窗口夹紧三角，C128 走 T·visible 矩形。T4 剥 embedding/norm
+// 是因为 gather/norm 无 MAC；访存与 SFU 不在本账本。
 // W5（2026-09-09）验收收口：容差从 0.02 收到 **0.005**，REGISTERED **清空**。
 // 归零路径（每一条都有实测证据，不是放宽容差）：
 // - GLM-5.3-Flash 1.0904 → 0.999x：ops 模板 glm5_next KDA 两处宽度错（低秩
@@ -36,8 +37,7 @@ const T = 128;
 //   17 块 x 128 = 2176），打分对数虚高。
 // - V4-Flash-Vision-Exp / Kimi-K2 系：原登记值等于或宽于默认容差，实测均在
 //   0.5% 内，属无效登记，一并移除。
-// 残留 0.2%-0.5% 的行（Qwen3.5 小杯 / V4 系 / Kimi-K2.5 等）来自 tied embedding
-// 与 norm 权重项的取整口径，量级稳定，纳入 0.005 容差内。
+// 残留 0.2%-0.5% 的行不把 embedding/norm 乘进 matrix；那两条走 bytes+SFU 身份。
 // DSV4 打分项：SWA = dsv4VisibleKeys + scoredPairs；C4 = min(T, topk) + scoredPairs
 // （对齐叶 dsv4_sparse_mla）；C128 = T·visible 矩形（dsv4CompressedAttentionCounts）。
 const TOLERANCE = 0.005;
@@ -328,6 +328,58 @@ test("T4b 合成 dense 恒等式：headDim 由 hidden/heads 推导", () => {
     num_key_value_heads: 2, intermediate_size: 512,
     vocab_size: 1000, tie_word_embeddings: false,
   });
+});
+
+test("bytes+SFU 身份：embedding gather 行拷贝、RMSNorm 有 sfu 与 weight bytes、matrix 均为 0", () => {
+  const config = {
+    model_type: "qwen3", architectures: ["Qwen3ForCausalLM"],
+    hidden_size: 64, num_hidden_layers: 2, num_attention_heads: 4,
+    num_key_value_heads: 4, head_dim: 16, intermediate_size: 128,
+    vocab_size: 256, tie_word_embeddings: true, rms_norm_eps: 1e-6,
+  };
+  const normalized = normalizeConfig(config);
+  const structure = buildStructureFromConfig(config, { modelId: "synthetic-bytes-sfu", source: "identity-test" });
+  const B = 2;
+  let embedBytes = 0;
+  let embedMatrix = 0;
+  let normSfu = 0;
+  let normWeightBytes = 0;
+  let normMatrix = 0;
+  const stack = [{ node: graphRoot(structure.graph), multiplier: 1 }];
+  while (stack.length > 0) {
+    const { node, multiplier } = stack.pop();
+    const children = node?.children || [];
+    if (children.length > 0) {
+      const repeatHandled = children.some((child) => Number.isFinite(child?.repeat));
+      const childMultiplier = childRepeatMultiplier(node, multiplier, { repeatHandled });
+      for (const child of children) stack.push({ node: child, multiplier: childMultiplier });
+      continue;
+    }
+    const fresh = countsForNode(node, {
+      config: normalized,
+      options: { batch: 1, sequence: T, phase: "prefill" },
+      path: node?.id || "",
+      bytesPerElement: B,
+    });
+    if (!fresh) continue;
+    const id = String(node?.id || "");
+    const op = String(node?.attributes?.operator_id || node?.type || "");
+    if (node?.type === "embedding" || /(^|\.)embed(_tokens)?$/.test(id)) {
+      embedMatrix += (fresh.matrix || 0) * multiplier;
+      embedBytes += ((fresh.bytes?.actIn || 0) + (fresh.bytes?.actOut || 0)) * multiplier;
+    }
+    if (/norm/.test(op) || /norm/.test(id)) {
+      normMatrix += (fresh.matrix || 0) * multiplier;
+      normSfu += (fresh.sfu || 0) * multiplier;
+      normWeightBytes += (fresh.bytes?.weights || 0) * multiplier;
+    }
+  }
+  const hidden = normalized.hiddenSize;
+  assert.equal(embedMatrix, 0);
+  assert.equal(embedBytes, 2 * T * hidden * B);
+  assert.equal(normMatrix, 0);
+  assert.ok(normSfu > 0, "RMSNorm 必须计 rsqrt SFU");
+  assert.ok(normWeightBytes > 0, "RMSNorm 必须计 scale 权重流量");
 });
 
 test("T4b 合成 MoE 恒等式：routed k/E 缩放 + shared expert", () => {

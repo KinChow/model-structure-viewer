@@ -631,3 +631,37 @@ export const FORMULAS = {
 export function formulaForOperator(operatorId) {
   return FORMULAS[operatorId] || null;
 }
+
+// SGLang kernels/ops 功能域（RFC #29630）。group 是元数据，不改 operator_id。
+// 只抄有对位的组；ple 暂不归组（SGLang qwen4_ple.py 也未进 _GROUPS）。
+export const FORMULA_GROUPS = {
+  gemm: ["linear", "matmul", "mla_query_compress", "mla_kv_compress"],
+  attention: [
+    "softmax", "sdpa_attention", "rope", "linear_attention_gate",
+    "qsa_indexer", "dsa_indexer", "dsa_kpool_indexer", "dsv4_indexer",
+    "qsa_sparse_attention", "dsa_sparse_mla", "dsv4_sparse_mla",
+    "minimax_sparse_indexer", "minimax_sparse_attention",
+    "dsv4_swa_attention", "dsv4_compressed_attention",
+    "attention_output_gate", "mla_output_gate",
+  ],
+  moe: ["topk", "moe_dispatch", "moe_combine", "fused_moe_mlp", "moe_add", "shared_expert_gate", "dsv4_hash_route"],
+  layernorm: ["rmsnorm", "gemma_rmsnorm", "gated_rmsnorm"],
+  activation: ["swiglu", "vision_activation"],
+  embeddings: ["vision_position"],
+  elementwise: [
+    "residual_add", "identity",
+    "mhc_pre", "mhc_fused_post_pre", "mhc_post", "mhc_contract",
+    "hyper_connection", "attention_residual",
+  ],
+  memory: ["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split", "vision_merge"],
+  mamba: ["linear_attention", "gated_delta_attention", "causal_conv1d"],
+};
+
+export const UNGROUPED_FORMULAS = new Set(["ple"]);
+
+for (const [group, ids] of Object.entries(FORMULA_GROUPS)) {
+  for (const id of ids) {
+    if (!FORMULAS[id]) throw new Error(`FORMULA_GROUPS.${group} 引用了未注册算子 ${id}`);
+    FORMULAS[id].group = group;
+  }
+}

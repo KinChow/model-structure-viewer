@@ -5,8 +5,12 @@ import { layoutGraphWithElk } from "./elkLayout.js";
 import { materializeStructureGraph } from "../structure/graph/materializeStructureGraph.js";
 import { graphViewNode } from "../structure/graph/selectors.js";
 
+function structureFrom(tree) {
+  return { graph: materializeStructureGraph(tree) };
+}
+
 test("layoutGraph exposes independent visible nodes and edges", () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "model",
     type: "model",
     children: [
@@ -15,7 +19,7 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
         { name: "attention", type: "attention", children: [] },
       ] },
     ],
-  }, new Set(["root", "root.1"]));
+  }), new Set(["root", "root.1"]));
 
   assert.equal(graph.nodes.find((node) => node.path === "root.1").children, undefined);
   assert.equal(graph.nodes.find((node) => node.path === "root.0").stage, "input");
@@ -27,8 +31,6 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
 });
 
 test("layoutGraph consumes explicit IR edges without inferring replacements", () => {
-  // P7（步骤 7）：夹具从 "root 树 + 仅边图" 的兼容形态迁移为完整 Graph IR——
-  // 节点与边都来自图，不再有树侧内容可回退。
   const graph = layoutGraph({
     graph: {
       version: 2,
@@ -57,17 +59,14 @@ test("layoutGraph builds the canvas view from Graph IR and ignores stale legacy 
     children: [{ id: "graph.decoder", name: "Graph Decoder", type: "decoder", children: [] }],
   };
   const graph = materializeStructureGraph(graphRoot);
-  const layout = layoutGraph({
-    root: { id: "model", name: "Stale Tree", type: "model", children: [] },
-    graph,
-  }, new Set(["root"]));
+  const layout = layoutGraph({ graph }, new Set(["root"]));
 
   assert.equal(layout.nodes.find((node) => node.path === "root").node.name, "Graph Model");
   assert.equal(layout.nodes.find((node) => node.path === "root.0").node.name, "Graph Decoder");
 });
 
 test("layoutGraph consumes builder-declared edges without using display names", () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "model",
     type: "model",
     children: [{
@@ -79,14 +78,12 @@ test("layoutGraph consumes builder-declared edges without using display names", 
         { id: "opaque.right", name: "second branch", type: "operator", children: [] },
       ],
     }],
-  }, new Set(["root", "root.0"]));
+  }), new Set(["root", "root.0"]));
 
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [["root.0.0", "root.0.1"]]);
   assert.equal(graph.edges.some((edge) => edge.evidence === "module-order" && edge.source.startsWith("root.0.")), false);
 });
 
-// P7（步骤 7）：旧图→树投影函数已删除——层级/事实保留语义由
-// selectors.graphViewNode（layout.js 的生产路径）承接，按图节点断言。
 test("graph view projection preserves hierarchy and node facts", () => {
   const root = {
     id: "model",
@@ -112,7 +109,7 @@ test("graph view projection preserves hierarchy and node facts", () => {
 });
 
 test("ELK lays out the graph without changing stable node paths", async () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "model", type: "model", children: [
       { name: "a", type: "module", children: [
         { name: "a-child", type: "operator", children: [] },
@@ -120,7 +117,7 @@ test("ELK lays out the graph without changing stable node paths", async () => {
       ] },
       { name: "b", type: "module", children: [] },
     ],
-  }, new Set(["root", "root.0"]));
+  }), new Set(["root", "root.0"]));
   const laidOut = await layoutGraphWithElk(graph);
   assert.deepEqual(laidOut.nodes.map((node) => node.path), ["root", "root.0", "root.0.0", "root.0.1", "root.1"]);
   assert.ok(laidOut.nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y)));
@@ -133,14 +130,14 @@ test("ELK lays out the graph without changing stable node paths", async () => {
 });
 
 test("keeps an output head outside the model compound", async () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "DeepseekV3ForCausalLM", type: "model", children: [
       { name: "decoder", type: "module", children: [
         { name: "norm", type: "normalization", children: [] },
       ] },
       { name: "lm head", type: "output", children: [] },
     ],
-  }, new Set(["root", "root.0"]));
+  }), new Set(["root", "root.0"]));
   const laidOut = await layoutGraphWithElk(graph);
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "module-order").map(({ source, target }) => [source, target]), [["root", "root.1"]]);
   assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
@@ -148,14 +145,14 @@ test("keeps an output head outside the model compound", async () => {
 });
 
 test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "block", type: "module", children: [
       { name: "gate", type: "operator", input_shape: [1, 4], output_shape: [1, 8], children: [] },
       { name: "activation", type: "operator", input_shape: [1, 8], output_shape: [1, 8], children: [] },
       { name: "same-shape", type: "operator", input_shape: [1, 8], output_shape: [1, 8], children: [] },
       { name: "other", type: "operator", input_shape: [1, 16], output_shape: [1, 16], children: [] },
     ],
-  }, new Set(["root"]));
+  }), new Set(["root"]));
   assert.deepEqual(graph.edges.filter((edge) => edge.kind === "dataflow").map(({ source, target }) => [source, target]), [
     ["root.0", "root.1"],
     ["root.1", "root.2"],
@@ -164,7 +161,7 @@ test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
 });
 
 test("layoutGraph models MLA as a branched attention graph", () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "model", type: "model", children: [
       { name: "MLA Attention", type: "attention", attributes: { dataflow_edges: [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["v_proj", "context"], ["context", "o_proj"]] }, children: [
         { id: "q_proj", name: "q projection", type: "operator", children: [] },
@@ -177,7 +174,7 @@ test("layoutGraph models MLA as a branched attention graph", () => {
         { id: "o_proj", name: "output projection", type: "operator", children: [] },
       ] },
     ],
-  }, new Set(["root", "root.0"]));
+  }), new Set(["root", "root.0"]));
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [
     ["root.0.0", "root.0.3"],
     ["root.0.1", "root.0.3"],
@@ -190,7 +187,7 @@ test("layoutGraph models MLA as a branched attention graph", () => {
 });
 
 test("ELK keeps all MLA input projections on the first internal layer", async () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "model", type: "model", children: [
       { name: "MLA Attention", type: "attention", attributes: { dataflow_edges: [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["v_proj", "context"], ["context", "o_proj"]] }, children: [
         { id: "q_proj", name: "q projection", type: "operator", children: [] },
@@ -203,7 +200,7 @@ test("ELK keeps all MLA input projections on the first internal layer", async ()
         { id: "o_proj", name: "output projection", type: "operator", children: [] },
       ] },
     ],
-  }, new Set(["root", "root.0"]));
+  }), new Set(["root", "root.0"]));
   const laidOut = await layoutGraphWithElk(graph);
   const get = (name) => laidOut.nodes.find((node) => node.node.name === name);
   const inputs = [get("q projection"), get("k projection"), get("v projection")];
@@ -213,7 +210,7 @@ test("ELK keeps all MLA input projections on the first internal layer", async ()
 });
 
 test("layoutGraph models MLP as a gated branch instead of a sequential chain", () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "model", type: "model", children: [
       { name: "MLP", type: "mlp", attributes: { dataflow_edges: [["gate_proj", "swiglu"], ["up_proj", "swiglu"], ["swiglu", "down_proj"]] }, children: [
         { id: "gate_proj", name: "gate projection", type: "operator", children: [] },
@@ -222,7 +219,7 @@ test("layoutGraph models MLP as a gated branch instead of a sequential chain", (
         { id: "down_proj", name: "down projection", type: "operator", children: [] },
       ] },
     ],
-  }, new Set(["root", "root.0"]));
+  }), new Set(["root", "root.0"]));
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [
     ["root.0.0", "root.0.2"],
     ["root.0.1", "root.0.2"],
@@ -232,7 +229,7 @@ test("layoutGraph models MLP as a gated branch instead of a sequential chain", (
 });
 
 test("layoutGraph models MoE routing and combine branches semantically", () => {
-  const graph = layoutGraph({
+  const graph = layoutGraph(structureFrom({
     name: "model", type: "model", children: [
       { name: "Routed MoE", type: "moe", attributes: { dataflow_edges: [["router", "topk"], ["topk", "dispatch"], ["dispatch", "expert_mlp"], ["topk", "combine"], ["expert_mlp", "combine"]] }, children: [
         { id: "router", name: "router logits", type: "operator", children: [] },
@@ -242,7 +239,7 @@ test("layoutGraph models MoE routing and combine branches semantically", () => {
         { id: "combine", name: "expert combine", type: "operator", children: [] },
       ] },
     ],
-  }, new Set(["root", "root.0"]));
+  }), new Set(["root", "root.0"]));
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "declared").map(({ source, target }) => [source, target]), [
     ["root.0.0", "root.0.1"],
     ["root.0.1", "root.0.2"],

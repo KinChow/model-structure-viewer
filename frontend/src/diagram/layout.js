@@ -1,5 +1,4 @@
 import { metaForNode, typeClass } from "./meta.js";
-import { materializeStructureGraph } from "../structure/graph/materializeStructureGraph.js";
 import { graphViewNode } from "../structure/graph/selectors.js";
 
 export const NODE_WIDTH = 260;
@@ -85,15 +84,13 @@ export function layoutDiagram(root, expandedGroups) {
 }
 
 /**
- * Convert the visible hierarchy into a graph view model. Analysis code keeps
- * the original tree paths; the canvas consumes these independent collections.
+ * Convert the visible Graph IR hierarchy into a canvas view model.
+ * Requires `structure.graph`; does not accept a bare tree or `structure.root`.
  */
-// P7（步骤 7）：structure?.root 回退退役——视图只从 Graph IR 构造；
-// 入参兼容"裸节点树"（测试夹具形态），此时按需经 materializeStructureGraph 生成边集。
-export function layoutGraph(structureOrRoot, expandedGroups) {
-  const structure = structureOrRoot?.graph ? structureOrRoot : null;
-  const graphRoot = structure ? graphViewNode(structure.graph, structure.graph.root_id || "root") : null;
-  const root = graphRoot || structureOrRoot;
+export function layoutGraph(structure, expandedGroups) {
+  const structureGraph = structure?.graph;
+  if (!structureGraph) throw new Error("layoutGraph requires structure.graph");
+  const root = graphViewNode(structureGraph, structureGraph.root_id || "root");
   const items = layoutDiagram(root, expandedGroups);
   const stageForPath = (path) => {
     const firstChild = path.split(".")[1];
@@ -106,7 +103,6 @@ export function layoutGraph(structureOrRoot, expandedGroups) {
     return "model";
   };
   const nodes = items.map((item) => ({ ...item, stage: stageForPath(item.path), children: undefined, childItems: undefined }));
-  const structureGraph = structure?.graph || materializeStructureGraph(root);
   const visiblePaths = new Set(nodes.map((node) => node.path));
   const edges = (structureGraph.edges || []).filter(
     (edge) => visiblePaths.has(edge.source) && visiblePaths.has(edge.target),

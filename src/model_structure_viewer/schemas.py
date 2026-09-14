@@ -62,8 +62,6 @@ class StructureGraph(BaseModel):
 class ModelStructure(BaseModel):
     summary: dict[str, Any] = Field(default_factory=dict)
     source: dict[str, Any] = Field(default_factory=dict)
-    # P7（步骤 7）：Graph IR 是唯一结构载荷（必填）——legacy root 可逆视图与
-    # ensure_graph_primary 补投影校验器一并退役（协议执法由必填字段承担）。
     graph: StructureGraph
     extra_config: dict[str, Any] = Field(default_factory=dict)
 

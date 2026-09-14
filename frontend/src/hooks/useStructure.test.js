@@ -3,8 +3,6 @@ import test from "node:test";
 import { buildStructureForPayload } from "./useStructure.js";
 import { graphRoot } from "../structure/graph/selectors.js";
 
-// P7（步骤 7）：legacy structure.root 断言退役——按 Graph IR 检查
-// （层级断言走 graphRoot 图视图，节点查找按 canonical_id）。
 function findNode(structure, canonicalId) {
   return structure.graph.nodes.find((node) => (node.canonical_id || node.id) === canonicalId) || null;
 }

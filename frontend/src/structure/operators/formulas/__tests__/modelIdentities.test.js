@@ -83,8 +83,6 @@ function buildStructure(raw, modelId) {
 /** 期望侧：该相位下叶 counts.bytes.weights 之和。无 header 时不再用闭式 Σ；
  *  声明 vs counts 由锚 1 单源对账。本函数只是同一 walk 的相位合计。 */
 
-// P7（步骤 7）：遍历起点从 legacy structure.root 换成 graphRoot 图视图
-// （root_id 契约字段；节点 id/repeat/children 语义不变）。
 const treeView = (structure) => graphRoot(structure.graph);
 
 function walkLeaves(root, visit) {

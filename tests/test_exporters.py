@@ -6,8 +6,6 @@ from model_structure_viewer.exporters import export_dot, export_mermaid, export_
 from model_structure_viewer.schemas import ModelStructure, StructureGraph, StructureGraphEdge, StructureGraphNode
 
 
-# P7（步骤 7）：夹具从 legacy root 树换为 Graph IR——导出只消费 structure.graph
-# （graph 为空即输出空图，不再有树回退）。
 def _structure() -> ModelStructure:
     nodes = [
         StructureGraphNode(id="root", canonical_id="model", name="模型/Root", type="model"),

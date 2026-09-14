@@ -9,8 +9,6 @@ import { layoutGraph } from "./layout.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-// P7（步骤 7）：展开路径从 Graph IR 的图视图推导（graphRoot = selectors 的
-// root_id 契约视图），layoutGraph 消费整份 structure 而不是 legacy root。
 function expandedPaths(rootView) {
   const paths = new Set();
   function visit(node, currentPath) {

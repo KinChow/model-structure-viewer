@@ -16,8 +16,6 @@ import { recipeSharedExpertsAreFused } from "./archs/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-// P7（步骤 7）：legacy structure.root 遍历退役——断言改走 Graph IR 节点
-// （顶层模块 = root_id 直接子节点；语义 id = canonical_id）。
 function childrenOf(graph, parentId) {
   return graph.nodes
     .filter((node) => node.parent_id === parentId)

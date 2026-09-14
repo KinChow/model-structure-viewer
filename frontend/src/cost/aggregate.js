@@ -49,7 +49,6 @@ function quantizedMatrixBytes(graph, quant) {
   return { elements, bytes };
 }
 
-// P7（步骤 7）：Graph IR 是唯一结构载荷（legacy root 字段随后端协议一并退役）。
 export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
   kvBytes = 2, activationPeak, runtimeConst, commBuffer, weightBytesPerParameter } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;

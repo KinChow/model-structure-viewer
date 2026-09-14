@@ -589,12 +589,14 @@ line = inspect.getsourcelines(cls)[1]
 **判据**：校验能力必须有 UI 入口。没有入口的支柱等于没做。
 把 torch 给不出的量写成必须 diff 项即违反。
 
-### 6.4 来源解析策略只有一份
+### 6.4 来源解析策略只有一份契约
 
-endpoint fallback、revision 默认值、auto 降级顺序统一由前端
-`model/loadModelArtifacts.js` 持有；后端 resolve 只服务 local / builtin。
+endpoint fallback、revision 默认值、auto 降级顺序、错误分类锁在
+[`details/models/source_contract.json`](details/models/source_contract.json)。
+前后端两套运行时（静态前端直连 Hub + Python 磁盘缓存）不合并；实现必须对这份 JSON。
 
-**判据**：同一策略在前后端各写一份即违反（会不一致，且已经不一致过）。
+**判据**：实现与契约 JSON 不一致即违反。再写第三套路由即违反。
+把两套运行时强行合成一份也违反（Pages 静态部署与本地 cache 不是同一产品形态）。
 
 ---
 
@@ -620,8 +622,8 @@ endpoint fallback、revision 默认值、auto 降级顺序统一由前端
 才写新代码。"家族名硬编码的非测试文件数"是它的**可测量代理指标**，不是目标本身——
 registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling 文件名里。
 
-**判据**：家族名文件数**不得增加**。当前基线为 **12**（相对更早完整 pattern 的 16），
-机械清单与豁免见 `scripts/check_principles.sh`。
+**判据**：家族名文件数**不得增加**。当前基线为 **6**（相对更早完整 pattern 的 16；
+`models/` 按 `architectures[0]` 拆文件后豁免），机械清单与豁免见 `scripts/check_principles.sh`。
 
 **检查**：CI 统计家族名出现的**非测试文件数**，只允许下降。
 
@@ -666,20 +668,22 @@ registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling �
 确需偏离本文档时，在 `implementation_plan.md` 中登记：**违反哪条、为什么、
 何时收口、收口的判据**。未登记的偏离视为缺陷。已清账以 Git / `CHANGELOG.md` 为准，不在本文堆积。
 
-**仍偏离**（设计已定、代码未跟上或契约未收口）：
+**已闭合**（不再当偏离；细节以代码与 `implementation_plan.md` 终态为准）：
 
 - **§6.3 / §6.4**：前端 DiagnosticsPanel 有校验入口。失败分三类：后端不可达 /
   transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 已接
   **独立算子夹具**（Linear / BMM / 深度可分 Conv1d：msv MAC × 2 == torch FLOPs）；
-  不对 catalog 整模型跑 forward（catalog 无权重）。来源解析策略仍两套。
-  catalog 旁 `source-ref.json` 按架构取样入库（见 implementation_plan §5）；
+  不对 catalog 整模型跑 forward（catalog 无权重）。来源解析两套运行时 + 一份
+  `source_contract.json` 是终态，不是债。catalog 旁 `source-ref.json` 58/59 入库；
   静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
-- **§8.1**：8/16 文件含家族名（删 plan.js + 共享 layer 家族分派后 10→8）；剩余随 modeling 接管后进一步下降。
+- **§8.1**：棘轮基线 6（`models/` 按架构拆文件后豁免）。只许下降。
 - **§3.1**：extractor 已收成 `FORMULAS[id].fromNode` + `.counts` 查表
   （flop_registry）。护栏 §3.1b = switch case 0。
 - **§3.8**：生产链已切到图 walk（叶声明 KV/KDA/buffer、`graphWeightCapacity`、
   MTP `repeat=0` 走 `residentRepeat`）。config 闭式已删；身份测试期望侧 walk 图。
 
-**带债项**（触发点见 `refactor_plan.md`）：
+**触发池**（触发未到不动工；住址 `implementation_plan.md`）：
 
-- 家族知识 5 住址收口（触发：接新模型家族）。
+- 家族知识 5 住址收口（接新模型家族）
+- §7 国产芯片条目（有公开来源的字段）
+- §2.5 back-edge（展示需求）

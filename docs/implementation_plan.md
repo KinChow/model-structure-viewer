@@ -1,6 +1,6 @@
 # 待实现计划
 
-本文记录当前仍待实现的事项，以及已拍板的**后续终态**。已经完成的能力以代码、测试和 [`CHANGELOG.md`](../CHANGELOG.md) 为准；历史版本通过 Git 提交记录追溯。终态正文见「后续终态（2026-09-14）」。
+本文记录拍板的**后续终态**、已闭合项与触发池。已经完成的能力以代码、测试和 [`CHANGELOG.md`](../CHANGELOG.md) 为准；历史版本通过 Git 提交记录追溯。终态正文见「后续终态（2026-09-14）」。正确性账本已闭合；触发池不是产品 backlog，触发未到不动工。
 
 ## 当前基线
 
@@ -10,8 +10,7 @@
 - 模型 registry、通用和专用 builder、layers、ops、公式、IR、materializer 和诊断链路。
 - 结构图、Layers、Inspector、JSON/Mermaid/DOT 导出、芯片 Cost Lens、并行投影和 PD 分析。
 - Python API/CLI、local cache、transformers meta-device 验证和 GitHub Pages 构建流程。
-- Graph IR v2 节点事实、Graph-first 消费和已有 parity 基线测试；legacy
-  `root` projection 仍在退役过程中，不作为终态能力。
+- Graph IR v2 节点事实、Graph-first 消费和已有 parity 基线测试。Graph 是唯一结构载荷，无 `structure.root`。
 - Graph-first layout、compute/aggregate、通信、PP/PD projection、导出和 canonical node identity。
 - 未知架构统一 `unsupported`：alias 精确表未命中的架构不再组网（generic-decoder
   兜底已删），空网络走完管线并枚举支持项。
@@ -100,7 +99,7 @@ GEMM     counts.matrix  ↔ T4 / flop_registry      MAC；torch FLOP = 2×MAC
 ### 来源与对账
 
 - 前后端两套 resolver 运行时不合并。共享契约见 [`details/models/source_contract.json`](details/models/source_contract.json)：键 `repo_id + revision + cache_dir`；来源 `auto|builtin|local|hf|config`；`auto` fallback = builtin → local → hf；ModelScope 空/`main` → `master`；错误分类 config=400 / not_found=404 / remote=502。前后端测试对这份 JSON。
-- verify triage 继续 fixture（`canonical_path_contract.json` 四桶）。不写 DSL。`.root` 清零纳入 `check_principles` 棘轮。
+- verify triage 继续 fixture（`canonical_path_contract.json` 四桶）。不写 DSL。
 - `source_ref`：58/59 已入库。Kimi-K3 永不 dump / verify。缺席产物节点 `source_ref` 为 null。
 - schema：`StructureNodeBase` 已抽。Graph 协议字段（`schema_version` / `parent_id` / `order` / `canonical_id`）锁在同一份 `source_contract.json`；后端不当第二份产品结构源。
 
@@ -129,49 +128,46 @@ runtime-unknown
 
 ## P1：原则收口重构
 
-[`principles.md`](principles.md) 已定为强制约束，当前代码存在多处存量偏离（登记在该文 §10）。
-收口路线见 [`refactor_plan.md`](refactor_plan.md)：自底向上分
-W0 / W0.5 / W1 / W2 / W3a / W3b / W4 / W4.5 / W5 / W6 + 四条可并行旁路，
-每波含范围、入口、依赖、验收命令、不包含项与回退方式，以差分测试验收。
-核心分界：config 归一层只做字段归一（§4.7），方案决定权归组网（W3b）；
+[`principles.md`](principles.md) 已定为强制约束。原则收口波次（W0–W6）已走完；
+存量偏离清账见该文 §10。路线考古见 [`refactor_plan.md`](refactor_plan.md)。
+核心分界不变：config 归一层只做字段归一（§4.7），方案决定权归组网；
 组件配方为一级概念，家族名只在薄解析层（§4.3）。
 
-未排期项（设计已定、实现未跟上；开工前需确认，不属于任一历史波次）：
+### 终态正确性已闭合（2026-09-14）
 
-- **§5 source_ref**：采集 / 绑定 / Inspector 已接通。catalog 59 个模型除
-  Kimi-K3 外均已 `msv dump-source-ref --source builtin` 入库（58/59）。
-  Kimi-K3 不做 dump / verify：Hub modeling 在 import 时 `from fla.modules` /
-  `fla.ops.kda`，本机 fla-core 0.5.2 仍拉 Triton；transformers 无 `kimi_k3`
-  入库实现。结构模板继续用 catalog modeling 作二等证据。
-  绑定脚本 `scripts/bind-source-ref.mjs`：58 模型 bind 通过。
-  `verify --graph` 构造通过才算脚本失败；`structurally_consistent` 只报告。
-  Decoder 路径段跟 HF `_modules` key：默认注意力 `self_attn`、FFN `mlp`；
-  M2 全程 `block_sparse_moe`；K3 MoE 层 `block_sparse_moe`。类名偏离写 HF 全名。
-  FlopCounterMode 独立算子夹具已接（`verification/flop_counter.py`：Linear /
-  BMM / 深度可分 Conv1d）；整模型 forward 抽查未接（catalog 无权重）。
-- **§6.4 来源解析契约**：前后端保持两套 resolver（静态前端直连 Hub + Python
-  服务），不强行合并运行时代码。共享契约键 = `repo_id + revision + cache_dir`
-  （huggingface_hub snapshot；`cache_dir` = `settings.model_root`）。还要共享
-  来源类型、fallback、错误分类和 fixture。前端 `loadModelArtifacts.js` 已持有
-  endpoint fallback / revision 默认；后端 `resolve/` 已按 revision 哈希 ref。
-  缺口是跨端契约样例，不是再写第三套路由。
-- **§7 国产芯片条目**：每字段必须有公开来源，缺项保持 unknown。
-- **§3.8 删 llm-analysis 容量旁路**：cost 只 walk 图。叶上声明 KV/KDA
-  数值容量与 hash buffer；`memoryBreakdown` / Params / PP 切层改 walk；
-  生产不再调用 config 闭式算容量；身份测试期望侧 walk 图。闭式已删。
+下列条目曾写成「未排期缺口」，实现与契约已经对齐，不再当待办：
 
-### 统一结构协议的生成或契约测试
+- **§5 source_ref**：采集 / 绑定 / Inspector 已接通。catalog 58/59 已
+  `msv dump-source-ref --source builtin` 入库。Kimi-K3 永不 dump / verify
+  （Hub modeling import 拉 `fla` / Triton；transformers 无 `kimi_k3`）。
+  绑定脚本 58 模型通过。`verify --graph` 构造通过才算脚本失败；
+  `structurally_consistent` 只报告。缺席产物节点 `source_ref` 为 null。
+- **§6.4 来源解析契约**：两套运行时不合并。共享契约已锁
+  [`details/models/source_contract.json`](details/models/source_contract.json)
+  （键 / 来源类型 / auto fallback / revision 默认 / 错误分类 / Graph 协议字段）。
+  前后端测试对这份 JSON。不是再写第三套路由。
+- **§3.8 容量旁路**：cost 只 walk 图。闭式已删。身份测试期望侧 walk 图。
+- **统一结构协议**：`StructureNodeBase` 已抽。Graph 协议字段锁在同一份
+  `source_contract.json`。后端不当第二份产品结构源。`layoutGraph` 只接受
+  `structure.graph`，无 `structure.root`。
+- **FlopCounterMode**：独立算子夹具已接（Linear / BMM / 深度可分 Conv1d）。
+  整模型 forward 抽查终态里也不做（catalog 无权重）。
 
-当前前后端 schema 与前端 materializer 仍由两边维护。前端 Graph 是产品
-事实源，后端只输出 Transformers evidence；需要增加跨端契约样例和真实
-Graph/evidence 对账测试。schema-first 生成仅用于协议字段，不能让后端
-重新成为第二个产品结构事实源。
+### 触发池（触发未到不动工）
 
-`schemas.py` 已抽 `StructureNodeBase`（Pydantic 继承）；树还要 `children`，图还要 `parent_id` / `order` / `canonical_id`。JS `materializeStructureGraph.js` 仍是图投影，不与 Python schema 生成绑定。
+不是产品 backlog，也不是「下一步默认做前端体验」。每条带触发判据：
 
-### 模型 catalog 维护自动化
+- **Cost Lens 按 `FORMULAS.group` 分栏**（UI）。触发：需要按功能域看成本，而不是只看整图合计。
+- **verify fixture 桶扩展**。触发：对账出现未落入 `canonical_path_contract.json` 四桶的 diff。
+- **折叠谓词共享**。触发：前端 `compactRanges` 与后端 `fold.py` 出现未分类漂移。终态默认两套实现不合并。
+- **framework execution profile**。触发：第一次需要对比 vLLM 与 SGLang 在同一模型上的有效宽度。
+- **per-stage roofline / evidence I/O shape**。触发：UI 或对账需要 stage 级动作向量。
+- **新架构配方文件**。触发：新的 `architectures[0]` 或新 catalog 条目。门槛不变：字段判据、header-truth、生成清单、`docs:check`。公共模型工作没有降优先级，只是没有新架构时不预造空壳。
+- **§7 国产芯片条目**。触发：有公开来源的字段要入库。缺项保持 unknown。
+- **后端生产化**。触发：真正对外部署。路径约束、remote code 沙箱、鉴权、限流、日志脱敏。
+- **家族知识 5 住址收口 / §8.1 继续下降**。触发：接新模型家族。棘轮基线现 6，只许下降。
 
-继续保持模型清单、配置、发布时间来源和验证报告可追溯。新增模型时应同时更新 catalog、来源记录、模型专项说明和验证结果，避免只增加配置却没有来源和验收记录。
+新增模型时同时更新 catalog、来源记录、模型专项说明和验证结果，避免只加配置。
 
 ## 后续方案（2026-09-12）
 
@@ -211,11 +207,7 @@ T4 DSV4 打分项按 `compress_ratio` 分层（与 `dsv4VisibleKeys` 共用）�
 
 ## P2：条件性需求
 
-以下事项只有在明确需求出现时才启动：
-
-- 公开国产芯片规格扩展：每个字段必须有公开来源，缺项保持 unknown。
-- 后端生产化：补充路径约束、remote code 沙箱、鉴权、请求限制、日志脱敏和会话级 settings。
-- 更细的模型专项模块或公式：先确认现有 IR 能否表达，优先扩展 `details/modules.md` 对应的 registry、builder、layers、ops 和 formulas。
+已并入上文「触发池」。不要在这里另开一份待办。
 
 ## 明确不做
 

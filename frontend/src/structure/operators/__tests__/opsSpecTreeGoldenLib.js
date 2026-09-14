@@ -2,8 +2,6 @@
 // 规范化 = 键递归排序 + minify；哈希用于紧凑存储，失败时由测试 dump 全文供 diff。
 // 注意：仅剥离 FORMULAS 注册表注入的 explanation/inputs/outputs 大文本（由
 // operatorId 决定，与 ops/index.js 重构无关），其余逐字节保真。
-// P7（步骤 7）：数据来源从 legacy structure.root 换成 Graph IR——spec 树取
-// selectors.graphRoot 的图视图（root_id 契约字段），边集直接取 structure.graph。
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

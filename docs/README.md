@@ -6,7 +6,7 @@
 
 0. [开发原则](principles.md)：**强制约束，优先级高于本目录其他文档**。定位判据、结构与成本原则、真值优先、源码可追溯、前后端边界、合入检查清单。
 1. [系统架构](architecture.md)：前后端边界、数据流、共享协议和部署形态。
-2. [待实现计划](implementation_plan.md)：当前规范含 **后续终态（2026-09-14）**（折叠图、四本账、SGLang group 元数据、resolver 契约、明确不做）；已完成能力见该文基线与 ✅ 条目。
+2. [待实现计划](implementation_plan.md)：当前规范含 **后续终态（2026-09-14）**（折叠图、四本账、SGLang group 元数据、resolver 契约、明确不做）。正确性账本已闭合；剩余是触发池，不是产品 backlog。
 3. [重构计划](refactor_plan.md)：原则收口路线。自底向上的分波替换顺序、差分替换手法、每波验收命令。
 4. [UI/交互规范](ui_interaction.md)：入口、详情工作区、Cost Lens、PD 和交互行为。
 5. [测试和发布验证](testing_release.md)：单测、模型验证、构建、API 和浏览器验证。

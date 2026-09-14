@@ -10,8 +10,6 @@ import { buildEdgeMap, hashSpecTree } from "./opsSpecTreeGoldenLib.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
-// P7（步骤 7）：legacy structure.root 遍历退役——断言改走 Graph IR 节点
-// （层级 = parent_id 挂接 + order 排序；语义 id = canonical_id）。
 function childrenOf(graph, parentId) {
   return graph.nodes
     .filter((node) => node.parent_id === parentId)

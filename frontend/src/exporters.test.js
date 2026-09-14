@@ -3,7 +3,6 @@ import test from "node:test";
 import { exportStructure } from "./exporters.js";
 import { materializeStructureGraph } from "./structure/graph/materializeStructureGraph.js";
 
-// P7（步骤 7）：夹具从 legacy root 换成 Graph IR（导出只消费图）。
 const structure = {
   summary: { strategy: "frontend-architecture-template" },
   source: {},

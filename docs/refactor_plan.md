@@ -125,11 +125,10 @@ MAINTENANCE.md 棘轮已回写。
    最小集合草案：effective attention/MoE width、expert ownership/placement、
    KV partition、dispatch/combine 方式（九项裁决 Q1/Q3/Q5 推迟项全部归入）。
    载体（JSON 视图 / UI 分栏 / CLI 选项）待需求定型后裁决。
-2. **折叠语义前后端单源化**。触发：meta-introspect 与前端模板的图谱一致性
-   对账需求出现。方向：后端只产原始图，折叠交共享规则（P8 勘验确认当前
-   前端模板产 repeat 与后端 fold.py 双源并存）。
-3. **source_ref 采集**（§5.x）。触发：需要"节点 ↔ transformers 源码位置"
-   产品化展示。前置：先定采集范围（builder 生成点 vs archs 配方 vs 两者）。
+2. **折叠语义前后端单源化**。终态拍板：前端 `compactRanges` 与后端 `fold.py`
+   两套实现不合并。触发收窄为：对账出现未分类漂移时再抽共享谓词。
+3. ~~**source_ref 采集**（§5.x）~~ ✅ 已完成（2026-09-14）：58/59 入库，
+   Inspector 已接通；Kimi-K3 永不 dump。缺席产物节点 `source_ref` 为 null。
 4. **per-stage roofline 计算路**（stage 级动作向量）与 **evidence 的 I/O
    shape**（introspect 不产数值）：诚实缺项，消费需求出现时补。
 5. 触发型债项维持原登记：家族知识 5 住址收口（接新家族）、§8.1 清零
@@ -987,7 +986,7 @@ P1-6 projectPlan errors+无效语义修正/P1-7 unknown 徽标）。其中 P1-6 
 | D | §6.1（SRP 侧）、错误处理一致性 |
 | E | §6（UI 分层） |
 | M11.5 / M12 | 未排期——M11.5 结构边界调整（plan.js 迁移 + formulas 目录环）、M12 移入项（AllToAll dp>1 / interNode 与 PD 跨机 / 后端对账链路）、后端 oracle 定位表述 |
-| 未排期 | §2.5 残差边、§6.4 来源解析归并、§7 国产芯片条目、§8.1 基线下调（待 W3a+W3b+W4.5 完成后重新测量）、attentionKind 家族品牌 id 改名（`qwen35_full` → 组件名；会改变输出 attributes，需单独拍板） |
+| 触发池 | §2.5 残差边（展示需求）、§7 国产芯片条目（公开来源字段）、§8.1 只许下降（基线已 6）、attentionKind 家族品牌 id 改名（`qwen35_full` → 组件名；会改变输出 attributes，需单独拍板）。§6.4 来源解析：契约 JSON 已锁，运行时不合并，不再当债。 |
 
 每波完成后，从 [`principles.md`](principles.md) §10 例外登记中删除对应条目。
 §10 清空之日即本文作废之日。

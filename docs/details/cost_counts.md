@@ -540,8 +540,9 @@ R1 逐项对账审计（2026-09-08）的归因路径，全部清零，方法保�
 
 - **终态（`extractor.identity.test.js`）**：TOLERANCE = **0.005**、REGISTERED = {}
   （**空**）。59 模型 matrix 恒等式 |ratio−1| ≤ 0.005（残留来自 tied embedding 与 norm
-  权重项的取整口径，量级稳定；vision 域由 v2 双 token 域拆分覆盖）。DSV4 打分项按
-  `compress_ratio` 分层，与叶 counts 共用 `dsv4VisibleKeys`。
+  权重项的取整口径，量级稳定；vision 域由 v2 双 token 域拆分覆盖）。DSV4：SWA
+  走窗口夹紧三角，C4 期望侧与叶同用 `min(T, index_topk)` 因果三角，C128 走
+  `T·visible` 矩形。
 - 归零路径（方法论存档，每条有实测证据，不是放宽容差）：
   - GLM-5.3-Flash 1.0904 → 0.999x：ops 模板 glm5_next KDA 两处宽度错 + derivedWeights
     的 DSA 分支白名单漏 glm5_next（11 个 DSA 层退回泛化 GQA）；

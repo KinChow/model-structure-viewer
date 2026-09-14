@@ -45,7 +45,7 @@ test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁
       const op = String(row.node?.attributes?.operator_id || row.node?.type || "").toLowerCase();
       if (VIEW_OPS.has(op) || PENDING_UNMODELED.has(op)) continue;
       // W4：乘子为 0 的子树（MTP 在投机解码未启用时 repeat=0，见
-      // layers/mtp.js 口径声明）本来就该聚合成零，
+      // 各架构文件 draftBilling）本来就该聚合成零，
       // 不是「未建模的零」。判据是显式的 multiplier===0，不是白名单。
       if (row.multiplier === 0) continue;
       const { weights, actIn, actOut } = row.actions.bytes;

@@ -178,7 +178,7 @@ T4 DSV4 打分项按 `compress_ratio` 分层（与 `dsv4VisibleKeys` 共用）�
   `model_structure_viewer.resolve` 导入，删顶层 `resolver.py` shim。
 
 **明确后置 / 不做**
-- 拆 59 个 modeling 文件（`ARCH_RECIPES` 过渡表可留）。
+- 拆 59 个 checkpoint 文件。组网按 `architectures[0]`（16 类）拆，对标 vLLM `models/<arch>`。
 - 对账 triage DSL 重写（继续当 fixture）。
 - `{matrix, vector, sfu, bytes}` 保留。
 - 前端下权重、plan 搜索、服务指标。

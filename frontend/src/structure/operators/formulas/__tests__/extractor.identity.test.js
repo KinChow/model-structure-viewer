@@ -23,8 +23,8 @@ const T = 128;
 // 校准状态（2026-09-08 二次收敛）：score 项 2× 双计修复 + normsTerm 修层后，
 // 全部 21 个 MoE 行 |ratio-1| <= 1.7%，MiniMax-M2.7 / GLM-4.7 精确闭合。
 // dense 字段组合由 T4b 合成变体覆盖（GQA/tied/headDim 推导/MoE+shared，全部精确闭合）。
-// 残差归因：V4-Flash ≈-1.7%（dsa 期望侧近似 S=T，counts 侧按 dsaIndexTopk）；
-// GLM-5/Qwen3.8 ≈+0.5% 正向残差未完全归因（登记于 cost_counts.md）。
+// 残差归因：V4 打分项按 compress_ratio 分层后，C4 期望侧与叶同用 min(T, index_topk)
+// 因果三角；SWA 走窗口夹紧三角，C128 走 T·visible 矩形。tied/norm 取整远小于 0.005。
 // W5（2026-09-09）验收收口：容差从 0.02 收到 **0.005**，REGISTERED **清空**。
 // 归零路径（每一条都有实测证据，不是放宽容差）：
 // - GLM-5.3-Flash 1.0904 → 0.999x：ops 模板 glm5_next KDA 两处宽度错（低秩
@@ -38,8 +38,8 @@ const T = 128;
 //   0.5% 内，属无效登记，一并移除。
 // 残留 0.2%-0.5% 的行（Qwen3.5 小杯 / V4 系 / Kimi-K2.5 等）来自 tied embedding
 // 与 norm 权重项的取整口径，量级稳定，纳入 0.005 容差内。
-// DSV4 打分项：期望侧按 compress_ratio 分层（SWA/C4 走 scoredPairs，C128 走 T·visible
-// 矩形），与叶 counts / dsv4VisibleKeys 共用，不再按稠密三角登记。
+// DSV4 打分项：SWA = dsv4VisibleKeys + scoredPairs；C4 = min(T, topk) + scoredPairs
+// （对齐叶 dsv4_sparse_mla）；C128 = T·visible 矩形（dsv4CompressedAttentionCounts）。
 const TOLERANCE = 0.005;
 const REGISTERED = {};
 
@@ -96,20 +96,19 @@ function extraMatmulWithoutWeights(normalized, T) {
     let pairs = densePairs;
     if (kind === "dsv4") {
       const ratio = ratios[i] ?? 0;
-      const keys = dsv4VisibleKeys({
-        sequence: T,
-        phase: "prefill",
-        ratio,
-        slidingWindow: normalized.slidingWindow,
-        indexerBudget: normalized.dsaIndexTopk,
-      });
-      // C128 叶 matrix 是 T·visible 矩形（dsv4CompressedAttentionCounts），
-      // SWA/C4 才走 scoredPairs 因果三角。
-      if (ratio > 4) {
+      if (ratio === 4) {
+        // 叶 dsv4_sparse_mla：selected = min(T, index_topk)，因果三角。
+        // 窗口混合读只进 bytes，不进 matrix（与 sparseLeafAttentionCounts 一致）。
+        const selected = Math.min(T, normalized.dsaIndexTopk || T);
+        pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: selected });
+      } else if (ratio > 4) {
+        const keys = dsv4VisibleKeys({ sequence: T, phase: "prefill", ratio, slidingWindow: normalized.slidingWindow });
         score += heads * T * keys * (dim + vDim);
         continue;
+      } else {
+        const keys = dsv4VisibleKeys({ sequence: T, phase: "prefill", ratio, slidingWindow: normalized.slidingWindow });
+        pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: keys });
       }
-      pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: keys });
     } else if (kind === "qsa") {
       const selected = Math.min(T, normalized.qsaIndexerBudget || T);
       pairs = scoredPairs({ phase: "prefill", queryTokens: T, keyTokens: selected });

@@ -104,7 +104,7 @@ architectures[0]
 
 ## 4. 顶层网络关系
 
-顶层 builder 由 `models/index.js` 的 `MODELS` 分派。投机头由各组网函数的 children 数组显式挂上（`textDecoderNetwork` / `buildMultimodalDecoderNetwork` / `buildMiniMaxM3Network` 调 `mtpChild`），位置在 decoder 之后、final norm / HC mixer 之前。对标 vLLM：MTP/DSpark 是独立注册项，不是 decoder 子层；msv 画同一份 checkpoint，树 id 仍是 `mtp`。组网函数名 = vLLM 类名（`draftClassOf` 按字段分派，不按家族名）：`dspark_target_layer_ids` → `DSparkDeepseekV4Model`；`compress_ratios` → `DeepSeekV4MultiTokenPredictorLayer`（e_proj+h_proj+hc_head）；`mtp_num_hidden_layers` + HC → `Qwen4ExpMultiTokenPredictor`；`linear_attn_config` → `Qwen3_5MultiTokenPredictor`；其余 `DeepSeekMultiTokenPredictorLayer`。零件名 = 权重/成员名。decoder kind 写在该类组网里（V4 MTP/DSpark 强制 SWA；Qwen3.5 强制 full attention；Qwen4Exp 强制 QSA 且关 PLE；MiniMax 强制 sparse+MoE），不抄主干最后一层。`repeat: 0` 不算每次前向；参数仍占显存。一份模板 × N 写 `modules=N`；已展开 stage（DSpark `mtp.0/1/2`）写 `modules=1`，`residentRepeat` 不再乘。
+顶层 builder 由 `models/index.js` 的 `MODELS` 分派（对标 vLLM `_TEXT_GENERATION_MODELS`：一 `architectures[0]` 一模块）。投机头写在该架构文件里（`deepseek_v4.js` 挂 MTP/DSpark，`qwen3_5.js` / `qwen4_exp.js` 挂各自 MTP，其余引用 `deepseek_mtp.js` 的 SharedHead / eh_proj），位置在 decoder 之后、final norm / HC mixer 之前。对标 vLLM：`models/<arch>/mtp.py`、`dspark.py` 跟主干同包，不是共享 dispatcher。树 id 仍是 `mtp`（checkpoint）。零件名 = 权重/成员名。decoder kind 写在该类组网里（V4 MTP/DSpark 强制 SWA；Qwen3.5 强制 full attention；Qwen4Exp 强制 QSA 且关 PLE），不抄主干最后一层。`repeat: 0` 不算每次前向；参数仍占显存。一份模板 × N 写 `modules=N`；已展开 stage（DSpark `mtp.0/1/2`）写 `modules=1`，`residentRepeat` 不再乘。
 
 ### 4.1 Dense/GQA decoder
 
@@ -121,7 +121,7 @@ model
   └── lm_head
 ```
 
-实现：`models/common.js`、`models/qwen.js`、`layers/decoderStack.js`、`layers/decoderLayer.js`。
+实现：`models/common.js`、`models/qwen3_5.js`、`layers/decoderStack.js`、`layers/decoderLayer.js`。
 
 ### 4.2 MoE decoder
 
@@ -156,7 +156,7 @@ decoder layer
   └── MoE or dense MLP
 ```
 
-实现：`models/deepseek.js`（mla-moe-decoder）、`layers/attention.js`、`ops/index.js` 的 MLA/DSA 分支。MLA 的 KV cache 不是普通的 K/V 两份 head 张量，而是 `kv_lora_rank + qk_rope_head_dim` 的 latent/rotary 组合；这是内存和 TP 投影的关键分支。
+实现：`models/deepseek_v3.js`、`layers/attention.js`、`ops/index.js` 的 MLA/DSA 分支。MLA 的 KV cache 不是普通的 K/V 两份 head 张量，而是 `kv_lora_rank + qk_rope_head_dim` 的 latent/rotary 组合；这是内存和 TP 投影的关键分支。
 
 ### 4.4 MiniMax multimodal sparse decoder
 
@@ -177,7 +177,7 @@ model
   └── lm_head
 ```
 
-实现：`models/minimax.js`、`layers/vision.js`、`layers/projector.js`、`ops/index.js` 的 MiniMax attention 分支。
+实现：`models/minimax_m3.js`、`layers/vision.js`、`layers/projector.js`、`ops/index.js` 的 MiniMax attention 分支。
 
 ### 4.5 Multimodal/hybrid decoder
 
@@ -197,7 +197,7 @@ model
   └── lm_head
 ```
 
-实现：`models/qwen.js`、`layers/hybrid.js`、`layers/residual.js`、`layers/vision.js`。
+实现：`models/qwen4_exp.js`、`layers/hybrid.js`、`layers/residual.js`、`layers/vision.js`。
 
 ### 4.6 Generic fallback
 
@@ -220,8 +220,8 @@ checkpoint truth 在场时（`truth.skeleton` 离线骨架文件形态或 `truth
 | Projector | `layers/projector.js` | visual features | text hidden width | Linear/projector activation |
 | Residual | `layers/residual.js` | residual streams | mixed hidden state | attention residual |
 | Hybrid | `layers/hybrid.js` | multi-stream hidden state | mixed/contracted state | mHC、PLE、Hyper Connection |
-| MTP | `layers/mtp.js` | 主干最后一层 hidden | SharedHead.norm / hc_head / mixer | 按 vLLM 类：`DeepSeekMultiTokenPredictorLayer` / `DeepSeekV4MultiTokenPredictorLayer` / `Qwen3_5MultiTokenPredictor` / `Qwen4ExpMultiTokenPredictor`（repeat=0） |
-| DSpark | `layers/mtp.js` `dsparkDeepseekV4Model` | 主干 `dspark_target_layer_ids` hidden | hc_head hidden + Markov bias | 3 层 SWA MoE + main_proj/hc_head/markov/confidence（repeat=0） |
+| MTP | 各架构文件（`deepseek_mtp.js` / `deepseek_v4.js` / `qwen3_5.js` / `qwen4_exp.js`） | 主干最后一层 hidden | SharedHead.norm / hc_head / mixer | 对标 vLLM `models/<arch>/mtp.py`（repeat=0） |
+| DSpark | `models/deepseek_v4.js` | 主干 `dspark_target_layer_ids` hidden | hc_head hidden + Markov bias | 对标 vLLM `models/deepseek_v4/nvidia/dspark.py`（repeat=0） |
 | LM head | `layers/outputHead.js` | final hidden state | logits | Linear |
 
 普通 decoder layer 的**同级**逻辑关系（原则 §2.5，对标 Gallery）：

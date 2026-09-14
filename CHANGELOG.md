@@ -12,6 +12,8 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- `models/` 按 `architectures[0]` 拆文件（对标 vLLM `models/<arch>`）。MTP/DSpark 写在该架构文件里（`deepseek_v4.js`、`qwen3_5.js`、`qwen4_exp.js`）；SharedHead 留在 `deepseek_mtp.js` 给 GLM-5 Next 引用。删 `layers/mtp.js` 共享 dispatcher。
+- T4 C4 期望侧对齐叶 `dsv4_sparse_mla`：`min(T, index_topk)` 因果三角；窗口混合读只进 bytes。
 - Task #41：normalize 瘦到字段别名。删 `indexer*` 兼容字段；DSA/QSA 分族是唯一入口。`sharedExperts` / `sharedExpertGate` 看 `shared_expert_intermediate_size`（vLLM qwen3_moe / Qwen4Exp），不再用 `model_type` 子串——Flash-Next 因此补上 shared expert 分支。MHC 看 `mhc`/`hc_mult`；缺 `mhc_post_mult_value` 时开了 MHC 用 vLLM 默认 2.0。vision gated MLP 看 `hidden_act`。`StructureNodeBase` 抽出共用字段；解析入口收成 `model_structure_viewer.resolve`。
 - 删 extractor 容器 `*Macs`（`attentionCoreMacs` 的 T² 等）。`type=attention` 按 §2.4 返回 null，打分只走叶 `FORMULAS[operator_id]`。
 - PLE ngram 表改为 `type=embedding` 子叶（照抄 `Qwen4ExpTextNGramEmbedding` 的 `nn.Embedding` + 素数 pad）。S3 Flash-Next 29% 登记项删除。

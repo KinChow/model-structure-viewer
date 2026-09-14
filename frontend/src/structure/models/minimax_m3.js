@@ -1,14 +1,15 @@
+// 对标 vLLM MiniMax-M3 VL
 import { decoderStackNetwork } from "../layers/decoderStack.js";
 import { lmHeadModule } from "../layers/outputHead.js";
-import { mtpChild } from "../layers/mtp.js";
 import { projectorModule } from "../layers/projector.js";
 import { visionTowerModule } from "../layers/vision.js";
-import { networkSpec } from "./common.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { hfLayersAttr } from "../archs/index.js";
+import { networkSpec } from "./common.js";
+import { deepSeekMtpChild } from "./deepseek_mtp.js";
 
-export function buildMiniMaxM3Network(resolved, normalized) {
-  const draft = mtpChild(normalized);
+export function assembleMiniMaxM3(resolved, normalized) {
+  const draft = deepSeekMtpChild(normalized);
   return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, [
     visionTowerModule(normalized),
     projectorModule(normalized),
@@ -17,8 +18,6 @@ export function buildMiniMaxM3Network(resolved, normalized) {
       defaultLayerKind: normalized.experts ? "moe" : "dense",
     }),
     ...(draft ? [draft] : []),
-    // lm_head 之前的 final norm：多模态那条支线此前整片缺失（权重字节恒等式
-    // 差 hidden 个参数 = 12,288 字节，2026-09-09 逐层归因抓出）。
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),
   ], { sequence: true });

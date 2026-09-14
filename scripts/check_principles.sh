@@ -23,14 +23,16 @@ FAIL=0
 #（aliases.js / architectureCatalog.js / roles.js 退出计数）→ 2026-09-13
 # 删 derivedWeights.js 闭式得 10 → 2026-09-13 删 plan.js + 共享 layer 家族分派得 8
 # → 2026-09-14 MTP 组网回升 10（mtp.js / hybrid.js 出处路径）→ Task #41
-# normalize 去掉 model_type 子串得 9。
+# normalize 去掉 model_type 子串得 9 → 2026-09-14 models/ 按 architectures[0]
+# 拆文件（对标 vLLM models/<arch>），架构文件本身是该放类名的地方，豁免
+# structure/models/；mtp.js 迁走后基线再降。
 FAMILY_PATTERN='kimi|qwen4_?exp|qwen3_?5|glm5_?next|glm4_?moe|minimax_?m2|minimax_?m3|deepseek_?v32|deepseek_?v4|glm_?moe_?dsa'
-FAMILY_BASELINE=9
+FAMILY_BASELINE=6
 
 FAMILY_COUNT=0
 FAMILY_FILES=""
 for f in $(grep -rliE "$FAMILY_PATTERN" frontend/src --include='*.js' --include='*.jsx' \
-    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/operators/formulas/index.js' | grep -v 'structure/operators/formulas/modules.js' | grep -v 'structure/archs/index.js' | sort); do
+    | grep -v '\.test\.' | grep -v '__tests__' | grep -v 'structure/operators/formulas/index.js' | grep -v 'structure/operators/formulas/modules.js' | grep -v 'structure/archs/index.js' | grep -v 'structure/models/' | sort); do
   n=$(grep -iE "$FAMILY_PATTERN" "$f" | grep -cvE '^[[:space:]]*(//|\*|/\*)')
   if [ "$n" -gt 0 ]; then
     FAMILY_COUNT=$((FAMILY_COUNT + 1))

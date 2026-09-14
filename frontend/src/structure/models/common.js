@@ -6,10 +6,12 @@
 import { decoderStackNetwork } from "../layers/decoderStack.js";
 import { embeddingModule } from "../layers/embedding.js";
 import { lmHeadModule } from "../layers/outputHead.js";
-import { mtpChild } from "../layers/mtp.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { outputAttentionResidualModule } from "../layers/residual.js";
-import { hfLayersAttr } from "../archs/index.js";
+import { projectorModule } from "../layers/projector.js";
+import { visionTowerModule } from "../layers/vision.js";
+import { hyperConnectionModule } from "../layers/hybrid.js";
+import { hfLayersAttr, recipeVisionInternalMerger } from "../archs/index.js";
 
 export function networkSpec(id, name, architecture, children, attributes = {}) {
   return {
@@ -22,15 +24,29 @@ export function networkSpec(id, name, architecture, children, attributes = {}) {
   };
 }
 
-export function textDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind }) {
+/** 投机头由调用方传入（对标 vLLM 各模型文件自己挂 mtp/dspark，不是共享 dispatcher）。 */
+export function textDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind, draft } = {}) {
   // §2.1：网络级子节点（embed → decoder → draft → norm → lm_head）显式声明顺序执行。
   // 投机头挂点对标 vLLM 各模型文件 children 顺序：decoder 之后、final norm 之前。
-  const draft = mtpChild(normalized);
   return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, [
     embeddingModule("embed_tokens", normalized),
     decoderStackNetwork(hfLayersAttr(normalized), normalized, { attentionKind, defaultLayerKind }),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     ...(draft ? [draft] : []),
+    rmsNormModule("norm", "final norm", normalized),
+    lmHeadModule("lm_head", normalized),
+  ], { sequence: true });
+}
+
+export function multimodalDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind, draft } = {}) {
+  return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, [
+    visionTowerModule(normalized),
+    ...(normalized.hasVisionProjector && !recipeVisionInternalMerger(normalized) ? [projectorModule(normalized)] : []),
+    embeddingModule("embed_tokens", normalized),
+    decoderStackNetwork(hfLayersAttr(normalized), normalized, { attentionKind, defaultLayerKind }),
+    ...(draft ? [draft] : []),
+    ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
+    ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),
   ], { sequence: true });

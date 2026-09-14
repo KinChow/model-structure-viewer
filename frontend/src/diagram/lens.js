@@ -31,12 +31,16 @@ export function buildNodeLens(structure, chip, {
       vision: row.node.attributes?.modality === "vision",
       visionTokens: config.visionTokens || 1,
     };
+    const shapeActIn = activationTensorBytes(row.node.input_shape, nodeShapeOptions, bytesPerElement) * row.multiplier;
+    const shapeActOut = activationTensorBytes(row.node.output_shape, nodeShapeOptions, bytesPerElement) * row.multiplier;
+    const actInBytes = row.actions?.bytes?.actIn ?? shapeActIn;
+    const actOutBytes = row.actions?.bytes?.actOut ?? shapeActOut;
     const perCard = nodeCostPerCard({
       macs: row.compute_macs,
       weightBytes: row.weightBytes,
       actions: row.actions,
-      actInBytes: activationTensorBytes(row.node.input_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
-      actOutBytes: activationTensorBytes(row.node.output_shape, nodeShapeOptions, bytesPerElement) * row.multiplier,
+      actInBytes,
+      actOutBytes,
     }, row.node, checked.plan);
     return {
       ...row,

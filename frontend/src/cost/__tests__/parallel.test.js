@@ -61,15 +61,27 @@ test("DP-attention 下 attention 权重复制，MLP 仍按 TP 切", () => {
 
 test("节点 roofline 成本按声明 class 投影到单卡（P5：声明式）", () => {
   const cost = { macs: 80, weightBytes: 40, actInBytes: 24, actOutBytes: 16 };
-  const q = { id: "decoder.0.self_attn.q_proj", attributes: { weightMatrices: [{ class: "tp", out: 1, in: 1 }] } };
+  const q = { id: "decoder.0.self_attn.q_proj", attributes: { weightMatrices: [{ class: "tp", out: 1, in: 1, split: "output" }] } };
   assert.deepEqual(nodeCostPerCard(cost, q, { tp: 4 }), {
-    macs: 20, weightBytes: 10, actInBytes: 6, actOutBytes: 4,
-    projection: { axis: "tp", divisor: 4 },
+    macs: 20, weightBytes: 10, actInBytes: 24, actOutBytes: 4,
+    projection: { axis: "tp", divisor: 4, split: "output" },
+  });
+  const o = { id: "decoder.0.self_attn.o_proj", attributes: { weightMatrices: [{ class: "tp", out: 1, in: 1, split: "input" }] } };
+  assert.deepEqual(nodeCostPerCard(cost, o, { tp: 4 }), {
+    macs: 20, weightBytes: 10, actInBytes: 6, actOutBytes: 16,
+    projection: { axis: "tp", divisor: 4, split: "input" },
   });
   const ep = { id: "decoder.0.mlp.expert_mlp", attributes: { weightMatrices: [{ class: "ep", out: 1, in: 1, count: 8, matrices: 3 }] } };
-  assert.equal(nodeCostPerCard(cost, ep, { tp: 4, ep: 2 }).macs, 40);
+  const epCost = nodeCostPerCard(cost, ep, { tp: 4, ep: 2 });
+  assert.equal(epCost.macs, 40);
+  assert.equal(epCost.actInBytes, 24);
+  assert.equal(epCost.actOutBytes, 16);
   const norm = { id: "decoder.0.input_layernorm", attributes: { weightMatrices: [{ class: "replicated", out: 1, in: 1 }] } };
   assert.equal(nodeCostPerCard(cost, norm, { tp: 4 }).macs, 80);
+  const bareTp = { id: "decoder.0.self_attn.q_proj", attributes: { weightMatrices: [{ class: "tp", out: 1, in: 1 }] } };
+  const bare = nodeCostPerCard(cost, bareTp, { tp: 4 });
+  assert.equal(bare.actInBytes, 24);
+  assert.equal(bare.actOutBytes, 16);
 });
 
 test("PP 层归属和逐 stage 投影返回结构", () => {

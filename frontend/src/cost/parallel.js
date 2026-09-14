@@ -87,34 +87,49 @@ export function weightBytesPerCard(totalBytes, node, plan = {}) {
 
 /**
  * 把单个图节点的理论成本投影到一个 rank。
- * 权重按该叶 weightMatrices.class 切分（协议唯一入口）；无声明则 unknown。
+ * 权重 / MAC 按 class 切；激活按 weightMatrices.split（Megatron Column/Row）。
  * 仅做解析式除法，不模拟 kernel、通信重叠或负载不均衡。
  */
 export function nodeCostPerCard(cost = {}, node, plan = {}) {
   const projection = weightBytesPerCard(cost.weightBytes || 0, node, plan);
-  const divide = (value) => value == null ? value : value / projection.divisor;
-  // M11-P0-4：动作向量与标量同轴投影——vector/sfu/bytes 与 macs 一样按切分
-  // 维度除到每卡；分量未知保持 null（不伪造零）。
+  const tp = plan.tp ?? plan.TP ?? 1;
+  const split = activationSplitOf(node);
+  const actInDivisor = split === "input" ? tp : 1;
+  const actOutDivisor = split === "output" ? tp : 1;
+  const divide = (value, divisor) => value == null ? value : value / divisor;
+  // MAC / 权重跟 class；actIn/actOut 跟 split。未知保持 null。
   const actions = cost.actions ? {
-    matrix: divide(cost.actions.matrix),
-    vector: divide(cost.actions.vector),
-    sfu: divide(cost.actions.sfu),
+    matrix: divide(cost.actions.matrix, projection.divisor),
+    vector: divide(cost.actions.vector, projection.divisor),
+    sfu: divide(cost.actions.sfu, projection.divisor),
     bytes: {
-      weights: divide(cost.actions.bytes?.weights),
-      actIn: divide(cost.actions.bytes?.actIn),
-      actOut: divide(cost.actions.bytes?.actOut),
+      weights: divide(cost.actions.bytes?.weights, projection.divisor),
+      actIn: divide(cost.actions.bytes?.actIn, actInDivisor),
+      actOut: divide(cost.actions.bytes?.actOut, actOutDivisor),
     },
     commBytes: cost.actions.commBytes ?? null,
   } : undefined;
   return {
     ...cost,
     ...(actions ? { actions } : {}),
-    macs: divide(cost.macs),
+    macs: divide(cost.macs, projection.divisor),
     weightBytes: projection.bytes,
-    actInBytes: divide(cost.actInBytes),
-    actOutBytes: divide(cost.actOutBytes),
-    projection: { axis: projection.axis, divisor: projection.divisor },
+    actInBytes: divide(cost.actInBytes, actInDivisor),
+    actOutBytes: divide(cost.actOutBytes, actOutDivisor),
+    projection: { axis: projection.axis, divisor: projection.divisor, split },
   };
+}
+
+/** ColumnParallel = output（输入完整、输出 /TP）；RowParallel = input（输入 /TP、输出完整）。 */
+function activationSplitOf(node) {
+  const groups = node?.attributes?.weightMatrices;
+  if (!Array.isArray(groups) || groups.length === 0) return null;
+  const dominant = groups.reduce((best, group) => {
+    const elements = (group.count ?? 1) * (group.matrices ?? 1) * (group.out || 0) * (group.in || 0);
+    if (!best || elements > best.elements) return { split: group.split || null, elements };
+    return best;
+  }, null);
+  return dominant?.split || null;
 }
 
 /** 专家权重在 EP rank 上的平均/最坏区间；来源：vLLM MoE 负载不均衡建模讨论。 */

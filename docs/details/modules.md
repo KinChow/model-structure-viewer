@@ -504,8 +504,9 @@ Fit / card  = Peak / card <= chip.memory_bytes
 ownWeightPerCard     = nodeCostPerCard(nodeWeightCapacityBytes × resident)
                        # 只切本节点 weightMatrices；无声明则 unknown/0
 subtreeWeightPerCard = aggregate_weightBytes   # 先切后上卷，复用 aggregateNodeCosts
-nodeActivation       = 本节点 dataflow 边界
-                       （counts.bytes.actIn+actOut，否则 input/output_shape）
+nodeActivation       = 本节点 dataflow 边界，按 weightMatrices.split 切
+                       （Column：actIn 完整 / actOut ÷tp；Row 反过来）
+                       优先 counts.bytes.actIn+actOut，否则 input/output_shape
 vramBytes            = subtreeWeightPerCard + nodeActivation
 ```
 

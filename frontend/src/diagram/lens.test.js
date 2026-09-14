@@ -34,7 +34,8 @@ test("节点 lens 使用校验后的逐卡并行投影", () => {
   const result = buildNodeLens(structure, chip, { phase: "decode", sequence: 8, plan: { tp: 2 } });
   assert.equal(result.ok, true);
   assert.ok(result.nodes["root.0"].times.comm > 0);
-  assert.equal(result.nodes["root.0"].bytesMoved, 24);
+  // RowParallel：weights 32/2=16，actIn 8/2=4，actOut 8 不切 → 28
+  assert.equal(result.nodes["root.0"].bytesMoved, 28);
   assert.equal(buildNodeLens(structure, chip, { plan: { tp: 0 } }).ok, false);
 });
 
@@ -66,9 +67,9 @@ test("叶子 VRAM 只按声明轴切一次；父 = Σ 子每卡权重 + 自身�
   const result = buildNodeLens(structure, chip, { phase: "decode", sequence: 8, plan: { tp: 2 } });
   const leaf = result.nodes["root.0"].metrics;
   const parent = result.nodes["root"].metrics;
-  // 模板叶无 weight_shapes：4×4×2B / TP2 = 16；decode 边界 8/2 + 8/2 = 8
-  assert.equal(leaf.vramBytes, 24);
+  // RowParallel o_proj：权重 4×4×2B / TP2 = 16；decode 输入 /TP = 4，输出完整 = 8
+  assert.equal(leaf.vramBytes, 28);
   assert.notEqual(leaf.vramBytes, 16);
-  // 父无声明，divisor=1，不再二次 /TP；子树每卡权重 16 + 父边界 8+8
+  // 父无声明，激活不切；子树每卡权重 16 + 父边界 8+8
   assert.equal(parent.vramBytes, 32);
 });

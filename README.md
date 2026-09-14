@@ -96,11 +96,10 @@ cd frontend && npm install
 启动前端：
 
 ```bash
-cd frontend
-npm run dev
+bash scripts/dev-frontend.sh
 ```
 
-打开 `http://localhost:5173`。Vite dev server 会把 API 请求转发到 `http://localhost:8000`。
+打开 `http://localhost:5173`。Vite dev server 会把 API 请求转发到 `http://localhost:8000`。等价命令仍是 `cd frontend && npm run dev`。
 
 ### 页面使用
 

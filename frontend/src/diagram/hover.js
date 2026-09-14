@@ -9,12 +9,6 @@ export function isEdgeRelated(sourcePath, targetPath, hoveredPath) {
   return isPathRelated(sourcePath, hoveredPath) || isPathRelated(targetPath, hoveredPath);
 }
 
-export function isGraphEdgeRelated(sourcePath, targetPath, focusedPath) {
-  return isEdgeRelated(sourcePath, targetPath, focusedPath)
-    || sourcePath === focusedPath
-    || targetPath === focusedPath;
-}
-
 export function relatedDataflowEdgeIds(edges, focusedPath) {
   if (!focusedPath) return new Set();
   const relatedNodes = new Set([focusedPath]);

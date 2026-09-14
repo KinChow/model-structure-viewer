@@ -133,10 +133,13 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     // 覆盖生效）；counts.bytes.weights 与 natural weights 的统一留 M11.5。
     actions: cost.actions && {
       ...cost.actions,
+      matrixTf32: cost.actions.matrixTf32 ?? cost.actions.computeDtypes?.tf32 ?? 0,
       bytes: {
         weights: cost.memory.weightBytes,
         actIn: cost.actions.actIn,
         actOut: cost.actions.actOut,
+        kvRead: cost.actions.kvRead,
+        indexRead: cost.actions.indexRead,
       },
       commBytes: communication?.totalBytes || 0,
     },

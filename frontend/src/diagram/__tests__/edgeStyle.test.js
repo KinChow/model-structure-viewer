@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { edgePresentation, edgeStrokeWidth } from "../edgeStyle.js";
+import { edgePresentation } from "../edgeStyle.js";
 
 test("三类 evidence 的展示互不相同（§2.2）", () => {
   const source = { output_shape: [-1, -1, 4096] };
@@ -21,7 +21,11 @@ test("tensor 感知宽度：宽度随声明边源张量规模增长且有上界"
   assert.ok(large.width <= 2.8);
 });
 
-test("兼容出口 edgeStrokeWidth 与 presentation 宽度一致", () => {
-  const edge = { evidence: "module-order" };
-  assert.equal(edgeStrokeWidth(edge, {}), edgePresentation(edge, {}).width);
+test("module-order 推断边弱于声明边，声明边宽度随张量规模增长", () => {
+  assert.equal(edgePresentation({ kind: "dataflow", evidence: "module-order" }, {}).width, 1.5);
+  const declaredSmall = edgePresentation({ kind: "dataflow", evidence: "declared" }, { node: { output_shape: [-1, -1, 8] } });
+  const declaredLarge = edgePresentation({ kind: "dataflow", evidence: "declared" }, { node: { output_shape: [1, 4096, 4096] } });
+  assert.equal(declaredSmall.width, 1.8);
+  assert.ok(declaredLarge.width > 2);
+  assert.ok(declaredSmall.width > edgePresentation({ kind: "dataflow", evidence: "module-order" }, { node: { output_shape: [1, 4096, 4096] } }).width);
 });

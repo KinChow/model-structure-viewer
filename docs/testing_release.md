@@ -118,7 +118,6 @@ GET  /api/hf/search
 GET  /api/hf/config
 POST /api/structure
 POST /api/verify
-POST /api/export
 GET  /api/settings
 POST /api/settings
 GET  /api/health

@@ -20,12 +20,6 @@ export function revisionForEndpoint(endpoint, revision) {
     : revision || defaultRevision;
 }
 
-/** huggingface_hub snapshot 同构：repo_id + revision + cache_dir 唯一键。 */
-export function sourceCacheKey({ repoId, revision, cacheDir }) {
-  if (!repoId) throw new Error("repo_id is required");
-  return `${repoId}::${revision || ""}::${cacheDir || ""}`;
-}
-
 /** Normalize either a hub repo id or a supported hub URL to `org/name`. */
 export function normalizeModelId(value, endpoint = "huggingface") {
   const raw = String(value || "").trim();

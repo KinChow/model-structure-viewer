@@ -33,20 +33,6 @@ _ATTENTION_KIND = (
     ("MQA", "Multi-Query Attention"),
 )
 
-_KEYWORD_TO_FAMILY = (
-    ("attention", "attention"),
-    ("attn", "attention"),
-    ("mlp", "mlp"),
-    ("feedforward", "mlp"),
-    ("moe", "moe"),
-    ("embed", "embedding"),
-    ("norm", "normalization"),
-    ("vision", "vision"),
-    ("projector", "projector"),
-    ("connector", "projector"),
-    ("head", "output"),
-)
-
 _LEAF_ATTR_KEYS: tuple[str, ...] = (
     "in_features",
     "out_features",
@@ -116,15 +102,6 @@ def display_name(attribute_name: str, module: Any) -> str:
         return class_name
     pretty_attr = re.sub(r"[._]", " ", attribute_name).strip()
     return f"{pretty_attr} ({class_name})" if pretty_attr else class_name
-
-
-def family(node_type: str, class_name: str) -> str:
-    """Coarse family used by the front-end to colorize nodes."""
-    lowered = class_name.lower()
-    for keyword, fam in _KEYWORD_TO_FAMILY:
-        if keyword in lowered:
-            return fam
-    return node_type
 
 
 def _extract_leaf_module_attributes(module: Any, attrs: dict[str, Any]) -> None:

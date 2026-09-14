@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
 
@@ -16,10 +16,3 @@ class ConfigNormalizer(Protocol):
 
     def normalize(self, hf_config: Any) -> dict[str, Any]:
         ...
-
-
-class NoopRuntimePatch:
-    name = "noop"
-
-    def activate(self) -> AbstractContextManager[None]:
-        return nullcontext()

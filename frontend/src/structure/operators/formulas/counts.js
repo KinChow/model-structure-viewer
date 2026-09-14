@@ -12,8 +12,6 @@
 import { add, softmax, gather } from "./atoms.js";
 import { paramBytes } from "./paramDtypes.js";
 
-const product = (values) => values.reduce((total, value) => total * value, 1);
-
 // ---------------------------------------------------------------------------
 // 相位口径（W3）。原先 bytes/matrix 都「无 phase 分支，decode 由 T=1 自然涌现」，
 // 该假设对逐元素类与投影类成立，对下列六类不成立，必须显式分相位：
@@ -671,5 +669,3 @@ export function linearAtomSteps(p) {
 export function rmsnormAtomSteps(p) {
   return { decompose: rmsnormDecompose(p), resident: rmsnormResident(p), compulsory: rmsnormCompulsory(p) };
 }
-
-export { product };

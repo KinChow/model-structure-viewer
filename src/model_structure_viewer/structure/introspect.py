@@ -19,7 +19,7 @@ from .summary import extract_summary, infer_model_family
 _LOG = logging.getLogger(__name__)
 
 
-__all__ = ["build_from_meta_model", "IntrospectionError"]
+__all__ = ["build_from_meta_model"]
 
 
 def build_from_meta_model(

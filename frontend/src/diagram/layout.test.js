@@ -27,7 +27,7 @@ test("layoutGraph exposes independent visible nodes and edges", () => {
   assert.deepEqual(graph.edges.filter((edge) => edge.kind === "dataflow" && edge.evidence === "module-order").map(({ source, target }) => [source, target]), [["root.0", "root.1"]]);
   assert.ok(graph.nodes.find((node) => node.path === "root.0").x < graph.nodes.find((node) => node.path === "root.1").x);
   assert.equal(graph.nodes.find((node) => node.path === "root.1").x, graph.nodes.find((node) => node.path === "root.1.0").x);
-  assert.deepEqual(graph.containerFrames, []);
+  assert.ok(graph.containerFrames.some((frame) => frame.id === "root.1"));
 });
 
 test("layoutGraph consumes explicit IR edges without inferring replacements", () => {

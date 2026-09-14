@@ -83,11 +83,6 @@ EXTRA_CONFIG_SKIP: frozenset[str] = frozenset({
 })
 
 
-def make_extra_config(
-    config: dict,
-    *,
-    extra_skip: tuple[str, ...] = (),
-) -> dict:
+def make_extra_config(config: dict) -> dict:
     """Return a config copy with metadata / nested towers stripped."""
-    skip = EXTRA_CONFIG_SKIP | set(extra_skip)
-    return {key: value for key, value in config.items() if key not in skip}
+    return {key: value for key, value in config.items() if key not in EXTRA_CONFIG_SKIP}

@@ -27,7 +27,3 @@ export function graphViewNode(graph, path) {
 export function graphRoot(graph) {
   return graphViewNode(graph, graph?.root_id || "root");
 }
-
-export function graphPaths(graph) {
-  return graphNodes(graph).map((node) => node.id);
-}

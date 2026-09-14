@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 SourceKind = Literal["auto", "builtin", "local", "hf", "config"]
 CachePolicy = Literal["prefer-local", "refresh", "offline"]
 EndpointKind = Literal["huggingface", "modelscope"]
-ExportFormat = Literal["json", "mermaid", "dot"]
 
 
 # 树节点与图节点共用的字段。Pydantic 继承：
@@ -130,11 +129,6 @@ class VerifyResponse(BaseModel):
     # 对账结论只进新增字段，status 的 passed/failed/skipped 契约不变
     # （构造通过 ≠ 结构一致，两态分立，tasks.md Task 7.2）。
     evidence: VerifyEvidence | None = None
-
-
-class ExportRequest(BaseModel):
-    structure: ModelStructure
-    format: ExportFormat = "json"
 
 
 class SettingsPayload(BaseModel):

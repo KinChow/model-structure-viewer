@@ -5,21 +5,20 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from .errors import ConfigError, ViewerError
-from .exporters import export_structure
 from .resolve.local_cache import LocalModelCache
 from .resolve.endpoints import endpoint_revision, endpoint_url
 from .resolve import ModelSourceResolver
-from .schemas import EndpointKind, ExportRequest, SettingsPayload, StructureRequest, VerifyRequest
+from .schemas import EndpointKind, SettingsPayload, StructureRequest, VerifyRequest
 from .service import build_structure_response, verify_structure_response
 from .settings import AppSettings
 
 
-__all__ = ["app", "build_structure_response", "get_settings", "set_settings"]
+__all__ = ["app", "get_settings", "set_settings"]
 
 
 # Module-level holder so cli.cmd_serve can inject overrides before uvicorn starts,
@@ -153,9 +152,8 @@ def structure(
     payload: StructureRequest,
     s: AppSettings = Depends(get_settings),
 ) -> dict[str, object]:
-    # Graph IR is the public structure contract. root remains available on the
-    # internal ModelStructure object for explicit legacy callers only.
-    return build_structure_response(payload, s).model_dump(exclude={"root"})
+    # Graph IR is the public structure contract.
+    return build_structure_response(payload, s).model_dump()
 
 
 @app.post("/api/verify")
@@ -164,14 +162,6 @@ def verify(
     s: AppSettings = Depends(get_settings),
 ) -> dict[str, object]:
     return verify_structure_response(payload, s).model_dump()
-
-
-@app.post("/api/export", response_class=PlainTextResponse)
-def export(payload: ExportRequest) -> str:
-    try:
-        return export_structure(payload.structure, payload.format)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"

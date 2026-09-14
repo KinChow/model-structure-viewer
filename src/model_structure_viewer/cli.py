@@ -13,12 +13,6 @@ from .service import build_structure_response, verify_structure_response
 from .settings import AppSettings
 
 
-def add_common_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--root", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
-    parser.add_argument("--endpoint", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
-    parser.add_argument("--offline", action="store_true", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="msv", description="Model Structure Viewer")
     parser.add_argument("--root", default=None, help="Model root directory.")
@@ -33,17 +27,14 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     list_parser = subparsers.add_parser("list", help="List local models.")
-    add_common_options(list_parser)
     list_parser.set_defaults(func=cmd_list)
 
     search_parser = subparsers.add_parser("search", help="Search Hugging Face models.")
-    add_common_options(search_parser)
     search_parser.add_argument("query")
     search_parser.add_argument("--limit", type=int, default=10)
     search_parser.set_defaults(func=cmd_search)
 
     inspect_parser = subparsers.add_parser("inspect", help="Build a model structure.")
-    add_common_options(inspect_parser)
     inspect_parser.add_argument("--model", default=None, help="Model id, for example MiniMaxAI/MiniMax-M3.")
     inspect_parser.add_argument("--config", default=None, help="Path to config.json.")
     inspect_parser.add_argument("--source", choices=["auto", "builtin", "local", "hf", "config"], default="auto")
@@ -54,7 +45,6 @@ def main(argv: list[str] | None = None) -> int:
     inspect_parser.set_defaults(func=cmd_inspect)
 
     verify_parser = subparsers.add_parser("verify", help="Validate Transformers meta-model construction.")
-    add_common_options(verify_parser)
     verify_parser.add_argument("--model", default=None, help="Model id, for example MiniMaxAI/MiniMax-M3.")
     verify_parser.add_argument("--config", default=None, help="Path to config.json.")
     verify_parser.add_argument("--source", choices=["auto", "builtin", "local", "hf", "config"], default="auto")
@@ -72,7 +62,6 @@ def main(argv: list[str] | None = None) -> int:
         "dump-source-ref",
         help="Write catalog-side source-ref.json from a Transformers meta walk.",
     )
-    add_common_options(dump_parser)
     dump_parser.add_argument("--model", required=True, help="Model id, for example Qwen/Qwen3.5-0.8B.")
     dump_parser.add_argument("--source", choices=["auto", "builtin", "local", "hf", "config"], default="builtin")
     dump_parser.add_argument("--revision", default="main")
@@ -85,7 +74,6 @@ def main(argv: list[str] | None = None) -> int:
     dump_parser.set_defaults(func=cmd_dump_source_ref)
 
     serve_parser = subparsers.add_parser("serve", help="Start the FastAPI server.")
-    add_common_options(serve_parser)
     serve_parser.add_argument("--host", default="127.0.0.1")
     serve_parser.add_argument("--port", type=int, default=8000)
     serve_parser.set_defaults(func=cmd_serve)

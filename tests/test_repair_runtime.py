@@ -3,7 +3,6 @@ from contextlib import contextmanager
 import pytest
 
 from model_structure_viewer.structure.repair import RepairResult
-from model_structure_viewer.structure.repair.runtime import NoopRuntimePatch
 from model_structure_viewer.structure.repair.strategies.deepseek_import_compat import (
     DeepSeekTorchFxCompatPatch,
 )
@@ -29,16 +28,6 @@ class _ContextPatch:
             yield
         finally:
             self.events.append(f"exit:{self.name}")
-
-
-def test_noop_runtime_patch_can_be_used_as_context_manager():
-    patch = NoopRuntimePatch()
-
-    with patch.activate():
-        value = "active"
-
-    assert patch.name == "noop"
-    assert value == "active"
 
 
 def test_composite_runtime_patch_unwinds_when_later_enter_fails():

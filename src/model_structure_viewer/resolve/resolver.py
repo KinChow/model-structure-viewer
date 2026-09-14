@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from ..errors import ConfigError, NotFoundError, RemoteError
+from ..errors import ConfigError, NotFoundError
 from ..schemas import HfSearchResult, ModelEntry
 from ..settings import AppSettings
 from .hf_client import HuggingFaceClient
@@ -223,24 +223,8 @@ class ModelSourceResolver:
         if info.get("fetched") or info.get("errors"):
             resolved.source["remote_code_fetch"] = info
 
-    # ---- backwards-compat: callers that imported ensure_remote_code directly -------
-    def ensure_remote_code(
-        self,
-        *,
-        model_id: str,
-        revision: str,
-        local_dir: Path,
-        config: dict[str, Any],
-    ) -> dict[str, Any]:
-        return self._remote_code.ensure_remote_code(
-            model_id=model_id,
-            revision=revision,
-            local_dir=local_dir,
-            config=config,
-        )
 
-
-__all__ = ["ModelSourceResolver", "ResolvedConfig", "RemoteError"]
+__all__ = ["ModelSourceResolver", "ResolvedConfig"]
 
 
 def _repo_root() -> Path:

@@ -17,10 +17,6 @@ from typing import Any
 _ROOTS: list[tuple[str, str, str, str]] = []
 
 
-def reset_package_roots() -> None:
-    _ROOTS.clear()
-
-
 def _package_roots() -> list[tuple[str, str, str, str]]:
     if _ROOTS:
         return _ROOTS
@@ -86,27 +82,3 @@ def collect_source_ref(module: Any) -> dict[str, Any] | None:
         "version": None,
         "url": None,
     }
-
-
-def flatten_source_refs(graph: Any) -> list[dict[str, Any]]:
-    """Emit catalog-side rows: (module_path, class_name, source_ref, has_params).
-
-    Aggregation / fold groups (layer-group, layer-pattern-group) keep
-    ``source_ref=None`` — they are not a single class definition.
-    """
-    nodes = getattr(graph, "nodes", None) or []
-    rows: list[dict[str, Any]] = []
-    for node in nodes:
-        node_type = getattr(node, "type", None) or ""
-        attributes = getattr(node, "attributes", None) or {}
-        source_ref = attributes.get("source_ref") if isinstance(attributes, dict) else None
-        if node_type in {"layer-group", "layer-pattern-group"}:
-            source_ref = None
-        class_name = attributes.get("class") if isinstance(attributes, dict) else None
-        rows.append({
-            "module_path": getattr(node, "canonical_id", None) or getattr(node, "id", None),
-            "class_name": class_name,
-            "source_ref": source_ref,
-            "has_params": getattr(node, "params", None) is not None and getattr(node, "params", 0) > 0,
-        })
-    return rows

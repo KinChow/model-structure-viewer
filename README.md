@@ -120,7 +120,6 @@ npm run dev
 - `GET /api/hf/config?model_id=MiniMaxAI/MiniMax-M3&revision=main`
 - `POST /api/structure`
 - `POST /api/verify`
-- `POST /api/export`
 - `GET /api/settings`
 - `POST /api/settings`
 

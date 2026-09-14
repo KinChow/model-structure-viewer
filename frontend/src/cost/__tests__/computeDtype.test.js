@@ -45,3 +45,19 @@ test("芯片无 tf32 行：整段回退全局费率，不制造 missing", () => 
   assert.equal(times.matrix, 1000 / (312e12 / 2));
   assert.ok(!missing.some((m) => m.includes("tf32")));
 });
+
+test("computeDtypes.tf32 与扁平 matrixTf32 同口径（aggregate 生产形状）", () => {
+  const expected = 600 / (312e12 / 2) + 400 / (156e12 / 2);
+  const fromBucket = classifyRoofline(
+    { actions: { matrix: 1000, computeDtypes: { tf32: 400 }, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } } },
+    CHIP,
+    { dtype: "bf16", efficiency: { flops: 1, hbm: 1 } },
+  );
+  const fromFlat = classifyRoofline(
+    { actions: { matrix: 1000, matrixTf32: 400, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } } },
+    CHIP,
+    { dtype: "bf16", efficiency: { flops: 1, hbm: 1 } },
+  );
+  assert.equal(fromBucket.times.matrix, expected);
+  assert.equal(fromBucket.times.matrix, fromFlat.times.matrix);
+});

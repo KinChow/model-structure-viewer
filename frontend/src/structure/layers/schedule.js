@@ -22,7 +22,7 @@ function rawSource(config) {
   return typeof source === "object" && source ? source : {};
 }
 
-export function explicitLayerSchedule(config, layers) {
+function explicitLayerSchedule(config, layers) {
   const mlpLayerTypes = config?.mlp_layer_types;
   if (Array.isArray(mlpLayerTypes) && mlpLayerTypes.length > 0) {
     return mlpLayerTypes.map((kind) => (String(kind).toLowerCase().includes("dense") ? "dense" : "moe"));
@@ -38,7 +38,7 @@ export function explicitLayerSchedule(config, layers) {
   return undefined;
 }
 
-export function sparseAttentionSchedule(config, layers) {
+function sparseAttentionSchedule(config, layers) {
   const sparseFreq = config?.sparse_attention_config?.sparse_attention_freq;
   if (!Array.isArray(sparseFreq) || sparseFreq.length === 0) return undefined;
   const schedule = sparseFreq.map((value) => (value ? "sparse" : "gqa"));
@@ -46,7 +46,7 @@ export function sparseAttentionSchedule(config, layers) {
   return schedule.concat(Array.from({ length: layers - schedule.length }, () => "gqa"));
 }
 
-export function dsaIndexerSchedule(config, layers) {
+function dsaIndexerSchedule(config, layers) {
   const explicitTypes = config?.indexer_types;
   if (Array.isArray(explicitTypes) && explicitTypes.length > 0) {
     return Array.from({ length: layers || explicitTypes.length }, (_, index) =>
@@ -70,7 +70,7 @@ function attentionKindForLayerType(layerType, useQsa = false) {
   return kind.includes("full") && useQsa ? "qsa" : "gqa";
 }
 
-export function explicitAttentionSchedule(config, layers) {
+function explicitAttentionSchedule(config, layers) {
   // 字段判据，不含家族名：
   //   compress_ratios 数组存在        -> V4 压缩/滑窗混合（dsv4）
   //   index_topk + kv_lora_rank 存在  -> DSA over MLA

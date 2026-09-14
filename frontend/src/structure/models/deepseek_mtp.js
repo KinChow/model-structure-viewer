@@ -74,7 +74,7 @@ function ehProjKind(normalized) {
   return { attentionKind: normalized.kvLoraRank ? "mla" : "gqa", layerKind: normalized.experts ? "moe" : "dense" };
 }
 
-export function deepSeekMultiTokenPredictorLayer(id, normalized) {
+function deepSeekMultiTokenPredictorLayer(id, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const count = mtpModuleCount(normalized);

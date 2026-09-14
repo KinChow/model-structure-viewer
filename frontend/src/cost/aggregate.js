@@ -102,8 +102,10 @@ function summarizeActions(nodes, computeComplete) {
     acc.weights += row.actions.bytes.weights ?? 0;
     acc.actIn += row.actions.bytes.actIn ?? 0;
     acc.actOut += row.actions.bytes.actOut ?? 0;
+    acc.kvRead += row.actions.bytes.kvRead ?? 0;
+    acc.indexRead += row.actions.bytes.indexRead ?? 0;
     return acc;
-  }, { matrix: 0, vector: 0, sfu: 0, weights: 0, actIn: 0, actOut: 0 });
+  }, { matrix: 0, vector: 0, sfu: 0, weights: 0, actIn: 0, actOut: 0, kvRead: 0, indexRead: 0, computeDtypes: {} });
 }
 
 function summarizeMacsSources(nodes) {

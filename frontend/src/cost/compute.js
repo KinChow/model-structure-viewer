@@ -98,6 +98,8 @@ function addActions(left, right) {
       weights: addNullable(left.bytes?.weights, right.bytes?.weights),
       actIn: addNullable(left.bytes?.actIn, right.bytes?.actIn),
       actOut: addNullable(left.bytes?.actOut, right.bytes?.actOut),
+      kvRead: addNullable(left.bytes?.kvRead, right.bytes?.kvRead),
+      indexRead: addNullable(left.bytes?.indexRead, right.bytes?.indexRead),
     },
   };
 }

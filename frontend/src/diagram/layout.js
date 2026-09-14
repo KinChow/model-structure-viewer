@@ -1,14 +1,14 @@
 import { metaForNode, typeClass } from "./meta.js";
 import { graphViewNode } from "../structure/graph/selectors.js";
 
-export const NODE_WIDTH = 260;
+const NODE_WIDTH = 260;
 const NODE_HEIGHTS = [64, 84, 108];
 const NODE_GAP_Y = 18;
 const NODE_GAP_X = 60;
 const LAYOUT_TOP = 28;
 const LAYOUT_LEFT = 28;
 
-export function layoutDiagram(root, expandedGroups) {
+function layoutDiagram(root, expandedGroups) {
   const expanded = expandedGroups instanceof Set ? expandedGroups : new Set();
   const items = [];
 
@@ -127,5 +127,30 @@ export function layoutGraph(structure, expandedGroups) {
       y: LAYOUT_TOP + row * (node.height + NODE_GAP_Y),
     };
   });
-  return { nodes: graphNodes, edges, containerFrames: [], layoutReady: false, graphVersion: structureGraph.version };
+  const containerFrames = graphNodes.flatMap((node) => {
+    if (!node.isCollapsible || !node.isExpanded) return [];
+    const descendants = graphNodes.filter((candidate) => candidate.path.startsWith(`${node.path}.`));
+    if (descendants.length === 0) return [];
+    const frameItems = [node, ...descendants];
+    const left = Math.min(...frameItems.map((candidate) => candidate.x)) - 14;
+    const top = Math.min(...frameItems.map((candidate) => candidate.y)) - 22;
+    const right = Math.max(...frameItems.map((candidate) => candidate.x + candidate.width)) + 14;
+    const bottom = Math.max(...frameItems.map((candidate) => candidate.y + candidate.height)) + 14;
+    return [{
+      id: node.path,
+      path: node.path,
+      x: left,
+      y: top,
+      width: right - left,
+      height: bottom - top,
+      label: [
+        node.displayName,
+        node.repeat > 1 ? `×${node.repeat}` : null,
+        node.node?.attributes?.range || null,
+      ].filter(Boolean).join(" · "),
+      depth: node.depth,
+      kind: "graph-group",
+    }];
+  });
+  return { nodes: graphNodes, edges, containerFrames, layoutReady: false, graphVersion: structureGraph.version };
 }

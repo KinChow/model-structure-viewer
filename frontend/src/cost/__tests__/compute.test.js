@@ -280,3 +280,22 @@ test("V3 用户可调 visionTokens：vision 域随 tokens 线性变化，文本�
   assert.equal(byId(small, "model.layers.0.mlp.gate_proj"), 64);
   assert.equal(byId(large, "model.layers.0.mlp.gate_proj"), 64);
 });
+
+test("子树与模型合计保留 kvRead/indexRead（Accelergy action 名不丢）", () => {
+  const graph = toGraph({
+    children: [{
+      type: "operator",
+      attributes: { operator_id: "sdpa_attention" },
+      input_shape: [-1, -1, 8],
+      output_shape: [-1, -1, 8],
+      children: [],
+    }],
+  });
+  const rows = computeNodeCosts(graph, { hiddenSize: 8, attentionHeads: 2, headDim: 4, numKeyValueHeads: 2 }, { batch: 1, sequence: 4, phase: "prefill" });
+  const leaf = rows.find((row) => row.path === "root.0");
+  assert.ok((leaf.actions?.bytes?.kvRead ?? 0) > 0);
+  const aggregate = aggregateNodeCosts(rows);
+  assert.equal(aggregate.find((row) => row.path === "root").aggregate_actions.bytes.kvRead, leaf.actions.bytes.kvRead);
+  const cost = aggregateCost({ graph, config: { hiddenSize: 8, attentionHeads: 2, headDim: 4, numKeyValueHeads: 2 }, batch: 1, sequence: 4, phase: "prefill", activationPeak: 0, runtimeConst: 0 });
+  assert.equal(cost.actions.kvRead, leaf.actions.bytes.kvRead);
+});

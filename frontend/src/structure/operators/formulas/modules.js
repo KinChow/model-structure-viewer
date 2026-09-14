@@ -63,11 +63,6 @@ export function scorePairs(phase, queryTokens, keyTokens) {
   return scoredPairs({ phase, queryTokens, keyTokens });
 }
 
-/** W3 前的口径（两相位通吃 T·S）。仅报表对比用，不参与计费。 */
-export function scorePairsLegacy(queryTokens, keyTokens) {
-  return queryTokens * keyTokens;
-}
-
 /** 因果/稀疏密度：实际打分对数 / 稠密对数。喂给 atoms.matmul 的 density。 */
 export function scoreDensity(phase, queryTokens, keyTokens) {
   return causalDensity({ phase, queryTokens, keyTokens });

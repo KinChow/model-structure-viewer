@@ -43,8 +43,3 @@ export function edgePresentation(edge, source, { english = false } = {}) {
     evidence,
   };
 }
-
-/** 兼容出口：仅宽度（既有调用方）。 */
-export function edgeStrokeWidth(edge, source) {
-  return edgePresentation(edge, source).width;
-}

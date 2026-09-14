@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fetchHfConfigDirect, normalizeModelId, sourceCacheKey, revisionForEndpoint, HF_ENDPOINTS } from "./hf.js";
+import { fetchHfConfigDirect, normalizeModelId, revisionForEndpoint, HF_ENDPOINTS } from "./hf.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -21,15 +21,6 @@ test("fetches config with normalized repo URL and encoded revision", async () =>
     },
   });
   assert.equal(requested, "https://huggingface.co/Qwen/Qwen3.5-0.8B/resolve/feature%2Ftest/config.json");
-});
-
-test("sourceCacheKey is repo_id + revision + cache_dir", () => {
-  const a = sourceCacheKey({ repoId: "Qwen/Qwen3.5-0.8B", revision: "main", cacheDir: "/tmp/models" });
-  const b = sourceCacheKey({ repoId: "Qwen/Qwen3.5-0.8B", revision: "v1", cacheDir: "/tmp/models" });
-  const c = sourceCacheKey({ repoId: "Qwen/Qwen3.5-0.8B", revision: "main", cacheDir: "/other" });
-  assert.notEqual(a, b);
-  assert.notEqual(a, c);
-  assert.equal(a, "Qwen/Qwen3.5-0.8B::main::/tmp/models");
 });
 
 test("source contract: revision defaults and error classes match Python", () => {

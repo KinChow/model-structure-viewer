@@ -3,8 +3,7 @@ from types import SimpleNamespace
 
 from model_structure_viewer.cli import cmd_dump_source_ref
 from model_structure_viewer.schemas import VerifyEvidence, VerifyResponse
-from model_structure_viewer.structure.source_ref import collect_source_ref, flatten_source_refs
-from model_structure_viewer.structure.graph import GraphDraft
+from model_structure_viewer.structure.source_ref import collect_source_ref
 
 
 def test_collect_source_ref_inspect_failure_is_null(monkeypatch):
@@ -45,33 +44,6 @@ def test_collect_source_ref_known_root_builds_github_url(monkeypatch, tmp_path):
     assert ref["line"] == 12
     assert ref["url"] == "https://github.com/huggingface/transformers/blob/v4.40.0/src/transformers/modeling_demo.py#L12"
     assert ref["class_name"] == "DemoAttention"
-
-
-def test_flatten_source_refs_nulls_aggregate_nodes():
-    draft = GraphDraft()
-    draft.add_node(
-        node_id="root.layers.0",
-        canonical_id="root.model.layers.0",
-        parent_id="root.layers",
-        order=0,
-        name="DecoderLayer",
-        type="layer-group",
-        attributes={"class": "DemoDecoderLayer", "source_ref": {"file": "x.py", "line": 1}},
-    )
-    draft.add_node(
-        node_id="root.layers.0.attn",
-        canonical_id="root.model.layers.0.self_attn",
-        parent_id="root.layers.0",
-        order=0,
-        name="Attention",
-        type="attention",
-        attributes={"class": "DemoAttention", "source_ref": {"file": "x.py", "line": 9, "url": "https://example"}},
-        params=8,
-    )
-    rows = {row["module_path"]: row for row in flatten_source_refs(draft.finalize())}
-    assert rows["root.model.layers.0"]["source_ref"] is None
-    assert rows["root.model.layers.0.self_attn"]["source_ref"]["line"] == 9
-    assert rows["root.model.layers.0.self_attn"]["has_params"] is True
 
 
 def test_cli_dump_source_ref_writes_catalog_json(tmp_path, monkeypatch):

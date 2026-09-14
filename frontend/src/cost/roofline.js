@@ -14,17 +14,20 @@ function positive(value) {
 function normalizeActions(cost = {}) {
   if (cost.actions) {
     const a = cost.actions;
+    const computeDtypes = a.computeDtypes || {};
     return {
       matrix: a.matrix ?? null,
-      // computeDtype 桶（N2-1）：声明为其它精度的 matrix 子集（actions.matrix
-      // 是总量）。matrixTime 据此拆两段费率；未声明时为 0、行为不变。
-      matrixTf32: a.matrixTf32 ?? 0,
+      // Accelergy ERT × action counts：computeDtype 桶聚成 matrixTf32，
+      // 与 vLLM mHC TF32 tensor-core 分段费率对齐。扁平 matrixTf32 仍可直传。
+      matrixTf32: a.matrixTf32 ?? computeDtypes.tf32 ?? 0,
       vector: a.vector ?? null,
       sfu: a.sfu ?? null,
       bytes: {
-        weights: a.bytes?.weights ?? null,
-        actIn: a.bytes?.actIn ?? null,
-        actOut: a.bytes?.actOut ?? null,
+        weights: a.bytes?.weights ?? a.weights ?? null,
+        actIn: a.bytes?.actIn ?? a.actIn ?? null,
+        actOut: a.bytes?.actOut ?? a.actOut ?? null,
+        kvRead: a.bytes?.kvRead ?? a.kvRead ?? 0,
+        indexRead: a.bytes?.indexRead ?? a.indexRead ?? 0,
       },
       commBytes: a.commBytes ?? null,
     };
@@ -60,7 +63,7 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
   const b = actions.bytes || {};
   const bytesMoved = b.weights == null || b.actIn == null || b.actOut == null
     ? null
-    : b.weights + b.actIn + b.actOut;
+    : b.weights + b.actIn + b.actOut + (b.kvRead || 0) + (b.indexRead || 0);
   const commBytes = actions.commBytes || cost.commBytes || 0;
   const link = options.interNode ? rates.interNodeBytesPerSecond : rates.intraNodeBytesPerSecond;
 

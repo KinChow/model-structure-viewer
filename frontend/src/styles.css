@@ -1354,6 +1354,8 @@ label {
 .detail-page.theme-light .model-inspector-summary, .detail-page.theme-light .detail-inspector-slot .detail-panel { border-color: #dce3eb; background: #fff; color: #19212c; box-shadow: 0 12px 30px rgba(50,70,90,.08); }
 .detail-page.theme-light .model-summary-grid span { border-color: #dce3eb; }
 .detail-page.theme-light .model-summary-grid dd { color: #263445; }
+.detail-page.theme-light .summary-module-list button { border-color: #dce3eb; background: #f6f8fa; color: #263445; }
+.detail-page.theme-light .summary-module-list button:hover { border-color: #c58b45; background: #edf3f8; }
 .detail-page.theme-light .child-modules-section { border-color: #dce3eb; }
 .detail-page.theme-light .child-modules-section h4 { color: #657386; }
 .detail-page.theme-light .child-module-list button { border-color: #dce3eb; background: #f6f8fa; color: #263445; }

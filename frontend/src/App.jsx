@@ -1,12 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useCallback, useState } from "react";
 import Drawer from "./components/Drawer";
 import ModelEntry from "./components/ModelEntry";
-import { useSettings } from "./hooks/useSettings";
 import { useBuiltinModels } from "./hooks/useBuiltinModels";
-import { useLocalModels } from "./hooks/useLocalModels";
 import { useHfSearch } from "./hooks/useHfSearch";
 import { useStructure } from "./hooks/useStructure";
-import { useVerify } from "./hooks/useVerify";
 import { useExport } from "./hooks/useExport";
 import { computeMatches } from "./diagram/match";
 import { PUBLIC_CHIPS } from "./cost/chips/public.js";
@@ -57,14 +54,10 @@ function ancestorCollapsiblePaths(graph, path) {
 }
 
 function App() {
-  const { settings, setSettings, save: saveSettings, error: settingsError, ready: backendReady } = useSettings();
   const { models: builtinModels, refresh: refreshBuiltinModels } = useBuiltinModels();
-  const { models, refresh: refreshModels } = useLocalModels();
   const hf = useHfSearch();
   const { structure, build, loading, loadingPhase, error: structureError } = useStructure();
-  const { result: verifyResult, loading: verifyLoading, error: verifyError, verify, reset: resetVerify } = useVerify();
   const exporter = useExport();
-  const lastVerifyPayload = useRef(null);
 
   const [modelId, setModelId] = useState("deepseek-ai/DeepSeek-V3.1");
   const [revision, setRevision] = useState("main");
@@ -79,7 +72,6 @@ function App() {
   const [chipError, setChipError] = useState("");
   const [language, setLanguage] = useState(() => localStorage.getItem("msv-language") || (navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en"));
   const [theme, setTheme] = useState(() => localStorage.getItem("msv-theme") || "dark");
-  const [backendNoticeDismissed, setBackendNoticeDismissed] = useState(false);
   function handleAddChip(chip) {
     setChips((current) => [...current.filter((entry) => entry.id !== chip.id), chip]);
   }
@@ -96,16 +88,8 @@ function App() {
     return () => { active = false; };
   }, []);
 
-  const error = formatIssue(language, parseError || structureError || hf.error || settingsError || exporter.error || chipError);
+  const error = formatIssue(language, parseError || structureError || hf.error || exporter.error || chipError);
   const sourceLabel = formatSourceLabel(structure?.source, language);
-  const backendNotice = backendReady === false && !backendNoticeDismissed ? (
-    <div className="backend-notice" role="status" aria-live="polite">
-      <span>{language === "en"
-        ? "Backend unavailable — only built-in models work; local directory / HF search / verify are disabled."
-        : "后端不可用 —— 仅内置模型可用；本地目录 / HF 搜索 / 校验等能力暂不可用。"}</span>
-      <button type="button" aria-label={language === "en" ? "Dismiss" : "关闭"} onClick={() => setBackendNoticeDismissed(true)}>×</button>
-    </div>
-  ) : null;
   const allCollapsiblePaths = useMemo(
     () => structure?.graph ? collectCollapsiblePaths(graphViewNode(structure.graph, structure.graph.root_id || "root"), structure.graph) : new Set(),
     [structure]
@@ -155,6 +139,8 @@ function App() {
     setLayersExpandedPaths(new Set(["root"]));
   }
 
+  const handleCloseDrawer = useCallback(() => setDrawerOpen(false), []);
+
   function handleOpenDrawer() {
     setDrawerOpen((prev) => {
       const opening = !prev;
@@ -168,7 +154,6 @@ function App() {
     let configJson = null;
     const activeSource = overrides.source ?? "hf";
     const activeModelId = overrides.modelId ?? modelId;
-    const activeConfigPath = overrides.configPath ?? "";
     const activeEndpoint = overrides.endpoint ?? "huggingface";
     const checkpointTruth = overrides.checkpointTruth ?? null;
     const sourceLabelOverride = overrides.sourceLabel ?? null;
@@ -182,40 +167,22 @@ function App() {
     const payload = {
       source: activeSource,
       endpoint: activeEndpoint,
-      model_id: activeSource === "config" || activeConfigPath ? null : activeModelId.trim(),
-      config_path: activeSource === "config" ? null : activeConfigPath || null,
+      model_id: activeSource === "config" ? null : activeModelId.trim(),
       config_json: configJson,
       checkpoint_truth: checkpointTruth,
       source_label: sourceLabelOverride,
       revision,
-      cache_policy: settings.offline ? "offline" : settings.cache_policy,
-      model_root: settings.model_root,
-      hf_endpoint: settings.hf_endpoint,
-      offline: settings.offline,
       detail_level: "compressed",
     };
     const data = await build(payload);
     if (data) {
-      lastVerifyPayload.current = payload;
-      resetVerify();
       exporter.reset();
       setZoom(1);
       setFitNonce((value) => value + 1);
       setSelectedNodePath(null);
       setLayersExpandedPaths(new Set(["root"]));
       setSearchTerm("");
-    }
-  }
 
-  function handleVerify() {
-    const base = lastVerifyPayload.current;
-    if (!base || !structure?.graph) return;
-    void verify({ ...base, msv_graph: structure.graph });
-  }
-
-  async function handleSaveSettings() {
-    if (await saveSettings()) {
-      await refreshModels();
     }
   }
 
@@ -253,7 +220,6 @@ function App() {
   if (!structure) {
     return (
       <main className="app-shell">
-        {backendNotice}
         <ModelEntry
           builtinModels={builtinModels}
           modelId={modelId}
@@ -262,9 +228,6 @@ function App() {
             void handleGenerate({ source: selectedSource, modelId: id, endpoint: selectedEndpoint });
           }}
           onOpenLocalFiles={handleOpenLocalFiles}
-          onOpenLocalPath={(path) => {
-            void handleGenerate({ source: "local", configPath: path });
-          }}
           language={language}
           onLanguageChange={handleLanguageChange}
           theme={theme}
@@ -280,7 +243,6 @@ function App() {
   if (structure) {
     return (
       <>
-        {backendNotice}
         <Suspense fallback={<DetailWorkspaceFallback theme={theme} language={language} />}>
           <DetailWorkspace
             structure={structure}
@@ -310,34 +272,24 @@ function App() {
             exporter={exporter}
             loading={loading}
             loadingPhase={loadingPhase}
-            onVerify={handleVerify}
-            verifyResult={verifyResult}
-            verifyLoading={verifyLoading}
-            verifyError={verifyError}
           />
         </Suspense>
         {error && <div className="error detail-error">{error}</div>}
         <Drawer
           open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
+          onClose={handleCloseDrawer}
           revision={revision}
           onRevisionChange={setRevision}
           language={language}
           builtinModels={builtinModels}
           onRefreshBuiltinModels={refreshBuiltinModels}
           onPickBuiltinModel={(entry) => { void handleGenerate({ source: "builtin", modelId: entry.modelId }); setDrawerOpen(false); }}
-          models={models}
-          onRefreshModels={refreshModels}
-          onPickLocalModel={(entry) => { void handleGenerate({ source: "local", modelId: entry.model_id, configPath: entry.load_by === "config_path" ? entry.config_path : "" }); setDrawerOpen(false); }}
           searchQuery={hf.query}
           onSearchQueryChange={hf.setQuery}
           searchResults={hf.results}
           onSearch={hf.search}
-          searchDisabled={settings.offline}
+          searchDisabled={hf.loading}
           onPickHfModel={(id) => { void handleGenerate({ source: "hf", modelId: id }); setDrawerOpen(false); }}
-          settings={settings}
-          onSettingsChange={setSettings}
-          onSaveSettings={handleSaveSettings}
         />
       </>
     );

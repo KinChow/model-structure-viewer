@@ -68,7 +68,7 @@ function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onTh
       <div className="detail-header-actions">
         <button type="button" onClick={() => onLanguageChange(english ? "zh" : "en")}>{english ? "EN / 中" : "中 / EN"}</button>
         <button type="button" title={themeAction} aria-label={themeAction} onClick={onThemeChange}>{theme === "dark" ? (english ? "Dark" : "深色") : (english ? "Light" : "浅色")}</button>
-        <button type="button" onClick={onSettings}>{english ? "Settings" : "设置"}</button>
+        <button type="button" onClick={onSettings}>{english ? "Model options" : "模型选项"}</button>
       </div>
     </header>
   );
@@ -102,10 +102,6 @@ export default function DetailWorkspace({
   exporter,
   loading = false,
   loadingPhase = "reading",
-  onVerify,
-  verifyResult = null,
-  verifyLoading = false,
-  verifyError = "",
 }) {
   const [auxView, setAuxView] = useState(null);
   const [costOpen, setCostOpen] = useState(false);
@@ -165,7 +161,7 @@ export default function DetailWorkspace({
     <main className={`detail-page theme-${theme}`}>
       <DetailHeader structure={structure} sourceLabel={sourceLabel} language={language} onLanguageChange={onLanguageChange} onThemeChange={onThemeChange} theme={theme} onBack={onBack} onSettings={onSettings} />
       <section className="detail-summary"><SummaryChips structure={structure} sourceLabel={sourceLabel} language={language} /></section>
-      <DiagnosticsPanel structure={structure} language={language} onVerify={onVerify} verifyResult={verifyResult} verifyLoading={verifyLoading} verifyError={verifyError} />
+      <DiagnosticsPanel structure={structure} language={language} />
       <section className="detail-layout">
         <div className="detail-main">
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} language={language} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>

@@ -1,15 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures.js";
 
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/settings", (route) => route.fulfill({
-    json: {
-      model_root: "",
-      hf_endpoint: "https://huggingface.co",
-      cache_policy: "prefer-local",
-      offline: false,
-    },
-  }));
-  await page.route("**/api/models", (route) => route.fulfill({ json: [] }));
   await page.route(/https:\/\/(?:www\.)?(?:huggingface\.co|modelscope\.cn)\//, (route) => route.abort());
   await page.goto("/");
 });
@@ -32,22 +23,10 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
   await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
   await expect.poll(() => page.locator(".react-flow__node").count()).toBeGreaterThan(3);
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(1);
-  await expect(page.locator(".react-flow__minimap")).toBeVisible();
-  await expect(page.getByRole("button", { name: "用 Transformers 校验" })).toBeVisible();
-
-  await page.route("**/api/verify", (route) => route.fulfill({
-    json: {
-      ok: true,
-      status: "passed",
-      evidence: {
-        summary: { constructed: true, structurally_consistent: true, module_count: 4 },
-        diff: { classified: { renaming: 1 }, only_transformers: [], only_msv: [], mismatches: [] },
-        modules: [{}, {}, {}, {}],
-      },
-    },
-  }));
-  await page.getByRole("button", { name: "用 Transformers 校验" }).click();
-  await expect(page.locator("[data-verify-result]")).toContainText("结构一致");
+  if (page.viewportSize().width <= 640) await expect(page.locator(".react-flow__minimap")).toBeHidden();
+  else await expect(page.locator(".react-flow__minimap")).toBeVisible();
+  await expect(page.getByRole("button", { name: "用 Transformers 校验" })).toHaveCount(0);
+  await expect(page.locator(".diagnostics-meta")).toContainText("张量");
 
   // W6-2（§2.2）：evidence 数据契约上 DOM。折叠态下只有顶层 module-order 序列边，
   // 展开内层模块后 declared 声明边出现——两类类名互异。

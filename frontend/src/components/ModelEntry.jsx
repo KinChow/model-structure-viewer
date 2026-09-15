@@ -37,7 +37,6 @@ export default function ModelEntry({
   onModelIdChange,
   onOpenModel,
   onOpenLocalFiles,
-  onOpenLocalPath,
   language = "zh",
   onLanguageChange,
   theme = "dark",
@@ -50,7 +49,6 @@ export default function ModelEntry({
   const [provider, setProvider] = useState(null);
   const [providerSort, setProviderSort] = useState("release");
   const [helpOpen, setHelpOpen] = useState(false);
-  const [localPath, setLocalPath] = useState("");
   const fileRef = useRef(null);
   const providerRef = useRef(null);
   const helpRef = useRef(null);
@@ -78,7 +76,7 @@ export default function ModelEntry({
     open: "Open model",
     opening: "Opening...",
     loadingSteps: { reading: "Reading model files", building: "Building model structure", metadata: "Checking weight metadata" },
-    localPlaceholder: "Path on the backend machine, or choose a folder",
+    localHint: "Choose a model folder to read config.json and optional weight metadata in your browser.",
     browse: "Browse by Provider",
     browseHint: "Choose a provider to view mapped models",
     choose: "Choose a model",
@@ -91,7 +89,6 @@ export default function ModelEntry({
     helpItems: ["Enter a Hugging Face or ModelScope model ID, or choose a mapped model.", "Open a local model directory to read its config and optional weight metadata.", "Browse by Provider to find models already included in this viewer."],
     close: "Close",
     chooseFolder: "Choose folder",
-    openPath: "Open path",
   } : {
     title: "理解模型",
     subtitle: "浏览模型架构、检查模块，并估算模型在目标硬件上的成本。",
@@ -101,7 +98,7 @@ export default function ModelEntry({
     open: "打开模型",
     opening: "打开中...",
     loadingSteps: { reading: "读取模型配置", building: "构建模型结构", metadata: "检查权重元数据" },
-    localPlaceholder: "后端机器上的路径，或选择本地目录",
+    localHint: "选择模型文件夹，在浏览器中读取 config.json 和可选的权重元数据。",
     browse: "按 Provider 浏览",
     browseHint: "选择厂商查看已映射模型",
     choose: "选择模型",
@@ -114,7 +111,6 @@ export default function ModelEntry({
     helpItems: ["输入 Hugging Face 或 ModelScope 模型 ID，也可以直接选择已映射模型。", "打开本地模型目录，读取 config 和可选的权重元数据。", "按 Provider 浏览仓库内已收录的模型。"],
     close: "关闭",
     chooseFolder: "打开文件夹",
-    openPath: "打开路径",
   };
   const themeAction = theme === "dark"
     ? (language === "en" ? "Switch to light theme" : "切换到浅色主题")
@@ -152,12 +148,11 @@ export default function ModelEntry({
             <button className="entry-primary" type="submit" disabled={loading || !modelId.trim()}>{loading ? t.opening : t.open}</button>
           </form>
         ) : (
-          <form className="entry-input-row" onSubmit={(event) => { event.preventDefault(); if (localPath.trim()) onOpenLocalPath?.(localPath.trim()); }}>
-            <input value={localPath} onChange={(event) => setLocalPath(event.target.value)} placeholder={t.localPlaceholder} aria-label="local model path" />
-            <button className="entry-secondary" type="button" disabled={loading} onClick={() => fileRef.current?.click()}>{t.chooseFolder}</button>
-            <button className="entry-primary" type="submit" disabled={loading || !localPath.trim()}>{t.openPath}</button>
+          <div className="entry-local-folder">
+            <p>{t.localHint}</p>
+            <button className="entry-primary" type="button" disabled={loading} onClick={() => fileRef.current?.click()}>{t.chooseFolder}</button>
             <input ref={fileRef} className="visually-hidden" type="file" webkitdirectory="true" multiple tabIndex="-1" aria-hidden="true" onChange={handleFiles} />
-          </form>
+          </div>
         )}
         {mode === "model" && <div className="entry-quick">{sortModelsByReleaseTime(builtinModels).slice(0, 5).map((entry) => <button type="button" key={entry.modelId} onClick={() => { onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}>{modelDisplayName(entry)}</button>)}</div>}
       </section>

@@ -3,6 +3,7 @@ import AttributeGrid from "./AttributeGrid";
 import ShapeFlow from "./ShapeFlow";
 import { formatBytes, formatCount, formatQuantity, formatSeconds } from "../formatters.js";
 import { nodeBadges } from "../diagram/nodeBadges.js";
+import { formulaExplanation } from "../i18n/formulaExplanations.js";
 
 function TruthSection({ node, language = "zh" }) {
   const english = language === "en";
@@ -48,7 +49,8 @@ function FormulaSection({ node, language = "zh" }) {
   const formula = node.attributes?.formula;
   const formulaId = node.attributes?.operator_id;
   if (!formulaId && !formula) return null;
-  return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{node.attributes?.explanation && <p>{node.attributes.explanation}</p>}</section>;
+  const explanation = language === "en" ? formulaExplanation(formulaId, formulaId || "operator") : node.attributes?.explanation;
+  return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{explanation && <p>{explanation}</p>}</section>;
 }
 
 function SourceRefSection({ node, language = "zh" }) {

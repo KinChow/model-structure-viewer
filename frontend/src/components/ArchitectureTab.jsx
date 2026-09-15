@@ -11,6 +11,7 @@ import { DEFAULT_COMPARE_PLAN, DEFAULT_PLAN } from "../cost/defaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { etaDisclosureModel } from "../cost/ui.js";
 import { formatIssue, formatIssues, issueKey, t } from "../i18n/format.js";
+import { formulaExplanation } from "../i18n/formulaExplanations.js";
 
 function downloadSvg(structure) {
   const legacySvg = document.querySelector(".diagram-svg");
@@ -362,7 +363,7 @@ function ArchitectureTab({
           {activeFormulaPath && <span className="formula-strip-active">{formulaLinks.find((link) => link.path === activeFormulaPath)?.formulaId || "linked"}</span>}
           <span className="formula-strip-chevron" aria-hidden="true">{formulaOpen ? "−" : "+"}</span>
         </button>
-        <div id="formula-index-items" className="formula-strip-links" hidden={!formulaOpen}>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={link.explanation || link.formulaId} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>
+        <div id="formula-index-items" className="formula-strip-links" hidden={!formulaOpen}>{formulaLinks.map((link) => <button key={link.path} data-node-path={link.path} className={activeFormulaPath === link.path ? "active" : ""} aria-pressed={activeFormulaPath === link.path} title={language === "en" ? formulaExplanation(link.formulaId, link.formulaId) : (link.explanation || link.formulaId)} onMouseEnter={() => setFormulaHoveredPath(link.path)} onMouseLeave={() => setFormulaHoveredPath(null)} onClick={() => onSelectNode?.(link.path)}>{link.formulaId}</button>)}</div>
       </div>}
       {/* M11-P1-1：coverage 行移出 compactControls 条件——compact 态此前永不渲染，
           芯片缺项与"跨节点偏乐观"警告全部丢失（DetailWorkspace 恒传 compactControls）。 */}

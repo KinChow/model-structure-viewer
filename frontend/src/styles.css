@@ -1239,7 +1239,11 @@ label {
 .theme-light .formula-strip-count { border-color: #b7c5d3; color: #607184; }
 .theme-light .formula-strip-active { color: #607184; }
 @media (min-width: 961px) {
-  .detail-page .diagram-frame { height: clamp(470px, calc(100vh - 258px), 720px); }
+  .detail-page { display: flex; flex-direction: column; height: 100vh; }
+  .detail-page .detail-layout { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+  .detail-page .detail-main { display: flex; flex-direction: column; min-height: 0; }
+  .detail-page .diagram-panel { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+  .detail-page .diagram-frame { flex: 1 1 auto; min-height: 320px; height: auto; }
   .detail-page .detail-cost-toggle {
     position: fixed;
     left: max(24px, calc((100vw - 1500px) / 2 + 24px));

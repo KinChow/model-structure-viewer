@@ -77,11 +77,6 @@ function App() {
       setParseError({ code: "model.localDirectoryRequired" });
     }
   }, []);
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("source") === "local") {
-      setParseError({ code: "model.localDirectoryRequired" });
-    }
-  }, []);
   function handleAddChip(chip) {
     setChips((current) => [...current.filter((entry) => entry.id !== chip.id), chip]);
   }
@@ -96,6 +91,14 @@ function App() {
         if (active) setChipError(err.issues || err.issue || { code: "chip.loadFailed" });
       });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const model = params.get("model");
+    if (!model) return;
+    void handleGenerate({ source: params.get("source") || "hf", modelId: model, endpoint: params.get("endpoint") || "huggingface" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const error = formatIssue(language, parseError || structureError || hf.error || exporter.error || chipError);
@@ -169,8 +172,8 @@ function App() {
     const sourceLabelOverride = overrides.sourceLabel ?? null;
     if (activeSource === "config") {
       configJson = overrides.configJson ?? null;
-      if (!configJson || typeof configJson !== "object") {
-        setParseError("config source requires a JSON object");
+      if (!configJson || typeof configJson !== "object" || Array.isArray(configJson)) {
+        setParseError({ code: "model.invalidConfig" });
         return;
       }
     }
@@ -192,12 +195,19 @@ function App() {
       setSelectedNodePath(null);
       setLayersExpandedPaths(new Set(["root"]));
       setSearchTerm("");
-
+      if (activeModelId && activeModelId.trim() && activeSource !== "config") {
+        const params = new URLSearchParams({ model: activeModelId.trim(), source: activeSource });
+        if (activeSource === "hf" && activeEndpoint) params.set("endpoint", activeEndpoint);
+        window.history.replaceState(null, "", `?${params.toString()}`);
+      }
     }
   }
 
   async function handleOpenLocalFiles(files) {
-    const configFile = files.find((file) => file.name === "config.json") || files.find((file) => file.name.endsWith("config.json"));
+    if (files.length === 0) return;
+    // ref: https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/webkitdirectory
+    // File.name 是基础文件名；不能把 tokenizer_config.json 误当模型配置。
+    const configFile = files.find((file) => file.name === "config.json");
     if (!configFile) {
       setParseError(language === "en" ? "No config.json found in the selected model directory" : "所选模型目录中没有找到 config.json");
       return;
@@ -212,7 +222,7 @@ function App() {
       }
       await handleGenerate({ source: "config", configJson: config, checkpointTruth, sourceLabel: "local directory" });
     } catch (err) {
-      setParseError(err.message);
+      setParseError({ code: "model.localReadFailed", params: { detail: err.message } });
     }
   }
 
@@ -261,7 +271,7 @@ function App() {
             theme={theme}
             onLanguageChange={handleLanguageChange}
             onThemeChange={handleThemeChange}
-            onBack={() => window.location.reload()}
+            onBack={() => { window.history.replaceState(null, "", window.location.pathname); window.location.reload(); }}
             onSettings={handleOpenDrawer}
             selectedNodePath={selectedNodePath}
             onSelectNode={handleSelectNode}

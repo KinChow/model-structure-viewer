@@ -1,5 +1,6 @@
 import { checkpointTruthModel, diagnosticsModel, verifyEvidenceModel } from "../cost/ui.js";
 import { formatQuantity } from "../formatters.js";
+import { formatIssue } from "../i18n/format.js";
 
 /**
  * 诊断面板（W6-1，§4.4 / §6.3）：真值绑定、成本覆盖与 transformers 结构对账。
@@ -26,7 +27,7 @@ export default function DiagnosticsPanel({
       <button type="button" onClick={onVerify} disabled={verifyLoading} data-verify="1">
         {verifyLoading ? (english ? "Verifying…" : "校验中…") : (english ? "Verify with Transformers" : "用 Transformers 校验")}
       </button>
-      {verifyError && <span className="diagnostics-verify-error" data-verify-error="1">{verifyError}</span>}
+      {verifyError && <span className="diagnostics-verify-error" data-verify-error="1">{formatIssue(language, verifyError)}</span>}
     </div>}
     {verify.show && <div className={`diagnostics-banner${verify.tone === "error" ? " diagnostics-banner-error" : verify.tone === "ok" ? " diagnostics-banner-ok" : " diagnostics-banner-warn"}`} data-verify-result="1">
       {english ? "Transformers verify" : "Transformers 校验"}：{verify.headline}

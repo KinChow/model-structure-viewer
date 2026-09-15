@@ -27,18 +27,22 @@ function deviatesOverTenfold(value, references) {
     && references.every((reference) => value > reference * UNIT_SANITY_FACTOR || value < reference / UNIT_SANITY_FACTOR);
 }
 
+function issue(code, params) {
+  return params ? { code, params } : { code };
+}
+
 /** 手工条目的带宽/算力度量级对照；非手工条目不做对照。 */
 function unitAnomalyWarnings(chip) {
   const warnings = [];
   if (chip?.source !== MANUAL_CHIP_SOURCE) return warnings;
   if (hasPositiveNumber(chip.memory_bandwidth)
     && deviatesOverTenfold(chip.memory_bandwidth, PUBLIC_CHIPS.map((entry) => entry.memory_bandwidth).filter(hasPositiveNumber))) {
-    warnings.push("单位可能错误：memory_bandwidth 与所有公开芯片偏差超过 10 倍，请确认单位（如 GB/s 写成 TB/s、Gb 写成 GB） / Unit may be wrong: memory_bandwidth deviates over 10x from every public chip, check the unit (GB/s vs TB/s, Gb vs GB)");
+    warnings.push(issue("chip.unitAnomalyBandwidth"));
   }
   for (const [dtype, value] of Object.entries(chip.peak_flops || {})) {
     const references = PUBLIC_CHIPS.map((entry) => entry.peak_flops?.[dtype]).filter(hasPositiveNumber);
     if (hasPositiveNumber(value) && deviatesOverTenfold(value, references)) {
-      warnings.push(`单位可能错误：peak_flops.${dtype} 与所有公开芯片偏差超过 10 倍，请确认单位（如 TFLOPS 写成 GFLOPS） / Unit may be wrong: peak_flops.${dtype} deviates over 10x from every public chip, check the unit (TFLOPS vs GFLOPS)`);
+      warnings.push(issue("chip.unitAnomalyFlops", { dtype }));
     }
   }
   return warnings;
@@ -76,13 +80,13 @@ export function getChipCoverage(chip, dtype = "bf16") {
   const warnings = [];
 
   if (!hasInterLink && hasIntraLink) {
-    warnings.push("缺少 interconnect.inter_node.bandwidth，跨节点按节点内带宽估算，结果偏乐观");
+    warnings.push(issue("chip.missingInterNode"));
   }
-  if (!hasVector) warnings.push("缺少 vector_flops，向量单元瓶颈不可判；请补充带来源的 FP32 吞吐");
-  if (!hasSfu) warnings.push("缺少 sfu_ops，SFU 瓶颈不可判；请补充带来源的特殊函数吞吐（NVIDIA 可按 CUDA guide 每 SM 每时钟比值推导）");
-  if (chip?.source == null || chip.source === "") warnings.push("缺少规格来源 source");
+  if (!hasVector) warnings.push(issue("chip.missingVectorFlops"));
+  if (!hasSfu) warnings.push(issue("chip.missingSfuOps"));
+  if (chip?.source == null || chip.source === "") warnings.push(issue("chip.missingSource"));
   if (chip?.confidence != null && !CONFIDENCE_VALUES.has(chip.confidence)) {
-    warnings.push(`未知 confidence：${chip.confidence}`);
+    warnings.push(issue("chip.unknownConfidence", { value: chip.confidence }));
   }
   warnings.push(...unitAnomalyWarnings(chip));
 

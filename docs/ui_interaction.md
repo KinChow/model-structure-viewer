@@ -33,7 +33,7 @@
 
 ### 全局行为
 
-- 支持中文和英文，默认跟随浏览器语言，用户选择保存到 `localStorage`。
+- 支持中文和英文，默认跟随浏览器语言，用户选择保存到 `localStorage`。引擎错误与结构状态走 `frontend/src/i18n` catalog（ICU）；chrome 控件仍按语言分支。算子 `explanation` 与芯片 `notes` 仍是中文原文（触发池）。
 - 支持深色和浅色主题，用户选择保存到 `localStorage`。
 - Help 只解释入口所需信息，不展示内部 source/cache 等实现参数。
 - 页面显示前端包版本，但不维护独立的手写 UI 版本号。

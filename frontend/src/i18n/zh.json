@@ -1,0 +1,242 @@
+{
+  "diagram": {
+    "childCount": "{n, plural, other {# 个子模块}}",
+    "draftBadge": "投机头 · 不计前向",
+    "collapse": "收起",
+    "expand": "展开",
+    "boundUnknown": "瓶颈未分类：输入或费率缺失",
+    "boundUnknownShort": "瓶颈?"
+  },
+  "status": {
+    "frontend-architecture-template": {
+      "label": "前端模板",
+      "detail": "配置驱动的前端结构"
+    },
+    "skeleton-truth": {
+      "label": "Checkpoint 骨架真值",
+      "detail": "由 checkpoint 得到的模块树"
+    },
+    "template+truth": {
+      "label": "模板 + checkpoint 真值",
+      "detail": "模板语义，值为 checkpoint"
+    },
+    "template+header-truth": {
+      "label": "模板 + header 总量",
+      "detail": "模板语义，总量来自 safetensors header"
+    },
+    "header-truth": {
+      "label": "Header 参数总量",
+      "detail": "来自 safetensors header 的 parameterTotal"
+    },
+    "meta-introspect": {
+      "label": "Meta 内省",
+      "detail": "运行时模块树"
+    },
+    "repaired-meta-introspect": {
+      "label": "Meta 内省",
+      "detail": "已修复的运行时模块树"
+    },
+    "fallback": {
+      "label": "未加载",
+      "detail": "尚未生成结构"
+    },
+    "checkpointUnavailable": "{detail}；checkpoint 元数据不可用，改用仅配置结构",
+    "checkpointEmpty": "{detail}；未找到 safetensors 元数据",
+    "repairedBy": "由 {strategy} 修复"
+  },
+  "draft": {
+    "residentOnly": "投机解码未启用：参数计入显存，不计入每次前向的算力与访存。embed/lm_head 与主干共享。"
+  },
+  "plan": {
+    "positiveInteger": "{key} 必须是正整数",
+    "worldSize": "world_size 应为 TP×PP×DP={expected}",
+    "attnMode": "attn_mode 只能是 tp 或 dp",
+    "kvKeepRatio": "kv_keep_ratio 必须在 (0, 1] 区间",
+    "epExceedsExperts": "EP 不能大于专家总数",
+    "moeEpExceedsExperts": "moe_ep 不能大于专家总数",
+    "moeEpExceedsEp": "moe_ep({moeEp}) 不能大于 ep({ep})：专家 ownership 轴是 ep 的细化（协议 Q2）",
+    "expertsNotDivisible": "experts({experts}) 必须能被 moe_ep({moeEp}) 整除，否则不均衡区间无意义",
+    "expertDomainOpen": "专家域不闭合：moe_ep({moeEp}) × moe_tp({moeTp}) 应为 ep({ep}) × tp({tp})（TRT-LLM Hybrid ETP）",
+    "moeTpEqualsTp": "无 EP 时 moe_tp({moeTp}) 应等于 tp({tp})：DP 切专家由组合语义承担（协议 Q4）",
+    "epEqualsTpDp": "EP 启用时 ep 应为 TP×DP={expected}（vLLM：EP_SIZE = TP_SIZE × DP_SIZE）",
+    "pdWrap": "{phase}_plan：{message}"
+  },
+  "chip": {
+    "notObject": "芯片条目必须是对象",
+    "missingField": "缺少 {field}",
+    "unknownConfidence": "未知 confidence：{value}",
+    "duplicateId": "{id}: id 重复",
+    "missingInterNode": "缺少 interconnect.inter_node.bandwidth，跨节点按节点内带宽估算，结果偏乐观",
+    "missingVectorFlops": "缺少 vector_flops，向量单元瓶颈不可判；请补充带来源的 FP32 吞吐",
+    "missingSfuOps": "缺少 sfu_ops，SFU 瓶颈不可判；请补充带来源的特殊函数吞吐（NVIDIA 可按 CUDA guide 每 SM 每时钟比值推导）",
+    "missingSource": "缺少规格来源 source",
+    "unitAnomalyBandwidth": "单位可能错误：memory_bandwidth 与所有公开芯片偏差超过 10 倍，请确认单位（如 GB/s 写成 TB/s、Gb 写成 GB）",
+    "unitAnomalyFlops": "单位可能错误：peak_flops.{dtype} 与所有公开芯片偏差超过 10 倍，请确认单位（如 TFLOPS 写成 GFLOPS）",
+    "manualNameEmpty": "名称不能为空",
+    "manualPositive": "{field, select, memory {显存} hbm {HBM 带宽} bf16 {BF16 算力} other {{field}}}必须大于 0",
+    "manualIntraPositive": "节点内带宽必须大于 0",
+    "localHttp": "本地芯片配置 HTTP {status}",
+    "localShape": "本地芯片配置必须是数组或含 chips 字段的对象",
+    "loadFailed": "chips.local.json 加载失败，请检查本地芯片配置格式"
+  },
+  "cost": {
+    "estimate": "理论成本估算",
+    "disclaimer": "理论计算，非仿真、非预测",
+    "expand": "展开配置",
+    "collapse": "收起配置",
+    "machine": "机器节点",
+    "gpu": "GPU / 芯片",
+    "gpuNode": "GPU / 节点",
+    "unknownFlops": "算力未知",
+    "mode": "运行模式",
+    "centralized": "集中式（非 PD）",
+    "pd": "PD 分离",
+    "node": "节点",
+    "nodes": "节点",
+    "fit": "适配",
+    "fitCard": "单卡适配",
+    "needsGpus": "需要 {count} 张 GPU",
+    "memoryNoFit": "显存不足",
+    "planValid": "方案有效",
+    "planInvalid": "方案无效",
+    "input": "输入 tokens / request",
+    "context": "当前上下文长度",
+    "independent": "P/D 负载、节点规模和并行策略独立保存；当前只显示当前阶段结果。",
+    "theoretical": "理论计算：图内驻留（权重 / KV / KDA / 声明 buffer）。激活 workspace、CUDA runtime、通信 scratch 无法从配置得到，不计（runtime-unknown）。Roofline 时间为估计 / 下界，不模拟调度、流水线气泡或传输重叠。",
+    "chunkedSummary": "总量使用 {total} 个输入 tokens；峰值按每个 chunk {peak} 个 tokens 计算。",
+    "analysis": "图分析",
+    "compare": "对比",
+    "off": "关闭",
+    "chipCompare": "芯片",
+    "planCompare": "方案",
+    "compareGpu": "对比芯片",
+    "compareTp": "对比 TP",
+    "compareEp": "对比 EP",
+    "compareAttention": "对比 Attention",
+    "nodesLabel": "节点数",
+    "batchSize": "Batch size",
+    "visualTokens": "视觉 tokens",
+    "nodesPerPhase": "节点 / {phase}",
+    "parallelism": "并行策略",
+    "assumptions": "成本假设",
+    "kvBytesPerElement": "KV bytes / element",
+    "interNodeLink": "跨节点链路（roofline 通信）",
+    "weightWhatIf": "权重 what-if",
+    "weights": "权重",
+    "buffers": "Buffers",
+    "kv": "KV",
+    "kdaState": "KDA 状态",
+    "totalVram": "Total VRAM",
+    "maxContext": "Max context",
+    "macsPerToken": "MACs / token",
+    "macsPerForward": "MACs / forward",
+    "macsOrigin": "MACs 来源",
+    "macsOriginTitle": "MACs 总量按来源分组：公式推导 / 子树汇总 / 非计算节点 / 无公式",
+    "weightOrigin": "权重来源",
+    "flopsPerForward": "FLOPs / forward",
+    "communication": "通信",
+    "costNotCovered": "成本未覆盖",
+    "planInvalidProjection": "方案无效——分阶段投影不可用：{errors}",
+    "pdPlanInvalid": "PD 方案无效：{errors}",
+    "pdTransfer": "KV + KDA State Transfer",
+    "stageLine": "阶段 {stage} {weights} 权重 · {kv} KV · {state} KDA 状态 · HBM ≈{hbm}",
+    "lowerBound": "下界",
+    "rooflineTimes": "Roofline {bound} {times}。",
+    "missingNote": " Roofline 未知——缺失：{fields}。",
+    "unknownCompute": "{count} 个算子无成本公式。",
+    "weightsEstimate": "权重按 {bytes} B/parameter 的 {quantization} 估算；checkpoint 元数据可修正模块例外。 ",
+    "yes": "是",
+    "no": "否",
+    "unknown": "未知",
+    "na": "未知",
+    "unit": {
+      "matrix": "矩阵",
+      "vector": "向量",
+      "sfu": "SFU",
+      "memory": "访存",
+      "comm": "通信"
+    },
+    "bound": {
+      "unknown": "未知"
+    },
+    "weightSource": {
+      "checkpoint": "checkpoint 真值",
+      "node": "图声明汇总",
+      "empty": "无图",
+      "derived-quantized": "图声明（量化）",
+      "what-if": "what-if 假设"
+    },
+    "missingField": {
+      "matrix": "矩阵 MACs 数量",
+      "vector": "向量操作数量",
+      "sfu": "SFU 操作数量",
+      "bytes_moved": "访存字节数",
+      "comm": "通信字节数",
+      "vector_flops": "vector_flops 规格",
+      "sfu_ops": "sfu_ops 规格",
+      "memory_bandwidth": "memory_bandwidth 规格",
+      "interconnect.intra_node.bandwidth": "节点内互联带宽",
+      "interconnect.inter_node.bandwidth": "跨节点互联带宽",
+      "peakFlops": "peak_flops（{dtype}）规格"
+    },
+    "macsSource": {
+      "formula": "公式推导",
+      "aggregate": "子树汇总",
+      "not-compute": "非计算节点",
+      "unknown": "无公式"
+    },
+    "valueSource": {
+      "checkpoint": "真值",
+      "derived": "推导",
+      "title": "携带权重的节点按值来源分组：checkpoint 真值 vs config 推导"
+    },
+    "eta": {
+      "short": "vector/SFU 固定 η=1.0（乐观上界，暂不可调）",
+      "detail": "vector/SFU 费率固定按 100% 效率计算（rates.js 兜底 eta.vector ?? 1 / eta.sfu ?? 1；resolveEfficiency 不产出这两个键，滑块与芯片级声明均无法触及）。ηF 默认 0.7 是可调假设（原则 §3.6），无独立的 vector/SFU 分项折扣，1.0 为显式乐观上界假设，非实测值。ηF 滑块不作用于 vector/SFU 路。"
+    },
+    "checkpoint": {
+      "fallback": "checkpoint 真值来自 {truthEndpoint}；请求的 {configEndpoint} 失败后被静默切换。",
+      "empty": "checkpoint 真值为空（未找到张量）。",
+      "unavailable": "checkpoint 真值不可用；权重为 config 推导估算。",
+      "meta": "config：{configEndpoint} · 真值：{truthEndpoint}",
+      "configUnknown": "未知",
+      "truthMissing": "未获取"
+    },
+    "diag": {
+      "skeletonBanner": "未适配结构：图来自 checkpoint 骨架，无语义绑定。",
+      "noTruthBanner": "未加载 checkpoint 真值；权重为 config 推导估算。"
+    }
+  },
+  "verify": {
+    "constructed": "构造通过",
+    "constructionFailed": "构造失败",
+    "constructionUnknown": "构造未知",
+    "structureMatches": "结构一致",
+    "structureDiffers": "结构不一致",
+    "notCompared": "未对账",
+    "timeout": "校验超时：transformers meta 构型未在时限内完成。{raw}",
+    "workerCrashed": "校验进程失败（{kind}）：{raw}",
+    "constructFailed": "Transformers 无法在 meta 设备上建起该模型：{raw}",
+    "failed": "校验失败：{raw}"
+  },
+  "http": {
+    "verifyUnavailable": "后端不可用：校验需要本地 Python 服务（默认 :8000）跑 transformers meta 构型。先 `.venv/bin/msv serve --root ./models --port 8000`，再点校验。静态部署没有这条通路。",
+    "backendUnavailable": "HTTP {status}：后端不可用或返回了非 JSON 错误。请启动后端（uvicorn），或改用 source=hf + endpoint=modelscope 走前端直连（无需后端）。",
+    "status": "HTTP {status}",
+    "backendDetail": "{detail}"
+  },
+  "coverage": {
+    "missing": "缺失：",
+    "specSource": "规格来源",
+    "baseInvalid": "基准方案无效：{errors}",
+    "compareInvalid": "对比方案无效：{errors}"
+  },
+  "comm": {
+    "bothInterNode": "两侧 inter_node",
+    "minAvailable": "可用节点内/跨节点带宽的较小值",
+    "missingLink": "缺少链路带宽"
+  },
+  "lens": {
+    "missingInputs": "缺少结构、模型配置或芯片规格"
+  }
+}

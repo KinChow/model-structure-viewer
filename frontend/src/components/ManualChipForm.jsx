@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createManualChip, validateManualChipInput } from "../cost/chips/manual.js";
+import { formatIssues, t } from "../i18n/format.js";
 
 export default function ManualChipForm({ onAdd, language = "zh" }) {
   const [open, setOpen] = useState(false);
@@ -8,7 +9,7 @@ export default function ManualChipForm({ onAdd, language = "zh" }) {
   function update(key, value) { setValues((current) => ({ ...current, [key]: value })); }
   function add() {
     const errors = validateManualChipInput(values);
-    if (errors.length) { setError(errors.join("；")); return; }
+    if (errors.length) { setError(formatIssues(language, errors)); return; }
     onAdd?.(createManualChip(values));
     setError("");
     setOpen(false);

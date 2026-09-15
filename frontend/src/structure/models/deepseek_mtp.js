@@ -22,7 +22,7 @@ export function draftBilling() {
   return {
     speculative_decoding: "disabled",
     compute_multiplier: 0,
-    note: "投机解码未启用：参数计入显存，不计入每次前向的算力与访存",
+    note_code: "draft.residentOnly",
   };
 }
 

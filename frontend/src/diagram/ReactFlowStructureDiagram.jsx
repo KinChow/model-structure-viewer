@@ -19,6 +19,8 @@ import { layoutGraphWithElk } from "./elkLayout.js";
 import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgePresentation } from "./edgeStyle.js";
 import { formatBytes, formatMetric } from "../formatters.js";
+import { nodeBadges } from "./nodeBadges.js";
+import { t } from "../i18n/format.js";
 
 const EMPTY_SET = new Set();
 const DATAFLOW_MARKER = { type: MarkerType.ArrowClosed, width: 10, height: 10, color: "#d08a3a" };
@@ -88,17 +90,18 @@ function MsvNode({ data, selected }) {
     <div className="rf-node-content">
       <div className="rf-node-header">
         <span className="rf-node-title" title={node.fullName}>{node.displayName}</span>
-        {showGroupToggle && node.isCollapsible && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); onToggle(node.path); }} aria-label={node.isExpanded ? (english ? "Collapse" : "收起") : (english ? "Expand" : "展开")}>{node.isExpanded ? "−" : "+"}</button>}
+        {showGroupToggle && node.isCollapsible && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); onToggle(node.path); }} aria-label={node.isExpanded ? t(english ? "en" : "zh", "diagram.collapse") : t(english ? "en" : "zh", "diagram.expand")}>{node.isExpanded ? "−" : "+"}</button>}
       </div>
       <div className="rf-node-badges">
-        {node.repeat && <span className="diagram-repeat">×{node.repeat}</span>}
+        {nodeBadges(node.node || node, english ? "en" : "zh").map((badge) => (
+          <span key={badge.kind} className={badge.kind === "children" ? "diagram-children-count" : "diagram-repeat"}>{badge.text}</span>
+        ))}
         {node.node?.attributes?.range && <span className="diagram-range">{node.node.attributes.range}</span>}
         {node.node?.attributes?.operator_id && <span className="diagram-formula">{node.node.attributes.operator_id}</span>}
-        {node.isCollapsible && <span className="diagram-children-count">{node.node.children.length} {english ? (node.node.children.length === 1 ? "child" : "children") : "个子模块"}</span>}
         {/* M11-P1-7：bound=unknown 显式呈现（虚线灰徽标），不再以"不渲染"冒充未开 Lens */}
         {lensEnabled && (activeLenses.has("compute") || activeLenses.has("memory")) && bound && (bound !== "unknown"
           ? <span className="diagram-bound">{bound}</span>
-          : <span className="diagram-bound diagram-bound-unknown" title={english ? "bound unclassified: missing inputs or rates" : "瓶颈未分类：输入或费率缺失"}>{english ? "bound?" : "瓶颈?"}</span>)}
+          : <span className="diagram-bound diagram-bound-unknown" title={t(english ? "en" : "zh", "diagram.boundUnknown")}>{t(english ? "en" : "zh", "diagram.boundUnknownShort")}</span>)}
       </div>
       {!isOpenGroup && node.metaLines.length > 0 && <ul className="rf-node-meta">{node.metaLines.map((line) => <li key={line} title={line}>{line}</li>)}</ul>}
       {!isOpenGroup && lensValues.length > 0 && <div className="diagram-lens-values">{lensValues.map(({ id, text }) => <span key={id} className={`diagram-lens-value lens-${id}`}>{text}</span>)}</div>}
@@ -119,7 +122,7 @@ function MsvGroupFrame({ data }) {
     <div className="rf-group-header">
       <strong>{data.label}</strong>
       {data.classLabel && <span className="rf-group-class">{data.classLabel}</span>}
-      {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={data.english ? "Collapse" : "收起"}>−</button>}
+      {data.showGroupToggle && node && <button type="button" className="layer-group-toggle" onClick={(event) => { event.stopPropagation(); data.onToggle?.(node.path); }} aria-label={t(data.english ? "en" : "zh", "diagram.collapse")}>−</button>}
     </div>
   </div>;
 }
@@ -244,7 +247,7 @@ function ReactFlowCanvas({ graph, props }) {
     const framePaths = new Set(graph.containerFrames.map((frame) => frame.id));
     const targetId = (path) => framePaths.has(path) ? `frame-${path}` : path;
     return renderEdges.map((edge) => {
-      const presentation = edgePresentation(edge, graph.nodes.find((n) => n.path === edge.source));
+      const presentation = edgePresentation(edge, graph.nodes.find((n) => n.path === edge.source), { english: props.english });
       return {
         id: edge.id,
         source: targetId(edge.source),
@@ -257,7 +260,7 @@ function ReactFlowCanvas({ graph, props }) {
         data: { ...edge, evidence: presentation.evidence, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: presentation.width, presentationClass: presentation.className, hint: presentation.hint },
       };
     });
-  }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames]);
+  }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames, props.english]);
   const modelKey = graph.nodes.find((node) => node.path === "root")?.fullName || graph.nodes[0]?.fullName || "";
   const layoutSignature = useMemo(
     () => [...graph.containerFrames, ...graph.nodes].map((node) => `${node.path || node.id}:${node.x || 0}:${node.y || 0}:${node.width || 0}:${node.height || 0}`).join("|"),

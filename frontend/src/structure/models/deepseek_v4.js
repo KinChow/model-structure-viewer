@@ -200,7 +200,6 @@ function dsparkDeepseekV4Model(id, normalized) {
       dspark_markov_rank: markovRank,
       dspark_target_layer_ids: targetIds,
       ...draftBilling(),
-      note: "DSpark draft：参数计入显存，不计入每次前向的算力与访存。embed/lm_head 与主干共享。",
       implementation: [
         "vLLM.models.deepseek_v4.nvidia.dspark.DSparkDeepseekV4Model",
         "SGLang.srt.models.deepseek_v4_dspark.DeepseekV4ForCausalLMDSpark",

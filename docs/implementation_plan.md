@@ -166,6 +166,10 @@ runtime-unknown
 - **§7 国产芯片条目**。触发：有公开来源的字段要入库。缺项保持 unknown。
 - **后端生产化**。触发：真正对外部署。路径约束、remote code 沙箱、鉴权、限流、日志脱敏。
 - **家族知识 5 住址收口 / §8.1 继续下降**。触发：接新模型家族。棘轮基线现 6，只许下降。
+- **算子 `explanation` 双语**（内容翻译，不是引擎漏翻）。`formulas/index.js` 约 50 条中文说明现原样进 Inspector / 公式索引 `title`；`ops/index.js` 另有 2 条 SDPA 分步中文。触发：英文模式节点详情需要可读算子说明。开工前先定「中文权威 + 英文后补」还是和 FORMULAS 一起双语登记；会碰到 `docs:operators` 生成段。
+- **chrome 三元收 catalog**。ModelEntry / Drawer / ArchitectureTab / DetailWorkspace / NodeDetailPanel / ManualChipForm 等已按 `language === "en"` 分支，英模式不夹中文。触发：再加第三语言，或同一句文案出现第三份拷贝。形态已有：`frontend/src/i18n/{en,zh}.json` + `format.js`（ICU MessageFormat / FormatJS；引擎 `{code, params}`，对标 LSP Diagnostic.code）。
+- **芯片 `notes` 翻译**。`chips/public.js` 的中文是硬件出处说明，不是 UI chrome。触发：英文模式规格页需要可读 notes。不要和漏翻混做。
+- **`collectDiagnostics` 中文 catalog**。现 `message` 是英文（`No text layer count…` / `Supported architectures: …`），英模式正确；中文 UI 看到英文。触发：中文诊断面板要把这条翻成中文。形态：改成 `{code, params}`，catalog 里写 `diag.missingLayerCount` / `diag.unsupportedArchitecture`。
 
 新增模型时同时更新 catalog、来源记录、模型专项说明和验证结果，避免只加配置。
 

@@ -37,7 +37,7 @@ function parameterTotalForStructure(structure) {
 
 function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath, parameterTotal }) {
   const summary = structure?.summary || {};
-  const status = structureStatus(structure);
+  const status = structureStatus(structure, language);
   const english = language === "en";
   const rows = [
     [english ? "Architecture" : "架构", summary.architecture],

@@ -11,7 +11,7 @@ function dtypeBreakdown(byDtype) {
 
 function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   const summary = structure?.summary || {};
-  const status = structureStatus(structure);
+  const status = structureStatus(structure, language);
   const derivedCandidate = summary.parameters_total == null && structure?.graph
     ? graphWeightCapacity(structure.graph).elements
     : null;

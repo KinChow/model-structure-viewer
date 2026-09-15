@@ -59,21 +59,21 @@ test("expertShardDivisor：TRT-LLM 混合 ETP（每卡 E/moe_ep 个完整专家�
 test("validatePlan：协议 Q2 专家域闭合 + Q4 无 EP moe_tp=tp + EP=TP×DP 组合校验（P6）", () => {
   // 无 EP：moe_tp 缺省走 sharding 缺省链；显式给出必须 = tp（Q4）
   assert.equal(validatePlan({ tp: 4 }, { experts: 8 }).ok, true);
-  assert.match(validatePlan({ tp: 4, moe_tp: 2 }, { experts: 8 }).errors[0], /moe_tp\(2\) 应等于 tp\(4\)/);
+  assert.equal(validatePlan({ tp: 4, moe_tp: 2 }, { experts: 8 }).errors[0].code, "plan.moeTpEqualsTp");
   // EP 启用 + 混合 ETP：专家域闭合 moe_ep × moe_tp = ep × tp（TRT-LLM Hybrid ETP）
   assert.equal(validatePlan({ tp: 4, ep: 2, moe_ep: 2, moe_tp: 4 }, { experts: 8 }).ok, true);
-  assert.match(validatePlan({ tp: 4, ep: 2, moe_ep: 2, moe_tp: 2 }, { experts: 8 }).errors[0], /专家域不闭合/);
+  assert.equal(validatePlan({ tp: 4, ep: 2, moe_ep: 2, moe_tp: 2 }, { experts: 8 }).errors[0].code, "plan.expertDomainOpen");
   // moe_ep 是 ep 的细化：不能超过 ep
-  assert.match(validatePlan({ tp: 4, ep: 1, moe_ep: 2 }, { experts: 8 }).errors[0], /moe_ep\(2\) 不能大于 ep\(1\)/);
+  assert.equal(validatePlan({ tp: 4, ep: 1, moe_ep: 2 }, { experts: 8 }).errors[0].code, "plan.moeEpExceedsEp");
   // 整除：experts % moe_ep == 0
-  assert.match(validatePlan({ tp: 2, ep: 4, moe_ep: 3, moe_tp: 8 }, { experts: 8 }).errors[0], /整除/);
+  assert.equal(validatePlan({ tp: 2, ep: 4, moe_ep: 3, moe_tp: 8 }, { experts: 8 }).errors[0].code, "plan.expertsNotDivisible");
   assert.equal(validatePlan({ tp: 2, ep: 4, moe_ep: 4, moe_tp: 2 }, { experts: 8 }).ok, true);
   // 既有校验保留
-  assert.match(validatePlan({ tp: 4, moe_ep: 0 }, {}).errors[0], /moeEp/);
-  assert.match(validatePlan({ tp: 4, moe_ep: 16 }, { experts: 8 }).errors[0], /moe_ep 不能大于专家总数/);
+  assert.equal(validatePlan({ tp: 4, moe_ep: 0 }, {}).errors[0].code, "plan.positiveInteger");
+  assert.equal(validatePlan({ tp: 4, moe_ep: 16 }, { experts: 8 }).errors[0].code, "plan.moeEpExceedsExperts");
   // vLLM：EP_SIZE = TP×DP（DP attention + EP）。ep 与 tp×dp 不一致即拒绝
   assert.equal(validatePlan({ tp: 2, dp: 2, ep: 4, attnMode: "dp" }, {}).ok, true);
-  assert.match(validatePlan({ tp: 2, dp: 2, ep: 2, attnMode: "dp" }, {}).errors[0], /TP×DP=4/);
+  assert.equal(validatePlan({ tp: 2, dp: 2, ep: 2, attnMode: "dp" }, {}).errors[0].code, "plan.epEqualsTpDp");
   // 混合 ETP 显式声明 moe_ep 时不做该约束（TRT-LLM 语义自洽）
   assert.equal(validatePlan({ tp: 2, dp: 2, ep: 2, attnMode: "dp", moe_ep: 2, moe_tp: 2 }, {}).ok, true);
 });
@@ -257,7 +257,7 @@ test("P6 接缝：UI 输入的 snake_case 计划贯通 validatePlan 与声明分
     vocab_parallel: uiPlan.vocab_parallel,
   };
   const checked = validatePlan(plan, { experts: 8 });
-  assert.equal(checked.ok, true, checked.errors.join("; "));
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
   // 协议生效：moe_ep=2、moe_tp=4，专家域闭合 2×4 = 2×4
   assert.equal(checked.plan.moeEp, 2);
   assert.equal(checked.plan.moeTp, 4);

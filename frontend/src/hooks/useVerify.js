@@ -20,7 +20,7 @@ export function useVerify() {
     } catch (err) {
       if (requestId !== requestRef.current) return null;
       setResult(null);
-      setError(err.message);
+      setError(err.issue || err.message);
       return null;
     } finally {
       if (requestId === requestRef.current) setLoading(false);

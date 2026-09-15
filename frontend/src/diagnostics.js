@@ -1,42 +1,45 @@
-const STRATEGY_LABELS = {
-  "frontend-architecture-template": ["Frontend template", "ok", "Config-driven frontend structure"],
-  "skeleton-truth": ["Checkpoint 骨架真值", "truth", "Checkpoint-derived module tree"],
-  "template+truth": ["模板 + checkpoint 真值", "truth", "Template semantics with checkpoint values"],
-  "template+header-truth": ["模板 + header 总量", "truth", "Template semantics with stored safetensors header totals"],
-  "header-truth": ["Header 参数总量", "truth", "Stored safetensors header parameterTotal"],
-  "meta-introspect": ["Meta introspect", "ok", "Live module tree"],
-  "repaired-meta-introspect": ["Meta introspect", "ok", "Live module tree repaired"],
+import { t } from "./i18n/format.js";
+
+const STRATEGY_TONES = {
+  "frontend-architecture-template": "ok",
+  "skeleton-truth": "truth",
+  "template+truth": "truth",
+  "template+header-truth": "truth",
+  "header-truth": "truth",
+  "meta-introspect": "ok",
+  "repaired-meta-introspect": "ok",
 };
 
-export function structureStatus(structure) {
+export function structureStatus(structure, language = "zh") {
   const summary = structure?.summary || {};
   const diagnostics = structure?.source?.diagnostics || {};
   const strategy = summary.strategy || structure?.source?.strategy;
   const checkpointStatus = structure?.source?.checkpoint_truth;
-  const [label, tone, defaultDetail] = STRATEGY_LABELS[strategy] || [
-    "Not loaded",
-    "neutral",
-    "No structure generated",
-  ];
+  const known = Boolean(STRATEGY_TONES[strategy]);
+  const key = known ? strategy : "fallback";
+  const label = t(language, `status.${key}.label`);
+  const tone = STRATEGY_TONES[strategy] || "neutral";
+  const defaultDetail = t(language, `status.${key}.detail`);
   return {
     label,
     tone,
     detail: checkpointDetail(
-      detailFor(strategy, diagnostics, defaultDetail),
+      language,
+      detailFor(language, strategy, diagnostics, defaultDetail),
       checkpointStatus,
     ),
   };
 }
 
-function detailFor(strategy, diagnostics, defaultDetail) {
+function detailFor(language, strategy, diagnostics, defaultDetail) {
   if (strategy === "repaired-meta-introspect" && diagnostics.repair_strategy) {
-    return `Repaired by ${diagnostics.repair_strategy}`;
+    return t(language, "status.repairedBy", { strategy: diagnostics.repair_strategy });
   }
   return defaultDetail;
 }
 
-function checkpointDetail(detail, status) {
-  if (status === "unavailable") return `${detail}; checkpoint metadata unavailable, using config-only structure`;
-  if (status === "empty") return `${detail}; no safetensors metadata found`;
+function checkpointDetail(language, detail, status) {
+  if (status === "unavailable") return t(language, "status.checkpointUnavailable", { detail });
+  if (status === "empty") return t(language, "status.checkpointEmpty", { detail });
   return detail;
 }

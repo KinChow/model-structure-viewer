@@ -42,10 +42,10 @@ export function createManualChip({ id, name, memoryGb, memoryBandwidthTb, fp32Tf
 
 export function validateManualChipInput(input = {}) {
   const errors = [];
-  if (!String(input.name || "").trim()) errors.push("名称不能为空");
-  for (const [key, label] of [["memoryGb", "显存"], ["memoryBandwidthTb", "HBM 带宽"], ["bf16Tflops", "BF16 算力"]]) {
-    if (!(Number(input[key]) > 0)) errors.push(`${label}必须大于 0`);
+  if (!String(input.name || "").trim()) errors.push({ code: "chip.manualNameEmpty" });
+  for (const [key, field] of [["memoryGb", "memory"], ["memoryBandwidthTb", "hbm"], ["bf16Tflops", "bf16"]]) {
+    if (!(Number(input[key]) > 0)) errors.push({ code: "chip.manualPositive", params: { field } });
   }
-  if (!(Number(input.intraNodeGb ?? input.interconnectGb) > 0)) errors.push("节点内带宽必须大于 0");
+  if (!(Number(input.intraNodeGb ?? input.interconnectGb) > 0)) errors.push({ code: "chip.manualIntraPositive" });
   return errors;
 }

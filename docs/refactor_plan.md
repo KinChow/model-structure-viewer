@@ -140,6 +140,16 @@ MAINTENANCE.md 棘轮已回写。
    （extractor 权威口径提升为 counts.causalShortConvCounts）；旧链镜像区 4 个
    死包装删除、活权威正名；linear_attention 保留槽位注释。剩余登记：
    causalConvCounts 仅供 PLE 复合（不同算子，非双源）。
+8. **i18n 内容层（2026-09-15 登记）**。漏翻（引擎硬编码中文进 UI）已收：
+   ICU catalog + `{code, params}`（plan / chip / PD linkSource / HTTP /
+   loadLocal / lens.missingInputs）；DSpark `repeat===0` 不再渲染 ×0。
+   未做（内容翻译 / 架构收口，不是漏翻）：
+   - 算子 `explanation` 双语（`formulas/index.js` ~50 条 + SDPA 2 条）。
+     触发：英文 Inspector 需要可读算子说明。先定中文权威还是 FORMULAS 双语登记。
+   - chrome 三元收 catalog。触发：第三语言，或同一句第三份拷贝。
+   - 芯片 `notes` 翻译。触发：英文规格页需要可读 notes。
+   - `collectDiagnostics.message` 中文 catalog。触发：中文诊断面板要翻这条。
+   权威住址：[`implementation_plan.md`](implementation_plan.md) 触发池同条。
 
 > **review 补记（2026-09-14，本轮仅登记不改）**：工作区未提交 diff
 > （CostSummary / compute / memory / parallel / lens + 两份测试）试图修两件事，

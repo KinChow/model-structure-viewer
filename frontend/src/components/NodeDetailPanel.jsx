@@ -2,6 +2,7 @@ import { useState } from "react";
 import AttributeGrid from "./AttributeGrid";
 import ShapeFlow from "./ShapeFlow";
 import { formatBytes, formatCount, formatQuantity, formatSeconds } from "../formatters.js";
+import { nodeBadges } from "../diagram/nodeBadges.js";
 
 function TruthSection({ node, language = "zh" }) {
   const english = language === "en";
@@ -111,11 +112,10 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
           <div className="detail-badges">
             <span className="badge type">{node.type}</span>
             {className && <span className="badge class">{className}</span>}
-            {node.repeat && <span className="badge repeat">×{node.repeat}</span>}
+            {nodeBadges(node, language).map((badge) => (
+              <span key={badge.kind} className={`badge ${badge.kind}`}>{badge.text}</span>
+            ))}
             {confidence && <span className="badge confidence">conf {confidence}</span>}
-            {node.children?.length > 0 && (
-              <span className="badge children">{node.children.length} {english ? "children" : "个子节点"}</span>
-            )}
           </div>
         </div>
         <button className="close" onClick={onClose} aria-label={english ? "Close detail panel" : "关闭详情面板"}>
@@ -134,7 +134,7 @@ function NodeDetailPanel({ node, path, breadcrumbs = [], totalParameters, costLe
       </details>}
       {hasAttributes && <details className="inspector-disclosure" open>
         <summary>{english ? "Attributes" : "属性"}</summary>
-        <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} />
+        <AttributeGrid attributes={node.attributes} sourceFields={node.source_fields} limit={null} language={language} />
       </details>}
     </aside>
   );

@@ -159,8 +159,8 @@ export function validatePublicChipCatalog(chips = PUBLIC_CHIPS) {
   const errors = [];
   const ids = new Set();
   for (const chip of chips) {
-    for (const error of validateChipEntry(chip)) errors.push(`${chip?.id || "<unknown>"}: ${error}`);
-    if (ids.has(chip.id)) errors.push(`${chip.id}: id 重复`);
+    for (const error of validateChipEntry(chip)) errors.push(error);
+    if (ids.has(chip.id)) errors.push({ code: "chip.duplicateId", params: { id: chip.id } });
     ids.add(chip.id);
   }
   return errors;

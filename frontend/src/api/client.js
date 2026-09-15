@@ -1,4 +1,5 @@
 import { catalogPath, modelConfigPath, normalizeCatalog, staticAssetPath } from "../structure/catalog/manifest.js";
+import { issueError } from "../i18n/format.js";
 import { searchHfDirect } from "./hf.js";
 
 export async function requestJson(path, options) {
@@ -18,7 +19,8 @@ export async function requestJson(path, options) {
     }
   }
   if (!response.ok) {
-    const error = new Error(describeHttpError(response.status, payload, path));
+    const issue = describeHttpError(response.status, payload, path);
+    const error = issueError(issue.code, issue.params);
     error.status = response.status;
     error.path = path;
     error.payload = payload;
@@ -28,14 +30,17 @@ export async function requestJson(path, options) {
 }
 
 function describeHttpError(status, payload, path) {
-  if (payload?.detail) return typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail);
-  if (status >= 500 && !payload) {
-    if (path === "/api/verify") {
-      return "后端不可用：校验需要本地 Python 服务（默认 :8000）跑 transformers meta 构型。先 `.venv/bin/msv serve --root ./models --port 8000`，再点校验。静态部署没有这条通路。";
-    }
-    return `HTTP ${status}：后端不可用或返回了非 JSON 错误。请启动后端（uvicorn），或改用 source=hf + endpoint=modelscope 走前端直连（无需后端）。`;
+  if (payload?.detail) {
+    return {
+      code: "http.backendDetail",
+      params: { detail: typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail) },
+    };
   }
-  return `HTTP ${status}`;
+  if (status >= 500 && !payload) {
+    if (path === "/api/verify") return { code: "http.verifyUnavailable" };
+    return { code: "http.backendUnavailable", params: { status } };
+  }
+  return { code: "http.status", params: { status } };
 }
 
 export function fetchSettings() {

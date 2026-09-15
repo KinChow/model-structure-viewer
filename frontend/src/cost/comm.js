@@ -82,9 +82,9 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
   const prefillLink = prefillChip?.interconnect?.inter_node?.bandwidth || prefillChip?.interconnect?.intra_node?.bandwidth;
   const decodeLink = decodeChip?.interconnect?.inter_node?.bandwidth || decodeChip?.interconnect?.intra_node?.bandwidth;
   const linkBandwidth = prefillLink && decodeLink ? Math.min(prefillLink, decodeLink) : prefillLink || decodeLink || null;
-  const linkSource = prefillChip?.interconnect?.inter_node?.bandwidth && decodeChip?.interconnect?.inter_node?.bandwidth
-    ? "两侧 inter_node"
-    : "可用节点内/跨节点带宽的较小值";
+  const linkSourceCode = prefillChip?.interconnect?.inter_node?.bandwidth && decodeChip?.interconnect?.inter_node?.bandwidth
+    ? "comm.bothInterNode"
+    : "comm.minAvailable";
   return {
     ok: true,
     errors: [],
@@ -94,7 +94,7 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
     aggregateStateBytes: perStateRank.bytes * decodeRanks,
     aggregateBytes: perRank.bytes * decodeRanks + perStateRank.bytes * decodeRanks,
     linkBandwidth,
-    linkSource: linkBandwidth ? linkSource : "缺少链路带宽",
+    linkSourceCode: linkBandwidth ? linkSourceCode : "comm.missingLink",
     // P10（协议 Q7②）：传输时间 = bytes / 链路带宽（闭式，不建模 overlap/协议开销）。
     // bytes 取 per-decode-rank 的 KV+state（时间口径与单卡接收量一致）。
     transferSeconds: linkBandwidth

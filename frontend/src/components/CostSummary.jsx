@@ -11,6 +11,7 @@ import { classifyRoofline } from "../cost/roofline.js";
 import { chipRates } from "../cost/chips/rates.js";
 import { formatBytes, formatMacs, formatRate, formatSeconds } from "../formatters.js";
 import { costSummaryModel, etaDisclosureModel } from "../cost/ui.js";
+import { formatIssues, t } from "../i18n/format.js";
 
 const FLOPS_ORDER = ["fp32", "fp16", "bf16", "fp8", "int8"];
 
@@ -21,8 +22,8 @@ function formatPeakFlops(peakFlops, unknownLabel) {
   return values.join(" · ") || unknownLabel;
 }
 
-function fitText(value, english = false) {
-  return value == null ? (english ? "unknown" : "未知") : value ? (english ? "yes" : "是") : (english ? "no" : "否");
+function fitText(value, language = "zh") {
+  return value == null ? t(language, "cost.unknown") : value ? t(language, "cost.yes") : t(language, "cost.no");
 }
 
 function PlanFields({ plan, onChange, english, config }) {
@@ -47,39 +48,39 @@ function PlanFields({ plan, onChange, english, config }) {
 export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", onFitStatusChange, lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange, comparisonMode = "off", onComparisonModeChange, compareChipId = "", onCompareChipIdChange, comparePlan = DEFAULT_COMPARE_PLAN, onComparePlanChange, efficiency = DEFAULT_EFFICIENCY, onEfficiencyChange }) {
   const english = language === "en";
   const text = {
-    estimate: english ? "Theoretical cost estimate" : "理论成本估算",
-    disclaimer: english ? "Theoretical calculation; not simulation or prediction" : "理论计算，非仿真、非预测",
-    expand: english ? "Expand config" : "展开配置",
-    collapse: english ? "Collapse config" : "收起配置",
-    machine: english ? "Machine node" : "机器节点",
-    gpu: english ? "GPU" : "GPU / 芯片",
-    gpuNode: english ? "GPU / node" : "GPU / 节点",
-    unknownFlops: english ? "compute unknown" : "算力未知",
-    mode: english ? "Serving mode" : "运行模式",
-    centralized: english ? "Centralized" : "集中式（非 PD）",
-    pd: english ? "PD disaggregation" : "PD 分离",
-    node: english ? "node" : "节点",
-    nodes: english ? "nodes" : "节点",
-    fit: english ? "fit" : "适配",
-    fitCard: english ? "Fit / card" : "单卡适配",
-    needsGpus: english ? (count) => `needs ${count} GPUs` : (count) => `需要 ${count} 张 GPU`,
-    memoryNoFit: english ? "memory no-fit" : "显存不足",
-    planValid: english ? "plan valid" : "方案有效",
-    planInvalid: english ? "plan invalid" : "方案无效",
-    input: english ? "Input tokens / request" : "输入 tokens / request",
-    context: english ? "Current context length" : "当前上下文长度",
-    independent: english ? "P/D workloads, node counts, and parallel plans are saved independently; only the current phase is shown." : "P/D 负载、节点规模和并行策略独立保存；当前只显示当前阶段结果。",
-    theoretical: english ? "Cost is a theoretical estimate of graph-resident memory (weights, KV, KDA, declared buffers). Activation workspace, CUDA runtime, and comm scratch are runtime-unknown and not included. Roofline times are lower bounds. No scheduling, pipeline bubble, or transfer overlap simulation." : "理论计算：图内驻留（权重 / KV / KDA / 声明 buffer）。激活 workspace、CUDA runtime、通信 scratch 无法从配置得到，不计（runtime-unknown）。Roofline 时间为估计 / 下界，不模拟调度、流水线气泡或传输重叠。",
-    chunkedSummary: (total, peak) => english ? `Total uses ${total} input tokens; peak uses ${peak} tokens per chunk.` : `总量使用 ${total} 个输入 tokens；峰值按每个 chunk ${peak} 个 tokens 计算。`,
-    analysis: english ? "Graph analysis" : "图分析",
-    compare: english ? "Compare" : "对比",
-    off: english ? "Off" : "关闭",
-    chipCompare: english ? "GPU" : "芯片",
-    planCompare: english ? "Plan" : "方案",
-    compareGpu: english ? "Compare GPU" : "对比芯片",
-    compareTp: english ? "Compare TP" : "对比 TP",
-    compareEp: english ? "Compare EP" : "对比 EP",
-    compareAttention: english ? "Compare Attention" : "对比 Attention",
+    estimate: t(language, "cost.estimate"),
+    disclaimer: t(language, "cost.disclaimer"),
+    expand: t(language, "cost.expand"),
+    collapse: t(language, "cost.collapse"),
+    machine: t(language, "cost.machine"),
+    gpu: t(language, "cost.gpu"),
+    gpuNode: t(language, "cost.gpuNode"),
+    unknownFlops: t(language, "cost.unknownFlops"),
+    mode: t(language, "cost.mode"),
+    centralized: t(language, "cost.centralized"),
+    pd: t(language, "cost.pd"),
+    node: t(language, "cost.node"),
+    nodes: t(language, "cost.nodes"),
+    fit: t(language, "cost.fit"),
+    fitCard: t(language, "cost.fitCard"),
+    needsGpus: (count) => t(language, "cost.needsGpus", { count }),
+    memoryNoFit: t(language, "cost.memoryNoFit"),
+    planValid: t(language, "cost.planValid"),
+    planInvalid: t(language, "cost.planInvalid"),
+    input: t(language, "cost.input"),
+    context: t(language, "cost.context"),
+    independent: t(language, "cost.independent"),
+    theoretical: t(language, "cost.theoretical"),
+    chunkedSummary: (total, peak) => t(language, "cost.chunkedSummary", { total, peak }),
+    analysis: t(language, "cost.analysis"),
+    compare: t(language, "cost.compare"),
+    off: t(language, "cost.off"),
+    chipCompare: t(language, "cost.chipCompare"),
+    planCompare: t(language, "cost.planCompare"),
+    compareGpu: t(language, "cost.compareGpu"),
+    compareTp: t(language, "cost.compareTp"),
+    compareEp: t(language, "cost.compareEp"),
+    compareAttention: t(language, "cost.compareAttention"),
     etaFlops: "ηF",
     etaHbm: "ηHBM",
     etaComm: "ηComm",
@@ -176,49 +177,43 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     ? `${text.chunkedSummary(load.sequence, Math.min(load.sequence, load.chunkSize))} `
     : '';
   const weightNote = cost.weightSource === 'derived-quantized'
-    ? (
-      'Weights use a '
-      + `${cost.assumptions.weightBytesPerParameter} B/parameter `
-      + `${cost.assumptions.quantization} estimate; `
-      + 'checkpoint metadata can refine module exceptions. '
-    )
+    ? t(language, "cost.weightsEstimate", {
+      bytes: cost.assumptions.weightBytesPerParameter,
+      quantization: cost.assumptions.quantization,
+    })
     : '';
-  const unknownLabel = english ? 'n/a' : '未知';
+  const unknownLabel = t(language, "cost.na");
   const rooflineTimes = summary.times.map(
-    t => `${t.label} ${t.known ? formatSeconds(t.seconds) : unknownLabel}`,
-  ).join(' · ');
-  const boundLabel = english ? 'lower bound' : '下界';
-  const missingSep = english ? ', ' : '、';
-  const missingNote = english
-    ? ` Roofline unknown because missing: ${summary.missingLabels.join(missingSep)}.`
-    : ` Roofline 未知——缺失：${summary.missingLabels.join(missingSep)}。`;
-  const unknownComputeNote = english
-    ? ` ${summary.unknownComputeCount} operators have no cost formula.`
-    : ` ${summary.unknownComputeCount} 个算子无成本公式。`;
+    (entry) => `${entry.label} ${entry.known ? formatSeconds(entry.seconds) : unknownLabel}`,
+  ).join(" · ");
+  const boundLabel = t(language, "cost.lowerBound");
+  const missingSep = english ? ", " : "、";
+  const missingNote = t(language, "cost.missingNote", { fields: summary.missingLabels.join(missingSep) });
+  const unknownComputeNote = ` ${t(language, "cost.unknownCompute", { count: summary.unknownComputeCount })}`;
   return <section className="cost-summary cost-summary-modern" aria-label={text.estimate}>
     <div className="cost-summary-header"><div><b>{text.estimate}</b><span className="cost-disclaimer">{text.disclaimer}</span></div><button className="cost-expand-button" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? text.collapse : text.expand}</button></div>
     <div className="cost-lens-row"><span>Cost Lens</span>{[["none", "None"], ["vram", "VRAM"], ["compute", "Compute"], ["memory", "Memory"], ["kv", "KV Cache"]].map(([id, label]) => <button type="button" key={id} className={(id === "none" ? lenses.size === 0 : lenses.has(id)) ? "active" : ""} aria-pressed={id === "none" ? lenses.size === 0 : lenses.has(id)} onClick={() => toggleLens(id)}>{label}</button>)}</div>
     <div className="cost-machine-summary"><span><b>{machine.name}</b> · {currentNodes} {currentNodes === 1 ? text.node : text.nodes} · {totalGpus} GPU</span><span>{formatBytes(machine.memory_bytes)} / card</span><span className={planFitsTopology && !planInvalid && planFitsMemory !== false ? "fit" : "no-fit"}>{planStatus}</span></div>
-    {mode === "pd" && <div className="pd-deployment-summary"><span><b>Prefill</b> · {nodes.prefill} {nodes.prefill === 1 ? text.node : text.nodes} × {gpusPerNode} GPU · TP{plans.prefill.tp} / PP{plans.prefill.pp} / EP{plans.prefill.ep} / DP{plans.prefill.dp} · {text.fit} {fitText(pdFit?.prefill?.fit, english)}</span><span><b>Decode</b> · {nodes.decode} {nodes.decode === 1 ? text.node : text.nodes} × {gpusPerNode} GPU · TP{plans.decode.tp} / PP{plans.decode.pp} / EP{plans.decode.ep} / DP{plans.decode.dp} · {text.fit} {fitText(pdFit?.decode?.fit, english)}</span></div>}
+    {mode === "pd" && <div className="pd-deployment-summary"><span><b>Prefill</b> · {nodes.prefill} {nodes.prefill === 1 ? text.node : text.nodes} × {gpusPerNode} GPU · TP{plans.prefill.tp} / PP{plans.prefill.pp} / EP{plans.prefill.ep} / DP{plans.prefill.dp} · {text.fit} {fitText(pdFit?.prefill?.fit, language)}</span><span><b>Decode</b> · {nodes.decode} {nodes.decode === 1 ? text.node : text.nodes} × {gpusPerNode} GPU · TP{plans.decode.tp} / PP{plans.decode.pp} / EP{plans.decode.ep} / DP{plans.decode.dp} · {text.fit} {fitText(pdFit?.decode?.fit, language)}</span></div>}
     {expanded && <div className="cost-config-modern">
-      <div className="cost-config-section"><h4>{text.machine}</h4><div className="cost-config-grid"><label>{text.gpu}<select value={machine.id} onChange={(event) => changeMachine(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label>{mode === "centralized" && <label>Nodes<input type="number" min="1" value={nodes.centralized} onChange={(event) => updateNodes({ ...nodes, centralized: Math.max(1, Number(event.target.value) || 1) })} /></label>}<label>{text.gpuNode}<input type="number" min="1" value={gpusPerNode} onChange={(event) => updateGpusPerNode(Math.max(1, Number(event.target.value) || 1))} /></label><div className="cost-machine-spec">{formatBytes(machine.memory_bytes)} / card · {formatBytes(machine.memory_bandwidth)} HBM · {formatPeakFlops(machine.peak_flops, text.unknownFlops)}</div></div><ManualChipForm language={language} onAdd={(chip) => { onAddChip?.(chip); changeMachine(chip.id); }} /></div>
-      <div className="cost-config-section"><div className="cost-section-heading"><h4>{text.mode}</h4><div className="cost-segmented"><button type="button" className={mode === "centralized" ? "active" : ""} aria-pressed={mode === "centralized"} onClick={() => changeMode("centralized")}>{text.centralized}</button><button type="button" className={mode === "pd" ? "active" : ""} aria-pressed={mode === "pd"} onClick={() => changeMode("pd")}>{text.pd}</button></div></div>{mode === "pd" && <div className="cost-phase-switch"><button type="button" className={phase === "prefill" ? "active" : ""} aria-pressed={phase === "prefill"} onClick={() => changePhase("prefill")}>Prefill</button><button type="button" className={phase === "decode" ? "active" : ""} aria-pressed={phase === "decode"} onClick={() => changePhase("decode")}>Decode</button></div>}<div className="cost-config-grid"><label>{phase === "prefill" ? text.input : text.context}<input type="number" min="1" value={load.sequence} onChange={(event) => updateLoad("sequence", Math.max(1, Number(event.target.value) || 1))} /></label><label>Batch size<input type="number" min="1" value={load.batch} onChange={(event) => updateLoad("batch", Math.max(1, Number(event.target.value) || 1))} /></label>{structure?.summary?.vision_layers != null && <label>{english ? "Visual tokens" : "视觉 tokens"}<input type="number" min="1" value={load.visionTokens ?? 1024} onChange={(event) => updateLoad("visionTokens", Math.max(1, Number(event.target.value) || 1))} /></label>}{mode === "pd" && <label>Nodes / {phase}<input type="number" min="1" value={nodes[phase]} onChange={(event) => updateNodes({ ...nodes, [phase]: Math.max(1, Number(event.target.value) || 1) })} /></label>}{mode === "pd" && phase === "prefill" && <label className="cost-check"><input type="checkbox" checked={load.chunked} onChange={(event) => updateLoad("chunked", event.target.checked)} /> Chunked Prefill</label>}{mode === "pd" && phase === "prefill" && load.chunked && <label>Prefill chunk size<input type="number" min="1" value={load.chunkSize} onChange={(event) => updateLoad("chunkSize", Math.max(1, Number(event.target.value) || 1))} /></label>}</div>{mode === "pd" && <p className="cost-config-note">{text.independent}</p>}</div>
-      <div className="cost-config-section"><h4>{english ? "Parallelism" : "并行策略"}{mode === "pd" ? ` · ${phase}` : ""}</h4><PlanFields plan={plan} english={english} onChange={(next) => updatePlan({ ...plans, [phase]: next })} /></div>
+      <div className="cost-config-section"><h4>{text.machine}</h4><div className="cost-config-grid"><label>{text.gpu}<select value={machine.id} onChange={(event) => changeMachine(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label>{mode === "centralized" && <label>{t(language, "cost.nodesLabel")}<input type="number" min="1" value={nodes.centralized} onChange={(event) => updateNodes({ ...nodes, centralized: Math.max(1, Number(event.target.value) || 1) })} /></label>}<label>{text.gpuNode}<input type="number" min="1" value={gpusPerNode} onChange={(event) => updateGpusPerNode(Math.max(1, Number(event.target.value) || 1))} /></label><div className="cost-machine-spec">{formatBytes(machine.memory_bytes)} / card · {formatBytes(machine.memory_bandwidth)} HBM · {formatPeakFlops(machine.peak_flops, text.unknownFlops)}</div></div><ManualChipForm language={language} onAdd={(chip) => { onAddChip?.(chip); changeMachine(chip.id); }} /></div>
+      <div className="cost-config-section"><div className="cost-section-heading"><h4>{text.mode}</h4><div className="cost-segmented"><button type="button" className={mode === "centralized" ? "active" : ""} aria-pressed={mode === "centralized"} onClick={() => changeMode("centralized")}>{text.centralized}</button><button type="button" className={mode === "pd" ? "active" : ""} aria-pressed={mode === "pd"} onClick={() => changeMode("pd")}>{text.pd}</button></div></div>{mode === "pd" && <div className="cost-phase-switch"><button type="button" className={phase === "prefill" ? "active" : ""} aria-pressed={phase === "prefill"} onClick={() => changePhase("prefill")}>Prefill</button><button type="button" className={phase === "decode" ? "active" : ""} aria-pressed={phase === "decode"} onClick={() => changePhase("decode")}>Decode</button></div>}<div className="cost-config-grid"><label>{phase === "prefill" ? text.input : text.context}<input type="number" min="1" value={load.sequence} onChange={(event) => updateLoad("sequence", Math.max(1, Number(event.target.value) || 1))} /></label><label>{t(language, "cost.batchSize")}<input type="number" min="1" value={load.batch} onChange={(event) => updateLoad("batch", Math.max(1, Number(event.target.value) || 1))} /></label>{structure?.summary?.vision_layers != null && <label>{t(language, "cost.visualTokens")}<input type="number" min="1" value={load.visionTokens ?? 1024} onChange={(event) => updateLoad("visionTokens", Math.max(1, Number(event.target.value) || 1))} /></label>}{mode === "pd" && <label>{t(language, "cost.nodesPerPhase", { phase })}<input type="number" min="1" value={nodes[phase]} onChange={(event) => updateNodes({ ...nodes, [phase]: Math.max(1, Number(event.target.value) || 1) })} /></label>}{mode === "pd" && phase === "prefill" && <label className="cost-check"><input type="checkbox" checked={load.chunked} onChange={(event) => updateLoad("chunked", event.target.checked)} /> Chunked Prefill</label>}{mode === "pd" && phase === "prefill" && load.chunked && <label>Prefill chunk size<input type="number" min="1" value={load.chunkSize} onChange={(event) => updateLoad("chunkSize", Math.max(1, Number(event.target.value) || 1))} /></label>}</div>{mode === "pd" && <p className="cost-config-note">{text.independent}</p>}</div>
+      <div className="cost-config-section"><h4>{t(language, "cost.parallelism")}{mode === "pd" ? ` · ${phase}` : ""}</h4><PlanFields plan={plan} english={english} onChange={(next) => updatePlan({ ...plans, [phase]: next })} /></div>
       <div className="cost-config-section"><h4>{text.analysis}</h4><div className="cost-section-heading"><span className="cost-config-label">{text.compare}</span><div className="cost-segmented"><button type="button" className={comparisonMode === "off" ? "active" : ""} aria-pressed={comparisonMode === "off"} onClick={() => onComparisonModeChange?.("off")}>{text.off}</button><button type="button" className={comparisonMode === "chip" ? "active" : ""} aria-pressed={comparisonMode === "chip"} onClick={() => onComparisonModeChange?.("chip")}>{text.chipCompare}</button><button type="button" className={comparisonMode === "plan" ? "active" : ""} aria-pressed={comparisonMode === "plan"} onClick={() => onComparisonModeChange?.("plan")}>{text.planCompare}</button></div></div>{comparisonMode === "chip" && <label className="cost-config-control">{text.compareGpu}<select value={compareChipId} onChange={(event) => onCompareChipIdChange?.(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label>}{comparisonMode === "plan" && <div className="cost-plan-fields"><label>{text.compareTp}<input type="number" min="1" value={comparePlan.tp} onChange={(event) => onComparePlanChange?.({ ...comparePlan, tp: Math.max(1, Number(event.target.value) || 1) })} /></label><label>{text.compareEp}<input type="number" min="1" value={comparePlan.ep} onChange={(event) => onComparePlanChange?.({ ...comparePlan, ep: Math.max(1, Number(event.target.value) || 1) })} /></label><label>{text.compareAttention}<select value={comparePlan.attnMode} onChange={(event) => onComparePlanChange?.({ ...comparePlan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label></div>}<div className="cost-plan-fields"><label>{text.etaFlops}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.flops} onChange={(event) => onEfficiencyChange?.({ ...efficiency, flops: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.7)) })} /></label><label>{text.etaHbm}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.hbm} onChange={(event) => onEfficiencyChange?.({ ...efficiency, hbm: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.9)) })} /></label><label>{text.etaComm}<input type="number" min="0.1" max="1" step="0.05" value={efficiency.intra_node_comm} onChange={(event) => onEfficiencyChange?.({ ...efficiency, intra_node_comm: Math.min(1, Math.max(0.1, Number(event.target.value) || 0.8)) })} /></label><span className="cost-eta-note" title={etaNote.detail}>{etaNote.short}</span></div></div>
-      <div className="cost-config-section"><h4>Cost assumptions</h4><div className="cost-config-grid"><label>KV bytes / element<select value={kvElementBytes} onChange={(event) => setKvElementBytes(Number(event.target.value))}><option value="2">2</option><option value="1">1</option><option value="0.5">0.5</option></select></label><label className="cost-check"><input type="checkbox" checked={interNode} onChange={(event) => setInterNode(event.target.checked)} /> {english ? "Inter-node link (roofline comm)" : "跨节点链路（roofline 通信）"}</label><label>Weight what-if<select value={weightMode} onChange={(event) => setWeightMode(event.target.value)}><option value="actual">actual / derived</option><option value="2">BF16 / FP16</option><option value="1">FP8 / INT8</option><option value="0.5">INT4</option></select></label></div></div>
+      <div className="cost-config-section"><h4>{t(language, "cost.assumptions")}</h4><div className="cost-config-grid"><label>{t(language, "cost.kvBytesPerElement")}<select value={kvElementBytes} onChange={(event) => setKvElementBytes(Number(event.target.value))}><option value="2">2</option><option value="1">1</option><option value="0.5">0.5</option></select></label><label className="cost-check"><input type="checkbox" checked={interNode} onChange={(event) => setInterNode(event.target.checked)} /> {t(language, "cost.interNodeLink")}</label><label>{t(language, "cost.weightWhatIf")}<select value={weightMode} onChange={(event) => setWeightMode(event.target.value)}><option value="actual">actual / derived</option><option value="2">BF16 / FP16</option><option value="1">FP8 / INT8</option><option value="0.5">INT4</option></select></label></div></div>
     </div>}
-    <div className="cost-breakdown">{[["Weights", cost.memory.weightBytes], ["Buffers", cost.memory.bufferBytes || 0], ["KV", cost.memory.kvBytes], ["KDA state", cost.memory.stateBytes]].map(([label, value]) => <span key={label}><b>{label}</b>{formatBytes(value)}</span>)}</div>
-    <div className="cost-metrics"><span>Total VRAM <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>{text.fitCard} <b className={planFitsMemory === true ? "fit" : "no-fit"}>{fitText(planFitsMemory, english)}</b></span><span>Max context <b>{planMaxContext == null ? "-" : planMaxContext.toLocaleString()}</b></span><span>MACs / token <b>{formatMacs(cost.macsPerToken)}</b></span><span>MACs / forward <b>{formatMacs(cost.totalMacs)}</b></span>{summary.macsSources.length > 0 && <span className="cost-macs-sources" title={english ? "MACs totals by origin: formula-derived, summed from children, non-compute, or missing" : "MACs 总量按来源分组：公式推导 / 子树汇总 / 非计算节点 / 无公式"}>{english ? "MACs origin" : "MACs 来源"} <b>{summary.macsSources.map((entry) => `${entry.label} ${entry.count}`).join(" · ")}</b></span>}{summary.valueSourceCounts && <span className="cost-value-source" title={summary.valueSourceCounts.title}>{english ? "Weight origin" : "权重来源"} <b>{summary.valueSourceCounts.text}</b></span>}<span>FLOPs / forward <b>{formatMacs(cost.totalFlops)}</b></span><span data-bound={roofline?.bound || "unknown"}>Roofline <b>{summary.boundLabel}</b></span><span>Communication <b>{formatBytes(communication?.totalBytes)}</b></span>{summary.unknownComputeCount > 0 && <span className="cost-coverage-warn">{english ? "Cost not covered" : "成本未覆盖"} <b>{summary.unknownComputeCount}</b></span>}<span className="cost-weight-source"><b className={cost.weightSource === "checkpoint" ? "fit" : ""}>{summary.weightSourceLabel}</b></span></div>
-    {projected?.ok && <div className="cost-stages">{stageRates && projected.stages.map((stage) => <span key={stage.stage}><b>Stage {stage.stage}</b> {formatBytes(stage.weightBytes)} weights · {formatBytes(stage.kvBytes)} KV · {formatBytes(stage.stateBytes || 0)} KDA state · HBM ≈{formatSeconds(stage.totalBytes / stageRates.bytesPerSecond)}</span>)}</div>}
-    {projected && !projected.ok && <div className="cost-plan-error">{english ? "Plan invalid — per-stage projection unavailable: " : "方案无效——分阶段投影不可用："}{projected.errors.join(english ? "; " : "；")}</div>}
-    {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>KV + KDA State Transfer</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes + (pd.perDecodeRankStateBytes || 0))} / Decode rank</span><span>{pd.linkSource}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}{pd.transferSeconds != null ? ` · ≈${pd.transferSeconds >= 1 ? pd.transferSeconds.toFixed(2) + " s" : (pd.transferSeconds * 1000).toFixed(1) + " ms"}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, english)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, english)}</span></div>}
-    {mode === "pd" && pd && !pd.ok && <div className="cost-plan-error">PD plan invalid: {pd.errors.join("; ")}</div>}
+    <div className="cost-breakdown">{[[t(language, "cost.weights"), cost.memory.weightBytes], [t(language, "cost.buffers"), cost.memory.bufferBytes || 0], [t(language, "cost.kv"), cost.memory.kvBytes], [t(language, "cost.kdaState"), cost.memory.stateBytes]].map(([label, value]) => <span key={label}><b>{label}</b>{formatBytes(value)}</span>)}</div>
+    <div className="cost-metrics"><span>{t(language, "cost.totalVram")} <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>{text.fitCard} <b className={planFitsMemory === true ? "fit" : "no-fit"}>{fitText(planFitsMemory, language)}</b></span><span>{t(language, "cost.maxContext")} <b>{planMaxContext == null ? "-" : planMaxContext.toLocaleString()}</b></span><span>{t(language, "cost.macsPerToken")} <b>{formatMacs(cost.macsPerToken)}</b></span><span>{t(language, "cost.macsPerForward")} <b>{formatMacs(cost.totalMacs)}</b></span>{summary.macsSources.length > 0 && <span className="cost-macs-sources" title={t(language, "cost.macsOriginTitle")}>{t(language, "cost.macsOrigin")} <b>{summary.macsSources.map((entry) => `${entry.label} ${entry.count}`).join(" · ")}</b></span>}{summary.valueSourceCounts && <span className="cost-value-source" title={summary.valueSourceCounts.title}>{t(language, "cost.weightOrigin")} <b>{summary.valueSourceCounts.text}</b></span>}<span>{t(language, "cost.flopsPerForward")} <b>{formatMacs(cost.totalFlops)}</b></span><span data-bound={roofline?.bound || "unknown"}>Roofline <b>{summary.boundLabel}</b></span><span>{t(language, "cost.communication")} <b>{formatBytes(communication?.totalBytes)}</b></span>{summary.unknownComputeCount > 0 && <span className="cost-coverage-warn">{t(language, "cost.costNotCovered")} <b>{summary.unknownComputeCount}</b></span>}<span className="cost-weight-source"><b className={cost.weightSource === "checkpoint" ? "fit" : ""}>{summary.weightSourceLabel}</b></span></div>
+    {projected?.ok && <div className="cost-stages">{stageRates && projected.stages.map((stage) => <span key={stage.stage}>{t(language, "cost.stageLine", { stage: stage.stage, weights: formatBytes(stage.weightBytes), kv: formatBytes(stage.kvBytes), state: formatBytes(stage.stateBytes || 0), hbm: formatSeconds(stage.totalBytes / stageRates.bytesPerSecond) })}</span>)}</div>}
+    {projected && !projected.ok && <div className="cost-plan-error">{t(language, "cost.planInvalidProjection", { errors: formatIssues(language, projected.errors) })}</div>}
+    {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>{t(language, "cost.pdTransfer")}</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes + (pd.perDecodeRankStateBytes || 0))} / Decode rank</span><span>{t(language, pd.linkSourceCode)}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}{pd.transferSeconds != null ? ` · ≈${pd.transferSeconds >= 1 ? pd.transferSeconds.toFixed(2) + " s" : (pd.transferSeconds * 1000).toFixed(1) + " ms"}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, language)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, language)}</span></div>}
+    {mode === "pd" && pd && !pd.ok && <div className="cost-plan-error">{t(language, "cost.pdPlanInvalid", { errors: formatIssues(language, pd.errors) })}</div>}
     <div className="cost-assumptions">
         {chunkedNote}
         {weightNote}
         {text.theoretical}
         {' '}
-        {roofline && `Roofline ${boundLabel} ${rooflineTimes}.`}
+        {roofline && t(language, "cost.rooflineTimes", { bound: boundLabel, times: rooflineTimes })}
         {roofline && roofline.bound === 'unknown' && summary.missingCount > 0 && missingNote}
         {summary.unknownComputeCount > 0 && unknownComputeNote}
     </div>

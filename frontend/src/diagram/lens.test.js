@@ -39,6 +39,12 @@ test("节点 lens 使用校验后的逐卡并行投影", () => {
   assert.equal(buildNodeLens(structure, chip, { plan: { tp: 0 } }).ok, false);
 });
 
+test("节点 lens 缺结构时返回 catalog code 而非中文句子", () => {
+  const result = buildNodeLens(null, null);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, [{ code: "lens.missingInputs" }]);
+});
+
 test("叶子 VRAM 只按声明轴切一次；父 = Σ 子每卡权重 + 自身边界", () => {
   const structure = {
     extra_config: { hidden_size: 4, num_attention_heads: 1, num_hidden_layers: 1 },

@@ -373,8 +373,8 @@ export function validatePdPlan(pdPlan = {}, config = {}) {
   return {
     ok: prefill.ok && decode.ok,
     errors: [
-      ...prefill.errors.map((error) => `prefill_plan：${error}`),
-      ...decode.errors.map((error) => `decode_plan：${error}`),
+      ...prefill.errors.map((error) => ({ code: "plan.pdWrap", params: { phase: "prefill" }, inner: error })),
+      ...decode.errors.map((error) => ({ code: "plan.pdWrap", params: { phase: "decode" }, inner: error })),
     ],
     prefillPlan: prefill.plan,
     decodePlan: decode.plan,

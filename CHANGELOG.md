@@ -12,6 +12,9 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+- 前端 i18n：ICU catalog（`frontend/src/i18n/{en,zh}.json` + `intl-messageformat`）。引擎只发 `{code, params}`（对标 LSP Diagnostic.code），UI `t()` / `formatIssue()`。覆盖结构状态、成本字段、plan/chip 校验、PD `linkSource`、HTTP/芯片加载错误、lens 缺输入。en/zh 键集相等；en 无汉字。
+- DSpark / MTP 节点徽标：`repeat===0` 是计费旗标（不计前向，仍驻留显存），不再渲染 `×0`；子模块数走 ICU plural。draft 说明改 `note_code: draft.residentOnly`。
+- 未做（触发池，见 `docs/implementation_plan.md`）：算子 `explanation` 双语、chrome 三元收 catalog、芯片 `notes` 翻译、`collectDiagnostics` 中文 catalog。
 - 增加 pre-commit（`.pre-commit-config.yaml`）：仓库卫生 + `check_principles.sh`。五重 oracle 不进 hook。
 - 增加 `scripts/dev-frontend.sh`，从仓库根启动 Vite 前端。
 - 删死接口 `POST /api/export`（前端本地 `exporters.js`，CLI `msv inspect --format`）。清真死代码：`scorePairsLegacy` / `graphPaths` / `product` / `StructureDiagram.jsx` 壳、`ModelSourceResolver.ensure_remote_code`、`reset_package_roots`、`flatten_source_refs`、`semantics.family`、`NoopRuntimePatch`、空操作 `exclude={"root"}`、自研 `sourceCacheKey`。动作向量合计接通 `kvRead`/`indexRead` 与 `computeDtypes.tf32→matrixTf32`（Accelergy action 名不丢）；同步 layout 返回 containerFrames。

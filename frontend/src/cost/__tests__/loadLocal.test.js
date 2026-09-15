@@ -36,6 +36,24 @@ test("同 id 本地覆盖后保留 local 标记", () => {
   assert.equal(merged[0].confidence, "local");
 });
 
+test("本地配置非 404 失败抛 catalog code", async () => {
+  await assert.rejects(
+    () => loadLocalChipOverrides({ fetchImpl: async () => ({ ok: false, status: 500 }) }),
+    (error) => {
+      assert.equal(error.issue.code, "chip.localHttp");
+      assert.equal(error.issue.params.status, 500);
+      return true;
+    },
+  );
+});
+
+test("本地配置形状错误抛 catalog code", async () => {
+  await assert.rejects(
+    () => loadLocalChipOverrides({ fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({}) }) }),
+    (error) => error.issue.code === "chip.localShape",
+  );
+});
+
 test("公开芯片允许只覆盖单个字段", async () => {
   const result = await loadLocalChipOverrides({ fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ chips: [{ id: "nvidia-a100-80gb-sxm", memory_bytes: 81e9 }] }) }) });
   assert.equal(result[0].memory_bytes, 81e9);

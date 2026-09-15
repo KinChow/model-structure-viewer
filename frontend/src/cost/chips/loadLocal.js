@@ -1,3 +1,4 @@
+import { issueError } from "../../i18n/format.js";
 import { PUBLIC_CHIPS } from "./public.js";
 import { validateChipEntry } from "./coverage.js";
 
@@ -32,21 +33,25 @@ export function mergeChipCatalog(publicChips = PUBLIC_CHIPS, localChips = []) {
 export async function loadLocalChipOverrides({ url = "/chips.local.json", fetchImpl = fetch } = {}) {
   const response = await fetchImpl(url);
   if (response.status === 404) return [];
-  if (!response.ok) throw new Error(`本地芯片配置 HTTP ${response.status}`);
+  if (!response.ok) throw issueError("chip.localHttp", { status: response.status });
   if (response.headers?.get?.("content-type")?.includes("text/html")) return [];
   const payload = await response.json();
   const chips = Array.isArray(payload) ? payload : payload?.chips;
-  if (!Array.isArray(chips)) throw new Error("本地芯片配置必须是数组或 {chips: []}");
+  if (!Array.isArray(chips)) throw issueError("chip.localShape");
   const publicIds = new Set(PUBLIC_CHIPS.map((chip) => chip.id));
   const errors = chips.flatMap((chip) => {
     // 已有公开卡允许只提供需要覆盖的字段；新增本地卡仍需完整基本信息。
     if (chip?.id && publicIds.has(chip.id)) {
       return chip.confidence && !["official", "vendor-marketing", "community", "local"].includes(chip.confidence)
-        ? [`未知 confidence：${chip.confidence}`]
+        ? [{ code: "chip.unknownConfidence", params: { value: chip.confidence } }]
         : [];
     }
     return validateChipEntry(chip);
   });
-  if (errors.length > 0) throw new Error(`本地芯片配置无效：${errors.join("；")}`);
+  if (errors.length > 0) {
+    const error = issueError(errors[0].code, errors[0].params);
+    error.issues = errors;
+    throw error;
+  }
   return chips;
 }

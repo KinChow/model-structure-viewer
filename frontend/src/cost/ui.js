@@ -1,73 +1,14 @@
 // ui.js —— cost 数据 → 展示语义的视图模型（W6-1）。
 // 只做数据形状映射与文案，不做计算；渲染层（components/）保持哑组件。
 // 五类瓶颈单元命名与 roofline.js 的 times 键一一对应（§3.7）。
+import { t } from "../i18n/format.js";
 
-const UNIT_LABELS_ZH = { matrix: "矩阵", vector: "向量", sfu: "SFU", memory: "访存", comm: "通信" };
-const UNIT_LABELS_EN = { matrix: "matrix", vector: "vector", sfu: "SFU", memory: "memory", comm: "comm" };
-
-const BOUND_LABELS_ZH = { ...UNIT_LABELS_ZH, unknown: "未知" };
-const BOUND_LABELS_EN = { ...UNIT_LABELS_EN, unknown: "unknown" };
-
-const WEIGHT_SOURCE_LABELS_ZH = {
-  checkpoint: "checkpoint 真值",
-  node: "图声明汇总",
-  empty: "无图",
-  "derived-quantized": "图声明（量化）",
-  "what-if": "what-if 假设",
-};
-const WEIGHT_SOURCE_LABELS_EN = {
-  checkpoint: "checkpoint truth",
-  node: "graph declaration sum",
-  empty: "no graph",
-  "derived-quantized": "graph declaration (quantized)",
-  "what-if": "what-if assumption",
-};
-
-// M11-P1-2：roofline.missing 的字段级文案。键与 roofline.js 的 missing.push
-// 一一对应：数量侧（matrix/vector/sfu/bytes_moved/comm）与费率侧
-// （peak_flops.<dtype>/vector_flops/sfu_ops/memory_bandwidth/interconnect.*）。
-const MISSING_FIELD_LABELS_ZH = {
-  matrix: "矩阵 MACs 数量",
-  vector: "向量操作数量",
-  sfu: "SFU 操作数量",
-  bytes_moved: "访存字节数",
-  comm: "通信字节数",
-  vector_flops: "vector_flops 规格",
-  sfu_ops: "sfu_ops 规格",
-  memory_bandwidth: "memory_bandwidth 规格",
-  "interconnect.intra_node.bandwidth": "节点内互联带宽",
-  "interconnect.inter_node.bandwidth": "跨节点互联带宽",
-};
-const MISSING_FIELD_LABELS_EN = {
-  matrix: "matrix MACs count",
-  vector: "vector op count",
-  sfu: "SFU op count",
-  bytes_moved: "bytes moved",
-  comm: "comm bytes",
-  vector_flops: "vector_flops spec",
-  sfu_ops: "sfu_ops spec",
-  memory_bandwidth: "memory_bandwidth spec",
-  "interconnect.intra_node.bandwidth": "intra-node link bandwidth",
-  "interconnect.inter_node.bandwidth": "inter-node link bandwidth",
-};
-
-// M11-P1-4：macs_source 类目（compute.js macsSource 的值域）与节点级
-// value_source（graphTruth 只写 "checkpoint"，其余为 config 推导）。
 const MACS_SOURCE_ORDER = ["formula", "aggregate", "not-compute", "unknown"];
-const MACS_SOURCE_LABELS_ZH = {
-  formula: "公式推导",
-  aggregate: "子树汇总",
-  "not-compute": "非计算节点",
-  unknown: "无公式",
-};
-const MACS_SOURCE_LABELS_EN = {
-  formula: "formula",
-  aggregate: "child sum",
-  "not-compute": "non-compute",
-  unknown: "no formula",
-};
-const VALUE_SOURCE_LABELS_ZH = { checkpoint: "真值", derived: "推导" };
-const VALUE_SOURCE_LABELS_EN = { checkpoint: "ckpt", derived: "est" };
+const UNIT_KEYS = ["matrix", "vector", "sfu", "memory", "comm"];
+
+function lang({ english } = {}) {
+  return english ? "en" : "zh";
+}
 
 /**
  * roofline.missing 单键 → 双语字段名；未知键原样透传（不伪造可读名）。
@@ -75,13 +16,13 @@ const VALUE_SOURCE_LABELS_EN = { checkpoint: "ckpt", derived: "est" };
  * @param {{english?: boolean}} options
  */
 export function missingLabelsModel(missing = [], { english = false } = {}) {
-  const labels = english ? MISSING_FIELD_LABELS_EN : MISSING_FIELD_LABELS_ZH;
+  const language = lang({ english });
   return (missing || []).map((key) => {
-    if (labels[key]) return { key, label: labels[key] };
-    // 动态费率键：peak_flops.<dtype>
+    const catalogKey = `cost.missingField.${key}`;
+    const label = t(language, catalogKey);
+    if (label !== catalogKey) return { key, label };
     if (key.startsWith("peak_flops.")) {
-      const dtype = key.slice("peak_flops.".length);
-      return { key, label: english ? `peak_flops (${dtype}) spec` : `peak_flops（${dtype}）规格` };
+      return { key, label: t(language, "cost.missingField.peakFlops", { dtype: key.slice("peak_flops.".length) }) };
     }
     return { key, label: key };
   });
@@ -90,8 +31,9 @@ export function missingLabelsModel(missing = [], { english = false } = {}) {
 /** macs_source 类目 → 双语短标签；未知值原样透传。 */
 export function macsSourceLabel(source, { english = false } = {}) {
   if (!source) return null;
-  const labels = english ? MACS_SOURCE_LABELS_EN : MACS_SOURCE_LABELS_ZH;
-  return labels[source] || source;
+  const catalogKey = `cost.macsSource.${source}`;
+  const label = t(lang({ english }), catalogKey);
+  return label === catalogKey ? source : label;
 }
 
 /** 模型级 macsSources 计数 → 固定类目顺序的展示列表（零计数类目省略）。 */
@@ -118,14 +60,12 @@ export function valueSourceCountsModel(cost, { english = false } = {}) {
     else derived += 1;
   }
   if (checkpoint + derived === 0) return null;
-  const labels = english ? VALUE_SOURCE_LABELS_EN : VALUE_SOURCE_LABELS_ZH;
+  const language = lang({ english });
   return {
     checkpoint,
     derived,
-    text: `${labels.checkpoint} ${checkpoint} · ${labels.derived} ${derived}`,
-    title: english
-      ? "Weight-carrying nodes by value origin: checkpoint truth vs config-derived estimate"
-      : "携带权重的节点按值来源分组：checkpoint 真值 vs config 推导",
+    text: `${t(language, "cost.valueSource.checkpoint")} ${checkpoint} · ${t(language, "cost.valueSource.derived")} ${derived}`,
+    title: t(language, "cost.valueSource.title"),
   };
 }
 
@@ -140,14 +80,11 @@ export function valueSourceCountsModel(cost, { english = false } = {}) {
  */
 export const ETA_VECTOR_SFU_DEFAULT = 1;
 export function etaDisclosureModel({ english = false } = {}) {
+  const language = lang({ english });
   return {
     value: ETA_VECTOR_SFU_DEFAULT,
-    short: english
-      ? "vector/SFU η=1.0 fixed (optimistic, not adjustable)"
-      : "vector/SFU 固定 η=1.0（乐观上界，暂不可调）",
-    detail: english
-      ? "Vector/SFU rates are computed at 100% efficiency (rates.js falls back to eta.vector ?? 1 / eta.sfu ?? 1; resolveEfficiency does not emit these keys, so neither the sliders nor chip-level declarations reach them). ηF defaults to 0.7 as an adjustable assumption (principles §3.6) with no separate vector/SFU discount, so 1.0 is an explicit optimistic upper bound, not a measurement. The ηF slider does not affect vector/SFU paths."
-      : "vector/SFU 费率固定按 100% 效率计算（rates.js 兜底 eta.vector ?? 1 / eta.sfu ?? 1；resolveEfficiency 不产出这两个键，滑块与芯片级声明均无法触及）。ηF 默认 0.7 是可调假设（原则 §3.6），无独立的 vector/SFU 分项折扣，1.0 为显式乐观上界假设，非实测值。ηF 滑块不作用于 vector/SFU 路。",
+    short: t(language, "cost.eta.short"),
+    detail: t(language, "cost.eta.detail"),
   };
 }
 
@@ -168,16 +105,18 @@ export function checkpointTruthModel(source, { english = false } = {}) {
   const fallback = truthEndpoint != null && configEndpoint != null && truthEndpoint !== configEndpoint;
   const show = Boolean(error) || fallback || status === "unavailable" || status === "empty";
   if (!show) return { show: false, status, error, configEndpoint, truthEndpoint, fallback, tone: null, headline: null, meta: null };
+  const language = lang({ english });
   const tone = status === "available" ? "warn" : "error";
   const headline = fallback
-    ? (english
-      ? `Checkpoint truth came from ${truthEndpoint}; the requested ${configEndpoint} failed and the switch was silent.`
-      : `checkpoint 真值来自 ${truthEndpoint}；请求的 ${configEndpoint} 失败后被静默切换。`)
+    ? t(language, "cost.checkpoint.fallback", { truthEndpoint, configEndpoint })
     : status === "empty"
-      ? (english ? "Checkpoint truth is empty (no tensors found)." : "checkpoint 真值为空（未找到张量）。")
-      : (english ? "Checkpoint truth unavailable; weights shown are config-derived estimates." : "checkpoint 真值不可用；权重为 config 推导估算。");
+      ? t(language, "cost.checkpoint.empty")
+      : t(language, "cost.checkpoint.unavailable");
   const meta = [configEndpoint, truthEndpoint].filter(Boolean).length > 0
-    ? (english ? `config: ${configEndpoint ?? "unknown"} · truth: ${truthEndpoint ?? "not fetched"}` : `config：${configEndpoint ?? "未知"} · 真值：${truthEndpoint ?? "未获取"}`)
+    ? t(language, "cost.checkpoint.meta", {
+      configEndpoint: configEndpoint ?? t(language, "cost.checkpoint.configUnknown"),
+      truthEndpoint: truthEndpoint ?? t(language, "cost.checkpoint.truthMissing"),
+    })
     : null;
   return { show: true, status, error, configEndpoint, truthEndpoint, fallback, tone, headline, meta };
 }
@@ -189,22 +128,27 @@ export function checkpointTruthModel(source, { english = false } = {}) {
  * @param {{english?: boolean}} options
  */
 export function costSummaryModel(cost = {}, roofline = null, { english = false } = {}) {
-  const unitLabels = english ? UNIT_LABELS_EN : UNIT_LABELS_ZH;
+  const language = lang({ english });
   const times = Object.entries(roofline?.times || {}).map(([unit, seconds]) => ({
     unit,
-    label: unitLabels[unit] || unit,
+    label: UNIT_KEYS.includes(unit) ? t(language, `cost.unit.${unit}`) : unit,
     seconds: seconds ?? null,
     known: seconds != null,
   }));
   const missingLabels = missingLabelsModel(roofline?.missing, { english }).map((entry) => entry.label);
+  const bound = roofline?.bound || "unknown";
+  const boundKey = UNIT_KEYS.includes(bound) ? `cost.unit.${bound}` : "cost.bound.unknown";
+  const weightSource = cost?.weightSource || null;
+  const weightSourceKey = weightSource ? `cost.weightSource.${weightSource}` : null;
+  const weightSourceLabel = weightSourceKey ? t(language, weightSourceKey) : null;
   return {
-    bound: roofline?.bound || "unknown",
-    boundLabel: (english ? BOUND_LABELS_EN : BOUND_LABELS_ZH)[roofline?.bound || "unknown"],
+    bound,
+    boundLabel: t(language, boundKey),
     times,
     // §3.3：matrix=0 是精确陈述；unknownComputePaths 才是"成本未覆盖"
     unknownComputeCount: cost?.unknownComputePaths?.length ?? 0,
-    weightSource: cost?.weightSource || null,
-    weightSourceLabel: (english ? WEIGHT_SOURCE_LABELS_EN : WEIGHT_SOURCE_LABELS_ZH)[cost?.weightSource] || cost?.weightSource || null,
+    weightSource,
+    weightSourceLabel: weightSourceLabel && weightSourceLabel !== weightSourceKey ? weightSourceLabel : weightSource,
     // M11-P1-2：bound=unknown 时"为什么 unknown"的字段级清单
     missing: roofline?.missing ?? [],
     missingCount: missingLabels.length,
@@ -222,6 +166,7 @@ export function costSummaryModel(cost = {}, roofline = null, { english = false }
  * @param {{english?: boolean}} options
  */
 export function diagnosticsModel(diagnostics, { english = false } = {}) {
+  const language = lang({ english });
   const gaps = diagnostics?.graph_truth_gaps ?? diagnostics?.template_gaps ?? [];
   // M11-P0-6：生产出口（enrichGraphWithTruth）发 ambiguous_truth_matches，
   // 内部键 graph_ 前缀仅 bindTruthToGraph 内部使用——两个键都收，生产键优先。
@@ -240,9 +185,9 @@ export function diagnosticsModel(diagnostics, { english = false } = {}) {
     banner: adapted ? null : {
       skeleton: strategy === "skeleton-truth",
       text: strategy === "skeleton-truth"
-        ? (english ? "Structure not adapted: diagram comes from the checkpoint skeleton and carries no semantic binding." : "未适配结构：图来自 checkpoint 骨架，无语义绑定。")
+        ? t(language, "cost.diag.skeletonBanner")
         : strategy === "no-truth"
-          ? (english ? "No checkpoint truth loaded; weights shown are config-derived estimates." : "未加载 checkpoint 真值；权重为 config 推导估算。")
+          ? t(language, "cost.diag.noTruthBanner")
           : null,
     },
     gaps,
@@ -278,16 +223,17 @@ export function verifyEvidenceModel(response, { english = false } = {}) {
   if (response.status === "failed" || constructed === false) tone = "error";
   else if (compared && consistent === true) tone = "ok";
   else if (compared && consistent === false) tone = "error";
+  const language = lang({ english });
   const constructedLabel = constructed === true
-    ? (english ? "constructed" : "构造通过")
+    ? t(language, "verify.constructed")
     : constructed === false
-      ? (english ? "construction failed" : "构造失败")
-      : (english ? "construction unknown" : "构造未知");
+      ? t(language, "verify.constructionFailed")
+      : t(language, "verify.constructionUnknown");
   const consistentLabel = consistent === true
-    ? (english ? "structure matches" : "结构一致")
+    ? t(language, "verify.structureMatches")
     : consistent === false
-      ? (english ? "structure differs" : "结构不一致")
-      : (english ? "not compared" : "未对账");
+      ? t(language, "verify.structureDiffers")
+      : t(language, "verify.notCompared");
   const headline = response.error
     ? classifyVerifyFailure(response, { english })
     : `${constructedLabel} · ${consistentLabel}`;
@@ -311,24 +257,13 @@ export function verifyEvidenceModel(response, { english = false } = {}) {
 }
 
 function classifyVerifyFailure(response, { english = false } = {}) {
+  const language = lang({ english });
   const kind = response.diagnostics?.failure_kind;
   const raw = String(response.error || "");
-  if (kind === "worker_timeout") {
-    return english
-      ? `Verify timed out while constructing the Transformers meta model: ${raw}`
-      : `校验超时：transformers meta 构型未在时限内完成。${raw}`;
-  }
-  if (kind === "worker_failed" || kind === "worker_killed") {
-    return english
-      ? `Verify worker crashed (${kind}): ${raw}`
-      : `校验进程失败（${kind}）：${raw}`;
-  }
-  if (constructedFailed(response)) {
-    return english
-      ? `Transformers could not construct the model: ${raw}`
-      : `Transformers 无法在 meta 设备上建起该模型：${raw}`;
-  }
-  return english ? `Verify failed: ${raw}` : `校验失败：${raw}`;
+  if (kind === "worker_timeout") return t(language, "verify.timeout", { raw });
+  if (kind === "worker_failed" || kind === "worker_killed") return t(language, "verify.workerCrashed", { kind, raw });
+  if (constructedFailed(response)) return t(language, "verify.constructFailed", { raw });
+  return t(language, "verify.failed", { raw });
 }
 
 function constructedFailed(response) {

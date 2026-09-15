@@ -14,6 +14,7 @@ import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal
 import { readLocalSafetensorsHeaders } from "./cost/safetensorsReader.js";
 import { graphChildren, graphViewNode } from "./structure/graph/selectors.js";
 import { formatSourceLabel } from './formatters.js';
+import { formatIssue } from "./i18n/format.js";
 
 const DetailWorkspace = lazy(() => import("./components/DetailWorkspace"));
 
@@ -88,13 +89,13 @@ function App() {
       .then((localChips) => {
         if (active && localChips.length > 0) setChips(mergeChipCatalog(PUBLIC_CHIPS, localChips));
       })
-      .catch(() => {
-        setChipError("chips.local.json 加载失败，请检查本地芯片配置格式");
+      .catch((err) => {
+        if (active) setChipError(err.issues || err.issue || { code: "chip.loadFailed" });
       });
     return () => { active = false; };
   }, []);
 
-  const error = parseError || structureError || hf.error || settingsError || exporter.error || chipError;
+  const error = formatIssue(language, parseError || structureError || hf.error || settingsError || exporter.error || chipError);
   const sourceLabel = formatSourceLabel(structure?.source, language);
   const allCollapsiblePaths = useMemo(
     () => structure?.graph ? collectCollapsiblePaths(graphViewNode(structure.graph, structure.graph.root_id || "root"), structure.graph) : new Set(),

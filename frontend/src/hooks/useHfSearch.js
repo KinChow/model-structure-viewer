@@ -14,7 +14,7 @@ export function useHfSearch(initialQuery = "DeepSeek-V3.1") {
     try {
       setResults(await searchHfApi(query.trim()));
     } catch (err) {
-      setError(err.message);
+      setError(err.issue || err.message);
     } finally {
       setLoading(false);
     }

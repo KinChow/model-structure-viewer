@@ -90,7 +90,7 @@ test("PD 链路带宽取两侧可用链路的较小值", () => {
     decodeChip: { interconnect: { inter_node: { bandwidth: 10e9 } } },
   });
   assert.equal(result.linkBandwidth, 10e9);
-  assert.equal(result.linkSource, "两侧 inter_node");
+  assert.equal(result.linkSourceCode, "comm.bothInterNode");
 });
 
 test("PD 两侧布局不同只标记重排，不估算重排开销", () => {

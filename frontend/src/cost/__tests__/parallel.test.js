@@ -9,7 +9,7 @@ const toGraph = (root) => materializeStructureGraph(root);
 
 test("并行计划校验 TP×PP×DP 与 world_size", () => {
   assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 8 }).ok, true);
-  assert.match(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 4 }).errors[0], /TP×PP×DP/);
+  assert.equal(validatePlan({ tp: 2, pp: 2, dp: 2, worldSize: 4 }).errors[0].code, "plan.worldSize");
 });
 
 test("F5 GQA 的 KV 分片因子为 min(TP, kv_heads)", () => {

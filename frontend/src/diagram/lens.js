@@ -16,7 +16,7 @@ export function buildNodeLens(structure, chip, {
   dtype = "bf16",
 } = {}) {
   if (!structure?.graph || !structure.extra_config || !chip) {
-    return { ok: false, errors: ["缺少结构、模型配置或芯片规格"], nodes: {} };
+    return { ok: false, errors: [{ code: "lens.missingInputs" }], nodes: {} };
   }
   const config = normalizeConfig(structure.extra_config);
   const checked = validatePlan(plan, config);

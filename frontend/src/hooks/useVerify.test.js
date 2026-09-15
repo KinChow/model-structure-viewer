@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { verifyStructureApi } from "../api/client.js";
+import { formatIssue } from "../i18n/format.js";
 
 test("verifyStructureApi 上行 /api/verify 并携带 msv_graph", async () => {
   const calls = [];
@@ -42,8 +43,11 @@ test("verifyStructureApi 后端不可达时给出启动指引", async () => {
     await assert.rejects(
       () => verifyStructureApi({ source: "builtin", model_id: "Qwen/Qwen3.5-0.8B" }),
       (error) => {
-        assert.match(error.message, /后端不可用/);
-        assert.match(error.message, /msv serve/);
+        assert.equal(error.issue.code, "http.verifyUnavailable");
+        assert.match(formatIssue("zh", error.issue), /后端不可用/);
+        assert.match(formatIssue("zh", error.issue), /msv serve/);
+        assert.match(formatIssue("en", error.issue), /Backend unavailable/);
+        assert.doesNotMatch(formatIssue("en", error.issue), /\p{Script=Han}/u);
         return true;
       },
     );

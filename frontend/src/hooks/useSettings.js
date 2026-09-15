@@ -34,7 +34,7 @@ export function useSettings() {
       setSettings(pickFields(data));
       return true;
     } catch (err) {
-      setError(err.message);
+      setError(err.issue || err.message);
       return false;
     }
   }, [settings]);

@@ -10,6 +10,7 @@ import { getChipCoverage } from "../cost/chips/coverage.js";
 import { DEFAULT_COMPARE_PLAN, DEFAULT_PLAN } from "../cost/defaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { etaDisclosureModel } from "../cost/ui.js";
+import { formatIssue, formatIssues, issueKey, t } from "../i18n/format.js";
 
 function downloadSvg(structure) {
   const legacySvg = document.querySelector(".diagram-svg");
@@ -58,12 +59,8 @@ function scenarioLabel(prefix, scenario, language = "zh") {
   return `${prefix} · ${chip?.name || (language === "en" ? "unknown GPU" : "未知芯片")} · TP ${plan.tp} / EP ${plan.ep} / Attention ${String(plan.attnMode).toUpperCase()} · ${chipLinkText(chip, language)}`;
 }
 
-function coverageWarningText(warning, english) {
-  if (!english) return warning;
-  if (warning.startsWith("缺少 interconnect.inter_node.bandwidth")) return "Missing interconnect.inter_node.bandwidth; cross-node uses intra-node bandwidth and may be optimistic";
-  if (warning.startsWith("缺少规格来源")) return "Missing hardware specification source";
-  if (warning.startsWith("未知 confidence")) return warning.replace("未知 confidence", "Unknown confidence");
-  return warning;
+function coverageWarningText(warning, language) {
+  return formatIssue(language, warning);
 }
 
 function DiagramPane({ label, syncId, ...diagramProps }) {
@@ -348,9 +345,9 @@ function ArchitectureTab({
       </div>}
       {/* M11-P1-1：coverage 行移出 compactControls 条件——compact 态此前永不渲染，
           芯片缺项与"跨节点偏乐观"警告全部丢失（DetailWorkspace 恒传 compactControls）。 */}
-      {chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{coverage.missing.join(english ? ", " : "、")}</span>}{coverage.warnings.map((warning) => <span key={warning}>{coverageWarningText(warning, english)}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>{english ? "Missing: " : "缺失："}{compareCoverage.missing.join(english ? ", " : "、")}</span>}{compareCoverage.warnings.map((warning) => <span key={`${compareScenario.chip.id}-${warning}`}>{coverageWarningText(warning, english)}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">{english ? "Specification source" : "规格来源"}</a>}</>}</div>}
-      {structure && nodeLensResult && !nodeLensResult.ok && <div className="cost-plan-error">基准方案无效：{nodeLensResult.errors.join("；")}</div>}
-      {structure && compareLensResult && !compareLensResult.ok && <div className="cost-plan-error">对比方案无效：{compareLensResult.errors.join("；")}</div>}
+      {chip && <div className="lens-coverage"><b>{chip.name}</b>{coverage.missing.length > 0 && <span>{t(language, "coverage.missing")}{coverage.missing.join(english ? ", " : "、")}</span>}{coverage.warnings.map((warning, index) => <span key={issueKey(warning, index)}>{coverageWarningText(warning, language)}</span>)}{chip.source?.startsWith("http") && <a href={chip.source} target="_blank" rel="noreferrer">{t(language, "coverage.specSource")}</a>}{comparisonMode === COMPARISON_MODE.CHIP && compareScenario?.chip && compareCoverage && <><b>{compareScenario.chip.name}</b>{compareCoverage.missing.length > 0 && <span>{t(language, "coverage.missing")}{compareCoverage.missing.join(english ? ", " : "、")}</span>}{compareCoverage.warnings.map((warning, index) => <span key={`${compareScenario.chip.id}-${issueKey(warning, index)}`}>{coverageWarningText(warning, language)}</span>)}{compareScenario.chip.source?.startsWith("http") && <a href={compareScenario.chip.source} target="_blank" rel="noreferrer">{t(language, "coverage.specSource")}</a>}</>}</div>}
+      {structure && nodeLensResult && !nodeLensResult.ok && <div className="cost-plan-error">{t(language, "coverage.baseInvalid", { errors: formatIssues(language, nodeLensResult.errors) })}</div>}
+      {structure && compareLensResult && !compareLensResult.ok && <div className="cost-plan-error">{t(language, "coverage.compareInvalid", { errors: formatIssues(language, compareLensResult.errors) })}</div>}
       {compareScenario && compareLensResult?.ok && <div className={`lens-flips${flips.length === 0 ? " empty" : ""}`}>{flips.length > 0 ? <>{english ? "Bound flips: " : "瓶颈类型翻转："}{flips.length} {english ? "nodes" : "个节点"}（{flips.slice(0, 4).map((flip) => `${flip.primary}→${flip.secondary}`).join(english ? ", " : "、")}{flips.length > 4 ? "…" : ""}）</> : (english ? "No bound flips under the current conditions" : "当前条件下没有瓶颈类型翻转")}</div>}
       {structure ? (compareScenario && compareLensResult?.ok ? <div className="diagram-compare">
         <DiagramPane

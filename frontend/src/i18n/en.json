@@ -1,0 +1,242 @@
+{
+  "diagram": {
+    "childCount": "{n, plural, one {# child} other {# children}}",
+    "draftBadge": "draft · not in forward",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "boundUnknown": "bound unclassified: missing inputs or rates",
+    "boundUnknownShort": "bound?"
+  },
+  "status": {
+    "frontend-architecture-template": {
+      "label": "Frontend template",
+      "detail": "Config-driven frontend structure"
+    },
+    "skeleton-truth": {
+      "label": "Checkpoint skeleton truth",
+      "detail": "Checkpoint-derived module tree"
+    },
+    "template+truth": {
+      "label": "Template + checkpoint truth",
+      "detail": "Template semantics with checkpoint values"
+    },
+    "template+header-truth": {
+      "label": "Template + header totals",
+      "detail": "Template semantics with stored safetensors header totals"
+    },
+    "header-truth": {
+      "label": "Header parameter total",
+      "detail": "Stored safetensors header parameterTotal"
+    },
+    "meta-introspect": {
+      "label": "Meta introspect",
+      "detail": "Live module tree"
+    },
+    "repaired-meta-introspect": {
+      "label": "Meta introspect",
+      "detail": "Live module tree repaired"
+    },
+    "fallback": {
+      "label": "Not loaded",
+      "detail": "No structure generated"
+    },
+    "checkpointUnavailable": "{detail}; checkpoint metadata unavailable, using config-only structure",
+    "checkpointEmpty": "{detail}; no safetensors metadata found",
+    "repairedBy": "Repaired by {strategy}"
+  },
+  "draft": {
+    "residentOnly": "Speculative decoding is off: parameters count toward VRAM, not per-forward compute or memory traffic. embed/lm_head are shared with the backbone."
+  },
+  "plan": {
+    "positiveInteger": "{key} must be a positive integer",
+    "worldSize": "world_size must equal TP×PP×DP={expected}",
+    "attnMode": "attn_mode must be tp or dp",
+    "kvKeepRatio": "kv_keep_ratio must be in (0, 1]",
+    "epExceedsExperts": "EP cannot exceed the expert count",
+    "moeEpExceedsExperts": "moe_ep cannot exceed the expert count",
+    "moeEpExceedsEp": "moe_ep({moeEp}) cannot exceed ep({ep}): expert ownership is a refinement of ep (protocol Q2)",
+    "expertsNotDivisible": "experts({experts}) must be divisible by moe_ep({moeEp})",
+    "expertDomainOpen": "expert domain is not closed: moe_ep({moeEp}) × moe_tp({moeTp}) must equal ep({ep}) × tp({tp}) (TRT-LLM Hybrid ETP)",
+    "moeTpEqualsTp": "without EP, moe_tp({moeTp}) must equal tp({tp}): DP shards experts via combined semantics (protocol Q4)",
+    "epEqualsTpDp": "when EP is enabled, ep must equal TP×DP={expected} (vLLM: EP_SIZE = TP_SIZE × DP_SIZE)",
+    "pdWrap": "{phase}_plan: {message}"
+  },
+  "chip": {
+    "notObject": "Chip entry must be an object",
+    "missingField": "missing {field}",
+    "unknownConfidence": "Unknown confidence: {value}",
+    "duplicateId": "{id}: duplicate id",
+    "missingInterNode": "Missing interconnect.inter_node.bandwidth; cross-node uses intra-node bandwidth and may be optimistic",
+    "missingVectorFlops": "Missing vector_flops; vector-unit bound cannot be classified; add sourced FP32 throughput",
+    "missingSfuOps": "Missing sfu_ops; SFU bound cannot be classified; add sourced special-function throughput",
+    "missingSource": "Missing hardware specification source",
+    "unitAnomalyBandwidth": "Unit may be wrong: memory_bandwidth deviates over 10x from every public chip, check the unit (GB/s vs TB/s, Gb vs GB)",
+    "unitAnomalyFlops": "Unit may be wrong: peak_flops.{dtype} deviates over 10x from every public chip, check the unit (TFLOPS vs GFLOPS)",
+    "manualNameEmpty": "Name cannot be empty",
+    "manualPositive": "{field, select, memory {Memory} hbm {HBM bandwidth} bf16 {BF16 compute} other {{field}}} must be greater than 0",
+    "manualIntraPositive": "Intra-node bandwidth must be greater than 0",
+    "localHttp": "Local chip config HTTP {status}",
+    "localShape": "Local chip config must be an array or an object with a chips field",
+    "loadFailed": "Failed to load chips.local.json; check the local chip config format"
+  },
+  "cost": {
+    "estimate": "Theoretical cost estimate",
+    "disclaimer": "Theoretical calculation; not simulation or prediction",
+    "expand": "Expand config",
+    "collapse": "Collapse config",
+    "machine": "Machine node",
+    "gpu": "GPU",
+    "gpuNode": "GPU / node",
+    "unknownFlops": "compute unknown",
+    "mode": "Serving mode",
+    "centralized": "Centralized",
+    "pd": "PD disaggregation",
+    "node": "node",
+    "nodes": "nodes",
+    "fit": "fit",
+    "fitCard": "Fit / card",
+    "needsGpus": "{count, plural, one {needs # GPU} other {needs # GPUs}}",
+    "memoryNoFit": "memory no-fit",
+    "planValid": "plan valid",
+    "planInvalid": "plan invalid",
+    "input": "Input tokens / request",
+    "context": "Current context length",
+    "independent": "P/D workloads, node counts, and parallel plans are saved independently; only the current phase is shown.",
+    "theoretical": "Cost is a theoretical estimate of graph-resident memory (weights, KV, KDA, declared buffers). Activation workspace, CUDA runtime, and comm scratch are runtime-unknown and not included. Roofline times are lower bounds. No scheduling, pipeline bubble, or transfer overlap simulation.",
+    "chunkedSummary": "Total uses {total} input tokens; peak uses {peak} tokens per chunk.",
+    "analysis": "Graph analysis",
+    "compare": "Compare",
+    "off": "Off",
+    "chipCompare": "GPU",
+    "planCompare": "Plan",
+    "compareGpu": "Compare GPU",
+    "compareTp": "Compare TP",
+    "compareEp": "Compare EP",
+    "compareAttention": "Compare Attention",
+    "nodesLabel": "Nodes",
+    "batchSize": "Batch size",
+    "visualTokens": "Visual tokens",
+    "nodesPerPhase": "Nodes / {phase}",
+    "parallelism": "Parallelism",
+    "assumptions": "Cost assumptions",
+    "kvBytesPerElement": "KV bytes / element",
+    "interNodeLink": "Inter-node link (roofline comm)",
+    "weightWhatIf": "Weight what-if",
+    "weights": "Weights",
+    "buffers": "Buffers",
+    "kv": "KV",
+    "kdaState": "KDA state",
+    "totalVram": "Total VRAM",
+    "maxContext": "Max context",
+    "macsPerToken": "MACs / token",
+    "macsPerForward": "MACs / forward",
+    "macsOrigin": "MACs origin",
+    "macsOriginTitle": "MACs totals by origin: formula-derived, summed from children, non-compute, or missing",
+    "weightOrigin": "Weight origin",
+    "flopsPerForward": "FLOPs / forward",
+    "communication": "Communication",
+    "costNotCovered": "Cost not covered",
+    "planInvalidProjection": "Plan invalid — per-stage projection unavailable: {errors}",
+    "pdPlanInvalid": "PD plan invalid: {errors}",
+    "pdTransfer": "KV + KDA State Transfer",
+    "stageLine": "Stage {stage} {weights} weights · {kv} KV · {state} KDA state · HBM ≈{hbm}",
+    "lowerBound": "lower bound",
+    "rooflineTimes": "Roofline {bound} {times}.",
+    "missingNote": " Roofline unknown because missing: {fields}.",
+    "unknownCompute": "{count, plural, one {# operator has no cost formula.} other {# operators have no cost formula.}}",
+    "weightsEstimate": "Weights use a {bytes} B/parameter {quantization} estimate; checkpoint metadata can refine module exceptions. ",
+    "yes": "yes",
+    "no": "no",
+    "unknown": "unknown",
+    "na": "n/a",
+    "unit": {
+      "matrix": "matrix",
+      "vector": "vector",
+      "sfu": "SFU",
+      "memory": "memory",
+      "comm": "comm"
+    },
+    "bound": {
+      "unknown": "unknown"
+    },
+    "weightSource": {
+      "checkpoint": "checkpoint truth",
+      "node": "graph declaration sum",
+      "empty": "no graph",
+      "derived-quantized": "graph declaration (quantized)",
+      "what-if": "what-if assumption"
+    },
+    "missingField": {
+      "matrix": "matrix MACs count",
+      "vector": "vector op count",
+      "sfu": "SFU op count",
+      "bytes_moved": "bytes moved",
+      "comm": "comm bytes",
+      "vector_flops": "vector_flops spec",
+      "sfu_ops": "sfu_ops spec",
+      "memory_bandwidth": "memory_bandwidth spec",
+      "interconnect.intra_node.bandwidth": "intra-node link bandwidth",
+      "interconnect.inter_node.bandwidth": "inter-node link bandwidth",
+      "peakFlops": "peak_flops ({dtype}) spec"
+    },
+    "macsSource": {
+      "formula": "formula",
+      "aggregate": "child sum",
+      "not-compute": "non-compute",
+      "unknown": "no formula"
+    },
+    "valueSource": {
+      "checkpoint": "ckpt",
+      "derived": "est",
+      "title": "Weight-carrying nodes by value origin: checkpoint truth vs config-derived estimate"
+    },
+    "eta": {
+      "short": "vector/SFU η=1.0 fixed (optimistic, not adjustable)",
+      "detail": "Vector/SFU rates are computed at 100% efficiency (rates.js falls back to eta.vector ?? 1 / eta.sfu ?? 1; resolveEfficiency does not emit these keys, so neither the sliders nor chip-level declarations reach them). ηF defaults to 0.7 as an adjustable assumption (principles §3.6) with no separate vector/SFU discount, so 1.0 is an explicit optimistic upper bound, not a measurement. The ηF slider does not affect vector/SFU paths."
+    },
+    "checkpoint": {
+      "fallback": "Checkpoint truth came from {truthEndpoint}; the requested {configEndpoint} failed and the switch was silent.",
+      "empty": "Checkpoint truth is empty (no tensors found).",
+      "unavailable": "Checkpoint truth unavailable; weights shown are config-derived estimates.",
+      "meta": "config: {configEndpoint} · truth: {truthEndpoint}",
+      "configUnknown": "unknown",
+      "truthMissing": "not fetched"
+    },
+    "diag": {
+      "skeletonBanner": "Structure not adapted: diagram comes from the checkpoint skeleton and carries no semantic binding.",
+      "noTruthBanner": "No checkpoint truth loaded; weights shown are config-derived estimates."
+    }
+  },
+  "verify": {
+    "constructed": "constructed",
+    "constructionFailed": "construction failed",
+    "constructionUnknown": "construction unknown",
+    "structureMatches": "structure matches",
+    "structureDiffers": "structure differs",
+    "notCompared": "not compared",
+    "timeout": "Verify timed out while constructing the Transformers meta model: {raw}",
+    "workerCrashed": "Verify worker crashed ({kind}): {raw}",
+    "constructFailed": "Transformers could not construct the model: {raw}",
+    "failed": "Verify failed: {raw}"
+  },
+  "http": {
+    "verifyUnavailable": "Backend unavailable: verify needs the local Python service (default :8000) to build the Transformers meta model. Run `.venv/bin/msv serve --root ./models --port 8000`, then retry. Static deploys do not have this path.",
+    "backendUnavailable": "HTTP {status}: backend unavailable or returned a non-JSON error. Start the backend (uvicorn), or use source=hf with endpoint=modelscope for a frontend-direct path (no backend).",
+    "status": "HTTP {status}",
+    "backendDetail": "{detail}"
+  },
+  "coverage": {
+    "missing": "Missing: ",
+    "specSource": "Specification source",
+    "baseInvalid": "Base plan invalid: {errors}",
+    "compareInvalid": "Compare plan invalid: {errors}"
+  },
+  "comm": {
+    "bothInterNode": "both sides inter_node",
+    "minAvailable": "min of available intra-node / inter-node bandwidth",
+    "missingLink": "missing link bandwidth"
+  },
+  "lens": {
+    "missingInputs": "missing structure, model config, or chip spec"
+  }
+}

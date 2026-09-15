@@ -230,6 +230,7 @@
     "invalidConfig": "config.json must contain a JSON object.",
     "invalidSource": "Unsupported model source: {source}. Choose a built-in model, a remote model, or a local folder.",
     "remoteConfigFailed": "Unable to read config for {modelId} from the model sources: {detail}",
-    "searchFailed": "Hugging Face search failed: {detail}"
+    "searchFailed": "Hugging Face search failed: {detail}",
+    "localReadFailed": "Unable to read config.json from the selected folder: {detail}"
   }
 }

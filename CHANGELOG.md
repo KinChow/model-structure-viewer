@@ -12,6 +12,12 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
+### 纯前端边界（2026-09-15）
+
+- 页面移除后端状态、Transformers 校验和服务端配置；模型选项保留 Revision、内置模型和 HF 直连搜索。
+- 删除产品代码的 `/api/*` 请求与 Vite 后端代理；旧 auto 走内置→远程，旧 local 提示浏览器重新选择目录。Python CLI/API 兼容保留。
+- 本地目录精确匹配 config.json；覆盖取消、错误、header 与导出，并为全部浏览器回归增加同源 API 零请求断言。
+
 - 前端 i18n：ICU catalog（`frontend/src/i18n/{en,zh}.json` + `intl-messageformat`）。引擎只发 `{code, params}`（对标 LSP Diagnostic.code），UI `t()` / `formatIssue()`。覆盖结构状态、成本字段、plan/chip 校验、PD `linkSource`、HTTP/芯片加载错误、lens 缺输入。en/zh 键集相等；en 无汉字。
 - DSpark / MTP 节点徽标：`repeat===0` 是计费旗标（不计前向，仍驻留显存），不再渲染 `×0`；子模块数走 ICU plural。draft 说明改 `note_code: draft.residentOnly`。
 - 未做（触发池，见 `docs/implementation_plan.md`）：算子 `explanation` 双语、chrome 三元收 catalog、芯片 `notes` 翻译、`collectDiagnostics` 中文 catalog。

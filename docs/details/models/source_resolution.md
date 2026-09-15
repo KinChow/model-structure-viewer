@@ -1,5 +1,13 @@
 # Model Source Resolution
 
+## Product frontend
+
+The browser reads built-in static assets, public Hugging Face/ModelScope resources, or user-selected directory files. It never calls MSV `/api/*`. Legacy `auto` tries builtin → hf; legacy `local` asks the user to choose a folder again. Local directory files are read in the browser and are not uploaded. Transformers verification remains a developer CLI/API tool.
+
+## Python developer tools
+
+The filesystem and cache rules below apply only to Python CLI/API.
+
 Default model root:
 
 ```text
@@ -32,7 +40,7 @@ MiniMaxAI/MiniMax-M3
 
 `offline=true` is stronger than cache policy. If offline is enabled, `hf` lookup and HF search fail immediately.
 
-Shared contract (frontend static Hub + Python cache, runtimes not merged): [`source_contract.json`](source_contract.json). Unique key = `repo_id + revision + cache_dir`. `auto` fallback = builtin → local → hf. ModelScope empty/`main` revision maps to `master`.
+Contract (shared endpoint/Graph fields, separate frontend and Python source rules): [`source_contract.json`](source_contract.json). Unique key = `repo_id + revision + cache_dir`. `auto` fallback = builtin → local → hf. ModelScope empty/`main` revision maps to `master`.
 
 ## Hugging Face Endpoint
 
@@ -63,6 +71,7 @@ The built-in static bundle contains only:
 
 - `config.json`
 - `catalog.json`
+- optional `header-truth.json`, `skeleton-truth.json`, and `source-ref.json`
 
 The backend may cache remote-code helpers when `auto_fetch_remote_code` is enabled. The resolver never downloads or caches weight files, including:
 

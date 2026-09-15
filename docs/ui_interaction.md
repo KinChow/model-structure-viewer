@@ -28,7 +28,7 @@
 ### 打开本地模型目录
 
 - 浏览器目录选择读取 `config.json`，并在文件可用时读取 safetensors header。
-- 本地路径输入调用后端，不在纯静态部署中承诺可用。
+- 不提供服务端路径输入；取消选择保持页面状态，目录中必须存在文件名精确为 `config.json` 的文件。
 - 没有找到 `config.json` 或配置无法解析时显示明确错误。
 
 ### 全局行为
@@ -43,11 +43,15 @@
 详情页由 `DetailWorkspace.jsx` 组织，保持单页工作区，不拆成多级路由。
 
 ```text
-顶部：返回、模型 ID、语言、主题、设置
+顶部：返回、模型 ID、语言、主题、模型选项
 摘要：架构、参数、层数、hidden size、专家、上下文、来源、状态
 主体左侧：搜索、结构图、成本与部署、导出/原始配置
 主体右侧：模型摘要或节点 Inspector
 ```
+
+### 模型选项
+
+保留 Revision、内置模型选择和 Hugging Face 直连搜索；不提供服务端模型列表、根目录、缓存配置或保存服务端设置。Transformers 验证仅供开发 CLI/API 使用，不出现在产品界面。
 
 ### Architecture
 
@@ -94,9 +98,9 @@
 
 ## 状态与错误
 
-- 区分 frontend template、checkpoint truth、meta introspection 和 repaired meta introspection。
+- 页面区分 frontend template、checkpoint truth 和 header totals；meta introspection 仅属于开发工具。
 - 权重真值不可用时显示对应来源和降级原因。
-- 后端不可用时，静态来源仍可继续工作；需要后端的操作应明确提示启动 API。
+- 不探测或提示后端状态。模型源网络失败提示对应来源；旧 local 链接提示重新选择目录，不调用 `/api/*`。
 - loading、error、empty 和 unknown 状态不能使用相同文案或颜色表达。
 
 ## 可访问性和响应式约束

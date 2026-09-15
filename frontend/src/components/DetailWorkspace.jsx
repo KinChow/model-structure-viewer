@@ -158,7 +158,7 @@ export default function DetailWorkspace({
     onSelectNode(path);
   };
   return (
-    <main className={`detail-page theme-${theme}`}>
+    <main className={`detail-page theme-${theme}${auxView ? " has-aux" : ""}`}>
       <DetailHeader structure={structure} sourceLabel={sourceLabel} language={language} onLanguageChange={onLanguageChange} onThemeChange={onThemeChange} theme={theme} onBack={onBack} onSettings={onSettings} />
       <section className="detail-summary"><SummaryChips structure={structure} sourceLabel={sourceLabel} language={language} /></section>
       <DiagnosticsPanel structure={structure} language={language} />

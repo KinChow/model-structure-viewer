@@ -230,6 +230,7 @@
     "invalidConfig": "config.json 必须包含 JSON 对象。",
     "invalidSource": "不支持的模型来源：{source}。请选择内置模型、远程模型或本地文件夹。",
     "remoteConfigFailed": "无法从模型源读取 {modelId} 的配置：{detail}",
-    "searchFailed": "Hugging Face 搜索失败：{detail}"
+    "searchFailed": "Hugging Face 搜索失败：{detail}",
+    "localReadFailed": "无法读取所选文件夹中的 config.json：{detail}"
   }
 }

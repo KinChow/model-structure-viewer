@@ -1,4 +1,6 @@
 import { test, expect } from "./fixtures.js";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 const forbiddenUi = /Backend unavailable|后端不可用|Verify with Transformers|用 Transformers 校验|Backend Local Models|后端本地模型|Model root|模型根目录|Save settings|保存设置|Open path|打开路径/;
 
@@ -84,5 +86,76 @@ for (const language of ["zh", "en"]) {
     await expect(page.getByRole("alert")).toContainText(language === "en" ? "choose the model folder again" : "重新选择文件夹");
     await expect(page.getByLabel("model id")).toBeVisible();
     await expect(page.locator("body")).not.toContainText(forbiddenUi);
+  });
+}
+
+for (const language of ["zh", "en"]) {
+  test(`浏览器目录读取、取消、错误及导出 (${language})`, async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
+    const english = language === "en";
+    await page.addInitScript((locale) => localStorage.setItem("msv-language", locale), language);
+    await page.route(/https:\/\/(?:www\.)?(?:huggingface\.co|modelscope\.cn)\//, (route) => route.abort());
+    const makeDirectory = async (name, files) => {
+      const dir = testInfo.outputPath("folders", name);
+      await mkdir(dir, { recursive: true });
+      for (const [file, content] of Object.entries(files)) await writeFile(path.join(dir, file), content);
+      return dir;
+    };
+    const choose = async (dir) => {
+      const pending = page.waitForEvent("filechooser");
+      await page.getByRole("button", { name: english ? "Choose folder" : "打开文件夹", exact: true }).click();
+      await (await pending).setFiles(dir);
+    };
+    await page.goto("/");
+    await page.getByRole("button", { name: english ? "Open local model directory" : "打开本地模型目录", exact: true }).click();
+    const input = page.locator('input[type="file"]');
+    // 标准取消事件与空 FileList 都不能触发构建或报错；不用模拟系统文件对话框的按键。
+    await input.dispatchEvent("cancel");
+    expect(await input.evaluate((element) => element.files.length)).toBe(0);
+    await input.dispatchEvent("change");
+    await expect(page.locator(".entry-loading")).toHaveCount(0);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    const missing = await makeDirectory("missing", { "tokenizer_config.json": "{}" });
+    await choose(missing);
+    await expect(page.getByRole("alert")).toContainText(english ? "No config.json" : "没有找到 config.json");
+    const invalid = await makeDirectory("invalid", { "config.json": "{" });
+    await choose(invalid);
+    await expect(page.getByRole("alert")).toContainText(english ? "Unable to read config.json" : "无法读取所选文件夹中的 config.json");
+    const array = await makeDirectory("array", { "config.json": "[]" });
+    await choose(array);
+    await expect(page.getByRole("alert")).toContainText(english ? "JSON object" : "JSON 对象");
+    const json = JSON.stringify(remoteConfig);
+    const configOnly = await makeDirectory("config-only", { "config.json": json });
+    await choose(configOnly);
+    await expect(page.locator(".detail-page")).toBeVisible();
+    await expect(page.locator(".react-flow__node").first()).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(forbiddenUi);
+    await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
+    await page.getByRole("button", { name: english ? "Open local model directory" : "打开本地模型目录", exact: true }).click();
+    const header = Buffer.from(JSON.stringify({ "model.embed_tokens.weight": { dtype: "BF16", shape: [256, 64], data_offsets: [0, 32768] } }));
+    const prefix = Buffer.alloc(8);
+    prefix.writeBigUInt64LE(BigInt(header.length));
+    const withHeader = await makeDirectory("with-header", {
+      "config.json": json,
+      "model.safetensors": Buffer.concat([prefix, header, Buffer.alloc(32768)]),
+    });
+    await choose(withHeader);
+    await expect(page.locator(".detail-page")).toBeVisible();
+    await expect(page.locator(".diagnostics-meta")).toContainText(english ? "tensors" : "张量");
+    await page.locator(".detail-aux-actions").getByRole("button", { name: english ? "Export" : "导出", exact: true }).click();
+    const panel = page.locator(".export-panel");
+    for (const format of ["json", "mermaid", "dot"]) {
+      await panel.locator("select").selectOption(format);
+      await panel.getByRole("button", { name: "Export", exact: true }).click();
+      await expect(panel.locator("textarea")).not.toHaveValue("");
+      const text = await panel.locator("textarea").inputValue();
+      if (format === "json") {
+        const exported = JSON.parse(text);
+        expect(exported.summary.parameters_total).toBe(16384);
+        expect(exported.source.checkpoint_truth).toBe("available");
+        expect(exported.graph.nodes.length).toBeGreaterThan(0);
+      } else expect(text).toContain(format === "dot" ? "digraph" : "flowchart");
+    }
+    await page.screenshot({ path: testInfo.outputPath(`local-export-${language}.png`), fullPage: true });
   });
 }

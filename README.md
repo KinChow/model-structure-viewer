@@ -4,13 +4,13 @@
 
 版本和重要变更见 [`CHANGELOG.md`](CHANGELOG.md)。
 
-工具不下载权重数据区，也不跑推理。在线模型只读取配置、模型 API 和 safetensors header。当前网页端主要在前端完成组网：
+工具不下载权重数据区，也不跑推理。在线模型只读取配置、模型 API 和 safetensors header。网页端是纯前端产品，无需 Python 或 API 服务，直接在浏览器中完成组网：
 
 ```text
 config.json + checkpoint header -> registry/trie -> truth merge -> Graph IR v2 -> cost lens/UI/export
 ```
 
-后端主要负责本地配置读取、Hugging Face 配置读取和 Graph IR introspection；Graph IR 是唯一结构载荷（执行路线步骤 7 后 root 投影已退役，树视图仅能经 selectors 按需从图重建）。
+Python CLI/API 仅用于开发、取证和 Transformers 验证，不是网页运行依赖。产品前端不探测或调用 MSV 后端，也不提供服务端设置或校验按钮；Graph IR 是唯一产品结构载荷。
 仓库内置模型配置可以直接作为静态资源使用，适合部署到 GitHub Pages 这类静态站点。
 
 ## 项目边界
@@ -33,6 +33,8 @@ config.json + checkpoint header -> registry/trie -> truth merge -> Graph IR v2 -
 - MiniMax-M3 示例：`/Users/zhouzijian01/Desktop/workspace/models/MiniMaxAI/MiniMax-M3/config.json`
 
 ## 安装
+
+仅使用网页：安装 Node.js 后运行 `npm --prefix frontend install`，无需 Python。以下完整环境用于开发和验证：
 
 ```bash
 cd /Users/zhouzijian01/Desktop/workspace/code/kinchow/model-structure-viewer
@@ -83,29 +85,17 @@ cd frontend && npm install
 
 ## 网页
 
-启动 API：
-
-```bash
-.venv/bin/msv --root /Users/zhouzijian01/Desktop/workspace/models serve --port 8000
-```
-
-如果只想用仓库里已经适配的配置，可以直接指定 `./models`：
-
-```bash
-.venv/bin/msv --root ./models serve --port 8000
-```
-
 启动前端：
 
 ```bash
 bash scripts/dev-frontend.sh
 ```
 
-打开 `http://localhost:5173`。Vite dev server 会把 API 请求转发到 `http://localhost:8000`。等价命令仍是 `cd frontend && npm run dev`。
+打开 `http://localhost:5173`，无需启动 API。等价命令是 `cd frontend && npm run dev`；开发服务器也不代理 `/api/*`。
 
 ### 页面使用
 
-1. 选择 `builtin`、`hf`、`local` 或 `config`，填写模型 ID 或配置并点击「打开模型」。
+1. 输入 Hugging Face/ModelScope 模型 ID，选择内置模型，或通过浏览器选择本地模型文件夹；“模型选项”保留 Revision、内置模型列表和 HF 直连搜索。
 2. 顶部“理论成本估算”调整 Prefill/Decode、B、T、权重/KV dtype 假设以及 TP/PP/EP/DP、MoE TP/MoE EP、词表并行（world size 由前三者派生只读）；结果只用于定性分析，不是仿真或性能预测。
 3. Architecture 的 Lens 可切换芯片、阶段、TP、EP、Attention 模式和三个效率因子。
 4. “芯片”对比固定并行方案，只改变芯片；“方案”对比固定芯片，只改变 TP/EP/Attention，发生瓶颈翻转的节点会单独突出。
@@ -113,7 +103,13 @@ bash scripts/dev-frontend.sh
 
 内置公开芯片为 A100、H100 和 L40S，均附 NVIDIA 官方来源。其他芯片可通过页面“添加芯片”临时录入，或复制 `frontend/src/cost/chips/chips.local.example.json` 为 `frontend/public/chips.local.json` 进行本地覆盖；仓库不会保存非公开规格。
 
-## API
+## 开发验证 API
+
+以下接口仅供开发工具调用，产品前端不调用它们。需要验证服务时启动：
+
+```bash
+.venv/bin/msv --root ./models serve --port 8000
+```
 
 - `GET /api/models`
 - `GET /api/local/config?model_id=MiniMaxAI/MiniMax-M3`
@@ -128,15 +124,15 @@ bash scripts/dev-frontend.sh
 
 ## 数据来源
 
-- `local`：只读取 `$MODEL_ROOT/<org>/<model>/config.json`
+- `local`：仅 CLI/API 读取 `$MODEL_ROOT/<org>/<model>/config.json`；网页中的旧 local 链接提示重新选择文件夹，不访问磁盘路径接口。
 - `builtin`：读取仓库内置 `models/<org>/<model>/config.json`；网页静态部署时不需要后端，CLI/API 会从仓库内置目录读取
-- `hf`：网页优先直连 Hugging Face 获取 `config.json` 与 checkpoint header；Hugging Face 失败后按优先级切到 ModelScope，两个远程源都失败时降级为 config-only
-- `auto`：CLI/API 兼容模式，优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页入口使用明确的端点选择器，内部仍可使用同一套 fallback。
-- `config`：使用粘贴或上传的 JSON
+- `hf`：网页优先直连 Hugging Face 获取 `config.json` 与 checkpoint header；Hugging Face 失败后按优先级切到 ModelScope，配置读取失败则报模型源错误；仅 header 不可用时保留 config-only 结构
+- `auto`：CLI/API 兼容模式，优先读 `builtin`，再读本地缓存，最后才走 Hugging Face；网页入口使用明确的端点选择器，旧 `auto` 来源只按 builtin → hf 解析，不经过本地服务。
+- `config`：网页读取浏览器选定文件夹内的 `config.json`，可同时读取 safetensors header，不上传本地文件。
 
 网页模型入口接受 `org/model`，也接受对应的 Hugging Face / ModelScope 模型 URL；系统会先归一化为仓库 ID，再拼接 resolve 地址。
 
-仓库内置的前端静态模型资产只包括 `config.json` 和 `catalog.json`。safetensors header 由网页运行时按 HF → ModelScope 读取；自定义 `configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py` 只保留给可信后端的 Transformers 验证路径，不进入 Pages 静态资源。
+仓库内置的前端静态模型资产包括 `config.json`、`catalog.json` 和可选的 `header-truth.json`、`skeleton-truth.json`、`source-ref.json`。已有 sidecar 优先，否则按 HF → ModelScope 读取 header；自定义 `configuration_*.py`、`modeling_*.py` 和 `tokenization_*.py` 只保留给可信后端的 Transformers 验证路径，不进入 Pages 静态资源。
 
 下面这些权重或模型文件不会被这个工具缓存：
 

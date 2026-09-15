@@ -77,6 +77,11 @@ function App() {
       setParseError({ code: "model.localDirectoryRequired" });
     }
   }, []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("source") === "local") {
+      setParseError({ code: "model.localDirectoryRequired" });
+    }
+  }, []);
   function handleAddChip(chip) {
     setChips((current) => [...current.filter((entry) => entry.id !== chip.id), chip]);
   }

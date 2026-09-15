@@ -127,11 +127,13 @@ API 验证必须包含正常请求和错误请求；响应应为合法 JSON，�
 
 ## 7. 浏览器验证
 
-`npm --prefix frontend run test:e2e`（`verify:page` 为兼容别名）会启动隔离 Vite 服务，并在桌面/移动 Chrome 中验证当前 React Flow 页面。
+`npm --prefix frontend run test:e2e`（`verify:page` 为兼容别名）会启动隔离 Vite 服务，并在桌面/移动 Chrome 中验证当前 React Flow 页面。全量 59 模型展开回归在桌面运行，移动端覆盖代表模型和全部纯前端边界用例。
 
 浏览器验收至少覆盖：
 
 - 入口页加载 catalog、Provider 和模型快捷入口。
+- 所有产品流程记录并禁止同源 `/api/*` 请求；不 mock 后端成功响应，不出现验证按钮或服务端设置。
+- 直连模型源的成功/失败夹具、模型选项搜索、旧 local 链接、目录取消/缺配置/无效 JSON/header 和导出。
 - 内置模型生成后出现 `.react-flow-diagram` 和 React Flow 节点。
 - 搜索、节点选择、breadcrumb、公式索引和 Inspector 联动。
 - 展开/折叠结构组、fit、缩放和 minimap。

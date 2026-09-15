@@ -11,16 +11,16 @@ flowchart LR
   S[模型来源] --> R[来源解析]
   R --> C[config / metadata]
   C --> F[前端结构路径]
-  C --> B[后端验证路径]
+  D[开发 CLI/API] --> B[开发验证路径]
   F --> IR[前端主 Graph IR]
   B --> O[Transformers evidence / compare]
-  O --> IR
+  IR -. 导出图用于开发对账 .-> O
   IR --> V[详情 UI]
   IR --> E[JSON / Mermaid / DOT 导出]
   IR --> L[Cost Lens]
 ```
 
-模型来源包括 `builtin`、`local`、`hf`、`auto` 和 `config`。`auto` 是 CLI/API 的兼容 fallback 模式；前端入口展示明确的远程端点选择。前端静态部署优先使用 `builtin`、`config` 和公开远程来源；本地目录、后端代理、settings 和 transformers 验证需要 API。
+产品前端来源为 `builtin`、`hf` 和浏览器文件对应的 `config`。旧 `auto` 只按内置→远程解析；旧 `local` 提示重新选择目录。页面不请求 MSV `/api/*`，没有验证入口或后端状态探测。本地目录使用浏览器 File API，搜索与远程读取直连公开 Hub。Python CLI/API 的磁盘缓存、来源解析与验证契约独立保留。
 
 ## 前端结构路径
 
@@ -36,7 +36,7 @@ config.json + safetensors header
   -> UI / export / cost analysis
 ```
 
-前端是静态部署的主要路径。配置归一化只负责统一字段，registry 只负责架构识别，model builder 负责顶层组网，layers/ops 负责结构和算子语义，IR 负责稳定边界，UI 不直接依赖 builder 内部对象。
+前端是产品唯一运行路径。配置归一化只负责统一字段，registry 只负责架构识别，model builder 负责顶层组网，layers/ops 负责结构和算子语义，IR 负责稳定边界，UI 不直接依赖 builder 内部对象。
 
 ## 后端路径
 
@@ -92,5 +92,6 @@ compute、aggregate、通信、PP/PD projection 和导出只消费 graph。`root
 - 模块、公式和 IR：[`details/modules.md`](details/modules.md)
 - 模型来源、catalog 和发布时间：[`details/models.md`](details/models.md)
 - UI 行为：[`ui_interaction.md`](ui_interaction.md)
+- 纯前端边界与实现参考：[`frontend_boundary.md`](frontend_boundary.md)
 - 测试与发布：[`testing_release.md`](testing_release.md)
 - 变更历史：通过 Git 提交记录追溯；当前实现计划见 [`implementation_plan.md`](implementation_plan.md)

@@ -98,7 +98,7 @@ GEMM     counts.matrix  ↔ T4 / flop_registry      MAC；torch FLOP = 2×MAC
 
 ### 来源与对账
 
-- 前后端两套 resolver 运行时不合并。共享契约见 [`details/models/source_contract.json`](details/models/source_contract.json)：键 `repo_id + revision + cache_dir`；来源 `auto|builtin|local|hf|config`；`auto` fallback = builtin → local → hf；ModelScope 空/`main` → `master`；错误分类 config=400 / not_found=404 / remote=502。前后端测试对这份 JSON。
+- 产品前端纯静态运行，不请求 MSV 后端；验证只属于开发 CLI/API。前后端两套 resolver 运行时不合并。共享契约见 [`details/models/source_contract.json`](details/models/source_contract.json)：键 `repo_id + revision + cache_dir`；来源 `auto|builtin|local|hf|config`；Python `auto` fallback = builtin → local → hf，前端旧 `auto` = builtin → hf；ModelScope 空/`main` → `master`；错误分类 config=400 / not_found=404 / remote=502。前后端测试对这份 JSON。
 - verify triage 继续 fixture（`canonical_path_contract.json` 四桶）。不写 DSL。
 - `source_ref`：58/59 已入库。Kimi-K3 永不 dump / verify。缺席产物节点 `source_ref` 为 null。
 - schema：`StructureNodeBase` 已抽。Graph 协议字段（`schema_version` / `parent_id` / `order` / `canonical_id`）锁在同一份 `source_contract.json`；后端不当第二份产品结构源。

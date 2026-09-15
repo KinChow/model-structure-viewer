@@ -3,6 +3,7 @@ import useDialog from "../hooks/useDialog.js";
 
 function Drawer({
   open,
+  theme = "dark",
   language = "zh",
   revision,
   onRevisionChange,
@@ -26,7 +27,7 @@ function Drawer({
   return (
     <>
       {open && <div className="drawer-backdrop" aria-hidden="true" onClick={onClose} />}
-      <aside className={`drawer ${open ? "open" : ""}`} role="dialog" aria-modal="true" aria-label={t.inputs} ref={panelRef}>
+      <aside className={`drawer theme-${theme} ${open ? "open" : ""}`} role="dialog" aria-modal="true" aria-label={t.inputs} ref={panelRef}>
         <button type="button" className="drawer-close" aria-label={t.close} onClick={onClose}>×</button>
       <section>
         <h2>{t.inputs}</h2>

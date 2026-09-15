@@ -298,6 +298,7 @@ function App() {
         <Drawer
           open={drawerOpen}
           onClose={handleCloseDrawer}
+          theme={theme}
           revision={revision}
           onRevisionChange={setRevision}
           language={language}

@@ -698,6 +698,37 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   cursor: pointer;
 }
 
+.drawer.theme-dark {
+  background: #151c26;
+  color: #edf2f7;
+}
+
+.drawer.theme-dark .drawer-close {
+  border-color: #344154;
+  background: #202a37;
+  color: #d5dde6;
+}
+
+.drawer.theme-dark section + section { border-color: #2a3545; }
+.drawer.theme-dark label { color: #aebaca; }
+.drawer.theme-dark input,
+.drawer.theme-dark select {
+  border-color: #344154;
+  background: #101721;
+  color: #edf2f7;
+}
+.drawer.theme-dark > section > button,
+.drawer.theme-dark .compact-list button {
+  border-color: #344154;
+  background: #202a37;
+  color: #edf2f7;
+}
+.drawer.theme-dark > section > button:hover,
+.drawer.theme-dark .compact-list button:hover {
+  border-color: #f4ab52;
+  background: #2a384b;
+}
+
 .drawer section + section {
   border-top: 1px solid #e2e9f0;
   margin-top: 16px;

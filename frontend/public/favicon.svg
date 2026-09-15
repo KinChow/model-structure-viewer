@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Model Structure Viewer">
+  <rect width="64" height="64" rx="14" fill="#101721"/>
+  <path d="M16 17h14v12H16zM34 17h14v12H34zM16 35h14v12H16zM34 35h14v12H34z" fill="#f4ab52"/>
+  <path d="M30 23h4M23 29v6M41 29v6M30 41h4" stroke="#edf2f7" stroke-width="3" stroke-linecap="round"/>
+</svg>

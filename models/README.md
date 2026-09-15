@@ -56,8 +56,8 @@ tokenizer、generation 或 processor metadata，也不会覆盖已有文件；�
 在仓库根目录执行：
 
 ```bash
-.venv/bin/msv list --root ./models
-.venv/bin/msv serve --root ./models --port 8000
+.venv/bin/msv --root ./models list
+.venv/bin/msv --root ./models serve --port 8000
 ```
 
 前端启动后选择 `builtin` 或 `auto`，model id 直接填下面这些值即可。

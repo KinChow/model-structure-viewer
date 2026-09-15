@@ -86,9 +86,7 @@ chunk size warning 不等于构建失败，但应在影响首屏加载时单独�
 单模型验证：
 
 ```bash
-.venv/bin/msv verify \
-  --root ./models \
-  --offline \
+.venv/bin/msv --root ./models --offline verify \
   --model Qwen/Qwen3.5-0.8B \
   --source local \
   --cache-policy offline \
@@ -106,7 +104,7 @@ chunk size warning 不等于构建失败，但应在影响首屏加载时单独�
 启动本地 API：
 
 ```bash
-.venv/bin/msv serve --root ./models --port 8000
+.venv/bin/msv --root ./models serve --port 8000
 ```
 
 至少验证：

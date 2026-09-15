@@ -57,13 +57,13 @@ cd frontend && npm install
 
 ```bash
 # 列出本地 config.json
-.venv/bin/msv list --root /Users/zhouzijian01/Desktop/workspace/models
+.venv/bin/msv --root /Users/zhouzijian01/Desktop/workspace/models list
 
 # 列出仓库内置配置
-.venv/bin/msv list --root ./models
+.venv/bin/msv --root ./models list
 
 # 搜索 Hugging Face
-.venv/bin/msv search MiniMax-M3 --endpoint https://huggingface.co
+.venv/bin/msv --endpoint https://huggingface.co search MiniMax-M3
 
 # 通过仓库内置 config 查看结构
 .venv/bin/msv inspect --model MiniMaxAI/MiniMax-M3 --source builtin --format json
@@ -78,7 +78,7 @@ cd frontend && npm install
 .venv/bin/msv inspect --config tests/fixtures/minimax_m3/config.json --format dot
 
 # 验证 transformers 是否能构造 meta 模型；失败会直接返回错误
-.venv/bin/msv verify --root ./models --offline --model Qwen/Qwen3.5-0.8B --source local --cache-policy offline
+.venv/bin/msv --root ./models --offline verify --model Qwen/Qwen3.5-0.8B --source local --cache-policy offline
 ```
 
 ## 网页
@@ -86,13 +86,13 @@ cd frontend && npm install
 启动 API：
 
 ```bash
-.venv/bin/msv serve --root /Users/zhouzijian01/Desktop/workspace/models --port 8000
+.venv/bin/msv --root /Users/zhouzijian01/Desktop/workspace/models serve --port 8000
 ```
 
 如果只想用仓库里已经适配的配置，可以直接指定 `./models`：
 
 ```bash
-.venv/bin/msv serve --root ./models --port 8000
+.venv/bin/msv --root ./models serve --port 8000
 ```
 
 启动前端：
@@ -105,7 +105,7 @@ bash scripts/dev-frontend.sh
 
 ### 页面使用
 
-1. 选择 `builtin`、`hf`、`local` 或 `config`，填写模型 ID 或配置并点击 `Generate`。
+1. 选择 `builtin`、`hf`、`local` 或 `config`，填写模型 ID 或配置并点击「打开模型」。
 2. 顶部“理论成本估算”调整 Prefill/Decode、B、T、权重/KV dtype 假设以及 TP/PP/EP/DP、MoE TP/MoE EP、词表并行（world size 由前三者派生只读）；结果只用于定性分析，不是仿真或性能预测。
 3. Architecture 的 Lens 可切换芯片、阶段、TP、EP、Attention 模式和三个效率因子。
 4. “芯片”对比固定并行方案，只改变芯片；“方案”对比固定芯片，只改变 TP/EP/Attention，发生瓶颈翻转的节点会单独突出。

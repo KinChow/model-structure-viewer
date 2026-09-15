@@ -54,7 +54,7 @@ export function formatRate(value) {
 function getCircularReplacer() {
   const ancestors = [];
   return function (key, value) {
-    if (typeof value !== "object" || value === null) {
+    if (typeof value !== 'object' || value === null) {
       return value;
     }
     // `this` is the object that value is contained in, i.e. its direct parent.
@@ -62,7 +62,7 @@ function getCircularReplacer() {
       ancestors.pop();
     }
     if (ancestors.includes(value)) {
-      return "[Circular]";
+      return '[Circular]';
     }
     ancestors.push(value);
     return value;
@@ -70,13 +70,21 @@ function getCircularReplacer() {
 }
 
 /** Convert source metadata to display text without relying on Object#toString. */
-export function formatSourceLabel(source, language = "zh") {
-  const unknown = language === "en" ? "unknown" : "未知";
-  if (source == null || source === "") return unknown;
-  if (typeof source === "string") return source;
-  if (typeof source !== "object") return String(source);
-  for (const key of ["kind", "label", "name"]) {
-    if (typeof source[key] === "string" && source[key].trim()) return source[key];
+export function formatSourceLabel(source, language = 'zh') {
+  const unknown = language === 'en' ? 'unknown' : '未知';
+  if (source == null || source === '') {
+    return unknown;
+  }
+  if (typeof source === 'string') {
+    return source;
+  }
+  if (typeof source !== 'object') {
+    return String(source);
+  }
+  for (const key of ['kind', 'label', 'name']) {
+    if (typeof source[key] === 'string' && source[key].trim()) {
+      return source[key];
+    }
   }
   try {
     return JSON.stringify(source, getCircularReplacer());

@@ -13,7 +13,7 @@ import { PUBLIC_CHIPS } from "./cost/chips/public.js";
 import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal.js";
 import { readLocalSafetensorsHeaders } from "./cost/safetensorsReader.js";
 import { graphChildren, graphViewNode } from "./structure/graph/selectors.js";
-import { formatSourceLabel } from "./formatters.js";
+import { formatSourceLabel } from './formatters.js';
 
 const DetailWorkspace = lazy(() => import("./components/DetailWorkspace"));
 

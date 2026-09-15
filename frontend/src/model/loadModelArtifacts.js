@@ -196,7 +196,7 @@ export async function loadModelArtifacts(
       const data = await fetchBuiltinConfig({ entry: payload.builtin_entry, modelId: payload.model_id });
       const modelId = data.model_id || payload.model_id;
       // 后端/catalog 的 source 是对象（`{kind, ...}`），展示层只消费 kind 字符串。
-      const sourceKind = data.source?.kind || "built-in config";
+      const sourceKind = data.source?.kind || 'built-in config';
       const endpoint = payload.endpoint || "huggingface";
       const revision = revisionForEndpoint(endpoint, payload.revision);
       const sourceRef = await loadBuiltinSourceRef(fetchBuiltinSourceRef, payload, modelId);

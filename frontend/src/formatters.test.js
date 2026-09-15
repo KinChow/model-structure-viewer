@@ -33,16 +33,20 @@ test("shared cost formatters keep units stable across panels", () => {
   assert.equal(formatRate(2e9), "2.0 GB/s");
 });
 
-test("source formatter handles strings, metadata objects, empty values, and cycles", () => {
-  assert.equal(formatSourceLabel("built-in config"), "built-in config");
-  assert.equal(formatSourceLabel({ kind: "built-in config", model_id: "MiniMaxAI/MiniMax-M3" }), "built-in config");
-  assert.equal(formatSourceLabel({ label: "local directory" }), "local directory");
-  assert.equal(formatSourceLabel({ provider: "internal", model_id: "demo" }), '{"provider":"internal","model_id":"demo"}');
-  assert.equal(formatSourceLabel(null), "未知");
-  assert.equal(formatSourceLabel(undefined, "en"), "unknown");
+test('source formatter handles strings, metadata objects, empty values, and cycles', () => {
+  assert.equal(formatSourceLabel('built-in config'), 'built-in config');
+  assert.equal(
+    formatSourceLabel({kind: 'built-in config', model_id: 'MiniMaxAI/MiniMax-M3'}),
+    'built-in config',
+  );
+  assert.equal(formatSourceLabel({label: 'local directory'}), 'local directory');
+  const fallbackJson = '{"provider":"internal","model_id":"demo"}';
+  assert.equal(formatSourceLabel({provider: 'internal', model_id: 'demo'}), fallbackJson);
+  assert.equal(formatSourceLabel(null), '未知');
+  assert.equal(formatSourceLabel(undefined, 'en'), 'unknown');
   const cyclic = {};
   cyclic.self = cyclic;
   assert.equal(formatSourceLabel(cyclic), '{"self":"[Circular]"}');
   const shared = {};
-  assert.equal(formatSourceLabel([shared, shared]), "[{},{}]");
+  assert.equal(formatSourceLabel([shared, shared]), '[{},{}]');
 });

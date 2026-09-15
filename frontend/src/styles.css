@@ -1299,6 +1299,19 @@ label {
     box-shadow: 0 18px 48px rgba(0,0,0,.42);
   }
 }
+@media (min-width: 961px) and (max-height: 850px) {
+  /* Keep the graph and fixed cost bar inside short desktop viewports. */
+  .detail-page .diagram-frame { min-height: 220px; }
+  .detail-inspector-slot .model-inspector-summary,
+  .detail-inspector-slot .detail-panel { max-height: min(46vh, 420px); overflow: auto; }
+}
+@media (min-width: 961px) and (max-width: 1100px) {
+  .detail-inspector-slot .model-inspector-summary,
+  .detail-inspector-slot .detail-panel {
+    max-height: min(46vh, 420px);
+    overflow: auto;
+  }
+}
 .detail-page .formula-section { border-color: #2a3545; }
 .detail-page .formula-section code { color: #f2c27b; }
 .detail-page .formula-section p { color: #aebaca; }

@@ -173,3 +173,15 @@ test("短桌面窗口展开公式索引时保留完整控件高度", async ({ pa
   await expect.poll(() => strip.boundingBox().then((box) => box?.height || 0)).toBeGreaterThanOrEqual(100);
   await expect(strip.locator(".formula-strip-links")).toBeVisible();
 });
+
+test("短桌面视口不产生额外文档溢出", async ({ page }) => {
+  for (const viewport of [{ width: 1000, height: 750 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
+    await page.getByRole("button", { name: "打开模型" }).click();
+    await page.locator(".diagram-frame").waitFor();
+    const size = await page.evaluate(() => ({ viewport: innerHeight, document: document.documentElement.scrollHeight }));
+    expect(size.document).toBeLessThanOrEqual(size.viewport + 1);
+    await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
+  }
+});

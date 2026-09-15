@@ -102,7 +102,6 @@ function App() {
     [structure]
   );
 
-  const searchActive = Boolean(searchTerm.trim());
   const matchedPaths = useMemo(
     () => computeMatches(structure?.graph, searchTerm),
     [structure, searchTerm]
@@ -115,26 +114,6 @@ function App() {
     [matchedPaths, structure]
   );
 
-  useEffect(() => {
-    if (!searchActive || matchedPaths.size === 0 || !structure) return;
-    const toAdd = [];
-    matchedPaths.forEach((path) => {
-      ancestorCollapsiblePaths(structure.graph, path).forEach((collapsiblePath) => toAdd.push(collapsiblePath));
-    });
-    if (toAdd.length === 0) return;
-    setLayersExpandedPaths((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      toAdd.forEach((collapsiblePath) => {
-        if (!next.has(collapsiblePath)) {
-          next.add(collapsiblePath);
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [matchedPaths, searchActive, structure]);
-
   function handleSelectNode(path) {
     setSelectedNodePath(path);
     setDrawerOpen(false);
@@ -146,7 +125,6 @@ function App() {
         ancestors.forEach((ancestor) => next.add(ancestor));
         return next;
       });
-      setFitNonce((value) => value + 1);
     }
   }
 
@@ -158,17 +136,14 @@ function App() {
       else next.add(path);
       return next;
     });
-    setFitNonce((value) => value + 1);
   }
 
   function handleExpandAllLayers() {
     setLayersExpandedPaths(new Set(allCollapsiblePaths));
-    setFitNonce((value) => value + 1);
   }
 
   function handleCollapseAllLayers() {
-    setLayersExpandedPaths(new Set());
-    setFitNonce((value) => value + 1);
+    setLayersExpandedPaths(new Set(["root"]));
   }
 
   function handleOpenDrawer() {

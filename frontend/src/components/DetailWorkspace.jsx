@@ -160,7 +160,6 @@ export default function DetailWorkspace({
   const selectSearchResult = (path) => {
     setInspectorCollapsed(false);
     onSelectNode(path);
-    onSearchChange("");
   };
   return (
     <main className={`detail-page theme-${theme}`}>

@@ -12,6 +12,7 @@ import {
   getBezierPath,
   getSmoothStepPath,
   useReactFlow,
+  useStore,
 } from "@xyflow/react";
 import { SmartEdgeProvider, useSmartEdgePath } from "@tisoap/react-flow-smart-edge";
 import { layoutGraph } from "./layout.js";
@@ -24,6 +25,9 @@ import { t } from "../i18n/format.js";
 
 const EMPTY_SET = new Set();
 const DATAFLOW_MARKER = { type: MarkerType.ArrowClosed, width: 10, height: 10, color: "#d08a3a" };
+const PROGRAMMATIC_MIN_ZOOM = 0.35;
+const PROGRAMMATIC_MAX_ZOOM = 1.2;
+const HEADER_CENTER_Y = 14;
 const HoverContext = createContext({ activeRelationPath: null, onHover: null });
 
 
@@ -165,12 +169,30 @@ function MsvEdge(props) {
   return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} data-evidence={data?.evidence}><title>{data?.hint}</title></BaseEdge>;
 }
 
+function reactFlowId(path, containerFrames) {
+  return containerFrames.some((frame) => frame.id === path) ? `frame-${path}` : path;
+}
+
+function boxInViewport(box, viewport, pane) {
+  const width = pane?.width || 0;
+  const height = pane?.height || 0;
+  if (!width || !height || !box.width || !box.height) return false;
+  const left = box.x * viewport.zoom + viewport.x;
+  const top = box.y * viewport.zoom + viewport.y;
+  const right = left + box.width * viewport.zoom;
+  const bottom = top + box.height * viewport.zoom;
+  return left >= 0 && top >= 0 && right <= width && bottom <= height;
+}
+
 function ReactFlowCanvas({ graph, props }) {
-  const { fitBounds, fitView, setCenter, setViewport, getNode, getNodes, getViewport, zoomTo } = useReactFlow();
+  const { fitView, setCenter, setViewport, getNode, getViewport, zoomTo } = useReactFlow();
+  const paneWidth = useStore((state) => state.width);
+  const paneHeight = useStore((state) => state.height);
   const lastZoom = useRef(props.zoom);
   const lastFitNonce = useRef(props.fitNonce);
   const lastModelKey = useRef(null);
-  const lastLayoutSignature = useRef(null);
+  const lastFocusedPath = useRef(null);
+  const lastFocusedSignature = useRef(null);
   useEffect(() => {
     if (!props.scrollSync?.group || !props.scrollSyncId) return undefined;
     const entry = { setViewport: (viewport) => setViewport(viewport, { duration: 0 }) };
@@ -266,20 +288,22 @@ function ReactFlowCanvas({ graph, props }) {
     () => [...graph.containerFrames, ...graph.nodes].map((node) => `${node.path || node.id}:${node.x || 0}:${node.y || 0}:${node.width || 0}:${node.height || 0}`).join("|"),
     [graph.containerFrames, graph.nodes],
   );
-  // Fit once after the real ELK layout arrives, on model changes, or when the
-  // user explicitly requests it. Expanding a nested module must preserve the
-  // current viewport so the selected-module focus below can take over.
   useEffect(() => {
     if (!graph.layoutReady) return;
     const modelChanged = modelKey !== lastModelKey.current;
     const fitRequested = props.fitNonce !== lastFitNonce.current;
-    const layoutChanged = lastLayoutSignature.current != null && layoutSignature !== lastLayoutSignature.current;
-    if (!modelChanged && !fitRequested && !layoutChanged) return;
+    if (!modelChanged && !fitRequested) return;
     lastModelKey.current = modelKey;
     lastFitNonce.current = props.fitNonce;
-    lastLayoutSignature.current = layoutSignature;
-    fitView({ padding: 0.12, duration: 260 });
-  }, [graph.layoutReady, layoutSignature, modelKey, props.fitNonce, fitView]);
+    lastFocusedPath.current = props.selectedPath;
+    lastFocusedSignature.current = layoutSignature;
+    void fitView({
+      padding: 0.12,
+      duration: 260,
+      minZoom: PROGRAMMATIC_MIN_ZOOM,
+      maxZoom: PROGRAMMATIC_MAX_ZOOM,
+    });
+  }, [graph.layoutReady, modelKey, props.fitNonce, layoutSignature, fitView]);
   useEffect(() => {
     if (props.zoom === lastZoom.current) return;
     const ratio = props.zoom / Math.max(lastZoom.current, 0.1);
@@ -289,53 +313,21 @@ function ReactFlowCanvas({ graph, props }) {
     lastZoom.current = props.zoom;
   }, [props.zoom, getViewport, zoomTo]);
   useEffect(() => {
-    if (!props.selectedPath) return;
-    const depth = props.selectedPath.split(".").length - 1;
-    const timer = window.setTimeout(() => {
-      const isFrame = graph.containerFrames.some((frame) => frame.id === props.selectedPath);
-      const node = getNode(isFrame ? `frame-${props.selectedPath}` : props.selectedPath);
-      if (!node) return;
-      // Node positions are relative inside compound parents. Reconstruct the
-      // absolute point from the parent chain instead of trusting a measured
-      // absolute cache, which can still describe the previous layout during
-      // an expand/collapse transition.
-      let absoluteX = node.position.x;
-      let absoluteY = node.position.y;
-      let parentId = node.parentId;
-      while (parentId) {
-        const parent = getNode(parentId);
-        if (!parent) break;
-        absoluteX += parent.position.x;
-        absoluteY += parent.position.y;
-        parentId = parent.parentId;
-      }
-      // A deep compound module is the user's current reading context. Focus
-      // that frame at a readable zoom instead of fitting all of its siblings,
-      // which makes every operator card too small to inspect.
-      if (isFrame && depth >= 2) {
-        const box = absoluteNodeBox(node, getNode);
-        void fitBounds({ x: box.x, y: box.y, width: box.width, height: box.height }, {
-          duration: 260,
-          padding: 0.14,
-          minZoom: 0.5,
-          maxZoom: 0.9,
-        });
-        return;
-      }
-      const siblings = getNodes().filter((candidate) => candidate.parentId === node.parentId && candidate.type !== "stageBand");
-      if (siblings.length > 1) {
-        const boxes = siblings.map((candidate) => absoluteNodeBox(candidate, getNode));
-        const left = Math.min(...boxes.map((box) => box.x));
-        const top = Math.min(...boxes.map((box) => box.y));
-        const right = Math.max(...boxes.map((box) => box.x + box.width));
-        const bottom = Math.max(...boxes.map((box) => box.y + box.height));
-        void fitBounds({ x: left, y: top, width: right - left, height: bottom - top }, { padding: 0.16, duration: 260 });
-        return;
-      }
-      setCenter(absoluteX + (node.measured?.width || node.width || 220) / 2, absoluteY + (node.measured?.height || node.height || 76) / 2, { duration: 260, zoom: depth >= 2 ? 1.05 : undefined });
-    }, 360);
-    return () => window.clearTimeout(timer);
-  }, [props.selectedPath, graph, fitBounds, getNode, getNodes, setCenter]);
+    if (!graph.layoutReady || !props.selectedPath) return;
+    if (props.fitNonce !== lastFitNonce.current) return;
+    const alreadyFocused = lastFocusedPath.current === props.selectedPath && lastFocusedSignature.current === layoutSignature;
+    if (alreadyFocused) return;
+    const node = getNode(reactFlowId(props.selectedPath, graph.containerFrames));
+    if (!node) return;
+    const box = absoluteNodeBox(node, getNode);
+    if (!box.width || !box.height) return;
+    lastFocusedPath.current = props.selectedPath;
+    lastFocusedSignature.current = layoutSignature;
+    const viewport = getViewport();
+    const headerBox = { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, HEADER_CENTER_Y * 2) };
+    if (boxInViewport(headerBox, viewport, { width: paneWidth, height: paneHeight })) return;
+    setCenter(box.x + box.width / 2, box.y + HEADER_CENTER_Y, { duration: 200, zoom: viewport.zoom });
+  }, [graph.layoutReady, layoutSignature, props.selectedPath, props.fitNonce, getNode, getViewport, setCenter, graph.containerFrames, paneWidth, paneHeight]);
   function handleMove(_, viewport) {
     const group = props.scrollSync?.group;
     if (!group || !props.scrollSyncId || group.busy) return;

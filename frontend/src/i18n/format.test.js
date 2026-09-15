@@ -41,6 +41,21 @@ test("repeat greater than 1 still shows a multiplier", () => {
   assert.equal(nodeBadges(node, "zh").find((badge) => badge.kind === "repeat").text, "×61");
 });
 
+test("undeclared repeat is not a draft badge", () => {
+  for (const node of [
+    { name: "final norm", type: "normalization", repeat: null, children: [{ id: "0" }] },
+    { name: "lm head", type: "output", repeat: undefined },
+    { name: "embed", type: "embedding" },
+    { name: "string zero", repeat: "0" },
+    { name: "once", repeat: 1, children: [{ id: "0" }] },
+  ]) {
+    const badges = nodeBadges(node, "zh");
+    assert.equal(badges.some((badge) => badge.kind === "draft"), false, node.name);
+    assert.equal(badges.some((badge) => badge.kind === "repeat"), false, node.name);
+    assert.doesNotMatch(badgeText(node, "zh"), /投机头/);
+  }
+});
+
 test("plan errors format in English without Han", () => {
   const { errors } = normalizeParallelPlan({ tp: 2, pp: 2, dp: 2, worldSize: 4 });
   const english = formatIssue("en", errors[0]);

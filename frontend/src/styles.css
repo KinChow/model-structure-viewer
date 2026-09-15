@@ -1275,6 +1275,7 @@ label {
   .detail-page .detail-layout { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
   .detail-page .detail-main { display: flex; flex-direction: column; min-height: 0; }
   .detail-page .diagram-panel { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+  .detail-page .formula-strip { flex: 0 0 auto; }
   .detail-page .diagram-frame { flex: 1 1 auto; min-height: 320px; height: auto; }
   .detail-page .diagram-compare-pane .diagram-frame { flex: 0 0 420px; min-height: 420px; height: 420px; }
   .detail-page .detail-cost-toggle {

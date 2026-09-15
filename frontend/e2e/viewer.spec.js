@@ -162,3 +162,14 @@ test("桌面对比模式保留两张可见 React Flow 画布", async ({ page }, 
     await expect.poll(() => page.locator(".diagram-compare-pane .react-flow__node").count()).toBeGreaterThan(0);
   }
 });
+
+test("短桌面窗口展开公式索引时保留完整控件高度", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
+  await page.getByRole("button", { name: "打开模型" }).click();
+  await page.locator(".detail-page").waitFor();
+  const strip = page.locator(".formula-strip");
+  await strip.getByRole("button", { name: "公式索引" }).click();
+  await expect.poll(() => strip.boundingBox().then((box) => box?.height || 0)).toBeGreaterThanOrEqual(100);
+  await expect(strip.locator(".formula-strip-links")).toBeVisible();
+});

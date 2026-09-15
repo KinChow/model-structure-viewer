@@ -221,6 +221,8 @@ test("built-in header-truth sidecar supplies parameterTotal without remote tenso
     }),
   );
   assert.equal(remoteTruthCalls, 0);
+  // source 是对象（`{kind, ...}`），展示层只取 kind 字符串——不得出现 "[object Object] + header-truth"
+  assert.equal(structure.source.kind, "built-in config + header-truth");
   assert.equal(structure.source.checkpoint_truth, "available");
   assert.equal(structure.summary.strategy, "template+header-truth");
   assert.equal(structure.summary.parameters_total, 123456789);
@@ -266,6 +268,7 @@ test("built-in config returns before deferred safetensors truth and updates in b
   );
 
   assert.equal(truthRequests, 1);
+  assert.equal(structure.source.kind, "built-in config");
   assert.equal(structure.source.checkpoint_truth, "not-requested");
   assert.equal(backgroundStructure, null);
 

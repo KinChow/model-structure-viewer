@@ -13,6 +13,7 @@ import { PUBLIC_CHIPS } from "./cost/chips/public.js";
 import { loadLocalChipOverrides, mergeChipCatalog } from "./cost/chips/loadLocal.js";
 import { readLocalSafetensorsHeaders } from "./cost/safetensorsReader.js";
 import { graphChildren, graphViewNode } from "./structure/graph/selectors.js";
+import { formatSourceLabel } from "./formatters.js";
 
 const DetailWorkspace = lazy(() => import("./components/DetailWorkspace"));
 
@@ -94,7 +95,7 @@ function App() {
   }, []);
 
   const error = parseError || structureError || hf.error || settingsError || exporter.error || chipError;
-  const sourceLabel = structure?.source?.kind || "not loaded";
+  const sourceLabel = formatSourceLabel(structure?.source, language);
   const allCollapsiblePaths = useMemo(
     () => structure?.graph ? collectCollapsiblePaths(graphViewNode(structure.graph, structure.graph.root_id || "root"), structure.graph) : new Set(),
     [structure]

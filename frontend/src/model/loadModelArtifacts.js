@@ -195,6 +195,8 @@ export async function loadModelArtifacts(
       onProgress?.("reading");
       const data = await fetchBuiltinConfig({ entry: payload.builtin_entry, modelId: payload.model_id });
       const modelId = data.model_id || payload.model_id;
+      // 后端/catalog 的 source 是对象（`{kind, ...}`），展示层只消费 kind 字符串。
+      const sourceKind = data.source?.kind || "built-in config";
       const endpoint = payload.endpoint || "huggingface";
       const revision = revisionForEndpoint(endpoint, payload.revision);
       const sourceRef = await loadBuiltinSourceRef(fetchBuiltinSourceRef, payload, modelId);
@@ -209,7 +211,7 @@ export async function loadModelArtifacts(
               config: data.config,
               modelId,
               revision,
-              source: `${data.source || "built-in config"} + ${kind}`,
+              source: `${sourceKind} + ${kind}`,
               checkpointTruth: skeletonTruth,
               checkpointTruthStatus: statusForTruth(skeletonTruth),
               sourceRef,
@@ -225,7 +227,7 @@ export async function loadModelArtifacts(
           config: data.config,
           modelId,
           revision,
-          source: data.source || "built-in config",
+          source: sourceKind,
           checkpointTruthStatus: CHECKPOINT_TRUTH_STATUS.NOT_REQUESTED,
           configEndpoint: "built-in",
           sourceRef,

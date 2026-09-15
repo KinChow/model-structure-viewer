@@ -8,6 +8,7 @@ import {
   formatQuantity,
   formatRate,
   formatSeconds,
+  formatSourceLabel,
 } from "./formatters.js";
 
 test("shared count formatter preserves summary and inspector precision", () => {
@@ -30,4 +31,18 @@ test("shared cost formatters keep units stable across panels", () => {
   assert.equal(formatMacs(1.2e6), "1.2 M");
   assert.equal(formatSeconds(0.25), "250.00 ms");
   assert.equal(formatRate(2e9), "2.0 GB/s");
+});
+
+test("source formatter handles strings, metadata objects, empty values, and cycles", () => {
+  assert.equal(formatSourceLabel("built-in config"), "built-in config");
+  assert.equal(formatSourceLabel({ kind: "built-in config", model_id: "MiniMaxAI/MiniMax-M3" }), "built-in config");
+  assert.equal(formatSourceLabel({ label: "local directory" }), "local directory");
+  assert.equal(formatSourceLabel({ provider: "internal", model_id: "demo" }), '{"provider":"internal","model_id":"demo"}');
+  assert.equal(formatSourceLabel(null), "未知");
+  assert.equal(formatSourceLabel(undefined, "en"), "unknown");
+  const cyclic = {};
+  cyclic.self = cyclic;
+  assert.equal(formatSourceLabel(cyclic), '{"self":"[Circular]"}');
+  const shared = {};
+  assert.equal(formatSourceLabel([shared, shared]), "[{},{}]");
 });

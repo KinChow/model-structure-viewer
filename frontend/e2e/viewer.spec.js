@@ -57,6 +57,7 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
   await page.locator(".detail-cost-toggle > button").click();
   await expect(page.getByText("Total VRAM", { exact: false })).toBeVisible();
   await expect(page.getByText("MACs / forward", { exact: false })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("[object Object]");
 
   const overflow = await page.evaluate(() => ({
     width: document.documentElement.scrollWidth,
@@ -73,7 +74,7 @@ test("多模态模型图包含视觉塔和视觉投影路径", async ({ page }) 
   await expect(page.locator(".detail-page")).toBeVisible();
   const vision = page.locator(".react-flow__node").filter({ hasText: "Vision Tower" }).first();
   await expect(vision).toBeVisible();
-  await vision.locator("button").first().click();
+  await vision.getByRole("button", { name: "展开", exact: true }).click();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Vision Merger" })).toBeVisible();
 });
 
@@ -163,7 +164,13 @@ test("父节点详情提供子模块和 Shape", async ({ page }) => {
   expect(declaredClass).not.toEqual(orderClass);
 
   const operator = page.locator(".rf-node-content").filter({ hasText: "QKV projection" }).first();
-  await operator.click();
+  await expect(operator).toBeVisible();
+  await page.locator(".react-flow__controls-fitview").click();
+  await expect(operator).toBeInViewport();
+  // React Flow pans with CSS transform. Playwright's default click then
+  // scrollIntoViewIfNeeded() fights that pane and reports "outside of the viewport".
+  // locator.click({ force: true }) is the documented bypass for actionability.
+  await operator.click({ force: true });
   await expect(page.locator(".child-modules-section")).toHaveCount(0);
   await expect(page.locator(".inspector-disclosure").filter({ hasText: "Shape / Tensor" })).toBeVisible();
 });

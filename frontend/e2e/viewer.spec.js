@@ -144,3 +144,21 @@ test("父节点详情提供子模块和 Shape", async ({ page }) => {
   await expect(page.locator(".child-modules-section")).toHaveCount(0);
   await expect(page.locator(".inspector-disclosure").filter({ hasText: "Shape / Tensor" })).toBeVisible();
 });
+
+test("桌面对比模式保留两张可见 React Flow 画布", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chrome", "桌面对比画布回归");
+  await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
+  await page.getByRole("button", { name: "打开模型" }).click();
+  await page.locator(".detail-page").waitFor();
+  await page.locator(".detail-cost-toggle > button").click();
+  const cost = page.locator(".cost-summary");
+  await cost.getByRole("button", { name: "展开配置", exact: true }).click();
+  for (const label of ["芯片", "方案"]) {
+    await cost.locator(".cost-segmented button").filter({ hasText: label }).click();
+    const panes = page.locator(".diagram-compare-pane .diagram-frame");
+    await expect(panes).toHaveCount(2);
+    await expect.poll(() => panes.nth(0).evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(400);
+    await expect.poll(() => panes.nth(1).evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(400);
+    await expect.poll(() => page.locator(".diagram-compare-pane .react-flow__node").count()).toBeGreaterThan(0);
+  }
+});

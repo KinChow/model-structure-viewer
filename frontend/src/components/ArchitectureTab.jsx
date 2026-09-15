@@ -70,7 +70,7 @@ function coverageWarningText(warning, language) {
 
 function DiagramPane({ label, syncId, ...diagramProps }) {
   return (
-    <div>
+    <div className="diagram-compare-pane">
       <div className="diagram-compare-label">{label}</div>
       <StructureDiagram {...diagramProps} scrollSyncId={syncId} showGroupToggle={false} />
     </div>

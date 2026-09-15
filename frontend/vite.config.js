@@ -69,12 +69,4 @@ export default defineConfig({
   // 相对 base：静态部署（GitHub Pages 子路径等）下资源可解析
   base: "./",
   plugins: [react(), modelsStaticPlugin()],
-  server: {
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-      },
-    },
-  },
 });

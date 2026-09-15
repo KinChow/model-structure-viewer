@@ -2,10 +2,10 @@ import {
   fetchBuiltinConfigApi,
   fetchBuiltinSkeletonTruthApi,
   fetchBuiltinSourceRefApi,
-  fetchLocalConfigApi,
 } from "../api/client.js";
 import { fetchHfConfigDirect, resolveEndpoint, revisionForEndpoint } from "../api/hf.js";
 import { fetchCheckpointTruth } from "../cost/weights.js";
+import { issueError } from "../i18n/format.js";
 
 export const CHECKPOINT_TRUTH_STATUS = {
   AVAILABLE: "available",
@@ -56,7 +56,7 @@ export function createModelArtifacts({
   checkpointTruthEndpoint = null,
   sourceRef = null,
 }) {
-  if (!config || typeof config !== "object") throw new Error("Model artifacts require a config object");
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw issueError("model.invalidConfig");
   return {
     config,
     modelId,
@@ -145,7 +145,7 @@ async function withRemoteTruth(data, { modelId, endpoint, revision, fetchTruth, 
 }
 
 async function loadRemoteConfig({ modelId, endpoint, revision, fetchHfConfig }) {
-  let lastError = null;
+  const failures = [];
   for (const candidate of remoteEndpoints(endpoint)) {
     const candidateRevision = revisionForEndpoint(candidate, revision);
     try {
@@ -155,10 +155,10 @@ async function loadRemoteConfig({ modelId, endpoint, revision, fetchHfConfig }) 
       );
       return { config, endpoint: candidate, revision: candidateRevision };
     } catch (error) {
-      lastError = error;
+      failures.push(`${candidate}: ${error.message}`);
     }
   }
-  throw lastError || new Error(`Unable to fetch model config for ${modelId}`);
+  throw issueError("model.remoteConfigFailed", { modelId, detail: failures.join("; ") });
 }
 
 /**
@@ -173,14 +173,14 @@ export async function loadModelArtifacts(
     fetchBuiltinSkeletonTruth = fetchBuiltinSkeletonTruthApi,
     fetchBuiltinSourceRef = fetchBuiltinSourceRefApi,
     fetchHfConfig = fetchHfConfigDirect,
-    fetchLocalConfig = fetchLocalConfigApi,
     fetchTruth = fetchCheckpointTruth,
     deferCheckpointTruth = false,
     onProgress,
   } = {},
 ) {
   onProgress?.("reading");
-  if (payload.source === "config" && payload.config_json) {
+  if (payload.source === "local") throw issueError("model.localDirectoryRequired");
+  if (payload.source === "config") {
     return createModelArtifacts({
       config: payload.config_json,
       modelId: payload.model_id,
@@ -195,7 +195,7 @@ export async function loadModelArtifacts(
       onProgress?.("reading");
       const data = await fetchBuiltinConfig({ entry: payload.builtin_entry, modelId: payload.model_id });
       const modelId = data.model_id || payload.model_id;
-      // 后端/catalog 的 source 是对象（`{kind, ...}`），展示层只消费 kind 字符串。
+      // catalog 的 source 是对象（`{kind, ...}`），展示层只消费 kind 字符串。
       const sourceKind = data.source?.kind || 'built-in config';
       const endpoint = payload.endpoint || "huggingface";
       const revision = revisionForEndpoint(endpoint, payload.revision);
@@ -242,23 +242,7 @@ export async function loadModelArtifacts(
     }
   }
 
-  if ((payload.source === "local" || payload.source === "auto") && (payload.config_path || payload.model_id)) {
-    try {
-      onProgress?.("reading");
-      const data = await fetchLocalConfig({ modelId: payload.model_id, configPath: payload.config_path });
-      return createModelArtifacts({
-        config: data.config,
-        modelId: data.model_id || payload.model_id,
-        revision: payload.revision,
-        source: data.source?.kind || "local config",
-        checkpointTruth: data.checkpoint_truth || null,
-      });
-    } catch (error) {
-      if (payload.source !== "auto") throw error;
-    }
-  }
-
-  if (payload.source === "hf" && payload.model_id) {
+  if ((payload.source === "hf" || payload.source === "auto") && payload.model_id) {
     onProgress?.("reading");
     const remoteConfig = await loadRemoteConfig({
       modelId: payload.model_id,
@@ -282,7 +266,7 @@ export async function loadModelArtifacts(
     );
   }
 
-  return null;
+  throw issueError("model.invalidSource", { source: String(payload.source || "") });
 }
 
 async function loadBuiltinSourceRef(fetchBuiltinSourceRef, payload, modelId) {

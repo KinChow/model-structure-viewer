@@ -1,21 +1,16 @@
 import { useCallback, useRef, useState } from "react";
-import { buildStructureApi } from "../api/client.js";
 import { buildStructureFromArtifacts } from "../structure/buildStructure.js";
 import { loadModelArtifacts, resolveDeferredCheckpointTruth } from "../model/loadModelArtifacts.js";
 
-export async function buildStructureForPayload(
-  payload,
-  buildApi = buildStructureApi,
-  fetchLocalConfig,
+export async function buildStructureForPayload(payload, {
   fetchHfConfig,
   fetchBuiltinConfig,
   fetchTruth,
   onBackgroundUpdate,
   onProgress,
   fetchBuiltinSkeletonTruth,
-) {
+} = {}) {
   const artifacts = await loadModelArtifacts(payload, {
-    fetchLocalConfig,
     fetchHfConfig,
     fetchBuiltinConfig,
     fetchTruth,
@@ -23,17 +18,14 @@ export async function buildStructureForPayload(
     deferCheckpointTruth: Boolean(onBackgroundUpdate && (payload.source === "builtin" || payload.source === "auto")),
     onProgress,
   });
-  if (artifacts) {
-    onProgress?.("building");
-    const structure = buildStructureFromArtifacts(artifacts);
-    if (artifacts.deferredTruth) {
-      void resolveDeferredCheckpointTruth(artifacts, { fetchTruth }).then((updatedArtifacts) => {
-        onBackgroundUpdate?.(buildStructureFromArtifacts(updatedArtifacts));
-      });
-    }
-    return structure;
+  onProgress?.("building");
+  const structure = buildStructureFromArtifacts(artifacts);
+  if (artifacts.deferredTruth) {
+    void resolveDeferredCheckpointTruth(artifacts, { fetchTruth }).then((updatedArtifacts) => {
+      onBackgroundUpdate?.(buildStructureFromArtifacts(updatedArtifacts));
+    });
   }
-  return buildApi(payload);
+  return structure;
 }
 
 export function useStructure() {
@@ -50,20 +42,14 @@ export function useStructure() {
     setLoadingPhase("reading");
     setLoading(true);
     try {
-      const data = await buildStructureForPayload(
-        payload,
-        buildStructureApi,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        (updated) => {
+      const data = await buildStructureForPayload(payload, {
+        onBackgroundUpdate: (updated) => {
           if (requestId === requestRef.current) setStructure(updated);
         },
-        (phase) => {
+        onProgress: (phase) => {
           if (requestId === requestRef.current) setLoadingPhase(phase);
         },
-      );
+      });
       if (requestId !== requestRef.current) return null;
       setStructure(data);
       return data;

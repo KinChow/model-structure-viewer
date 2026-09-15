@@ -207,23 +207,9 @@
       "noTruthBanner": "未加载 checkpoint 真值；权重为 config 推导估算。"
     }
   },
-  "verify": {
-    "constructed": "构造通过",
-    "constructionFailed": "构造失败",
-    "constructionUnknown": "构造未知",
-    "structureMatches": "结构一致",
-    "structureDiffers": "结构不一致",
-    "notCompared": "未对账",
-    "timeout": "校验超时：transformers meta 构型未在时限内完成。{raw}",
-    "workerCrashed": "校验进程失败（{kind}）：{raw}",
-    "constructFailed": "Transformers 无法在 meta 设备上建起该模型：{raw}",
-    "failed": "校验失败：{raw}"
-  },
   "http": {
-    "verifyUnavailable": "后端不可用：校验需要本地 Python 服务（默认 :8000）跑 transformers meta 构型。先 `.venv/bin/msv serve --root ./models --port 8000`，再点校验。静态部署没有这条通路。",
-    "backendUnavailable": "HTTP {status}：后端不可用或返回了非 JSON 错误。请启动后端（uvicorn），或改用 source=hf + endpoint=modelscope 走前端直连（无需后端）。",
     "status": "HTTP {status}",
-    "backendDetail": "{detail}"
+    "detail": "{detail}"
   },
   "coverage": {
     "missing": "缺失：",
@@ -238,5 +224,12 @@
   },
   "lens": {
     "missingInputs": "缺少结构、模型配置或芯片规格"
+  },
+  "model": {
+    "localDirectoryRequired": "请通过“打开本地模型目录”重新选择文件夹；浏览器无法直接打开已保存的文件系统路径。",
+    "invalidConfig": "config.json 必须包含 JSON 对象。",
+    "invalidSource": "不支持的模型来源：{source}。请选择内置模型、远程模型或本地文件夹。",
+    "remoteConfigFailed": "无法从模型源读取 {modelId} 的配置：{detail}",
+    "searchFailed": "Hugging Face 搜索失败：{detail}"
   }
 }

@@ -65,11 +65,11 @@ test("plan errors format in English without Han", () => {
 });
 
 test("HTTP and chip load issues format without leaking Han in English", () => {
-  const verify = formatIssue("en", { code: "http.verifyUnavailable" });
-  assert.match(verify, /msv serve/);
-  assert.doesNotMatch(verify, HAN);
-  assert.match(formatIssue("zh", { code: "http.verifyUnavailable" }), /后端不可用/);
-  assert.match(formatIssue("en", { code: "http.backendUnavailable", params: { status: 502 } }), /HTTP 502/);
+  const local = formatIssue("en", { code: "model.localDirectoryRequired" });
+  assert.match(local, /choose the model folder again/);
+  assert.doesNotMatch(local, HAN);
+  assert.match(formatIssue("zh", { code: "model.localDirectoryRequired" }), /重新选择文件夹/);
+  assert.match(formatIssue("en", { code: "http.status", params: { status: 502 } }), /502/);
   assert.doesNotMatch(formatIssue("en", { code: "chip.localHttp", params: { status: 500 } }), HAN);
   assert.match(formatIssue("zh", { code: "chip.localShape" }), /chips/);
 });

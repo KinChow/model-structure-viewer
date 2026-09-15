@@ -1,6 +1,5 @@
 import { catalogPath, modelConfigPath, normalizeCatalog, staticAssetPath } from "../structure/catalog/manifest.js";
 import { issueError } from "../i18n/format.js";
-import { searchHfDirect } from "./hf.js";
 
 export async function requestJson(path, options) {
   const response = await fetch(path, options);
@@ -19,7 +18,7 @@ export async function requestJson(path, options) {
     }
   }
   if (!response.ok) {
-    const issue = describeHttpError(response.status, payload, path);
+    const issue = describeHttpError(response.status, payload);
     const error = issueError(issue.code, issue.params);
     error.status = response.status;
     error.path = path;
@@ -29,34 +28,14 @@ export async function requestJson(path, options) {
   return payload;
 }
 
-function describeHttpError(status, payload, path) {
+function describeHttpError(status, payload) {
   if (payload?.detail) {
     return {
-      code: "http.backendDetail",
+      code: "http.detail",
       params: { detail: typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail) },
     };
   }
-  if (status >= 500 && !payload) {
-    if (path === "/api/verify") return { code: "http.verifyUnavailable" };
-    return { code: "http.backendUnavailable", params: { status } };
-  }
   return { code: "http.status", params: { status } };
-}
-
-export function fetchSettings() {
-  return requestJson("/api/settings");
-}
-
-export function saveSettingsApi(settings) {
-  return requestJson("/api/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(settings),
-  });
-}
-
-export function fetchModels() {
-  return requestJson("/api/models");
 }
 
 export async function fetchBuiltinCatalogApi() {
@@ -118,38 +97,4 @@ async function findBuiltinModelEntry(modelId) {
   if (!modelId) return null;
   const catalog = await fetchBuiltinCatalogApi();
   return catalog.models.find((entry) => entry.modelId === modelId) || null;
-}
-
-export function fetchLocalConfigApi({ modelId, configPath, source = "local" }) {
-  const params = new URLSearchParams();
-  if (modelId) params.set("model_id", modelId);
-  if (configPath) params.set("config_path", configPath);
-  if (source !== "local") params.set("source", source);
-  return requestJson(`/api/local/config?${params.toString()}`);
-}
-
-// 搜索/配置读取：前端直连优先（静态部署可用），失败回退后端代理（本地开发/受限网络）。
-export async function searchHfApi(query, limit = 10, endpoint) {
-  try {
-    return await searchHfDirect(query, limit, endpoint);
-  } catch {
-    const params = new URLSearchParams({ q: query, limit: String(limit), endpoint: endpoint || "huggingface" });
-    return requestJson(`/api/hf/search?${params.toString()}`);
-  }
-}
-
-export function buildStructureApi(payload) {
-  return requestJson("/api/structure", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
-export function verifyStructureApi(payload) {
-  return requestJson("/api/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
 }

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { searchHfApi } from "../api/client";
+import { searchHfDirect } from "../api/hf.js";
 
 export function useHfSearch(initialQuery = "DeepSeek-V3.1") {
   const [query, setQuery] = useState(initialQuery);
@@ -12,7 +12,7 @@ export function useHfSearch(initialQuery = "DeepSeek-V3.1") {
     setError("");
     setLoading(true);
     try {
-      setResults(await searchHfApi(query.trim()));
+      setResults(await searchHfDirect(query.trim()));
     } catch (err) {
       setError(err.issue || err.message);
     } finally {

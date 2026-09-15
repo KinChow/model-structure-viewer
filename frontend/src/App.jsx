@@ -72,6 +72,11 @@ function App() {
   const [chipError, setChipError] = useState("");
   const [language, setLanguage] = useState(() => localStorage.getItem("msv-language") || (navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en"));
   const [theme, setTheme] = useState(() => localStorage.getItem("msv-theme") || "dark");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("source") === "local") {
+      setParseError({ code: "model.localDirectoryRequired" });
+    }
+  }, []);
   function handleAddChip(chip) {
     setChips((current) => [...current.filter((entry) => entry.id !== chip.id), chip]);
   }

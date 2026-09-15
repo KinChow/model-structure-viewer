@@ -207,23 +207,9 @@
       "noTruthBanner": "No checkpoint truth loaded; weights shown are config-derived estimates."
     }
   },
-  "verify": {
-    "constructed": "constructed",
-    "constructionFailed": "construction failed",
-    "constructionUnknown": "construction unknown",
-    "structureMatches": "structure matches",
-    "structureDiffers": "structure differs",
-    "notCompared": "not compared",
-    "timeout": "Verify timed out while constructing the Transformers meta model: {raw}",
-    "workerCrashed": "Verify worker crashed ({kind}): {raw}",
-    "constructFailed": "Transformers could not construct the model: {raw}",
-    "failed": "Verify failed: {raw}"
-  },
   "http": {
-    "verifyUnavailable": "Backend unavailable: verify needs the local Python service (default :8000) to build the Transformers meta model. Run `.venv/bin/msv serve --root ./models --port 8000`, then retry. Static deploys do not have this path.",
-    "backendUnavailable": "HTTP {status}: backend unavailable or returned a non-JSON error. Start the backend (uvicorn), or use source=hf with endpoint=modelscope for a frontend-direct path (no backend).",
     "status": "HTTP {status}",
-    "backendDetail": "{detail}"
+    "detail": "{detail}"
   },
   "coverage": {
     "missing": "Missing: ",
@@ -238,5 +224,12 @@
   },
   "lens": {
     "missingInputs": "missing structure, model config, or chip spec"
+  },
+  "model": {
+    "localDirectoryRequired": "Please choose the model folder again using Open local model directory. Saved filesystem paths cannot be opened in the browser.",
+    "invalidConfig": "config.json must contain a JSON object.",
+    "invalidSource": "Unsupported model source: {source}. Choose a built-in model, a remote model, or a local folder.",
+    "remoteConfigFailed": "Unable to read config for {modelId} from the model sources: {detail}",
+    "searchFailed": "Hugging Face search failed: {detail}"
   }
 }

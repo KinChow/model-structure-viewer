@@ -1,3 +1,5 @@
+import { issueError } from "../i18n/format.js";
+
 // 前端直连模型源公开 API（静态部署形态下不依赖后端）。
 // 所有函数都接受可注入的 fetchImpl，便于测试与后续支持带 token 的 fetch 包装。
 //
@@ -59,15 +61,21 @@ export async function fetchHfConfigDirect({
   return res.json();
 }
 
-// 搜索结果形态与后端 /api/hf/search 保持一致；仅 huggingface endpoint 支持（modelscope 无公开搜索 API）。
+// 直接使用 Hub 公开搜索 API；ModelScope 无公开搜索 API。
+// ref: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch — 显式处理非 2xx 和网络失败。
 export async function searchHfDirect(query, limit = 10, endpoint = "huggingface", fetchImpl = fetch) {
   if (endpoint !== "huggingface") {
     throw new Error(`search is not supported on endpoint: ${endpoint}`);
   }
   const url = `${HF_ENDPOINTS.huggingface.hubUrl}/api/models?search=${encodeURIComponent(query)}&limit=${limit}`;
-  const res = await fetchImpl(url);
-  if (!res.ok) throw new Error(`HF search HTTP ${res.status}`);
-  const items = await res.json();
+  let items;
+  try {
+    const res = await fetchImpl(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    items = await res.json();
+  } catch (error) {
+    throw issueError("model.searchFailed", { detail: error.message });
+  }
   return (Array.isArray(items) ? items : []).map((m) => ({
     model_id: m.id,
     pipeline_tag: m.pipeline_tag ?? null,

@@ -1,5 +1,10 @@
 {
-  "comment": "前后端共享契约。运行时不合并：前端静态直连 Hub，Python 服务走磁盘缓存。键对标 huggingface_hub snapshot。",
+  "comment": "端点默认值与 Graph 协议共享；sources/cache_policies/auto_fallback/cache_key/errors 保留为 Python 开发工具契约。产品前端无服务端请求，其来源规则见 frontend。",
+  "frontend": {
+    "sources": ["builtin", "hf", "config"],
+    "legacy_auto_fallback": ["builtin", "hf"],
+    "legacy_local": "choose-browser-directory"
+  },
   "sources": ["auto", "builtin", "local", "hf", "config"],
   "cache_policies": ["prefer-local", "refresh", "offline"],
   "auto_fallback": ["builtin", "local", "hf"],

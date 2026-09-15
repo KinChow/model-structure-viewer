@@ -172,6 +172,29 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     else next.has(name) ? next.delete(name) : next.add(name);
     onLensesChange?.(next);
   };
+  const chunkedNote = phase === 'prefill' && load.chunked
+    ? `${text.chunkedSummary(load.sequence, Math.min(load.sequence, load.chunkSize))} `
+    : '';
+  const weightNote = cost.weightSource === 'derived-quantized'
+    ? (
+      'Weights use a '
+      + `${cost.assumptions.weightBytesPerParameter} B/parameter `
+      + `${cost.assumptions.quantization} estimate; `
+      + 'checkpoint metadata can refine module exceptions. '
+    )
+    : '';
+  const unknownLabel = english ? 'n/a' : '未知';
+  const rooflineTimes = summary.times.map(
+    t => `${t.label} ${t.known ? formatSeconds(t.seconds) : unknownLabel}`,
+  ).join(' · ');
+  const boundLabel = english ? 'lower bound' : '下界';
+  const missingSep = english ? ', ' : '、';
+  const missingNote = english
+    ? ` Roofline unknown because missing: ${summary.missingLabels.join(missingSep)}.`
+    : ` Roofline 未知——缺失：${summary.missingLabels.join(missingSep)}。`;
+  const unknownComputeNote = english
+    ? ` ${summary.unknownComputeCount} operators have no cost formula.`
+    : ` ${summary.unknownComputeCount} 个算子无成本公式。`;
   return <section className="cost-summary cost-summary-modern" aria-label={text.estimate}>
     <div className="cost-summary-header"><div><b>{text.estimate}</b><span className="cost-disclaimer">{text.disclaimer}</span></div><button className="cost-expand-button" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? text.collapse : text.expand}</button></div>
     <div className="cost-lens-row"><span>Cost Lens</span>{[["none", "None"], ["vram", "VRAM"], ["compute", "Compute"], ["memory", "Memory"], ["kv", "KV Cache"]].map(([id, label]) => <button type="button" key={id} className={(id === "none" ? lenses.size === 0 : lenses.has(id)) ? "active" : ""} aria-pressed={id === "none" ? lenses.size === 0 : lenses.has(id)} onClick={() => toggleLens(id)}>{label}</button>)}</div>
@@ -190,6 +213,14 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     {projected && !projected.ok && <div className="cost-plan-error">{english ? "Plan invalid — per-stage projection unavailable: " : "方案无效——分阶段投影不可用："}{projected.errors.join(english ? "; " : "；")}</div>}
     {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>KV + KDA State Transfer</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes + (pd.perDecodeRankStateBytes || 0))} / Decode rank</span><span>{pd.linkSource}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}{pd.transferSeconds != null ? ` · ≈${pd.transferSeconds >= 1 ? pd.transferSeconds.toFixed(2) + " s" : (pd.transferSeconds * 1000).toFixed(1) + " ms"}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, english)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, english)}</span></div>}
     {mode === "pd" && pd && !pd.ok && <div className="cost-plan-error">PD plan invalid: {pd.errors.join("; ")}</div>}
-    <div className="cost-assumptions">{phase === "prefill" && load.chunked ? `${text.chunkedSummary(load.sequence, Math.min(load.sequence, load.chunkSize))} ` : ""}{cost.weightSource === "derived-quantized" ? `Weights use a ${cost.assumptions.weightBytesPerParameter} B/parameter ${cost.assumptions.quantization} estimate; checkpoint metadata can refine module exceptions. ` : ""}{text.theoretical} {roofline && `Roofline ${english ? "lower bound" : "下界"} ${summary.times.map((t) => `${t.label} ${t.known ? formatSeconds(t.seconds) : (english ? "n/a" : "未知")}`).join(" · ")}.`}{roofline && roofline.bound === "unknown" && summary.missingCount > 0 && ` ${english ? `Roofline unknown because missing: ${summary.missingLabels.join(", ")}.` : `Roofline 未知——缺失：${summary.missingLabels.join("、")}。`}`}{summary.unknownComputeCount > 0 && ` ${english ? `${summary.unknownComputeCount} operators have no cost formula.` : `${summary.unknownComputeCount} 个算子无成本公式。`}`}</div>
+    <div className="cost-assumptions">
+        {chunkedNote}
+        {weightNote}
+        {text.theoretical}
+        {' '}
+        {roofline && `Roofline ${boundLabel} ${rooflineTimes}.`}
+        {roofline && roofline.bound === 'unknown' && summary.missingCount > 0 && missingNote}
+        {summary.unknownComputeCount > 0 && unknownComputeNote}
+    </div>
   </section>;
 }

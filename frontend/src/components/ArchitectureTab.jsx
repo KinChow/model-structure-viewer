@@ -16,7 +16,8 @@ function downloadSvg(structure) {
   const legacySvg = document.querySelector(".diagram-svg");
   const flow = document.querySelector(".react-flow");
   const viewport = flow?.querySelector(".react-flow__viewport");
-  if (!legacySvg && !viewport) return;
+  if (!legacySvg && !viewport) return "empty";
+  try {
   const source = legacySvg
     ? legacySvg.outerHTML
     : (() => {
@@ -42,6 +43,10 @@ function downloadSvg(structure) {
     link.remove();
     URL.revokeObjectURL(url);
   });
+  return "ok";
+  } catch {
+    return "error";
+  }
 }
 
 function chipLinkText(chip, language = "zh") {
@@ -131,6 +136,15 @@ function ArchitectureTab({
   const compareScrollGroup = useRef(new Map());
   const advancedOpen = !compactControls;
   const [canvasFocus, setCanvasFocus] = useState(false);
+  const [exportStatus, setExportStatus] = useState(null);
+  const exportTimer = useRef(null);
+  useEffect(() => () => { if (exportTimer.current) clearTimeout(exportTimer.current); }, []);
+  const runExport = () => {
+    const status = downloadSvg(structure);
+    setExportStatus(status);
+    if (exportTimer.current) clearTimeout(exportTimer.current);
+    exportTimer.current = setTimeout(() => setExportStatus(null), 2600);
+  };
   useEffect(() => {
     if (!canvasFocus) return undefined;
     const previousOverflow = document.body.style.overflow;
@@ -212,6 +226,9 @@ function ArchitectureTab({
     fit: "Fit",
     zoomIn: "Zoom in",
     exportSvg: "SVG",
+    exportOk: "SVG exported",
+    exportEmpty: "Nothing to export",
+    exportFail: "Export failed",
     expandAll: "Expand all",
     collapseAll: "Collapse all",
     base: "Base",
@@ -241,6 +258,9 @@ function ArchitectureTab({
     fit: "适应画布",
     zoomIn: "放大",
     exportSvg: "SVG",
+    exportOk: "已导出 SVG",
+    exportEmpty: "无可导出内容",
+    exportFail: "导出失败",
     expandAll: "展开全部",
     collapseAll: "收起全部",
     base: "基准",
@@ -320,9 +340,10 @@ function ArchitectureTab({
             <button type="button" onClick={onExpandAllGroups}>{ui.expandAll}</button>
             <button type="button" onClick={onCollapseAllGroups}>{ui.collapseAll}</button>
           </>}
-          <button type="button" title={ui.exportSvg} aria-label={ui.exportSvg} onClick={() => downloadSvg(structure)} disabled={!structure}>
+          <button type="button" title={ui.exportSvg} aria-label={ui.exportSvg} onClick={runExport} disabled={!structure}>
             {ui.exportSvg}
           </button>
+          {exportStatus && <span className="export-status" role="status" aria-live="polite">{exportStatus === "ok" ? ui.exportOk : exportStatus === "empty" ? ui.exportEmpty : ui.exportFail}</span>}
         </div>
       </div>
       <div className="diagram-lens-status" aria-label="Active Cost Lens">

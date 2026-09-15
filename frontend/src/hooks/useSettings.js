@@ -20,11 +20,12 @@ function pickFields(data) {
 export function useSettings() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(null);
 
   useEffect(() => {
     fetchSettings()
-      .then((data) => setSettings(pickFields(data)))
-      .catch(() => setSettings(DEFAULT_SETTINGS));
+      .then((data) => { setSettings(pickFields(data)); setReady(true); })
+      .catch(() => { setSettings(DEFAULT_SETTINGS); setReady(false); });
   }, []);
 
   const save = useCallback(async () => {
@@ -39,5 +40,5 @@ export function useSettings() {
     }
   }, [settings]);
 
-  return { settings, setSettings, save, error };
+  return { settings, setSettings, save, error, ready };
 }

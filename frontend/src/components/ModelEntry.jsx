@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import frontendPackage from "../../package.json";
+import useDialog from "../hooks/useDialog.js";
 import { staticAssetPath } from "../structure/catalog/manifest.js";
 import { formatReleaseTime, modelDisplayName, sortModelsByName, sortModelsByReleaseTime } from "../structure/catalog/modelOrdering.js";
 
@@ -51,6 +52,8 @@ export default function ModelEntry({
   const [helpOpen, setHelpOpen] = useState(false);
   const [localPath, setLocalPath] = useState("");
   const fileRef = useRef(null);
+  const providerRef = useRef(null);
+  const helpRef = useRef(null);
   const providers = useMemo(() => {
     const grouped = new Map();
     builtinModels.forEach((entry) => {
@@ -64,17 +67,8 @@ export default function ModelEntry({
   }, [builtinModels]);
   const providerModels = providers.find(([name]) => name === provider)?.[1] || [];
   const sortedProviderModels = providerSort === "name" ? sortModelsByName(providerModels) : providerModels;
-  useEffect(() => {
-    if (!provider && !helpOpen) return undefined;
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setProvider(null);
-        setHelpOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [provider, helpOpen]);
+  useDialog({ open: Boolean(provider), onClose: () => setProvider(null), panelRef: providerRef });
+  useDialog({ open: helpOpen, onClose: () => setHelpOpen(false), panelRef: helpRef });
   const t = language === "en" ? {
     title: "Understand the model",
     subtitle: "Explore architecture, inspect modules, and estimate the cost on your hardware.",
@@ -171,8 +165,8 @@ export default function ModelEntry({
         <div className="entry-section-heading"><h2>{t.browse}</h2><span>{t.browseHint}</span></div>
         <div className="provider-grid">{providers.map(([name, entries]) => <button type="button" className="provider-card" key={name} onClick={() => setProvider(name)}><ProviderIcon name={name} /><strong>{name}</strong><small>{entries.length} {language === "en" ? "models" : "个模型"}</small></button>)}</div>
       </section>}
-      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider} onMouseDown={(event) => { if (event.target === event.currentTarget) setProvider(null); }}><div className="provider-picker"><header><div className="provider-picker-title"><ProviderIcon name={provider} /><div><h2>{provider}</h2><p>{t.choose}</p></div></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-picker-tools"><label htmlFor="provider-sort">{t.sort}</label><select id="provider-sort" value={providerSort} onChange={(event) => setProviderSort(event.target.value)} aria-label={t.sort}><option value="release">{t.newest}</option><option value="name">{t.name}</option></select></div><div className="provider-model-list">{sortedProviderModels.length ? sortedProviderModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelDisplayName(entry)}</strong><span>{entry.modelType || entry.architecture || "mapped structure"}</span><small>{formatReleaseTime(entry.releaseTime, language) || entry.modelId}</small><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
-      {helpOpen && <div className="entry-help-overlay" role="dialog" aria-modal="true" aria-label={t.helpTitle} onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpOpen(false); }}><div className="entry-help-panel"><header><h2>{t.helpTitle}</h2><button type="button" aria-label={t.close} onClick={() => setHelpOpen(false)}>×</button></header><ul>{t.helpItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div>}
+      {provider && <div className="provider-overlay" role="dialog" aria-modal="true" aria-label={provider} onMouseDown={(event) => { if (event.target === event.currentTarget) setProvider(null); }}><div className="provider-picker" ref={providerRef}><header><div className="provider-picker-title"><ProviderIcon name={provider} /><div><h2>{provider}</h2><p>{t.choose}</p></div></div><button type="button" aria-label={t.close} onClick={() => setProvider(null)}>×</button></header><div className="provider-picker-tools"><label htmlFor="provider-sort">{t.sort}</label><select id="provider-sort" value={providerSort} onChange={(event) => setProviderSort(event.target.value)} aria-label={t.sort}><option value="release">{t.newest}</option><option value="name">{t.name}</option></select></div><div className="provider-model-list">{sortedProviderModels.length ? sortedProviderModels.map((entry) => <button type="button" key={entry.modelId} onClick={() => { setProvider(null); onModelIdChange?.(entry.modelId); onOpenModel?.(entry.modelId, "builtin"); }}><strong>{modelDisplayName(entry)}</strong><span>{entry.modelType || entry.architecture || "mapped structure"}</span><small>{formatReleaseTime(entry.releaseTime, language) || entry.modelId}</small><b>→</b></button>) : <p>{t.empty}</p>}</div></div></div>}
+      {helpOpen && <div className="entry-help-overlay" role="dialog" aria-modal="true" aria-label={t.helpTitle} onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpOpen(false); }}><div className="entry-help-panel" ref={helpRef}><header><h2>{t.helpTitle}</h2><button type="button" aria-label={t.close} onClick={() => setHelpOpen(false)}>×</button></header><ul>{t.helpItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div>}
     </main>
   );
 }

@@ -8,6 +8,11 @@ function StructureSearchBox({ value, onChange, hitCount, disabled, results = [],
     <div className="search-box">
       <input
         type="search"
+        role="combobox"
+        aria-expanded={Boolean(value && results.length > 0)}
+        aria-controls="msv-search-listbox"
+        aria-autocomplete="list"
+        aria-activedescendant={value && results.length > 0 ? `msv-search-opt-${highlighted}` : undefined}
         placeholder={english ? "Search nodes by name / type / class..." : "搜索节点名称 / 类型 / class..."}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -36,8 +41,8 @@ function StructureSearchBox({ value, onChange, hitCount, disabled, results = [],
           </button>
         </>
       )}
-      {value && results.length > 0 && <div className="search-results" role="listbox" aria-label="Matching structure nodes">
-        {results.map((result, index) => <button key={result.path} type="button" role="option" aria-selected={index === highlighted} className={index === highlighted ? "highlighted" : ""} onMouseEnter={() => setHighlighted(index)} onClick={() => onSelect?.(result.path)}>
+      {value && results.length > 0 && <div className="search-results" id="msv-search-listbox" role="listbox" aria-label="Matching structure nodes">
+        {results.map((result, index) => <button key={result.path} id={`msv-search-opt-${index}`} type="button" role="option" aria-selected={index === highlighted} className={index === highlighted ? "highlighted" : ""} onMouseEnter={() => setHighlighted(index)} onClick={() => onSelect?.(result.path)}>
           <strong>{result.name}</strong><span>{result.path} · {result.type}</span>
         </button>)}
       </div>}

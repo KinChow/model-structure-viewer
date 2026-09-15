@@ -85,7 +85,13 @@ function MsvNode({ data, selected }) {
     searchActive && !isMatch ? "dimmed" : "",
     isOpenGroup ? "open-group" : "closed-group",
   ].filter(Boolean).join(" ");
-  return <div className={classes} style={{ width: node.width, height }} data-bound={lensEnabled ? (bound || "unknown") : undefined} onMouseEnter={() => hover.onHover?.(node.path)} onMouseLeave={() => hover.onHover?.(null)} onClick={(event) => {
+  return <div className={classes} style={{ width: node.width, height }} data-bound={lensEnabled ? (bound || "unknown") : undefined} tabIndex={0} role="button" aria-selected={selected} aria-label={node.fullName || node.displayName} onMouseEnter={() => hover.onHover?.(node.path)} onMouseLeave={() => hover.onHover?.(null)} onKeyDown={(event) => {
+    if (event.target.closest("button, a, input, select, textarea")) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect(node.path);
+    }
+  }} onClick={(event) => {
     if (event.target.closest("button, a, input, select, textarea")) return;
     onSelect(node.path);
   }}>
@@ -117,7 +123,13 @@ function MsvGroupFrame({ data }) {
   const node = data.node;
   const verticalFlow = (data.depth || 0) > 1;
   const anchorStyle = data.edgeAnchorOffset == null ? undefined : { top: data.edgeAnchorOffset };
-  return <div className={`rf-group-frame depth-${Math.min(data.depth || 0, 4)}`} title={data.label} onClick={(event) => {
+  return <div className={`rf-group-frame depth-${Math.min(data.depth || 0, 4)}`} title={data.label} tabIndex={0} role="button" aria-label={data.label} onKeyDown={(event) => {
+    if (event.target.closest("button")) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      data.onSelect?.(node?.path);
+    }
+  }} onClick={(event) => {
     if (event.target.closest("button")) return;
     data.onSelect?.(node?.path);
   }}>

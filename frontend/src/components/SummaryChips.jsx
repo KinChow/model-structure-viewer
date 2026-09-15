@@ -39,7 +39,7 @@ function SummaryChips({ structure, sourceLabel, language = "zh" }) {
   return (
     <div className="summary-chips">
       {chips.map(([label, value, tone, title], index) => (
-        <span className={`chip ${tone || ""} ${index === 0 ? "identity" : ""} ${index === 1 ? "identity" : ""} ${index === 9 || index === 11 ? "primary" : ""}`.trim()} key={label} title={title || undefined}>
+        <span className={`chip ${tone || ""} ${index === 0 ? "identity" : ""} ${index === 1 ? "identity" : ""} ${index === 9 || index === 11 ? "primary" : ""}`.trim()} key={label} title={title || (value != null ? String(value) : undefined)}>
           <b>{label}</b>
           <span className="chip-value">{value ?? "-"}</span>
         </span>

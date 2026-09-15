@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import useDialog from "../hooks/useDialog.js";
+
 function Drawer({
   open,
   language = "zh",
@@ -18,11 +21,17 @@ function Drawer({
   settings,
   onSettingsChange,
   onSaveSettings,
+  onClose,
 }) {
   const english = language === "en";
-  const t = english ? { inputs: "Inputs", revision: "Revision", builtin: "Built-in Models", backend: "Backend Local Models", refresh: "Refresh", search: "Hugging Face Search", searchAction: "Search", settings: "Settings", modelRoot: "Model root", endpoint: "HF endpoint", offline: "Offline", save: "Save settings", unknown: "unknown", cache: "model cache", configFile: "config file" } : { inputs: "输入", revision: "Revision", builtin: "内置模型", backend: "后端本地模型", refresh: "刷新", search: "Hugging Face 搜索", searchAction: "搜索", settings: "设置", modelRoot: "模型根目录", endpoint: "HF endpoint", offline: "离线", save: "保存设置", unknown: "未知", cache: "模型缓存", configFile: "config 文件" };
+  const panelRef = useRef(null);
+  useDialog({ open, onClose, panelRef });
+  const t = english ? { inputs: "Inputs", revision: "Revision", builtin: "Built-in Models", backend: "Backend Local Models", refresh: "Refresh", search: "Hugging Face Search", searchAction: "Search", settings: "Settings", modelRoot: "Model root", endpoint: "HF endpoint", offline: "Offline", save: "Save settings", unknown: "unknown", cache: "model cache", configFile: "config file", close: "Close" } : { inputs: "输入", revision: "Revision", builtin: "内置模型", backend: "后端本地模型", refresh: "刷新", search: "Hugging Face 搜索", searchAction: "搜索", settings: "设置", modelRoot: "模型根目录", endpoint: "HF endpoint", offline: "离线", save: "保存设置", unknown: "未知", cache: "模型缓存", configFile: "config 文件", close: "关闭" };
   return (
-    <aside className={`drawer ${open ? "open" : ""}`}>
+    <>
+      {open && <div className="drawer-backdrop" aria-hidden="true" onClick={onClose} />}
+      <aside className={`drawer ${open ? "open" : ""}`} role="dialog" aria-modal="true" aria-label={t.settings} ref={panelRef}>
+        <button type="button" className="drawer-close" aria-label={t.close} onClick={onClose}>×</button>
       <section>
         <h2>{t.inputs}</h2>
         <label>
@@ -98,6 +107,7 @@ function Drawer({
         <button onClick={onSaveSettings}>{t.save}</button>
       </section>
     </aside>
+    </>
   );
 }
 

@@ -113,7 +113,7 @@ function App() {
     [structure, searchTerm]
   );
   const matchResults = useMemo(
-    () => [...matchedPaths].slice(0, 12).map((path) => {
+    () => [...matchedPaths].map((path) => {
       const node = findNodeByPath(structure?.graph, path);
       return { path, name: node?.name || path, type: node?.type || "node" };
     }),

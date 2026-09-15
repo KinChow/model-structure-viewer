@@ -7,6 +7,10 @@ function StructureSearchBox({ value, onChange, hitCount, disabled, results = [],
   const english = language === "en";
   useEffect(() => setHighlighted(0), [value, results.length]);
   useEffect(() => {
+    if (!open || !value || results.length === 0) return;
+    document.getElementById(`msv-search-opt-${highlighted}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, value, results.length, highlighted]);
+  useEffect(() => {
     if (!open) return undefined;
     const onPointerDown = (event) => {
       if (boxRef.current && !boxRef.current.contains(event.target)) setOpen(false);

@@ -205,3 +205,36 @@ test("Cost 展开后 Formula 仍可点击，桌面移动端都不覆盖内容", 
   const size = await page.evaluate(() => ({ viewport: innerHeight, document: document.documentElement.scrollHeight }));
   if (testInfo.project.name === "mobile-chrome") expect(size.document).toBeGreaterThanOrEqual(size.viewport);
 });
+
+test("成本并行度 TP 输入可整段清空，失焦回退到 1 且合法输入即时生效", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chrome", "成本输入交互回归只在桌面浏览器运行");
+  await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
+  await page.getByRole("button", { name: "打开模型" }).click();
+  await page.locator(".detail-page").waitFor();
+  await page.locator(".detail-cost-toggle > button").click();
+  const cost = page.locator(".cost-summary");
+  await cost.getByRole("button", { name: "展开配置", exact: true }).click();
+  const tp = cost.locator("label").filter({ hasText: /^TP/ }).locator("input").first();
+  await tp.scrollIntoViewIfNeeded();
+  // 编辑期允许整段清空（旧行为会立刻回填成 1，用户无法直接输入两位数）。
+  await tp.click();
+  await tp.press("ControlOrMeta+a");
+  await tp.press("Backspace");
+  await expect(tp).toHaveValue("");
+  // 直接输入两位数不再被前导 1 污染。
+  await tp.type("16");
+  await expect(tp).toHaveValue("16");
+  // 清空后失焦回退到最小值 1，不产生非法态。
+  await tp.press("ControlOrMeta+a");
+  await tp.press("Backspace");
+  await tp.blur();
+  await expect(tp).toHaveValue("1");
+  // 合法输入提交后派生 World size 实时更新。
+  await tp.click();
+  await tp.press("ControlOrMeta+a");
+  await tp.press("Backspace");
+  await tp.type("8");
+  await tp.blur();
+  await expect(tp).toHaveValue("8");
+  await expect(cost.locator("label").filter({ hasText: /World size|世界大小/ }).locator("output")).toHaveText("8");
+});

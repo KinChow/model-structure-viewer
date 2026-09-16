@@ -319,12 +319,12 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .detail-page.theme-dark .rf-stage-band { border-color: rgba(147,160,178,.2); color: #9ba8b8; }
 .detail-page.theme-dark .react-flow-diagram .react-flow__controls-button { border-color: #344154; background: #151c26; color: #b9c6d4; }
 .detail-page.theme-dark .react-flow-diagram .react-flow__controls-button:hover { background: #202a37; color: #f4ab52; }
-.detail-page.theme-dark .react-flow-diagram .react-flow__minimap { border-color: #344154; background: #151c26; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.detail-page.theme-dark .react-flow-diagram .react-flow__minimap { border-color: #344154; background: #151c26; box-shadow: 0 6px 18px rgba(0,0,0,.28); --xy-minimap-mask-background-color: rgba(9,13,20,.6); --xy-minimap-mask-stroke-color: rgba(244,171,82,.85); --xy-minimap-mask-stroke-width: 2; }
 .detail-page.theme-light .rf-group-frame { border-color: rgba(82,110,136,.85); color: #536b80; }
 .detail-page.theme-light .rf-group-frame::before { border-color: rgba(103,137,171,.42); background: rgba(103,137,171,.14); }
 .detail-page.theme-light .react-flow-diagram .react-flow__controls-button { border-color: #dbe4ec; background: #fff; color: #526678; }
 .detail-page.theme-light .react-flow-diagram .react-flow__controls-button:hover { background: #edf3f8; color: #1f5f91; }
-.detail-page.theme-light .react-flow-diagram .react-flow__minimap { border-color: #cbd7e2; background: rgba(255,255,255,.94); box-shadow: 0 6px 18px rgba(38,55,73,.16); }
+.detail-page.theme-light .react-flow-diagram .react-flow__minimap { border-color: #cbd7e2; background: rgba(255,255,255,.94); box-shadow: 0 6px 18px rgba(38,55,73,.16); --xy-minimap-mask-background-color: rgba(210,221,233,.55); --xy-minimap-mask-stroke-color: rgba(169,98,29,.75); --xy-minimap-mask-stroke-width: 2; }
 .diagram-context-bar { position: absolute; z-index: 2; top: 10px; left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; min-height: 28px; padding: 5px 8px; border: 1px solid rgba(137,157,180,.45); border-radius: 5px; background: rgba(248,251,253,.9); box-shadow: 0 3px 12px rgba(38,55,73,.08); backdrop-filter: blur(8px); color: #607184; font-size: 10px; }
 .diagram-context-path { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; overflow: hidden; }
 .diagram-context-path span { display: inline-flex; min-width: 0; align-items: center; }

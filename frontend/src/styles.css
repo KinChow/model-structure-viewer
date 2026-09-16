@@ -1275,6 +1275,11 @@ label {
   .detail-page .detail-main.cost-open .diagram-frame { flex: 0 0 auto; min-height: 320px; height: 320px; }
   .detail-page .diagram-compare-pane .diagram-frame,
   .detail-page .detail-main.cost-open .diagram-compare-pane .diagram-frame { flex: 0 0 420px; min-height: 420px; height: 420px; }
+  /* Inspector 以所在栅格行高为界内部滚动，而非按 100vh 估算导致底部被裁到视口外
+     （app-shell 下 .detail-page overflow:hidden，超出部分不可达）。 */
+  .detail-page .detail-inspector-slot { min-height: 0; }
+  .detail-page .detail-inspector-slot .model-inspector-summary,
+  .detail-page .detail-inspector-slot .detail-panel { position: static; top: auto; max-height: 100%; overflow: auto; }
 }
 @media (min-width: 961px) and (max-height: 850px) {
   /* 短桌面保留画布最小高度；Cost 和 Inspector 不再靠固定覆盖层定位。 */

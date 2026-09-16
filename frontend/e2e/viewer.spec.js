@@ -273,3 +273,37 @@ test("宽屏桌面按视口比例撑开画布且只有单一滚动区域", async
   expect(metrics.docScroll).toBe(false);
   expect(metrics.innerScrollers.length).toBeLessThanOrEqual(1);
 });
+
+test("高视口下 Inspector 详情不被裁到视口外且可内部滚动查看全部属性", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chrome", "Inspector 裁剪回归只在桌面浏览器运行");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
+  await page.getByRole("button", { name: "打开模型" }).click();
+  await page.locator(".detail-page").waitFor();
+  await page.locator(".diagram-frame").first().waitFor();
+  // 跳到一个属性较多的算子节点（公式索引里的 matmul），填满 Inspector。
+  await page.locator(".formula-strip").getByRole("button", { name: "公式索引" }).click();
+  const links = page.locator(".formula-strip-links button");
+  const count = await links.count();
+  let jumped = false;
+  for (let i = 0; i < count; i++) {
+    if ((await links.nth(i).textContent())?.includes("matmul")) { await links.nth(i).click(); jumped = true; break; }
+  }
+  if (!jumped && count) await links.first().click();
+  await page.waitForTimeout(300);
+  const metrics = await page.evaluate(() => {
+    const panel = document.querySelector(".detail-inspector-slot .detail-panel")
+      || document.querySelector(".detail-inspector-slot .model-inspector-summary");
+    const r = panel.getBoundingClientRect();
+    return {
+      bottom: Math.round(r.bottom),
+      viewportH: window.innerHeight,
+      overflowsInternally: panel.scrollHeight > panel.clientHeight + 2,
+      overflowY: getComputedStyle(panel).overflowY,
+    };
+  });
+  // 高视口 app-shell 锁高时，面板底边不得越过视口（否则底部内容不可达）。
+  expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportH + 1);
+  // 内容超长时面板自身可滚动，保证全部属性可查看。
+  expect(metrics.overflowY).toBe("auto");
+});

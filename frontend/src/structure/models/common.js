@@ -24,22 +24,50 @@ export function networkSpec(id, name, architecture, children, attributes = {}) {
   };
 }
 
+/**
+ * 投机头是**并行草稿分支**，不在主干顺序链上（对标 vLLM deepseek_mtp.py /
+ * SGLang deepseek_nextn.py 的 forward）：
+ *   MTP.forward(previous_hidden_states, inputs_embeds)
+ *     inputs_embeds   = enorm(embed_tokens(input_ids))   // 与主模型共享 token 嵌入
+ *     previous_hidden = hnorm(主干末层 hidden，final norm 之前)
+ *     → eh_proj(cat[...]) → mtp_block → shared_head（草稿 logits）
+ * 即 MTP 与主模型同源输入（embedding + decoder 输出两路 fan-in），输出走自己的
+ * shared_head，**不回流**主干 final norm / lm_head。DSpark 仅从主干目标层 hidden
+ * 取输入（单路 fan-in）。因此顶层不能把草稿串进 embed→decoder→draft→norm 的顺序
+ * 链，需显式声明数据流边：主干串行 + 草稿 fan-in，草稿输出为末端不接主干。
+ * children 里草稿仍置于 decoder 之后（默认布局顺序），边由 id 声明决定拓扑。
+ */
+export function networkSpecWithDraft(id, name, architecture, children, draft) {
+  if (!draft) return networkSpec(id, name, architecture, children, { sequence: true });
+  const trunk = children.filter((child) => child !== draft);
+  const edges = [];
+  for (let index = 0; index < trunk.length - 1; index += 1) {
+    edges.push([trunk[index].id, trunk[index + 1].id]);
+  }
+  const decoder = children.find((child) => child.type === "decoder");
+  const embed = children.find((child) => child.type === "embedding");
+  // 主干末层 hidden → 草稿（MTP/DSpark 皆有）
+  if (decoder) edges.push([decoder.id, draft.id]);
+  // token 嵌入 → 草稿（仅 MTP：与主模型共享 embedding；DSpark 不吃 embedding）
+  if (draft.type === "mtp" && embed) edges.push([embed.id, draft.id]);
+  return networkSpec(id, name, architecture, children, { dataflow_edges: edges });
+}
+
 /** 投机头由调用方传入（对标 vLLM 各模型文件自己挂 mtp/dspark，不是共享 dispatcher）。 */
 export function textDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind, draft } = {}) {
-  // §2.1：网络级子节点（embed → decoder → draft → norm → lm_head）显式声明顺序执行。
-  // 投机头挂点对标 vLLM 各模型文件 children 顺序：decoder 之后、final norm 之前。
-  return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, [
+  const children = [
     embeddingModule("embed_tokens", normalized),
     decoderStackNetwork(hfLayersAttr(normalized), normalized, { attentionKind, defaultLayerKind }),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     ...(draft ? [draft] : []),
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),
-  ], { sequence: true });
+  ];
+  return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft);
 }
 
 export function multimodalDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind, draft } = {}) {
-  return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, [
+  const children = [
     visionTowerModule(normalized),
     ...(normalized.hasVisionProjector && !recipeVisionInternalMerger(normalized) ? [projectorModule(normalized)] : []),
     embeddingModule("embed_tokens", normalized),
@@ -49,5 +77,6 @@ export function multimodalDecoderNetwork(resolved, normalized, { attentionKind, 
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),
-  ], { sequence: true });
+  ];
+  return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft);
 }

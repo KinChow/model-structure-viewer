@@ -5,12 +5,12 @@ import { projectorModule } from "../layers/projector.js";
 import { visionTowerModule } from "../layers/vision.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { hfLayersAttr } from "../archs/index.js";
-import { networkSpec } from "./common.js";
+import { networkSpecWithDraft } from "./common.js";
 import { deepSeekMtpChild } from "./deepseek_mtp.js";
 
 export function assembleMiniMaxM3(resolved, normalized) {
   const draft = deepSeekMtpChild(normalized);
-  return networkSpec("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, [
+  const children = [
     visionTowerModule(normalized),
     projectorModule(normalized),
     decoderStackNetwork(hfLayersAttr(normalized), normalized, {
@@ -20,5 +20,6 @@ export function assembleMiniMaxM3(resolved, normalized) {
     ...(draft ? [draft] : []),
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),
-  ], { sequence: true });
+  ];
+  return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft);
 }

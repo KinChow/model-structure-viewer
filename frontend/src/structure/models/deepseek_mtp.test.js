@@ -13,6 +13,17 @@ test("DSpark config suppresses MTP module count", () => {
   assert.equal(dsparkLayerCount({ dsparkTargetLayerIds: [] }), 0);
 });
 
+test("checkpoint 真值抑制幻影 MTP：config 声明 MTP 但权重无 MTP 张量则不计", () => {
+  // MiniMax-M3 / M2.7：config num_nextn_predict_layers>0，但 checkpoint mtp_tensor_count===0。
+  assert.equal(mtpModuleCount({ mtpModules: 1, checkpointMtpTensorCount: 0 }), 0);
+  assert.equal(mtpModuleCount({ mtpModules: 3, checkpointMtpTensorCount: 0 }), 0);
+  // checkpoint 里确有 MTP 张量 → 保留 config 声明的模块数（DeepSeek/GLM/Qwen）。
+  assert.equal(mtpModuleCount({ mtpModules: 1, checkpointMtpTensorCount: 5 }), 1);
+  // 真值缺席（离线 golden / 取证失败）→ 信任 config，向后兼容。
+  assert.equal(mtpModuleCount({ mtpModules: 1 }), 1);
+  assert.equal(mtpModuleCount({ mtpModules: 2, checkpointMtpTensorCount: undefined }), 2);
+});
+
 test("各架构文件自己挂对应 vLLM 投机头，不经 draftClassOf 分派", () => {
   const resolved = { architecture: "test" };
   const treeClass = (assemble, normalized) => assemble(resolved, normalized).children.find((n) => n.id === "mtp")?.attributes.class;

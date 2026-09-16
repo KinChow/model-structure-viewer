@@ -10,6 +10,9 @@ import { hfNamedClass } from "../archs/index.js";
 
 export function mtpModuleCount(normalized) {
   if ((normalized.dsparkTargetLayerIds || []).length > 0) return 0;
+  // checkpoint 真值优先：config 声明 MTP 但权重里无 MTP 张量（mtp_tensor_count===0）
+  // 时，实装未落地（MiniMax-M3 / M2.7），按真相不计模块。真值缺席则信任 config。
+  if (normalized.checkpointMtpTensorCount === 0) return 0;
   return normalized.mtpModules || 0;
 }
 

@@ -1132,7 +1132,7 @@ label {
 .detail-summary .chip.primary b { color: #d1a05f; }
 .detail-summary .chip:first-child { border-left: 0; padding-left: 0; }
 .detail-summary .chip b { overflow: hidden; color: #758398; font: 10px system-ui, sans-serif; letter-spacing: .06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-.detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; max-width: 1500px; margin: 0 auto; padding: 14px 24px 40px; }
+.detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; width: 100%; max-width: 1760px; margin: 0 auto; padding: 14px 24px 40px; box-sizing: border-box; }
 .detail-main { min-width: 0; }
 .detail-search-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .detail-search-row .search-box { flex: 1; margin: 0; }
@@ -1154,7 +1154,7 @@ label {
 .detail-aux-panel { margin-top: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #151c26; padding: 14px; }
 /* ref: https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink — 辅助面板打开时避免盒子收缩后内容重叠。 */
 @media (min-width: 961px) {
-  .detail-page.has-aux { height: auto; min-height: 100vh; }
+  .detail-page.has-aux { height: auto; min-height: 100vh; overflow: visible; }
   .detail-page.has-aux .diagram-panel { flex: 0 0 auto; }
   .detail-page.has-aux .diagram-frame { flex: none; height: 320px; }
   .detail-page.has-aux .detail-aux-panel { flex-shrink: 0; }
@@ -1264,9 +1264,10 @@ label {
 @media (min-width: 961px) {
   /* min-height + height:auto：视口够高时 flex-grow 撑满画布，视口过矮时整页滚动而非把画布压扁
      （ref: React Flow 要求父容器有确定高度；此处用 min-height:100vh 兜底 flex 撑高）。 */
-  .detail-page { display: flex; flex-direction: column; min-height: 100vh; height: auto; }
+  .detail-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
   .detail-page .detail-layout { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
-  .detail-page .detail-main { display: flex; flex-direction: column; min-height: 0; }
+  /* 主列内部滚动：Cost 展开等超长内容在列内滚动，而非把整页顶出第二根滚动条。 */
+  .detail-page .detail-main { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
   .detail-page .diagram-panel { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
   .detail-page .formula-strip { flex: 0 0 auto; }
   .detail-page .diagram-frame { flex: 1 1 auto; min-height: 420px; height: auto; }
@@ -1277,6 +1278,9 @@ label {
 }
 @media (min-width: 961px) and (max-height: 850px) {
   /* 短桌面保留画布最小高度；Cost 和 Inspector 不再靠固定覆盖层定位。 */
+  /* 短视口不锁高：整页滚动而非 app-shell，避免压扁/裁剪。 */
+  .detail-page { height: auto; min-height: 100vh; overflow: visible; }
+  .detail-page .detail-main { overflow: visible; }
   .detail-page .diagram-frame { min-height: 360px; }
   .detail-page .detail-main.cost-open .diagram-frame { min-height: 300px; height: 300px; }
   /* 对比双画布保持固定 420，短桌面下靠整页滚动而非压扁。 */

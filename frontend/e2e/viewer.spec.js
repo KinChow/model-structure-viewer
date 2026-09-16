@@ -238,3 +238,38 @@ test("成本并行度 TP 输入可整段清空，失焦回退到 1 且合法输�
   await expect(tp).toHaveValue("8");
   await expect(cost.locator("label").filter({ hasText: /World size|世界大小/ }).locator("output")).toHaveText("8");
 });
+
+test("宽屏桌面按视口比例撑开画布且只有单一滚动区域", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chrome", "宽屏布局回归只在桌面浏览器运行");
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
+  await page.getByRole("button", { name: "打开模型" }).click();
+  await page.locator(".detail-page").waitFor();
+  await page.locator(".diagram-frame").first().waitFor();
+  const metrics = await page.evaluate(() => {
+    const layout = document.querySelector(".detail-layout").getBoundingClientRect();
+    const frame = document.querySelector(".diagram-frame").getBoundingClientRect();
+    const scrollers = [];
+    document.querySelectorAll("*").forEach((el) => {
+      const s = getComputedStyle(el);
+      if ((s.overflowY === "auto" || s.overflowY === "scroll") && el.scrollHeight > el.clientHeight + 2) {
+        scrollers.push(el.className?.toString?.().slice(0, 40) || el.tagName);
+      }
+    });
+    return {
+      layoutWidth: Math.round(layout.width),
+      frameWidth: Math.round(frame.width),
+      docScroll: document.documentElement.scrollHeight > document.documentElement.clientHeight + 2,
+      innerScrollers: scrollers,
+      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  // 布局按视口比例撑开（不再固定收缩到 ~1009px），画布主区拿到大部分宽度。
+  expect(metrics.layoutWidth).toBeGreaterThan(1500);
+  expect(metrics.frameWidth).toBeGreaterThan(1000);
+  // 无横向溢出。
+  expect(metrics.overflowX).toBeLessThanOrEqual(1);
+  // 单一滚动区域：高视口下 app-shell 锁高，既无整页滚动条也无并存的内部滚动条。
+  expect(metrics.docScroll).toBe(false);
+  expect(metrics.innerScrollers.length).toBeLessThanOrEqual(1);
+});

@@ -186,7 +186,11 @@ function dsparkDeepseekV4Model(id, normalized) {
     ...Array.from({ length: Math.max(stages - 1, 0) }, (_, stage) => [String(stage), String(stage + 1)]),
     ...(stages > 0 ? [[String(stages - 1), "hc_head"]] : []),
     ["hc_head", "norm"],
+    // confidence_head = Linear(H + r)：hc_head 给隐层 H，markov_head 给上一步草稿
+    // token 的 markov 嵌入 r（SGLang compute_confidence 里 markov_embed_stack =
+    // markov_head.get_prev_embeddings(prev_seq)）。两路 fan-in 拼成 H+r。
     ["hc_head", "confidence_head"],
+    ...(markovRank > 0 ? [["markov_head", "confidence_head"]] : []),
   ];
   return withShapeDims(moduleSpec(
     id,

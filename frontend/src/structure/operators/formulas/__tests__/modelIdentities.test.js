@@ -506,6 +506,10 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "pre_fc_norm_hidden -> fc_hidden": "concat",
   // DSpark confidence_head = Linear(H+r)；r 来自 markov_w1 gather，不是 hc_head 激活
   "hc_head -> confidence_head": "concat",
+  // markov_head 的模块出口标注为 logits，但 SGLang compute_confidence 里喂给
+  // confidence_head 的是 markov 嵌入（get_prev_embeddings = markov_w1 输出，dim=r），
+  // 即 H+r concat 的 r 路贡献。与 hc_head 那路同为 concat 贡献者。
+  "markov_head -> confidence_head": "concat",
   // entry：下游入口不是特征维
   "visual -> embed_tokens": "entry",
   "projector -> embed_tokens": "entry",

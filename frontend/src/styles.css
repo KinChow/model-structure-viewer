@@ -1114,6 +1114,50 @@ label {
 
 /* Loaded model workspace: the diagram stays primary and secondary tools open inline. */
 .detail-page { min-height: 100vh; background: #0d1117; color: #e7edf5; }
+/* 主题化滚动条：与深/浅色面板统一。Firefox 用 scrollbar-width/color，WebKit 用伪元素。
+   ref: MDN scrollbar-color / ::-webkit-scrollbar。仅作用于工作区内的滚动容器，
+   不覆盖 React Flow 画布自身。 */
+.detail-page { --msv-sb-thumb: rgba(120,138,158,.34); --msv-sb-thumb-hover: rgba(148,166,186,.55); --msv-sb-track: transparent; }
+.detail-page.theme-light { --msv-sb-thumb: rgba(120,138,158,.42); --msv-sb-thumb-hover: rgba(90,110,132,.6); --msv-sb-track: transparent; }
+.detail-page .detail-main,
+.detail-page .detail-inspector-slot .detail-panel,
+.detail-page .model-inspector-summary,
+.detail-page .formula-strip-links,
+.detail-page .search-results,
+.detail-page .manual-chip-form,
+.detail-page .detail-cost-panel { scrollbar-width: thin; scrollbar-color: var(--msv-sb-thumb) var(--msv-sb-track); }
+.detail-page .detail-main::-webkit-scrollbar,
+.detail-page .detail-inspector-slot .detail-panel::-webkit-scrollbar,
+.detail-page .model-inspector-summary::-webkit-scrollbar,
+.detail-page .formula-strip-links::-webkit-scrollbar,
+.detail-page .search-results::-webkit-scrollbar,
+.detail-page .manual-chip-form::-webkit-scrollbar,
+.detail-page .detail-cost-panel::-webkit-scrollbar { width: 10px; height: 10px; }
+.detail-page .detail-main::-webkit-scrollbar-track,
+.detail-page .detail-inspector-slot .detail-panel::-webkit-scrollbar-track,
+.detail-page .model-inspector-summary::-webkit-scrollbar-track,
+.detail-page .formula-strip-links::-webkit-scrollbar-track,
+.detail-page .search-results::-webkit-scrollbar-track,
+.detail-page .manual-chip-form::-webkit-scrollbar-track,
+.detail-page .detail-cost-panel::-webkit-scrollbar-track { background: var(--msv-sb-track); }
+.detail-page .detail-main::-webkit-scrollbar-thumb,
+.detail-page .detail-inspector-slot .detail-panel::-webkit-scrollbar-thumb,
+.detail-page .model-inspector-summary::-webkit-scrollbar-thumb,
+.detail-page .formula-strip-links::-webkit-scrollbar-thumb,
+.detail-page .search-results::-webkit-scrollbar-thumb,
+.detail-page .manual-chip-form::-webkit-scrollbar-thumb,
+.detail-page .detail-cost-panel::-webkit-scrollbar-thumb { background: var(--msv-sb-thumb); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+.detail-page .detail-main::-webkit-scrollbar-thumb:hover,
+.detail-page .detail-inspector-slot .detail-panel::-webkit-scrollbar-thumb:hover,
+.detail-page .model-inspector-summary::-webkit-scrollbar-thumb:hover,
+.detail-page .formula-strip-links::-webkit-scrollbar-thumb:hover,
+.detail-page .search-results::-webkit-scrollbar-thumb:hover,
+.detail-page .manual-chip-form::-webkit-scrollbar-thumb:hover,
+.detail-page .detail-cost-panel::-webkit-scrollbar-thumb:hover { background: var(--msv-sb-thumb-hover); }
+.detail-page .detail-main::-webkit-scrollbar-corner,
+.detail-page .detail-inspector-slot .detail-panel::-webkit-scrollbar-corner,
+.detail-page .model-inspector-summary::-webkit-scrollbar-corner,
+.detail-page .search-results::-webkit-scrollbar-corner { background: var(--msv-sb-track); }
 .detail-header { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 10px 24px; border-bottom: 1px solid #202a38; background: rgba(13,17,23,.94); backdrop-filter: blur(12px); }
 .detail-brand { border: 0; background: transparent; color: #edf2f7; padding: 0; font-size: 15px; font-weight: 800; letter-spacing: -.03em; }
 .detail-brand span { color: #f4ab52; }

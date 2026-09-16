@@ -93,7 +93,7 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       const before = await page.locator(".react-flow__edge").count();
       await fitCanvas();
       await expand.click();
-      await expect(page.locator(".react-flow__node").filter({ hasText: /\(DecoderLayer\)/ }).first()).toBeVisible();
+      await expect(page.locator(".react-flow__node").filter({ hasText: "Decoder layer group" }).first()).toBeVisible();
       await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThanOrEqual(before);
     }
     const costToggle = page.locator(".detail-cost-toggle > button");
@@ -119,7 +119,7 @@ test("父节点详情提供子模块和 Shape", async ({ page }) => {
   const decoder = page.locator(".rf-node-content").filter({ hasText: "Decoder Layers" }).first();
   await decoder.getByRole("button", { name: "展开", exact: true }).click();
   const edgesAfterDecoder = await page.locator(".react-flow__edge").count();
-  await page.locator(".rf-node-content").filter({ hasText: /\(DecoderLayer\)/ }).first().getByRole("button", { name: "展开", exact: true }).click();
+  await page.locator(".rf-node-content").filter({ hasText: "Decoder layer group" }).first().getByRole("button", { name: "展开", exact: true }).click();
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(edgesAfterDecoder);
   await page.locator(".rf-node-content").filter({ hasText: "GQA Attention" }).first().getByRole("button", { name: "展开", exact: true }).click();
   await expect(page.locator(".rf-node-content").filter({ hasText: "SDPA attention" }).first()).toBeVisible();

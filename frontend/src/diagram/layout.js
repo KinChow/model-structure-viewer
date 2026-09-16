@@ -8,21 +8,6 @@ const NODE_GAP_X = 60;
 const LAYOUT_TOP = 28;
 const LAYOUT_LEFT = 28;
 
-// 展示名：同类被 compactRanges 合并的多层段(repeat>1)按层号区间展示,
-// 与单层的 "N (DecoderLayer)" 保持一致的命名规则,避免并列节点命名风格割裂。
-// 仅影响画布展示,不改动 spec 树里的 node.name。
-function displayNameFor(node) {
-  if (node.repeat > 1 && String(node.type).includes("layer")) {
-    const range = node.attributes?.range;
-    const suffix = String(node.name).replace(/^\S+\s*/, "");
-    if (range && range.includes("..")) {
-      const [start, end] = range.split("..");
-      return `${start}\u2013${end}${suffix ? ` ${suffix}` : ""}`;
-    }
-  }
-  return node.name;
-}
-
 function layoutDiagram(root, expandedGroups) {
   const expanded = expandedGroups instanceof Set ? expandedGroups : new Set();
   const items = [];
@@ -42,7 +27,9 @@ function layoutDiagram(root, expandedGroups) {
       typeClass: typeClass(node.type),
       repeat: node.repeat,
       fullName: node.name,
-      displayName: displayNameFor(node),
+      displayName: node.repeat > 1 && String(node.type).includes("layer")
+        ? "Decoder layer group"
+        : node.name,
       metaLines,
       isCollapsible,
       isExpanded,

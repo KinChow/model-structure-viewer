@@ -5,6 +5,7 @@ import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
 import { attentionScheduleOf, indexerScheduleOf } from "./schedule.js";
 import { hfNamedClass } from "../archs/index.js";
+import { foldedLayerName } from "./foldedLayerName.js";
 
 export function decoderStackNetwork(id, normalized, options = {}) {
   const shapes = tensorShapes(normalized);
@@ -40,7 +41,7 @@ export function decoderStackNetwork(id, normalized, options = {}) {
       attentionKind,
       layerIndex: range.start,
     });
-    layer.name = `${range.start} (DecoderLayer)`;
+    layer.name = foldedLayerName(range.start, range.end, "DecoderLayer");
     layer.type = "layer-group";
     layer.repeat = repeat;
     layer.attributes = {

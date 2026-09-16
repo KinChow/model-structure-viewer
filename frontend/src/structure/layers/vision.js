@@ -3,6 +3,7 @@ import { operatorSpec, sdpaAttentionModule } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { visionDimensions } from "../config/visionDims.js";
 import { hfNamedClass, hfVisionAttr, recipeFlag, recipeVisionInternalMerger } from "../archs/index.js";
+import { foldedLayerName } from "./foldedLayerName.js";
 
 function visionLayerModule(id, normalized) {
   const d = visionDimensions(normalized);
@@ -64,7 +65,7 @@ function visionLayerModule(id, normalized) {
   const mlpEdges = d.gatedMlp
     ? [["post_norm", "gate_proj"], ["post_norm", "up_proj"], ["gate_proj", "activation"], ["up_proj", "activation"], ["activation", "down_proj"]]
     : [["post_norm", "fc1"], ["fc1", "activation"], ["activation", "fc2"]];
-  return withShapeDims(moduleSpec(id, "0 (VisionLayer)", "vision-block-group", {
+  return withShapeDims(moduleSpec(id, "VisionLayer", "vision-block-group", {
     class: hfNamedClass(normalized, "visionBlockClass", "VisionBlock"),
     hidden_size: d.hidden,
     num_attention_heads: d.heads,
@@ -128,6 +129,7 @@ export function visionTowerModule(normalized) {
   if (layer) {
     layer.repeat = layers;
     layer.attributes.range = `0..${layers - 1}`;
+    layer.name = foldedLayerName(0, layers - 1, "VisionLayer");
   }
   const children = [
     operatorSpec(`${id}.patch_embed`, "vision patch embedding", "linear", {

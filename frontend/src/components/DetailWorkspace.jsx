@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import frontendPackage from "../../package.json";
 import SummaryChips from "./SummaryChips";
 import StructureSearchBox from "./StructureSearchBox";
@@ -104,6 +104,14 @@ export default function DetailWorkspace({
   loadingPhase = "reading",
 }) {
   const [auxView, setAuxView] = useState(null);
+  const auxPanelRef = useRef(null);
+  useEffect(() => {
+    if (!auxView) return;
+    const node = auxPanelRef.current;
+    if (!node) return;
+    const reduceMotion = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+  }, [auxView]);
   const [costOpen, setCostOpen] = useState(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [activeLenses, setActiveLenses] = useState(() => new Set(["vram"]));
@@ -176,8 +184,8 @@ export default function DetailWorkspace({
           />
           <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen} aria-controls="detail-cost-panel"><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? deploymentSummary : `${t.centralized} · ${deploymentSummary}`}</span>{fitLabel && <span className={`detail-fit-status ${fitClass}`}>{fitLabel}</span>}<span>{costOpen ? "−" : "+"}</span></button></div>
           <div id="detail-cost-panel" className={`detail-cost-panel${costOpen ? "" : " is-collapsed"}`} aria-hidden={!costOpen}><CostSummary structure={structure} chips={chips} onAddChip={onAddChip} language={language} onFitStatusChange={setCostFitStatus} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={changeActivePhase} mode={activeMode} onModeChange={changeActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} comparisonMode={comparisonMode} onComparisonModeChange={setComparisonMode} compareChipId={compareChipId} onCompareChipIdChange={setCompareChipId} comparePlan={comparePlan} onComparePlanChange={setComparePlan} efficiency={efficiency} onEfficiencyChange={setEfficiency} /></div>
-          {auxView === "export" && <div className="detail-aux-panel"><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
-          {auxView === "raw" && <div className="detail-aux-panel"><RawConfigTab rawJson={rawJson} /></div>}
+          {auxView === "export" && <div className="detail-aux-panel" ref={auxPanelRef}><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
+          {auxView === "raw" && <div className="detail-aux-panel" ref={auxPanelRef}><RawConfigTab rawJson={rawJson} /></div>}
         </div>
         <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={parameterTotal.value} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} parameterTotal={parameterTotal} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>
       </section>

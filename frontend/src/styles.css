@@ -1312,6 +1312,22 @@ label {
     overflow: auto;
   }
 }
+
+/* Cost uses the same normal-flow interaction on desktop and mobile. The old
+   fixed dock could cover Formula/Export controls and fail actionability. */
+@media (min-width: 961px) {
+  .detail-page .detail-cost-toggle,
+  .detail-page .detail-cost-panel,
+  .detail-page .detail-cost-panel:not(.is-collapsed) {
+    position: static;
+    inset: auto;
+    width: auto;
+    max-height: none;
+    margin: 0 0 12px;
+    overflow: visible;
+  }
+  .detail-page .detail-cost-panel:not(.is-collapsed) { overflow: visible; }
+}
 .detail-page .formula-section { border-color: #2a3545; }
 .detail-page .formula-section code { color: #f2c27b; }
 .detail-page .formula-section p { color: #aebaca; }

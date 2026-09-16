@@ -185,3 +185,16 @@ test("短桌面视口不产生额外文档溢出", async ({ page }) => {
     await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
   }
 });
+
+test("Cost 展开后 Formula 仍可点击，桌面移动端都不覆盖内容", async ({ page }, testInfo) => {
+  await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
+  await page.getByRole("button", { name: "打开模型" }).click();
+  await page.locator(".diagram-frame").waitFor();
+  await page.locator(".detail-cost-toggle > button").click();
+  const formula = page.locator(".formula-strip");
+  await expect(formula).toBeVisible();
+  await formula.getByRole("button", { name: "公式索引" }).click();
+  await expect(formula.locator(".formula-strip-links")).toBeVisible();
+  const size = await page.evaluate(() => ({ viewport: innerHeight, document: document.documentElement.scrollHeight }));
+  if (testInfo.project.name === "mobile-chrome") expect(size.document).toBeGreaterThanOrEqual(size.viewport);
+});

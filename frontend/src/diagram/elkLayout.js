@@ -155,8 +155,20 @@ export async function layoutGraphWithElk(graph) {
   // own placement.
   const modelLayout = result.id === "root" ? result : result.children?.find((child) => child.id === "root");
   if (modelLayout?.children?.length) {
-    const topLevelY = Math.min(...modelLayout.children.map((child) => child.y || 0));
-    for (const child of modelLayout.children) child.y = topLevelY;
+    // 草稿分支（MTP / DSpark）在拓扑上是旁挂节点：与主干共享 decoder 输入却不回流
+    // final norm / lm_head，ELK 会把它与主干同层节点纵向错开。若把它一并拉到主干
+    // baseline，就会和 final norm 压在同一坐标（node overlap）。只拉平主干节点，
+    // 草稿分支保留 ELK 计算的纵向偏移，旁挂在主干下方。
+    const isDraftBranch = (child) => {
+      const node = nodeByPath.get(child.id);
+      const type = String(node?.node?.type || node?.typeClass || "").toLowerCase();
+      return type === "mtp" || type === "dspark";
+    };
+    const trunk = modelLayout.children.filter((child) => !isDraftBranch(child));
+    const baseline = trunk.length
+      ? Math.min(...trunk.map((child) => child.y || 0))
+      : Math.min(...modelLayout.children.map((child) => child.y || 0));
+    for (const child of trunk) child.y = baseline;
   }
   const positions = new Map();
   const groupFrames = [];

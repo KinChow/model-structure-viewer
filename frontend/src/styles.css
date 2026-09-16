@@ -1262,19 +1262,26 @@ label {
 .theme-light .formula-strip-count { border-color: #b7c5d3; color: #607184; }
 .theme-light .formula-strip-active { color: #607184; }
 @media (min-width: 961px) {
-  .detail-page { display: flex; flex-direction: column; height: 100vh; }
+  /* min-height + height:auto：视口够高时 flex-grow 撑满画布，视口过矮时整页滚动而非把画布压扁
+     （ref: React Flow 要求父容器有确定高度；此处用 min-height:100vh 兜底 flex 撑高）。 */
+  .detail-page { display: flex; flex-direction: column; min-height: 100vh; height: auto; }
   .detail-page .detail-layout { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
   .detail-page .detail-main { display: flex; flex-direction: column; min-height: 0; }
   .detail-page .diagram-panel { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
   .detail-page .formula-strip { flex: 0 0 auto; }
-  .detail-page .diagram-frame { flex: 1 1 auto; min-height: 320px; height: auto; }
+  .detail-page .diagram-frame { flex: 1 1 auto; min-height: 420px; height: auto; }
   .detail-page .detail-main.cost-open .diagram-panel { flex: 0 0 auto; }
-  .detail-page .detail-main.cost-open .diagram-frame { flex: 0 0 auto; height: 320px; }
-  .detail-page .diagram-compare-pane .diagram-frame { flex: 0 0 420px; min-height: 420px; height: 420px; }
+  .detail-page .detail-main.cost-open .diagram-frame { flex: 0 0 auto; min-height: 320px; height: 320px; }
+  .detail-page .diagram-compare-pane .diagram-frame,
+  .detail-page .detail-main.cost-open .diagram-compare-pane .diagram-frame { flex: 0 0 420px; min-height: 420px; height: 420px; }
 }
 @media (min-width: 961px) and (max-height: 850px) {
   /* 短桌面保留画布最小高度；Cost 和 Inspector 不再靠固定覆盖层定位。 */
-  .detail-page .diagram-frame { min-height: 220px; }
+  .detail-page .diagram-frame { min-height: 360px; }
+  .detail-page .detail-main.cost-open .diagram-frame { min-height: 300px; height: 300px; }
+  /* 对比双画布保持固定 420，短桌面下靠整页滚动而非压扁。 */
+  .detail-page .diagram-compare-pane .diagram-frame,
+  .detail-page .detail-main.cost-open .diagram-compare-pane .diagram-frame { min-height: 420px; height: 420px; }
   .detail-inspector-slot .model-inspector-summary,
   .detail-inspector-slot .detail-panel { max-height: min(46vh, 420px); overflow: auto; }
 }

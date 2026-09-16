@@ -174,14 +174,21 @@ test("短桌面窗口展开公式索引时保留完整控件高度", async ({ pa
   await expect(strip.locator(".formula-strip-links")).toBeVisible();
 });
 
-test("短桌面视口不产生额外文档溢出", async ({ page }) => {
+test("短桌面视口保留画布最小高度且不产生横向溢出", async ({ page }) => {
+  // 短屏时应整页纵向滚动而不是把画布压扁：校验画布 min-height 与无横向溢出，
+  // 而非旧断言的“文档不超过视口高度”（该旧行为正是被压扁的 bug）。
   for (const viewport of [{ width: 1000, height: 750 }, { width: 1280, height: 800 }]) {
     await page.setViewportSize(viewport);
     await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
     await page.getByRole("button", { name: "打开模型" }).click();
     await page.locator(".diagram-frame").waitFor();
-    const size = await page.evaluate(() => ({ viewport: innerHeight, document: document.documentElement.scrollHeight }));
-    expect(size.document).toBeLessThanOrEqual(size.viewport + 1);
+    const size = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      frameHeight: Math.round(document.querySelector(".diagram-frame").getBoundingClientRect().height),
+    }));
+    expect(size.scrollWidth).toBeLessThanOrEqual(size.clientWidth + 1);
+    expect(size.frameHeight).toBeGreaterThanOrEqual(360);
     await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
   }
 });

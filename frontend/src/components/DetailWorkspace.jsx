@@ -163,7 +163,7 @@ export default function DetailWorkspace({
       <section className="detail-summary"><SummaryChips structure={structure} sourceLabel={sourceLabel} language={language} /></section>
       <DiagnosticsPanel structure={structure} language={language} />
       <section className="detail-layout">
-        <div className="detail-main">
+        <div className={`detail-main${costOpen ? " cost-open" : ""}`}>
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} language={language} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
           <ArchitectureTab
             structure={structure}

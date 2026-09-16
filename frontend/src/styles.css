@@ -236,7 +236,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .formula-strip-label { color: #607184; font-size: 11px; }.formula-strip button { padding: 3px 7px; border: 1px solid #b7d0e3; border-radius: 4px; background: #fff; color: #2d6790; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; }.formula-strip button:hover, .formula-strip button.active { border-color: #3178b7; background: #dff0fa; color: #174e75; }
 .formula-section { border-top: 1px solid #e0e7ef; padding-top: 12px; margin-top: 12px; }.formula-section h4 { margin: 0 0 8px; }.formula-section code { display: block; white-space: pre-wrap; color: #28516d; font-size: 12px; }.formula-section p { margin: 8px 0 0; color: #667788; font-size: 12px; line-height: 1.45; }
 .diagram-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }.diagram-compare-pane { display: flex; min-width: 0; min-height: 0; flex-direction: column; }.diagram-compare-label { min-height: 30px; margin: 0 0 6px; color: #526678; font-size: 12px; font-weight: 700; line-height: 1.35; }.diagram-compare-pane .diagram-frame { flex: 1 1 auto; min-width: 0; min-height: 420px; height: 420px; }.lens-flips { margin: -2px 0 10px; padding: 6px 8px; border: 1px solid #e4bd72; border-radius: 4px; background: #fff7e6; color: #7c5418; font-size: 11px; }.lens-flips.empty { border-color: #dce5ed; background: #f8fafc; color: #607184; }
-@media (max-width: 900px) { .diagram-compare { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .diagram-compare { grid-template-columns: 1fr; } }
 .manual-chip { display: inline-flex; align-items: center; position: relative; }.manual-chip-form { position: absolute; z-index: 5; right: 0; top: 34px; width: 250px; padding: 10px; display: grid; gap: 7px; border: 1px solid #bdcbd8; border-radius: 5px; background: #fff; box-shadow: 0 8px 20px rgba(47,65,86,.16); }.manual-chip-form label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 6px; color: #607184; font-size: 11px; }.manual-chip-form input { min-width: 0; width: 100%; padding: 4px 5px; border: 1px solid #bdcbd8; border-radius: 4px; }
 .lens-coverage { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: -4px 0 10px; color: #6d5a35; font-size: 11px; }.lens-coverage b { color: #405365; }.lens-coverage a { color: #286f9f; }
 
@@ -338,7 +338,7 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
 .detail-page.theme-dark .diagram-context-bar { border-color: #354256; background: rgba(18,25,35,.9); color: #aebaca; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
 .detail-page.theme-dark .diagram-context-path i { color: #5f6d7d; }
 .detail-page.theme-dark .diagram-context-meta button { border-color: #354256; color: #f4ab52; }
-@media (max-width: 600px) { .diagram-context-bar { left: 8px; right: 8px; gap: 5px; } .diagram-context-meta span:first-child, .diagram-context-shape { display: none; } .diagram-context-path button { max-width: 120px; } }
+@media (max-width: 640px) { .diagram-context-bar { left: 8px; right: 8px; gap: 5px; } .diagram-context-meta span:first-child, .diagram-context-shape { display: none; } .diagram-context-path button { max-width: 120px; } }
 .diagram-minimap { position: absolute; right: 12px; bottom: 12px; z-index: 3; width: 164px; height: 108px; padding: 7px; border: 1px solid rgba(137,157,180,.5); border-radius: 6px; background: rgba(15,21,30,.9); box-shadow: 0 6px 18px rgba(0,0,0,.22); cursor: crosshair; }
 .diagram-minimap-toggle { position: absolute; right: 12px; bottom: 126px; z-index: 4; width: 24px; height: 24px; padding: 0; border: 1px solid rgba(137,157,180,.5); border-radius: 5px; background: rgba(15,21,30,.92); color: #cbd6e1; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .diagram-minimap-toggle:hover { border-color: #f4ab52; color: #f4ab52; }
@@ -1081,15 +1081,6 @@ label {
     grid-template-columns: 1fr;
   }
 
-  .drawer {
-    order: -1;
-    max-height: none;
-  }
-
-  .detail-panel {
-    position: static;
-    max-height: none;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1149,7 +1140,7 @@ label {
 .detail-aux-actions { display: flex; gap: 5px; }
 .detail-aux-actions button { border: 1px solid #2a3545; border-radius: 5px; background: #151e29; color: #9aa7b7; padding: 7px 9px; font-size: 11px; }
 .detail-aux-actions button.active, .detail-aux-actions button:hover:not(:disabled) { border-color: #f4ab52; color: #f4ab52; }
-.detail-cost-toggle { margin-bottom: 10px; }
+.detail-cost-toggle { flex: none; margin-bottom: 12px; }
 .detail-cost-toggle > button { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; border: 1px solid #2a3545; border-radius: 6px; background: #151e29; color: #e7edf5; padding: 9px 12px; text-align: left; }
 .detail-cost-toggle > button:hover:not(:disabled) { border-color: #f4ab52; }
 .detail-cost-summary { color: #8c99aa; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -1157,7 +1148,7 @@ label {
 .detail-fit-status.fit { background: rgba(95,168,111,.16); color: #86d095; }
 .detail-fit-status.no-fit { background: rgba(215,112,92,.16); color: #f09682; }
 .detail-fit-status.unknown { background: rgba(148,161,177,.16); color: #aebaca; }
-.detail-cost-panel { margin-bottom: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #111821; padding: 0 12px; }
+.detail-cost-panel { flex: none; margin-bottom: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #111821; padding: 0 12px; }
 .detail-cost-panel.is-collapsed { display: none; }
 .detail-cost-panel .cost-summary { border: 0; margin: 0; }
 .detail-aux-panel { margin-top: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #151c26; padding: 14px; }
@@ -1277,57 +1268,18 @@ label {
   .detail-page .diagram-panel { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
   .detail-page .formula-strip { flex: 0 0 auto; }
   .detail-page .diagram-frame { flex: 1 1 auto; min-height: 320px; height: auto; }
+  .detail-page .detail-main.cost-open .diagram-panel { flex: 0 0 auto; }
+  .detail-page .detail-main.cost-open .diagram-frame { flex: 0 0 auto; height: 320px; }
   .detail-page .diagram-compare-pane .diagram-frame { flex: 0 0 420px; min-height: 420px; height: 420px; }
-  .detail-page .detail-cost-toggle {
-    position: fixed;
-    left: max(24px, calc((100vw - 1500px) / 2 + 24px));
-    right: max(368px, calc((100vw - 1500px) / 2 + 368px));
-    bottom: 12px;
-    z-index: 7;
-    margin-bottom: 0;
-  }
-  .detail-page .detail-cost-panel { margin-bottom: 64px; }
-  .detail-page .detail-cost-panel:not(.is-collapsed) {
-    position: fixed;
-    left: max(24px, calc((100vw - 1500px) / 2 + 24px));
-    right: max(368px, calc((100vw - 1500px) / 2 + 368px));
-    bottom: 60px;
-    z-index: 6;
-    max-height: min(68vh, 620px);
-    margin-bottom: 0;
-    overflow: auto;
-    box-shadow: 0 18px 48px rgba(0,0,0,.42);
-  }
 }
 @media (min-width: 961px) and (max-height: 850px) {
-  /* Keep the graph and fixed cost bar inside short desktop viewports. */
+  /* 短桌面保留画布最小高度；Cost 和 Inspector 不再靠固定覆盖层定位。 */
   .detail-page .diagram-frame { min-height: 220px; }
   .detail-inspector-slot .model-inspector-summary,
   .detail-inspector-slot .detail-panel { max-height: min(46vh, 420px); overflow: auto; }
 }
-@media (min-width: 961px) and (max-width: 1100px) {
-  .detail-inspector-slot .model-inspector-summary,
-  .detail-inspector-slot .detail-panel {
-    max-height: min(46vh, 420px);
-    overflow: auto;
-  }
-}
 
-/* Cost uses the same normal-flow interaction on desktop and mobile. The old
-   fixed dock could cover Formula/Export controls and fail actionability. */
-@media (min-width: 961px) {
-  .detail-page .detail-cost-toggle,
-  .detail-page .detail-cost-panel,
-  .detail-page .detail-cost-panel:not(.is-collapsed) {
-    position: static;
-    inset: auto;
-    width: auto;
-    max-height: none;
-    margin: 0 0 12px;
-    overflow: visible;
-  }
-  .detail-page .detail-cost-panel:not(.is-collapsed) { overflow: visible; }
-}
+
 .detail-page .formula-section { border-color: #2a3545; }
 .detail-page .formula-section code { color: #f2c27b; }
 .detail-page .formula-section p { color: #aebaca; }
@@ -1426,7 +1378,6 @@ label {
 .detail-page.theme-light .detail-fit-status.fit { background: #e6f4e8; color: #2e6a3a; }
 .detail-page.theme-light .detail-fit-status.no-fit { background: #fce9e5; color: #a84432; }
 .detail-page.theme-light .detail-fit-status.unknown { background: #eef2f5; color: #68798a; }
-.detail-page.theme-light .detail-cost-panel:not(.is-collapsed) { box-shadow: 0 18px 48px rgba(50,70,90,.24); }
 @media (max-width: 960px) { .detail-layout { grid-template-columns: 1fr; } .detail-inspector-slot { position: relative; z-index: 1; align-self: stretch; margin: 0 -14px -30px; padding: 10px 14px 0; background: linear-gradient(to bottom, transparent, #0d1117 18%); } .detail-inspector-slot .detail-panel, .model-inspector-summary { position: relative; max-height: min(46vh, 420px); overflow: auto; border-radius: 10px 10px 0 0; box-shadow: 0 -12px 30px rgba(0,0,0,.18); } .theme-light .detail-inspector-slot { background: linear-gradient(to bottom, transparent, #f5f8fb 18%); } }
 @media (max-width: 960px) { .detail-sheet-handle { display: block; width: 42px; height: 12px; margin: -2px auto 5px; padding: 0; border: 0; border-radius: 999px; background: linear-gradient(to bottom, transparent 4px, #617083 4px, #617083 8px, transparent 8px); opacity: .7; } .detail-sheet-handle:hover { opacity: 1; } .mobile-inspector-collapsed > :not(.detail-sheet-handle):not(header) { display: none; } .mobile-inspector-collapsed header { margin-bottom: -4px; } }
 @media (max-width: 960px) { .detail-page .manual-chip { flex-wrap: wrap; } .detail-page .manual-chip-form { position: static; flex: 1 0 100%; width: 100%; margin-top: 8px; } }
@@ -1626,7 +1577,7 @@ label {
 .detail-page .cost-breakdown span, .detail-page .cost-metrics span, .detail-page .cost-stages span { font-size: 12px; }
 .detail-page .cost-assumptions, .detail-page .cost-config-note { font-size: 11px; line-height: 1.45; }
 
-@media (max-width: 1100px) {
+@media (max-width: 960px) {
   .detail-page .detail-summary .summary-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .detail-page .detail-summary .chip:nth-child(n + 5) { border-top: 1px solid #2a3545; }
   .detail-page .detail-summary .chip:nth-child(n + 7) { border-top: 0; }

@@ -47,6 +47,7 @@ export const PUBLIC_CHIPS = [
     },
     confidence: "official",
     notes: ["峰值算力采用官方表中未启用稀疏性的数值。"],
+    notes_en: ["Peak compute uses the non-sparsity figures from the official spec table."],
   },
   {
     id: "nvidia-h100-80gb-sxm",
@@ -81,6 +82,7 @@ export const PUBLIC_CHIPS = [
     },
     confidence: "official",
     notes: ["官方峰值算力表标注为启用稀疏性；此处按官方稀疏峰值除以 2，记录稠密峰值。"],
+    notes_en: ["The official peak-compute table is labeled with sparsity enabled; the dense peak here is the official sparse peak divided by 2."],
   },
   {
     id: "nvidia-l40s-48gb",
@@ -114,6 +116,7 @@ export const PUBLIC_CHIPS = [
     },
     confidence: "official",
     notes: ["BF16/FP16/FP8/INT8 采用官方未启用稀疏性的数值；PCIe 为官方双向带宽。"],
+    notes_en: ["BF16/FP16/FP8/INT8 use the official non-sparsity figures; PCIe is the official bidirectional bandwidth."],
   },
   {
     // 官方口径有调整史，取保守值：华为未公开 910B4 完整数据表，算力/容量取第三方一致口径
@@ -151,6 +154,11 @@ export const PUBLIC_CHIPS = [
       "官方口径有调整史，取保守值：20 Cube + 40 Vector（向量与立方单元 2:1）与 800GB/s 显存带宽出自 arXiv 2505.15112 实测平台描述；FP16/INT8/容量取第三方一致口径且未取上限值。",
       "BF16 与 FP16 共用 Cube、吞吐相同（达芬奇 Cube 对两种 16-bit 浮点同速率）；FP32 在向量单元执行，取 arXiv 2607.20120 对 910B 系实测 9.2 TFLOPS。",
       "无独立 SFU：超越函数在向量单元执行，sfu 速率按 sfu_rate_source:\"vector\" 语义映射到向量单元费率（语义映射非估算）。HCCS 392GB/s 为每处理器 7 条链路聚合理论带宽（华为官方文档）。",
+    ],
+    notes_en: [
+      "Official figures have a revision history, so conservative values are used: 20 Cube + 40 Vector (Vector:Cube = 2:1) and 800 GB/s memory bandwidth come from the measured-platform description in arXiv 2505.15112; FP16/INT8/capacity follow third-party consistent figures without taking upper bounds.",
+      "BF16 and FP16 share the Cube unit at the same throughput (the DaVinci Cube runs both 16-bit floats at the same rate); FP32 runs on the vector unit, taking the 9.2 TFLOPS measured for the 910B series in arXiv 2607.20120.",
+      "No dedicated SFU: transcendental functions run on the vector unit, and the sfu rate is semantically mapped to the vector-unit rate via sfu_rate_source:\"vector\" (a semantic mapping, not an estimate). HCCS 392 GB/s is the aggregated theoretical bandwidth of 7 links per processor (Huawei official documentation).",
     ],
   },
 ];

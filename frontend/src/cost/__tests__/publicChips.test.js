@@ -70,3 +70,16 @@ test("昇腾 910B4 按保守口径入库，无独立 SFU 时声明 sfu→vector 
   assert.equal(rates.sfuPerSecond, rates.vectorPerSecond);
   assert.ok(!rates.missing.includes("sfu_ops"));
 });
+
+test("芯片 notes 双语：每条中文 notes 都有等长英文 notes_en（无汉字）", () => {
+  const han = /\p{Script=Han}/u;
+  for (const chip of PUBLIC_CHIPS) {
+    if (!Array.isArray(chip.notes) || chip.notes.length === 0) continue;
+    assert.ok(Array.isArray(chip.notes_en), `${chip.id}: 缺 notes_en`);
+    assert.equal(chip.notes_en.length, chip.notes.length, `${chip.id}: notes_en 与 notes 条数不一致`);
+    for (const note of chip.notes_en) {
+      assert.ok(note && note.trim(), `${chip.id}: notes_en 有空条`);
+      assert.doesNotMatch(note, han, `${chip.id}: notes_en 含汉字 -> ${note}`);
+    }
+  }
+});

@@ -247,6 +247,12 @@ rect.diagram-node.comparison-change { stroke: #b96b16; stroke-width: 3px; }
   width: 100%;
   height: 470px;
   overflow: hidden;
+  /* React Flow 内部用了大量 z-index（pane/viewport/renderer 直到 controls 的 1001），而
+     .react-flow 自身默认不建立层叠上下文，这些 z-index 会“泄漏”到页面参与全局层叠。超长
+     模型（如 Kimi-K3）ELK 布局收敛后画布会长高数十像素、压到下方 Cost 开关上，泄漏的
+     react-flow 命中层便盖住开关吃掉点击。用 isolation:isolate 把这些 z-index 收敛在画布框内
+     （React Flow 官方/社区处理 UI 遮挡的惯用做法，等价于 MDN 推荐的无副作用建栈方式）。 */
+  isolation: isolate;
   border: 1px solid #dbe4ec;
   border-radius: 8px;
   background: var(--diagram-bg);
@@ -1186,7 +1192,10 @@ label {
 .detail-aux-actions { display: flex; gap: 5px; }
 .detail-aux-actions button { border: 1px solid #2a3545; border-radius: 5px; background: #151e29; color: #9aa7b7; padding: 7px 9px; font-size: 11px; }
 .detail-aux-actions button.active, .detail-aux-actions button:hover:not(:disabled) { border-color: #f4ab52; color: #f4ab52; }
-.detail-cost-toggle { flex: none; margin-bottom: 12px; }
+/* Cost 开关/面板与 aux 面板位于画布下方的同一滚动列。.diagram-frame 已 isolation 建栈，
+   这里再给这些交互控件 position:relative + z-index:1，保证即便画布长高与其重叠，画布也不会
+   遮挡它们（invariant：画布下方的控件必须始终可点）。 */
+.detail-cost-toggle { flex: none; margin-bottom: 12px; position: relative; z-index: 1; }
 .detail-cost-toggle > button { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; border: 1px solid #2a3545; border-radius: 6px; background: #151e29; color: #e7edf5; padding: 9px 12px; text-align: left; }
 .detail-cost-toggle > button:hover:not(:disabled) { border-color: #f4ab52; }
 .detail-cost-summary { color: #8c99aa; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -1194,10 +1203,10 @@ label {
 .detail-fit-status.fit { background: rgba(95,168,111,.16); color: #86d095; }
 .detail-fit-status.no-fit { background: rgba(215,112,92,.16); color: #f09682; }
 .detail-fit-status.unknown { background: rgba(148,161,177,.16); color: #aebaca; }
-.detail-cost-panel { flex: none; margin-bottom: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #111821; padding: 0 12px; }
+.detail-cost-panel { flex: none; margin-bottom: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #111821; padding: 0 12px; position: relative; z-index: 1; }
 .detail-cost-panel.is-collapsed { display: none; }
 .detail-cost-panel .cost-summary { border: 0; margin: 0; }
-.detail-aux-panel { margin-top: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #151c26; padding: 14px; }
+.detail-aux-panel { margin-top: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #151c26; padding: 14px; position: relative; z-index: 1; }
 /* ref: https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink — 辅助面板打开时避免盒子收缩后内容重叠。 */
 @media (min-width: 961px) {
   .detail-page.has-aux { height: auto; min-height: 100vh; overflow: visible; }

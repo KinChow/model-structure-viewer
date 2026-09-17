@@ -192,6 +192,16 @@ export function normalizeConfig(config) {
       : Array.isArray(config?.compress_ratios)
         ? config.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
         : [],
+    // V4.1（deepseek_v41）跨层 KV/index 复用：只有 source 层自带 compressor/indexer 权重，
+    // 其余 compress_ratio>0 层复用 source 层的压缩 KV / index（checkpoint index 实证：
+    // compressor 仅在 kv_source_layer_ids、indexer 仅在 index_source_layer_ids）。缺省 undefined
+    // 时退回 compress_ratios 启发式（V4-Flash/Pro）。
+    kvSourceLayerIds: Array.isArray(textConfig?.kv_source_layer_ids)
+      ? textConfig.kv_source_layer_ids.map(Number).filter(Number.isFinite)
+      : (Array.isArray(config?.kv_source_layer_ids) ? config.kv_source_layer_ids.map(Number).filter(Number.isFinite) : undefined),
+    indexSourceLayerIds: Array.isArray(textConfig?.index_source_layer_ids)
+      ? textConfig.index_source_layer_ids.map(Number).filter(Number.isFinite)
+      : (Array.isArray(config?.index_source_layer_ids) ? config.index_source_layer_ids.map(Number).filter(Number.isFinite) : undefined),
     linearKeyHeads: pick(LINEAR_KEY_HEADS_KEYS, { source: linearAttentionConfig, keys: ["num_heads"] }),
     linearValueHeads: pick(LINEAR_VALUE_HEADS_KEYS, { source: linearAttentionConfig, keys: ["num_heads"] }),
     linearKeyDim: pick(LINEAR_KEY_DIM_KEYS, { source: linearAttentionConfig, keys: ["head_dim"] }),

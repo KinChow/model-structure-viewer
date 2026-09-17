@@ -608,6 +608,15 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
 export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
   const dims = tensorDims(normalized);
   const ratio = normalized.compressRatios?.[layerIndex] ?? 0;
+  // V4.1（deepseek_v41）跨层复用：compressor/indexer 权重只在 source 层，其余层复用。
+  // checkpoint index 实证：compressor∈kv_source_layer_ids、indexer∈index_source_layer_ids。
+  // 缺省（V4-Flash/Pro 无 source_layer_ids）退回 compress_ratio 启发式，行为不变。
+  const kvSourceLayerIds = normalized.kvSourceLayerIds;
+  const indexSourceLayerIds = normalized.indexSourceLayerIds;
+  const emitCompressor = Array.isArray(kvSourceLayerIds) ? kvSourceLayerIds.includes(layerIndex) : ratio > 1;
+  // ratio===4（C4 sparse_mla 注意力）必然依赖 indexer，故除 index_source 层外，
+  // ratio===4 也强制 emit indexer，避免出现 sparse_mla 无 indexer 的悬挂结构。
+  const emitIndexer = (Array.isArray(indexSourceLayerIds) && indexSourceLayerIds.includes(layerIndex)) || ratio === 4;
   const qRank = normalized.qLoraRank;
   const headDim = normalized.headDim;
   const groups = normalized.oGroups;
@@ -646,7 +655,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }),
   ];
 
-  if (ratio > 1) {
+  if (emitCompressor) {
     specs.push(operatorSpec(`${prefix}.compressor`, "compressed KV/state compressor", "mla_kv_compress", {
       ...shapeFlow(shapesForHidden(normalized), `[compressed sequence=ceil(sequence/${ratio}), state dimension]`),
       compress_ratio: ratio,
@@ -657,7 +666,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
     }, { input: dims.hidden, output: [-1, -1, 2 * (ratio === 4 ? 2 : 1) * headDim] }));
   }
 
-  if (ratio === 4) {
+  if (emitIndexer) {
     specs.push(operatorSpec(`${prefix}.indexer.weights_proj`, "indexer weight projection", "linear", {
       ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, index heads=${indexHeads}]`),
       implementation: ["vLLM.DeepseekV4Indexer.weights_proj", "SGLang.C4Indexer"],
@@ -674,6 +683,9 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       compress_ratio: ratio,
       implementation: ["vLLM.DeepseekV4Indexer", "SGLang.C4Indexer"],
     }, { input: dims.hidden, output: [-1, -1, budget] }));
+  }
+
+  if (ratio === 4) {
     specs.push(operatorSpec(`${prefix}.attention`, "C4 sparse MLA attention", "dsv4_sparse_mla", {
       ...shapeFlow(`${query}, selected compressed KV`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
       selected_tokens: budget,

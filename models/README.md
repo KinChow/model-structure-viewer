@@ -17,6 +17,41 @@ models/<org>/<model>/config.json
 
 这里不放权重文件。`.safetensors`、`.bin`、`.gguf`、`.pt` 和 `.onnx` 已经在 `.gitignore` 里拦住。
 
+## config 来源纪律（config.json = HF 原件，禁止自写）
+
+每个 `config.json` 都是对应 Hugging Face 仓库
+`https://huggingface.co/<org>/<id>/resolve/main/config.json` 的**逐字节原件**，
+不允许人工改写、删字段或补字段。理由：结构装配（`normalizeConfig` →
+`resolveArchitecture` → assembler）与 header 真值校验都以官方 config 的结构性
+字段为唯一事实来源，一旦自写就会与 checkpoint 脱钩，掩盖真实结构。
+
+判据：所有内置 config 都带 HF 原生的 `transformers_version` 字段（无此字段视为
+可疑自写件）。
+
+**核对方法**（本机 HF 直连可用，`curl -L` 跟随 307 重定向）：逐模型拉 HF 原件
+与本地 `config.json` 做键集 + 值的全量 diff，期望 `diff=0 missing=0`。
+
+```bash
+match=0; diff=0; missing=0
+for m in $(git ls-files models/ | grep '/config.json$' | sed 's#models/##;s#/config.json##'); do
+  code=$(curl -sSL -m 30 "https://huggingface.co/$m/resolve/main/config.json" -o /tmp/hf_cfg.json -w "%{http_code}")
+  if [ "$code" != "200" ] || [ ! -s /tmp/hf_cfg.json ]; then echo "MISSING $m ($code)"; missing=$((missing+1)); continue; fi
+  res=$(python3 -c "
+import json
+a=json.load(open('models/$m/config.json')); b=json.load(open('/tmp/hf_cfg.json'))
+ka,kb=set(a),set(b); lo=sorted(ka-kb); ro=sorted(kb-ka); vd=[k for k in ka&kb if a[k]!=b[k]]
+print('MATCH' if not lo and not ro and not vd else 'DIFF local-only=%s remote-only=%s val-diff=%s'%(lo,ro,vd[:10]))")
+  [ "$res" = "MATCH" ] && match=$((match+1)) || { echo "DIFF $m: $res"; diff=$((diff+1)); }
+done
+echo "TOTAL match=$match diff=$diff missing=$missing"   # 期望 diff=0 missing=0
+```
+
+> 最近一次全量核对（59 模型）结果：`match=59 diff=0 missing=0`，即全部本地
+> config 与 HF 原件逐字段零差异，无自写配置。新增模型接入后应重跑上面脚本。
+>
+> 例外：`modeling_*.py` / `configuration_*.py` 等自定义源码同样是 HF 原件取证
+> （见「变更纪律 3b」`scripts/fetch-evidence.mjs`），只做只读证据，不改写。
+
 `header-truth.json` 是一次性 safetensors **header** 证据（`parameterTotal` / 按 dtype 计数），
 由 `@huggingface/hub` 的 `parseSafetensorsMetadata` 生成，不下载权重数据区：
 

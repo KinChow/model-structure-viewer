@@ -241,6 +241,7 @@ export function normalizeConfig(config) {
       pick(["qk_nope_head_dim"]),
     valueHeadDim: pick(VALUE_HEAD_DIM_KEYS) ?? headDim,
     intermediateSize: pick(INTERMEDIATE_KEYS),
+    denseIntermediateSize: pick(["dense_intermediate_size"]),
     moeIntermediateSize: pick(MOE_INTERMEDIATE_KEYS),
     vocabSize: pick(VOCAB_KEYS),
     visionHiddenSize: visionConfig ? firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]) : undefined,

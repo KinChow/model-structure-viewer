@@ -77,7 +77,9 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
   const ffnAttr = hfFfnAttr(normalized, layerKind);
   const ffn = layerKind === "moe"
     ? moeModule(`${id}.${ffnAttr}`, normalized, { layerIndex })
-    : mlpModule(`${id}.${ffnAttr}`, normalized);
+    : mlpModule(`${id}.${ffnAttr}`, normalized.denseIntermediateSize
+      ? { ...normalized, intermediateSize: normalized.denseIntermediateSize }
+      : normalized);
   const children = isMhc ? [
     ...(hasEngram ? [engramModule(`${id}.engram`, normalized, { layerIndex })] : []),
     multiHyperConnectionModule(`${id}.mhc_attn_pre`, normalized, "pre"),

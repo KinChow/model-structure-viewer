@@ -55,7 +55,7 @@ export function decoderStackNetwork(id, normalized, options = {}) {
 
   return withShapeDims(moduleSpec(
     id,
-    id === "language_model" ? "Text Decoder Layers" : "Decoder Layers",
+    id.startsWith("language_model") ? "Text Decoder Layers" : "Decoder Layers",
     "decoder",
     { class: hfNamedClass(normalized, "modelClass", "Model"), num_hidden_layers: layers, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
     children,

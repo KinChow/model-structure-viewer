@@ -81,7 +81,7 @@ export const ARCH_RECIPES = {
     visionBlockClass: "MiniMaxM3VLVisionEncoderLayer",
     visionModelClass: "MiniMaxM3VLVisionModel",
     visionAttr: "vision_tower",
-    layersAttr: "language_model",
+    layersAttr: "language_model.layers",
     swigluVariant: "swigluoai",
     sigmoidRouter: true,
   },

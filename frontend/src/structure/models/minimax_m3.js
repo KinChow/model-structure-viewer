@@ -4,6 +4,7 @@ import { lmHeadModule } from "../layers/outputHead.js";
 import { projectorModule } from "../layers/projector.js";
 import { visionTowerModule } from "../layers/vision.js";
 import { rmsNormModule } from "../layers/norm.js";
+import { embeddingModule } from "../layers/embedding.js";
 import { hfLayersAttr } from "../archs/index.js";
 import { networkSpecWithDraft } from "./common.js";
 import { deepSeekMtpChild } from "./deepseek_mtp.js";
@@ -13,6 +14,7 @@ export function assembleMiniMaxM3(resolved, normalized) {
   const children = [
     visionTowerModule(normalized),
     projectorModule(normalized),
+    embeddingModule("embed_tokens", normalized),
     decoderStackNetwork(hfLayersAttr(normalized), normalized, {
       attentionKind: "sparse",
       defaultLayerKind: normalized.experts ? "moe" : "dense",

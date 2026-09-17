@@ -101,7 +101,7 @@ test("module class uses recipe full names or stems, not algorithm labels", () =>
     text_config: { num_hidden_layers: 2, hidden_size: 4096, num_attention_heads: 32, num_local_experts: 8 },
   });
   const m3Net = buildNetwork(resolveArchitecture(m3), m3);
-  const m3Layer = m3Net.children.find((node) => node.id === "language_model" || node.id === "layers").children[0];
+  const m3Layer = m3Net.children.find((node) => node.id === "language_model.layers" || node.id === "language_model" || node.id === "layers").children[0];
   assert.equal(m3Layer.attributes.class, "MiniMaxM3VLDecoderLayer");
   assert.equal(m3Layer.children.find((node) => node.type === "attention").attributes.class, "MiniMaxM3VLAttention");
   assert.equal(m3Layer.children.find((node) => node.type === "moe").attributes.class, "MiniMaxM3VLSparseMoeBlock");
@@ -143,8 +143,9 @@ test("selects dedicated model builders by canonical architecture", () => {
 
   assert.equal(network.children[0].id, "vision_tower");
   assert.equal(network.children[1].id, "projector");
-  assert.equal(network.children[2].id, "language_model");
-  assert.equal(network.children[2].attributes.class, "MiniMaxM3VLTextModel");
+  assert.equal(network.children[2].id, "embed_tokens");
+  assert.equal(network.children[3].id, "language_model.layers");
+  assert.equal(network.children[3].attributes.class, "MiniMaxM3VLTextModel");
 });
 
 test("builds Qwen multimodal models with vision tower and projector", () => {
@@ -738,7 +739,7 @@ test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse sched
     "rotary position embedding",
     "indexer query projection",
     "indexer key and weight projection",
-    "indexer key RMSNorm",
+    "indexer key LayerNorm",
     "DSA indexer",
     "DSA sparse MLA attention",
     "output projection",
@@ -786,7 +787,7 @@ test("maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE", () 
     normalized,
     resolved,
   }));
-  const decoder = treeView(structure).children.find((node) => node.id === "language_model" || node.id === "layers");
+  const decoder = treeView(structure).children.find((node) => node.id === "language_model.layers" || node.id === "language_model" || node.id === "layers");
   assert.equal(decoder.children[0].attributes.range, "0..2");
   assert.equal(decoder.children[1].attributes.range, "3..59");
   const sparseLayer = decoder.children[1];

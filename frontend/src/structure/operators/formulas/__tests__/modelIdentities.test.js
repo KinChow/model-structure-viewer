@@ -358,7 +358,7 @@ test("W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）", () =>
       const index = (attrs.cache_index_elements || 0) * multiplier * B * S;
       indexCapacity += index;
       if (!kv) return;
-      const layer = Number((id.match(/(?:^|\.)(?:layers|language_model)\.(\d+)(?:\.|$)/) || [])[1]);
+      const layer = Number((id.match(/(?:^|\.)(?:language_model\.)?layers\.(\d+)(?:\.|$)/) || [])[1]);
       const kind = Number.isFinite(layer) ? (schedule[layer] || "gqa") : "gqa";
       if (kind === "linear") return;
       if (FULL_READ_KINDS.has(kind)) fullCapacity += kv;
@@ -383,7 +383,7 @@ test("W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）", () =>
       if (!ATTENTION_OPS.has(op)) return;
       const kv = (actions.bytes?.kvRead || 0) * multiplier;
       if (kv > 0) attnLeaves += 1;
-      const layer = Number((id.match(/^(?:layers|language_model)\.(\d+)\./) || [])[1]);
+      const layer = Number((id.match(/^(?:language_model\.)?layers\.(\d+)\./) || [])[1]);
       const kind = Number.isFinite(layer) ? (schedule[layer] || "gqa") : "gqa";
       if (FULL_READ_KINDS.has(kind)) fullRead += kv;
       else selectiveRead += kv;

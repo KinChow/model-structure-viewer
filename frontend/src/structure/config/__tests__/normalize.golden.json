@@ -1,7 +1,7 @@
 {
  "MiniMaxAI/MiniMax-M2.7": "6626b2be61c14bb4",
- "MiniMaxAI/MiniMax-M3": "3f95edc399f7fdca",
- "MiniMaxAI/MiniMax-M3-MXFP8": "e39d5b06f163d594",
+ "MiniMaxAI/MiniMax-M3": "7139d80a92a5cfb2",
+ "MiniMaxAI/MiniMax-M3-MXFP8": "6ab0919574f4832b",
  "Qwen/Qwen3.5-0.8B": "526f5a8139aee430",
  "Qwen/Qwen3.5-0.8B-Base": "526f5a8139aee430",
  "Qwen/Qwen3.5-122B-A10B": "6f86e0a84fe41fdf",
@@ -41,7 +41,7 @@
  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp": "7b0cf379581b6d4d",
  "deepseek-ai/DeepSeek-V4-Pro": "581128852b49ba50",
  "deepseek-ai/DeepSeek-V4-Pro-0813": "335df48ff60f2b4b",
- "deepseek-ai/DeepSeek-V4.1-Flash": "36144c23047efce5",
+ "deepseek-ai/DeepSeek-V4.1-Flash": "1656c118eff20960",
  "moonshotai/Kimi-K2-Base": "866f11accf69e45c",
  "moonshotai/Kimi-K2-Instruct": "866f11accf69e45c",
  "moonshotai/Kimi-K2-Instruct-0905": "f4a03c38b8039192",

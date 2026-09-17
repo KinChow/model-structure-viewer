@@ -60,7 +60,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run build
+      # enablement: true 让本工作流用 GITHUB_TOKEN（pages: write）在 Pages 未启用时自动开启，
+      # 并把构建来源设为 GitHub Actions，避免首次运行报 "Get Pages site failed / Not Found"。
+      # 来源：https://github.com/actions/configure-pages#enablement
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist

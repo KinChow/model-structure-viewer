@@ -1011,8 +1011,11 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       projection_layout: ["wk", "weights"],
       implementation: ["vLLM.Indexer.wk_weights_proj", "SGLang.Indexer.wk_weights_proj"],
     }, { input: dims.hidden, output: [-1, -1, indexDim + indexHeads] }),
-    operatorSpec(`${prefix}.indexer.k_norm`, "indexer key RMSNorm", "rmsnorm", {
+    operatorSpec(`${prefix}.indexer.k_norm`, "indexer key LayerNorm", "rmsnorm", {
       ...shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
+      // DSA indexer 的 key norm 在 transformers 真值里是 nn.LayerNorm（weight+bias=2×width），
+      // 非 RMSNorm；affine_bias 让声明含 bias，参数量与后端 LayerNorm 一致（NV-1 对账实证）。
+      affine_bias: true,
       implementation: ["vLLM.Indexer.k_norm", "SGLang.Indexer.k_norm"],
     }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
     operatorSpec(`${prefix}.indexer`, kpool > 1 ? "DSA indexer (k-pool)" : "DSA indexer", kpool > 1 ? "dsa_kpool_indexer" : "dsa_indexer", {

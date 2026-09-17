@@ -73,7 +73,7 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       && node.bottom > canvas.top && node.top < canvas.bottom);
   });
   const modelIds = await page.locator("datalist#builtin-models option").evaluateAll((options) => options.map((option) => option.value));
-  expect(modelIds).toHaveLength(59);
+  expect(modelIds).toHaveLength(60);
 
   for (const modelId of modelIds) {
     await page.getByLabel("model id").fill(modelId);

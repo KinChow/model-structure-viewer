@@ -2,6 +2,7 @@ import { networkSpec } from "./common.js";
 import { assembleDeepseekV3 } from "./deepseek_v3.js";
 import { assembleDeepseekV32 } from "./deepseek_v32.js";
 import { assembleDeepseekV4 } from "./deepseek_v4.js";
+import { assembleDeepseekV41 } from "./deepseek_v41.js";
 import { assembleGlm4Moe } from "./glm4_moe.js";
 import { assembleGlm5Next } from "./glm5_next.js";
 import { assembleQwen3 } from "./qwen3.js";
@@ -19,6 +20,7 @@ export const MODELS = {
   DeepseekV3ForCausalLM: assembleDeepseekV3,
   DeepseekV32ForCausalLM: assembleDeepseekV32,
   DeepseekV4ForCausalLM: assembleDeepseekV4,
+  DeepseekV41ForCausalLM: assembleDeepseekV41,
   Glm4MoeForCausalLM: assembleGlm4Moe,
   GlmMoeDsaForCausalLM: assembleDeepseekV32,
   Qwen3ForCausalLM: assembleQwen3,

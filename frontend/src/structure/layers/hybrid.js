@@ -139,6 +139,80 @@ export function sharedExpertGateModule(id, normalized) {
   ), dims.hidden, dims.hidden);
 }
 
+// DeepSeek V4.1 Engram —— n-gram 哈希记忆按门控写回 hc_mult 条残差流（随附
+// model.py Engram / ParallelEngramEmbedding）。挂在 engramLayerIds 命中层的入口，
+// 三步：哈希表查行（embed，fp8，无 MAC）→ wkv 投影出 hc_mult 个 key + 1 个 value →
+// 归一化点积门控写回残差流（engram_gate）。engram_num_embeddings 逐层不同，按
+// engramLayerIds 下标取当前层表宽（V4.1 主导权重来源）。
+export function engramModule(id, normalized, { layerIndex = 0 } = {}) {
+  const shapes = tensorShapes(normalized);
+  const dims = tensorDims(normalized);
+  const layerIds = normalized.engramLayerIds || [];
+  const found = layerIds.indexOf(layerIndex);
+  const engramIndex = found >= 0 ? found : 0;
+  const numEmbeddings = (normalized.engramNumEmbeddings || [])[engramIndex] || 0;
+  const headDim = normalized.engramHeadDim || 0;
+  const nHeads = normalized.engramNHeads || 0;
+  const maxNgram = normalized.engramMaxNgramSize || 0;
+  const hcMult = normalized.mhcNumResidualStreams || 0;
+  const hidden = normalized.hiddenSize || 0;
+  // n_hash_cols = (max_ngram_size - 1) · n_heads（model.py Engram.__init__）。
+  const nHashCols = Math.max((maxNgram - 1) * nHeads, 0);
+  // wkv 输出 = dim·(hc_mult+1)：hc_mult 份 key + 1 份共享 value。
+  const kvOut = hidden * (hcMult + 1);
+  const streamDisplay = `[residual streams=${hcMult}, ${shapes.hidden}]`;
+  const streamNumeric = [-1, hcMult, ...dims.hidden.slice(1)];
+  const hashDisplay = `[batch, sequence, n-gram hash columns=${nHashCols}]`;
+  const gatheredDisplay = `[batch, sequence, n-gram hash columns=${nHashCols}, engram head dimension=${headDim}]`;
+  const kvDisplay = `[batch, sequence, engram kv=${kvOut}]`;
+  return withShapeDims(moduleSpec(
+    id,
+    "Engram",
+    "engram",
+    {
+      class: hfNamedClass(normalized, "engramClass", "Engram"),
+      engram_num_embeddings: numEmbeddings,
+      engram_head_dim: headDim,
+      engram_n_heads: nHeads,
+      engram_max_ngram_size: maxNgram,
+      n_hash_columns: nHashCols,
+      implementation: ["ngram_hash_lookup", "kv_projection", "match_gated_residual_write"],
+      dataflow_edges: [["embed", "wkv"], ["wkv", "engram_gate"]],
+      ...shapeFlow(streamDisplay, streamDisplay),
+    },
+    [
+      // ParallelEngramEmbedding：按行分片、fp8 存储（查表时反量化）。gather 无 MAC，
+      // 容量 = num_embeddings × engram_head_dim。类型 embedding → 走 embedGatherCounts。
+      withShapeDims(moduleSpec(`${id}.embed`, "engram n-gram embedding", "embedding", {
+        class: "ParallelEngramEmbedding",
+        // 锚 1（modelIdentities）对 embedding 叶按 vocab_size·hidden_size 对账声明容量，
+        // 沿用 embed_tokens / ngram 表的字段名：vocab_size=哈希表行数、hidden_size=每行宽。
+        vocab_size: numEmbeddings,
+        hidden_size: headDim,
+        weightMatrices: [weightMatrixDecl("vocab", { shape: [numEmbeddings, headDim] })],
+        ...shapeFlow(hashDisplay, gatheredDisplay),
+      }), [-1, -1, nHashCols], [-1, -1, nHashCols, headDim]),
+      operatorSpec(`${id}.wkv`, "engram key/value projection", "linear", {
+        ...shapeFlow(gatheredDisplay, kvDisplay),
+        projection_role: "engram_wkv",
+        weightMatrices: [weightMatrixDecl("replicated", { shape: [kvOut, nHashCols * headDim] })],
+        implementation: ["model.py Engram.wkv"],
+      }, { input: [-1, -1, nHashCols * headDim], output: [-1, -1, kvOut] }),
+      operatorSpec(`${id}.engram_gate`, "engram match-gated write", "engram_gate", {
+        ...shapeFlow(`${streamDisplay}, ${gatheredDisplay}`, streamDisplay),
+        engram_head_dim: headDim,
+        hc_mult: hcMult,
+        // q_weight / k_weight（[hc_mult, dim] 各一，fp32 nn.Parameter，仅作乘积使用）。
+        weightMatrices: [
+          weightMatrixDecl("replicated", { shape: [hcMult, hidden], quantizable: false }),
+          weightMatrixDecl("replicated", { shape: [hcMult, hidden], quantizable: false }),
+        ],
+        implementation: ["model.py Engram.forward: normalized dot + signed-sqrt sigmoid gate"],
+      }, { input: streamNumeric, output: streamNumeric }),
+    ],
+  ), streamNumeric, streamNumeric);
+}
+
 export function multiHyperConnectionModule(id, normalized, phase = "pre") {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);

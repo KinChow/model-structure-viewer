@@ -24,7 +24,7 @@ function childrenOf(graph, parentId) {
 
 test("all built-in models have modules, formulas, and finite cost inputs", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
-  assert.equal(catalog.models.length, 59);
+  assert.equal(catalog.models.length, 60);
   for (const entry of catalog.models) {
     const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
     const normalized = normalizeConfig(config);

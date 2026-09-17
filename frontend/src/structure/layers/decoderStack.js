@@ -28,10 +28,12 @@ export function decoderStackNetwork(id, normalized, options = {}) {
       ? `:i${indexerSchedule[index] || "compute"}`
       : "";
     const hasPle = normalized.pleLayerIds?.includes(index + 1) ? "ple" : "no-ple";
+    // Engram 命中层（0-indexed）必须独立成段，否则与相邻非 engram 层折叠后丢失。
+    const hasEngram = normalized.engramLayerIds?.includes(index) ? "engram" : "no-engram";
     const mhcBoundary = normalized.multiHyperConnection
       ? (index === (layers || 0) - 1 ? "mhc-last" : "mhc-middle")
       : "no-mhc";
-    return `${kind}:${attentionKind}${compressionVariant}${indexerVariant}:${hasPle}:${mhcBoundary}`;
+    return `${kind}:${attentionKind}${compressionVariant}${indexerVariant}:${hasPle}:${hasEngram}:${mhcBoundary}`;
   });
   const children = compactRanges(combinedKinds).map((range) => {
     const repeat = range.end - range.start + 1;

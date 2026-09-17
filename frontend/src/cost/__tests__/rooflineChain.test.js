@@ -29,7 +29,7 @@ const MACHINE = PUBLIC_CHIPS[0];
 
 test("all built-in models classify a roofline bound through the aggregate chain", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
-  assert.equal(catalog.models.length, 59);
+  assert.equal(catalog.models.length, 60);
   const bounds = {};
   for (const entry of catalog.models) {
     const rawConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));

@@ -6,14 +6,15 @@ import { rmsNormModule } from "./norm.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
 import { attentionResidualModule } from "./residual.js";
-import { hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
+import { engramModule, hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
 import { layerInSpec, residualAddSpec } from "../operators/ops/index.js";
 import { hfAttentionAttr, hfFfnAttr, hfNamedClass, recipeValue } from "../archs/index.js";
 
-function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, attnAttr, ffnAttr }) {
+function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, hasEngram, attnAttr, ffnAttr }) {
   const ffn = ffnAttr;
   if (isMhc) {
     return [
+      ...(hasEngram ? [["engram", "mhc_attn_pre"]] : []),
       ["mhc_attn_pre", attnAttr],
       [attnAttr, "attn_residual_add"],
       ["mhc_attn_pre", "attn_residual_add"],
@@ -68,6 +69,8 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
   const layerMix = recipeValue(normalized, "layerMix");
   const isLastLayer = forceLastMhc || (isMhc && layerIndex === (normalized.layers || 0) - 1);
   const hasPle = Boolean(normalized.pleLayerIds?.includes(layerIndex + 1));
+  // Engram 挂在 engramLayerIds 命中层的入口（0-indexed 主干层号，见 normalize 注释）。
+  const hasEngram = Boolean(normalized.engramLayerIds?.includes(layerIndex));
   const hasHyper = Boolean(normalized.hyperConnectionCount);
   const hasAttnRes = Boolean(normalized.attnResBlockSize);
   const attnAttr = hfAttentionAttr(normalized, attentionKind);
@@ -76,6 +79,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     ? moeModule(`${id}.${ffnAttr}`, normalized, { layerIndex })
     : mlpModule(`${id}.${ffnAttr}`, normalized);
   const children = isMhc ? [
+    ...(hasEngram ? [engramModule(`${id}.engram`, normalized, { layerIndex })] : []),
     multiHyperConnectionModule(`${id}.mhc_attn_pre`, normalized, "pre"),
     attentionModule(`${id}.${attnAttr}`, normalized, attentionKind, layerIndex),
     residualAddSpec(`${id}.attn_residual_add`, normalized, "attention"),
@@ -116,7 +120,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     {
       class: hfNamedClass(normalized, "decoderLayerClass", "DecoderLayer"),
       layer_kind: layerKind,
-      dataflow_edges: decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, attnAttr, ffnAttr }),
+      dataflow_edges: decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, hasEngram, attnAttr, ffnAttr }),
       ...shapeFlow(shapes.hidden, shapes.hidden),
     },
     children,

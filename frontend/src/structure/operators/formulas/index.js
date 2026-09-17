@@ -12,7 +12,7 @@ import {
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
   fusedMoeMlpCounts, embedGatherCounts, matmulPartCounts, sdpaAttentionCounts,
   sparseLeafAttentionCounts, minimaxSparseAttentionCounts, dsv4SwaAttentionCounts,
-  dsv4CompressedAttentionCounts, gatedDeltaStateCounts,
+  dsv4CompressedAttentionCounts, gatedDeltaStateCounts, engramGateCounts,
 } from "./counts.js";
 import { sparseIndexerCounts } from "./modules.js";
 
@@ -626,6 +626,19 @@ export const FORMULAS = {
     outputs: ["O"],
     counts: dsv4CompressedAttentionCounts,
   },
+  engram_gate: {
+    title: "Engram Match-Gated Write",
+    // ref: 二等 modeling 对照 models/deepseek-ai/DeepSeek-V4.1-Flash/model.py
+    //      Engram.forward（:350-366）：wkv 出 hc_mult 个 key + 1 个共享 value；逐
+    //      (token, hc copy) 在 dim 上做归一化点积 rstd=rsqrt(mean h²)·rsqrt(mean key²)，
+    //      dot=(h·weight·key).sum(-1)·rstd·dim^-0.5，门=sigmoid(copysign(√|dot|,dot))，
+    //      写回 h + gate·value。无 GEMM（matrix=0）；A5：rsqrt/sqrt/sigmoid 记 SFU。
+    formula: "g = σ(sign(d)·√|d|), d = (Σ_c h_c·w_c·k_c)·rstd·dim^{-1/2}; h' = h + g·v",
+    explanation: "DeepSeek V4.1 Engram 的匹配门控写回：n-gram 查表经 wkv 得每条残差流一个 key 与一个共享 value，按残差流与 key 的归一化点积算门（signed-sqrt 后 sigmoid），门控地把 value 加回该 token 的每条残差流。",
+    inputs: ["hidden streams", "key", "value"],
+    outputs: ["hidden streams"],
+    counts: engramGateCounts,
+  },
 };
 
 export function formulaForOperator(operatorId) {
@@ -651,7 +664,7 @@ export const FORMULA_GROUPS = {
   elementwise: [
     "residual_add", "identity",
     "mhc_pre", "mhc_fused_post_pre", "mhc_post", "mhc_contract",
-    "hyper_connection", "attention_residual",
+    "hyper_connection", "attention_residual", "engram_gate",
   ],
   memory: ["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split", "vision_merge"],
   mamba: ["linear_attention", "gated_delta_attention", "causal_conv1d"],

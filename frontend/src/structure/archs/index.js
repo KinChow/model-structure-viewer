@@ -23,6 +23,17 @@
 // 模型文件手写 class Foo，没有这套构词器。attn/ffn 变体清单不进本表。
 export const ARCH_RECIPES = {
   DeepseekV4ForCausalLM: { moeClass: "DeepseekV4SparseMoeBlock", hashMoE: true },
+  // DeepSeek V4.1：与 V4 同族（sqrtsoftplus/noaux_tc 路由、o_lora 分组输出投影、
+  // 逐层 compress_ratios、MHC、DSpark 投机头、视觉塔）。差异 = 无 hash 层
+  // （config 无 num_hash_layers → numHashLayers=0，moe.js 的 isHashMoe 恒 false，
+  // 全部走 sqrtsoftplus routed MoE）+ 每层入口 Engram（engramLayerIds 注入，
+  // 见 decoderLayer.js）。类名取自随附 model.py 原生实现（Block/Transformer/MoE）。
+  DeepseekV41ForCausalLM: {
+    hashMoE: true,
+    moeClass: "MoE",
+    decoderLayerClass: "Block",
+    modelClass: "Transformer",
+  },
   Glm5NextForConditionalGeneration: {
     linearAttentionMode: "glm5_next",
     visionInternalMerger: true,

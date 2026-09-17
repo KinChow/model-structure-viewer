@@ -39,6 +39,19 @@ function swaMtpNormalized(normalized, layers) {
     ...normalized,
     compressRatios: Array.from({ length: Math.max(normalized.layers || 0, layers) }, () => 0),
     numHashLayers: 0,
+    // 投机头（MTP/DSpark）草稿层不是主干层，engram 只挂主干（model.py：
+    // DSparkBlock(args.n_layers + layer_id) 的层号不在 engram_layer_ids 内）。
+    // 清空避免草稿 stage 下标与 engramLayerIds 的 0-indexed 主干层号误撞。
+    engramLayerIds: [],
+    // DSpark 草稿块的 MoE 专家数可独立于主干（model.py get_moe_config：草稿层用
+    // dspark_n_routed_experts / dspark_num_experts_per_tok）。缺该字段（V4 系）时
+    // 保持主干专家数不变。
+    ...(normalized.dsparkNRoutedExperts != null
+      ? {
+        experts: normalized.dsparkNRoutedExperts,
+        expertsPerToken: normalized.dsparkNumExpertsPerTok ?? normalized.expertsPerToken,
+      }
+      : {}),
   };
 }
 

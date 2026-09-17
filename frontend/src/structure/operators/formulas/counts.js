@@ -331,6 +331,29 @@ export function addCounts({ tokens, hidden, bytesPerElement }) {
   return add({ elements: tokens * hidden, bytesPerElement });
 }
 
+/**
+ * Engram 匹配门控写回（DeepSeek V4.1 model.py Engram.forward）。
+ * 输入 h [T, hc, dim]、key [T, hc, dim]、value [T, dim]，逐 (token, hc copy) 在
+ * dim 上做归一化点积 → signed-sqrt → sigmoid 门 → h + gate·value。无 GEMM。
+ * 分解：h²/key² 各 2·wide（平方+归约）、(h·w·key) 3·wide（两次逐元素乘+归约）、
+ * 门控写回 2·wide（gate·value + add）≈ 9·wide vector；SFU = 2 rsqrt + sqrt +
+ * sigmoid(2) ≈ 5·cells（A5）。q_weight/k_weight 各 [hc, dim] 权重读一遍。
+ */
+export function engramGateCounts({ tokens, hc = 1, hidden, bytesPerElement }) {
+  const cells = tokens * hc;
+  const wide = cells * hidden;
+  return {
+    matrix: 0,
+    vector: 9 * wide,
+    sfu: 5 * cells,
+    bytes: {
+      weights: 2 * hc * hidden * bytesPerElement,
+      actIn: (2 * wide + tokens * hidden) * bytesPerElement,
+      actOut: wide * bytesPerElement,
+    },
+  };
+}
+
 /** dsv4 hash 路由：纯查表。tableRows = 哈希表条目数（按参数计 weights）。 */
 // Hash 路由（DeepSeek V4 tid2eid 静态查表）。2026-09-09 分类裁决：
 // tid2eid 是 **buffer 不是参数**（NVIDIA Megatron-Bridge 文档明文 "Buffers are

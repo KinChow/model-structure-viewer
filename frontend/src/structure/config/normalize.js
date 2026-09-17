@@ -341,6 +341,27 @@ export function normalizeConfig(config) {
     dsparkBlockSize: pick(["dspark_block_size"]),
     dsparkMarkovRank: pick(["dspark_markov_rank"]),
     dsparkNoiseTokenId: pick(["dspark_noise_token_id"]),
+    // DSpark 草稿块自带 MoE，专家数可独立于主干（V4.1：dspark_n_routed_experts=128 /
+    // dspark_num_experts_per_tok=3，主干为 384/6）。model.py get_moe_config(layer_id)
+    // 对 layer_id ≥ n_layers 的草稿块返回这组值。V4 系无此字段 → 草稿复用主干专家数。
+    dsparkNRoutedExperts: pick(["dspark_n_routed_experts"]),
+    dsparkNumExpertsPerTok: pick(["dspark_num_experts_per_tok"]),
+    // DeepSeek V4.1 Engram —— n-gram 哈希记忆按门控写回残差流（model.py Engram /
+    // Transformer.forward）。engram_layer_ids 是 **0-indexed 主干层号**
+    // （`for layer_id in range(n_layers)`，命中即在该层入口对 h 做 gated 写入），
+    // 与 ple_layer_ids 的 1-indexed 语义不同。engram_num_embeddings 逐层不同
+    // （哈希表行数），engram 模块按 engramLayerIds 下标取对应表宽。
+    engramLayerIds: Array.isArray(textConfig?.engram_layer_ids)
+      ? textConfig.engram_layer_ids
+      : Array.isArray(config?.engram_layer_ids) ? config.engram_layer_ids : [],
+    engramNumEmbeddings: Array.isArray(textConfig?.engram_num_embeddings)
+      ? textConfig.engram_num_embeddings.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+      : Array.isArray(config?.engram_num_embeddings)
+        ? config.engram_num_embeddings.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+        : [],
+    engramMaxNgramSize: pick(["engram_max_ngram_size"]),
+    engramNHeads: pick(["engram_n_heads"]),
+    engramHeadDim: pick(["engram_head_dim"]),
     contextLength: pick(CONTEXT_KEYS),
     tieWordEmbeddings: textConfig?.tie_word_embeddings ?? config?.tie_word_embeddings ?? false,
   };

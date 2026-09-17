@@ -26,7 +26,7 @@ for (const language of ["zh", "en"]) {
     await options.getByLabel("Revision", { exact: true }).fill("test-revision");
     await expect(options.getByLabel("Revision", { exact: true })).toBeFocused();
     await expect(options.getByLabel(english ? "Hugging Face search" : "Hugging Face 搜索", { exact: true })).toBeVisible();
-    await expect(options.locator(".compact-list button")).toHaveCount(59);
+    await expect(options.locator(".compact-list button")).toHaveCount(60);
     await expect(options).not.toContainText(forbiddenUi);
     await options.getByRole("button", { name: english ? "Close" : "关闭", exact: true }).click();
     await expect(options).toBeHidden();

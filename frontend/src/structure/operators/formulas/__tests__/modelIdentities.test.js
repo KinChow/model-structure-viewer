@@ -518,6 +518,11 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "pre_norm -> fc1": "regroup",
   // g_b 输出 projection 宽，逐头门控 norm 按 [heads, valueDim] 看同一张量
   "g_b_proj -> output_gate_norm": "regroup",
+  // Engram（DeepSeek V4.1）：embed 查表出 [n_hash_cols, engram_head_dim]，wkv 前
+  // flatten(-2) 成 n_hash_cols·engram_head_dim（6144=24×256，换分组视图）→ regroup；
+  // wkv 出 dim·(hc_mult+1) 的融合 key+value 汇入 engram_gate（门控写回残差流）→ fused-in。
+  "embed -> wkv": "regroup",
+  "wkv -> engram_gate": "fused-in",
 }));
 
 // P7（步骤 7）：树遍历索引退役——Graph IR 节点自带 canonical_id，直接建索引。

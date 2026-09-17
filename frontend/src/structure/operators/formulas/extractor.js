@@ -323,7 +323,10 @@ const FROM_NODE = {
   fused_moe_mlp: ({ node, config, bytesPerElement, tokens }) => ({
             tokens,
             topk: config?.expertsPerToken || 1,
-            experts: config?.experts || 0,
+            // 专家数取本叶 weightMatrices 的 count（routedExpertWeightMatrices 已把
+            // 专家数编码进 ep 组 count）——草稿块 MoE 专家数可少于主干（DSpark），
+            // 从声明单源读回，保证声明与 counts.bytes.weights 逐位对账（锚 1）。
+            experts: node?.attributes?.weightMatrices?.[0]?.count ?? config?.experts ?? 0,
             expertHidden: node?.attributes?.latent_size || config?.routedExpertHiddenSize || config?.hiddenSize || 0,
             expertIntermediate: config?.moeIntermediateSize || config?.intermediateSize || 0,
             bytesPerElement,
@@ -548,6 +551,12 @@ const FROM_NODE = {
           contract: { tokens, hidden: H, bytesPerElement },
         };
   },
+  engram_gate: ({ config, bytesPerElement, tokens }) => ({
+    tokens,
+    hc: config?.mhcNumResidualStreams || 1,
+    hidden: config?.hiddenSize || 0,
+    bytesPerElement,
+  }),
 };
 
 FROM_NODE.dsa_sparse_mla = FROM_NODE.qsa_sparse_attention;

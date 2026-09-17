@@ -79,9 +79,9 @@
 <!-- BEGIN GENERATED: details-models -->
 
 > **本节由 `node scripts/gen-model-reference.mjs` 生成，请勿手改。**
-> 当前 `models/catalog.json` 收录 59 个内置模型，按 `architectures[0]` 分组。
+> 当前 `models/catalog.json` 收录 60 个内置模型，按 `architectures[0]` 分组。
 
-## 当前已支持模型（59 个，按 architectures[0]）
+## 当前已支持模型（60 个，按 architectures[0]）
 
 ### `Qwen3_5ForConditionalGeneration`：15 个
 
@@ -171,6 +171,10 @@
 ### `DeepseekV32ForCausalLM`：1 个
 
 - `deepseek-ai/DeepSeek-V3.2`
+
+### `DeepseekV41ForCausalLM`：1 个
+
+- `deepseek-ai/DeepSeek-V4.1-Flash`
 
 ### `Glm4MoeForCausalLM`：1 个
 

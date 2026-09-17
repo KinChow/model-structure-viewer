@@ -79,7 +79,7 @@ builder 侧改动清单：MoE 模板（moe.js）的 expert_mlp 叶改独立 oper
 
 **fused shared expert 的方案更正（P3，2026-09-10 取证结论）**：本文原写
 "shared 融合形态同叶声明两组（ep 组 + tp 组）"，该假设与 checkpoint 事实不符，
-已作废。取证：`models/moonshotai/Kimi-K3/k3-index.json` 每个 MoE 层只有
+已作废。取证：`models/moonshotai/Kimi-K3/index-summary.json`（派生自 gitignore 的 `index.json`）每个 MoE 层只有
 `shared_experts.{gate,up,down}_proj.weight` 各一个（92 层 × 3 = 276 个张量），
 `modeling_kimi_linear.py:797-801` 先 `intermediate_size = moe_intermediate_size
 × num_shared_experts` 再实例化**单个** `KimiMLP`。即"融合"= 一个更宽的 MLP，

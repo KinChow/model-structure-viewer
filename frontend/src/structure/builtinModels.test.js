@@ -72,7 +72,7 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       assert.ok(nodes.some((node) => node.name === "Output Attention Residual"), "Kimi-K3: missing output AttnRes module");
       assert.ok(nodes.some((node) => node.name === "MLA output gate"), "Kimi-K3: missing MLA output gate");
       assert.ok(nodes.some((node) => node.canonical_id.endsWith(".block_sparse_moe.shared_experts")), "Kimi-K3: missing shared experts");
-      // P3 fused shared expert：checkpoint 取证（models/moonshotai/Kimi-K3/k3-index.json
+      // P3 fused shared expert：checkpoint 取证（models/moonshotai/Kimi-K3/index-summary.json
       // 每个 MoE 层只有 shared_experts.{gate,up,down}_proj.weight 各一个，共 92×3=276 个
       // 张量；modeling_kimi_linear.py:797-801 `intermediate_size =
       // moe_intermediate_size * num_shared_experts` 后实例化**单个** KimiMLP）——

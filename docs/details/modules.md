@@ -141,7 +141,7 @@ decoder layer
 
 实现：`layers/moe.js`。专家路径在成本计算中使用 `expertsPerToken / experts` 的活跃比例；专家权重在 EP 投影中另行按平均/最坏区间处理。
 
-fused shared expert 的判定单源（P3）：shared expert 是否为"融合"形态的判定权归 `structure/archs/index.js:37` 的 `ARCH_RECIPES.sharedExpertsAreFused` 配方（当前仅 KimiK3 登记），`config/normalize.js` 只归一字段，不再持有第二份 `model_type` 子串判定（normalize.js:155-162）。取证（docs/details/sharding_matrix.md 方案更正节）：K3 checkpoint 每个 MoE 层只有 `shared_experts.{gate,up,down}_proj.weight` 各一个（92 层 × 3 = 276 张量，k3-index.json），`modeling_kimi_linear.py:797-801` 先把 intermediate_size 放大 `num_shared_experts` 倍再实例化**单个** MLP——"融合" = 单个更宽的 MLP，不是打包张量，也不涉及 ep 亲和（shared expert 唯一分片语义 = ÷tp，parallel_protocol Q5）。因此模板保持三叶形态（out = 模块宽）与 checkpoint 1:1 对应，无需独立 operator_id，也无需 ep+tp 双组声明。
+fused shared expert 的判定单源（P3）：shared expert 是否为"融合"形态的判定权归 `structure/archs/index.js:37` 的 `ARCH_RECIPES.sharedExpertsAreFused` 配方（当前仅 KimiK3 登记），`config/normalize.js` 只归一字段，不再持有第二份 `model_type` 子串判定（normalize.js:155-162）。取证（docs/details/sharding_matrix.md 方案更正节）：K3 checkpoint 每个 MoE 层只有 `shared_experts.{gate,up,down}_proj.weight` 各一个（92 层 × 3 = 276 张量，index-summary.json 派生自 index.json），`modeling_kimi_linear.py:797-801` 先把 intermediate_size 放大 `num_shared_experts` 倍再实例化**单个** MLP——"融合" = 单个更宽的 MLP，不是打包张量，也不涉及 ep 亲和（shared expert 唯一分片语义 = ÷tp，parallel_protocol Q5）。因此模板保持三叶形态（out = 模块宽）与 checkpoint 1:1 对应，无需独立 operator_id，也无需 ep+tp 双组声明。
 
 ### 4.3 MLA decoder
 

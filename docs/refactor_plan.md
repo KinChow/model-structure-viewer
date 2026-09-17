@@ -1034,7 +1034,7 @@ P1-6 projectPlan errors+无效语义修正/P1-7 unknown 徽标）。其中 P1-6 
 **遗留（不阻塞收官，全部登记）**：
 - cost_counts.md 42 条逐条 bytes 公式明细（口径总述已加，逐条待 P2 续）
 - 压缩层 hybrid 滑窗读线索、共享 bytes 助手抽取（M11.5 评估）
-- Kimi-K3 k3-index.json 违反 3b 入库（清理待办）
+- Kimi-K3 index 原件已并入通用 `models/**/index.json` gitignore 规则（2026-09-17 清理：`k3-index.json`→`index.json`，删除 gitignore 专项行；派生摘要 `index-summary.json` 入库）
 - 模块级 attention_kind 改判波及的 e2e 断言口径（如有）随下次 e2e 观察
 
 

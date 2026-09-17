@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import re
 from contextlib import ExitStack
 from typing import Any
 
 from .runtime import RuntimePatch
+
+
+# Kimi 官方 remote code 的 tie_weights 旧签名与 transformers 5.x 的
+# init_weights(recompute_mapping=...) 调用不兼容。K2.5/K2.6 是
+# KimiK25ForConditionalGeneration，K3 是 KimiK3ForConditionalGeneration，
+# 同族同款差异，用一条 KimiK*ForConditionalGeneration 正则统一识别。
+_KIMI_TIE_WEIGHTS_RE = re.compile(r"KimiK\w*ForConditionalGeneration\.tie_weights\(\)")
 
 
 def is_flash_attention2_unavailable(error: BaseException) -> bool:
@@ -21,7 +29,7 @@ def is_flash_attention2_unavailable(error: BaseException) -> bool:
 
 def is_kimi_tie_weights_signature_error(error: BaseException) -> bool:
     message = str(error)
-    return "KimiK25ForConditionalGeneration.tie_weights()" in message and "unexpected keyword argument" in message
+    return bool(_KIMI_TIE_WEIGHTS_RE.search(message)) and "unexpected keyword argument" in message
 
 
 def is_kimi_output_recorder_import_error(error: BaseException) -> bool:
@@ -88,7 +96,11 @@ class _KimiTieWeightsCompatContext:
             except TypeError as exc:
                 if not is_kimi_tie_weights_signature_error(exc):
                     raise
-                if type(model_self).__name__ != "KimiK25ForConditionalGeneration":
+                # 双重收窄，避免误吞非 Kimi 族：既要错误消息命中 KimiK*ForConditionalGeneration.tie_weights()
+                # 的 unexpected-keyword TypeError，且实例类名也是 KimiK*ForConditionalGeneration。
+                # 仅在此前提下退回无参 tie_weights()（K2.5/K2.6/K3 官方 remote code 的旧签名）。
+                model_class = type(model_self).__name__
+                if not (model_class.startswith("KimiK") and model_class.endswith("ForConditionalGeneration")):
                     raise
                 return model_self.tie_weights()
 

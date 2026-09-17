@@ -39,12 +39,6 @@ function directChildren(node, nodeByPath) {
     .filter(Boolean);
 }
 
-function isExternalRootNode(node) {
-  const type = String(node.node?.type || node.typeClass || "").toLowerCase();
-  const name = String(node.node?.name || node.displayName || "").toLowerCase();
-  return type === "output" || type === "head" || /(^|[._ -])(lm[_ -]?head|classifier|score)$/.test(name);
-}
-
 function layoutHeight(node) {
   return node.isCollapsible && node.isExpanded ? 28 : node.height;
 }
@@ -64,7 +58,7 @@ export async function layoutGraphWithElk(graph) {
 
   function makeShape(node, depth) {
     const allChildren = directChildren(node, nodeByPath);
-    const children = node.path === "root" ? allChildren.filter((child) => !isExternalRootNode(child)) : allChildren;
+    const children = allChildren;
     const childIds = new Set(children.map((child) => child.path));
     if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
     // 语义流布局只信任 builder 声明的边；semantic-flow 已随 legacySemanticEdges 退役。
@@ -104,50 +98,20 @@ export async function layoutGraphWithElk(graph) {
     };
   }
 
-  // The model itself is the outermost compound node. Placing `root` beside
-  // its children makes the model header look disconnected and loses the
-  // parent/child containment that modelmap uses.
+  // 模型即最外层复合节点；lm_head / 输出头作为 model 的普通顶层子节点归入容器内
+  // （HF/vLLM：lm_head 是 XxxForCausalLM 的直接成员，不是模型外的独立模块）。
   const root = nodeByPath.get("root");
-  const rootChildren = root ? directChildren(root, nodeByPath) : [];
-  const externalRootChildren = rootChildren.filter(isExternalRootNode);
-  const externalIds = new Set(externalRootChildren.map((child) => child.path));
   const modelShape = root ? makeShape(root, 0) : null;
-  const topEdges = root
-    ? graph.edges
-      .filter((edge) => edge.kind === "dataflow"
-        && (edge.source === "root" || rootChildren.some((child) => child.path === edge.source))
-        && rootChildren.some((child) => child.path === edge.target)
-        && (externalIds.has(edge.source) || externalIds.has(edge.target)))
-      .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }))
-    : [];
   const layoutRoot = root
     ? {
       id: "__graph_root__",
       layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT", "elk.padding": "32" },
-      children: [modelShape, ...externalRootChildren.map((child) => makeShape(child, 1))],
-      edges: topEdges,
+      children: [modelShape],
+      edges: [],
     }
     : { id: "__graph_root__", layoutOptions: { ...BASE_LAYOUT, "elk.direction": "RIGHT" }, children: [] };
 
   const result = await elk.layout(layoutRoot);
-  // Cross-boundary edges can make ELK place an external head above the
-  // compound model. The canvas root has a deliberate left-to-right contract:
-  // keep the model container on the left and its external siblings to the
-  // right, aligned to the top execution baseline rather than the center of a
-  // very tall expanded decoder.
-  if (result.id === "__graph_root__") {
-    const modelResult = result.children?.find((child) => child.id === "root");
-    if (modelResult) {
-      let externalX = (modelResult.x || 0) + (modelResult.width || 0) + 80;
-      const modelY = modelResult.y || 0;
-      for (const child of result.children || []) {
-        if (child.id === "root") continue;
-        child.x = externalX;
-        child.y = modelY + 32;
-        externalX += (child.width || 0) + 80;
-      }
-    }
-  }
   // ELK centers short siblings against a large expanded compound node. That
   // is technically valid, but it pushes embedding/norm/head far below the
   // container headers and makes the top-level execution chain look broken.

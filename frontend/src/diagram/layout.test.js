@@ -129,7 +129,9 @@ test("ELK lays out the graph without changing stable node paths", async () => {
   assert.equal(laidOut.containerFrames.find((frame) => frame.id === "root.0").edgeAnchorOffset, 70);
 });
 
-test("keeps an output head outside the model compound", async () => {
+test("keeps the output head inside the model compound", async () => {
+  // HF/vLLM 语义：lm_head 是 XxxForCausalLM 的直接成员，应落在 model 容器内，
+  // 与 decoder 等顶层子节点并列，而非被拎到容器外。
   const graph = layoutGraph(structureFrom({
     name: "DeepseekV3ForCausalLM", type: "model", children: [
       { name: "decoder", type: "module", children: [
@@ -140,8 +142,14 @@ test("keeps an output head outside the model compound", async () => {
   }), new Set(["root", "root.0"]));
   const laidOut = await layoutGraphWithElk(graph);
   assert.deepEqual(graph.edges.filter((edge) => edge.evidence === "module-order").map(({ source, target }) => [source, target]), [["root", "root.1"]]);
-  assert.deepEqual(laidOut.containerFrames.map((frame) => frame.id), ["root", "root.0"]);
-  assert.ok(laidOut.nodes.find((node) => node.path === "root.1").x > laidOut.nodes.find((node) => node.path === "root.0").x);
+  const modelFrame = laidOut.containerFrames.find((frame) => frame.id === "root");
+  assert.ok(modelFrame, "model 容器 frame 存在");
+  const lmHead = laidOut.nodes.find((node) => node.path === "root.1");
+  const decoder = laidOut.nodes.find((node) => node.path === "root.0");
+  // lm_head 在 decoder 右侧，且横向落在 model 容器框内
+  assert.ok(lmHead.x > decoder.x);
+  assert.ok(lmHead.x >= modelFrame.x);
+  assert.ok(lmHead.x <= modelFrame.x + modelFrame.width);
 });
 
 test("layoutGraph adds dataflow edges only when tensor shapes match", () => {

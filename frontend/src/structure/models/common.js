@@ -46,10 +46,19 @@ export function networkSpecWithDraft(id, name, architecture, children, draft) {
   }
   const decoder = children.find((child) => child.type === "decoder");
   const embed = children.find((child) => child.type === "embedding");
+  const outputHead = children.find((child) => child.type === "output");
   // 主干末层 hidden → 草稿（MTP/DSpark 皆有）
   if (decoder) edges.push([decoder.id, draft.id]);
   // token 嵌入 → 草稿（仅 MTP：与主模型共享 embedding；DSpark 不吃 embedding）
   if (draft.type === "mtp" && embed) edges.push([embed.id, draft.id]);
+  // 草稿 logits 出口（对标 SGLang/vLLM 的两种投机头权重实装）：
+  //   - MTP：SharedHead 自带 head（checkpoint 有 shared_head.head.weight，
+  //     tie_word_embeddings=false），草稿在自身 shared_head 内落 logits，不回主干；
+  //   - DSpark：SGLang deepseek_v4_dspark._logits_from_x_post_hc 复用主干
+  //     self.lm_head（attach_shared_modules 挂 target lm_head，_remap 对 head./
+  //     lm_head. 一律 return None——无自带 head），故 DSpark 输出经共享边接主干
+  //     lm_head。
+  if (draft.type === "dspark" && outputHead) edges.push([draft.id, outputHead.id]);
   return networkSpec(id, name, architecture, children, { dataflow_edges: edges });
 }
 

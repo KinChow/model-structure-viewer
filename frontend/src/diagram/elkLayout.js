@@ -80,7 +80,11 @@ export async function layoutGraphWithElk(graph) {
         // Keep the model's top-level modules in a readable pipeline. Once a
         // module is opened, its implementation is a vertical sibling flow.
         "elk.direction": depth === 0 ? "RIGHT" : "DOWN",
-        "elk.padding": "[top=32,left=24,bottom=24,right=24]",
+        // 内边距把"绘制时容器边框相对 ELK shape 的外扩量"（左右各 16 / 顶 22 / 底 16）
+        // 预先并入 ELK 测量的盒子：left/right 24→40、top 32→54、bottom 24→40。随后
+        // frame 贴着 shape 绘制（不再外扩），使 ELK 测量的盒子 = 实际绘制的盒子，
+        // 相邻模块间距（nodeNodeBetweenLayers=44）在折叠/展开态下都稳定，不再变窄。
+        "elk.padding": "[top=54,left=40,bottom=40,right=40]",
       },
       children: children.map((child) => {
         const shape = makeShape(child, depth + 1);
@@ -171,10 +175,12 @@ export async function layoutGraphWithElk(graph) {
       const node = nodeByPath.get(shape.id);
       groupFrames.push({
         id: shape.id,
-        x: x - 16,
-        y: y - 22,
-        width: shape.width + 32,
-        height: shape.height + 38,
+        // frame 贴合 ELK shape 绘制：外扩量已并入上面的 elk.padding，避免边框凸向邻居
+        // 压缩展开态下的模块间距。子节点相对 frame 的位置、frame 外框尺寸与此前一致。
+        x,
+        y,
+        width: shape.width,
+        height: shape.height,
         label: node.path === "root"
           ? "model"
           : `${node.displayName} · ${node.node?.type || "module"}${node.repeat > 1 ? ` · ×${node.repeat}` : ""}`,

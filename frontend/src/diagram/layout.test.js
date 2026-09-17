@@ -189,6 +189,44 @@ test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", as
   }
 });
 
+test("展开容器后相邻模块可见间距不被边框外扩压窄", async () => {
+  // frame 外扩量已并入 elk.padding、frame 贴合 shape 绘制：无论相邻模块是折叠还是
+  // 展开，顶层相邻模块的有效横向间距都应稳定在 ELK 层间距（44），不再随展开变窄。
+  const tree = {
+    name: "DeepseekV4ForCausalLM", type: "model", children: [
+      { name: "embed tokens", type: "embedding", input_shape: [1, 2], output_shape: [1, 4], children: [] },
+      { name: "decoder", type: "decoder", input_shape: [1, 4], output_shape: [1, 4], children: [
+        { name: "attn", type: "attention", children: [] },
+        { name: "mlp", type: "mlp", children: [] },
+      ] },
+      { name: "final norm", type: "normalization", input_shape: [1, 4], output_shape: [1, 4], children: [] },
+      { name: "lm head", type: "output", input_shape: [1, 4], output_shape: [1, 8], children: [] },
+    ],
+  };
+  const effGap = async (expanded) => {
+    const laidOut = await layoutGraphWithElk(layoutGraph(structureFrom(tree), expanded));
+    const frameById = new Map(laidOut.containerFrames.map((frame) => [frame.id, frame]));
+    const box = (path) => {
+      const frame = frameById.get(path);
+      if (frame) return { x: frame.x, w: frame.width, y: frame.y, h: frame.height };
+      const node = laidOut.nodes.find((n) => n.path === path);
+      return { x: node.x, w: node.width, y: node.y, h: node.height };
+    };
+    // embed(root.0) -> decoder(root.1) 相邻，取有效盒子右-左间距
+    const a = box("root.0");
+    const b = box("root.1");
+    return b.x - (a.x + a.w);
+  };
+  const collapsedGap = await effGap(new Set(["root"]));
+  const expandedGap = await effGap(new Set(["root", "root.1"]));
+  // 展开后间距应与折叠时一致（容差 2px），不出现历史上的 28/12px 收窄
+  assert.ok(
+    Math.abs(expandedGap - collapsedGap) <= 2,
+    `展开后相邻间距 ${Math.round(expandedGap)} 与折叠时 ${Math.round(collapsedGap)} 不一致（边框外扩压窄回归）`,
+  );
+  assert.ok(expandedGap >= 40, `展开后间距 ${Math.round(expandedGap)} 过窄`);
+});
+
 test("展开的草稿子树完整落在 model 容器 frame 内（不越界）", async () => {
   // 手动把草稿挪到主干下方后，必须同步撑高 model 容器高度，否则草稿展开更高时
   // 会溢出容器框底部（展示层越界回归）。

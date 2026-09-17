@@ -279,70 +279,76 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | ple | F8(hash embed) + F1(kv) + F3(norm) + F7a(conv) + add（`index.js:394`） | Qwen4Exp PLE（Qwen modeling 未入库，离线取证）；kv = [2·pleEmbedDim, H]；conv = (pleEmbedDim, pleNgramSize) |
 | qsa_indexer / dsa_indexer / dsa_kpool_indexer / dsv4_indexer / minimax_sparse_indexer | **sparseIndexerCounts 一份参数化实现**（`modules.js:748-761`，分解见 `:667-696`）——四组参数：QSA（key 池化 compress_ratio>1 时、等权求和）/ DSA（逐 token、逐头 weights_proj）/ DSA-kpool（key 池化 + pool 粒度 topk + tail）/ MSA（score 池化块 max）；dsv4_indexer 与 DSA 同参 | 五个 operator_id 不共用条目（算法出处不同），共用实现（W2 改判）；共同点：无 value 通路、无 softmax（ReLU + 逐头求和）、index k 单头、scores fp32（scoreBytes=4）；indexRead 子桶 ⊆ actIn |
 
-## 逐条清单（49 条）
+## 逐条清单
 
-> 在用键集 = `formulas/__tests__/counts.test.js:259`（「注册表完整性」测试与 FORMULAS
-> 键集**双向锁定**，新增/删除条目必须同步）。相对 W5 快照的 42 条差集：
-> **+fused_moe_mlp**（N2-4 W-A 从 swiglu 拆出路由专家语义）、**+residual_add**（W4）、
-> **+dsa_indexer / dsa_kpool_indexer / dsv4_indexer**（W2 从 qsa_indexer 按算法出处拆分）、
-> **+dsa_sparse_mla / dsv4_sparse_mla**（W2 从 qsa_attention 拆分）、
-> **qsa_attention → qsa_sparse_attention**（更名）。
->
-> **机器段化待办（登记）**：本清单为手写对齐；后续可仿 P9 的
-> `scripts/gen-model-reference.mjs` 手法把清单节并入 `docs:check` 机器段（本波只登记，
-> 不改代码）。
+> 逐条 = FORMULAS 注册表（在用键集 `formulas/__tests__/counts.test.js` 双向锁定）。
+> **本节为机器段（`scripts/gen-cost-counts.mjs` 生成，勿手改）**：新增/删除算子后跑
+> `node scripts/gen-cost-counts.mjs` 重生成；`--check`（check_principles.sh）与冻结用例
+> `__tests__/costCountsDoc.test.js`（npm test）双重兜底，保证与注册表不漂移。
+> 每条的符号 bytes 公式见上方 F1–F9；复合节点分解见「复合节点」表。
 
-| # | 条目 | 分类 | 实现 | 备注 |
-|---|---|---|---|---|
-| 1 | linear | 计算+访存 | F1（`counts.js:48`；`extractor.js:426-453`） | aten: mm；routed ×xf；logical_weight_shape 优先 + derived 回退；bias 已接线 |
-| 2 | matmul | 计算+访存 | F2 分解两叶（`extractor.js:454-519`） | aten: bmm ×2；scores 叶 + context 叶；kvRead 子桶 |
-| 3 | softmax | 仅访存 | F2 内核 / softmax 原子（`counts.js:322`） | elements = heads·scoredPairs（`extractor.js:699-707`）；A2 |
-| 4 | split | 仅搬运（零） | F9（`counts.js:330`） | A1 view |
-| 5 | causal_conv1d | 计算+访存 | F7a 规格 `counts.js:175`；运行时专用 case（`extractor.js:784-805`） | 双源待裁决：运行时 vector:0/sfu:0，含核权重读 + decode conv state |
-| 6 | rope | 仅访存 | F6（`counts.js:165`；`extractor.js:708-718`） | A3；ropeDims = (heads+kvHeads)·D·factor |
-| 7 | vision_position | 仅访存 | addCounts（`counts.js:303`；`extractor.js:739-740`） | |
-| 8 | vision_merge | 仅搬运（真拷贝） | F9 copy（`extractor.js:741-755`） | G1 修正：in/out 元素各乘 token 数 |
-| 9 | vision_activation | 仅访存 | F5 同式（`extractor.js:737-738`） | 计数与 swiglu 同式，未按 φ 分档 |
-| 10 | rmsnorm | 仅访存 | F3（`counts.js:110`；`extractor.js:719-726`） | weightWidth = 逐头 norm 末维；affine_bias → 权重 2× |
-| 11 | gemma_rmsnorm | 仅访存 | F3 weightOne | (1+w) |
-| 12 | swiglu | 仅访存 | F5（`counts.js:147`；`extractor.js:762-766`） | 纯激活（SiluAndMul）；不乘 expertFraction |
-| 13 | fused_moe_mlp | 计算+访存 | fusedMoeMlpCounts（`counts.js:283`；`extractor.js:767-783`） | gate/up/down + SwiGLU；权重读 min(k·T, E) 份；EH = latent_size→routedExpertHiddenSize→hiddenSize |
-| 14 | topk | 仅访存 | F8（`counts.js:244`；`extractor.js:827-828`） | vector = TE + norm?T(k−1)；actOut = T·k·(b+4)（values + int32） |
-| 15 | moe_dispatch | 仅搬运 | F8 gather（`counts.js:256`） | actIn = TH·b、actOut = TkH·b |
-| 16 | moe_combine | 仅搬运+加权 | F8 scatter+加权（`counts.js:263`） | vector = 2·TkH |
-| 17 | moe_add | 仅访存 | addCounts（`extractor.js:836-837`） | routed/shared 合并 |
-| 18 | residual_add | 仅访存 | addCounts（`index.js:188-200`；`extractor.js:833-835`） | W4 补；每层两处 h = x + sublayer(x)；hidden 取 output_shape 宽 |
-| 19 | linear_attention | 计算+访存 | F7b 规格；运行时按路径分派 conv/state 子叶（`extractor.js:806-824`） | 0/59 触发（通用槽位保留）；short_conv 子叶 weights=0 与 causal_conv1d 叶分工 |
-| 20 | linear_attention_gate | 仅访存 | F4 | 0/59 触发（KDA 输出门 z·y 路槽位） |
-| 21 | gated_delta_attention | 计算+访存 | F7b delta + state_update 叶（`extractor.js:825-826` → `:330-371`） | chunked steps；gdn_decay fp32 4B 标量权重；matrix 走 linearStateUpdateMacs 镜像 |
-| 22 | gated_rmsnorm | 仅访存 | F3 gated（`extractor.js:727-731`） | 逐头门控；sfu = T + 2TH |
-| 23 | mhc_pre | 分解 | gate+F1×3+F3+sinkhorn+add，tf32（`index.js:254-266`） | 见复合节点表 |
-| 24 | mhc_fused_post_pre | 分解 | gate×2+add+F1×3+F3+sinkhorn，tf32（`index.js:267-277`） | post+pre 层间融合 |
-| 25 | mhc_post | 分解 | F1(weightsShared)+add（`index.js:278-287`） | 复用最后一层 hc_ffn 参数 |
-| 26 | mhc_contract | 分解 | add（`index.js:288-296`） | n 流平均收缩 |
-| 27 | mla_query_compress | 分解 | F1(qa)（`index.js:297-311`） | norm / q_b 独立叶防双计 |
-| 28 | mla_kv_compress | 分解 | F1 + F9(view)（`index.js:312-322`） | latent cache 写 = 本叶 actOut |
-| 29 | mla_kv_split | 仅搬运（零） | F9 | A1 |
-| 30 | mla_output_gate | 仅访存 | F4 | 仅 Kimi-K3 触发 |
-| 31 | attention_residual | 分解 | softmax+add（`index.js:343-359`） | norms / 打分投影独立叶 |
-| 32 | hyper_connection | 分解 | 七段（`index.js:360-385`） | 见复合节点表 |
-| 33 | ple | 分解 | F8(hash)+F1+F3+F7a+add（`index.js:386-395`） | Qwen4Exp PLE |
-| 34 | shared_expert_gate | 仅访存 | F4 | 16 模型 |
-| 35 | qsa_indexer | 分解 | sparseIndexerCounts（`modules.js:748`；`extractor.js:882-893`） | QSA 参数组（key 池化、等权） |
-| 36 | dsa_indexer | 分解 | sparseIndexerCounts（`extractor.js:894-905`） | DSA 参数组（逐 token、逐头权重） |
-| 37 | dsa_kpool_indexer | 分解 | sparseIndexerCounts（`extractor.js:906-917`） | kpool 参数组（pool 粒度 topk + tail） |
-| 38 | dsv4_indexer | 分解 | sparseIndexerCounts（`extractor.js:918-929`） | 同 DSA 参数组（C4 压缩 latent 打分） |
-| 39 | qsa_sparse_attention | 计算+访存 | F2 变体（`extractor.js` qsa/dsa/dsv4 分族） | S = qsaIndexerBudget；计 kvWrite；top-k 索引读 T·selected |
-| 40 | dsa_sparse_mla | 计算+访存 | 同上 | latent 共享（读宽 max(k,v)）；无 kvWrite |
-| 41 | dsv4_sparse_mla | 计算+访存 | 同上 | MQA 行 + 原始滑窗混合读；无 kvWrite |
-| 42 | qwen_qkvz_split | 仅搬运（零） | F9 | A1 |
-| 43 | attention_qkv_split | 仅搬运（零） | F9 | A1 |
-| 44 | attention_output_gate | 仅访存 | F4 | 29 模型 |
-| 45 | minimax_sparse_indexer | 分解 | sparseIndexerCounts（`extractor.js:930-942`） | MSA 参数组（score 池化块 max） |
-| 46 | minimax_sparse_attention | 计算+访存 | F2 块稀疏（`extractor.js:589-626`） | 选中夹到可见长度；计 kvWrite |
-| 47 | dsv4_hash_route | 仅搬运 | gather（`counts.js:316`；`extractor.js:838-848`） | tid2eid = buffer 非参数：weights = 0；容量走 derivedBufferBytes |
-| 48 | dsv4_swa_attention | 计算+访存 | F2 滑窗 MQA（`extractor.js:627-663`） | KV 读/写宽 = D（K/V 共享 latent） |
-| 49 | dsv4_compressed_attention | 计算+访存 | F2 压缩读（`extractor.js:664-698`） | matrix = 旧链镜像 legacyDeepseekV4AttentionMacs；压缩态写归 compressor 叶 |
+<!-- BEGIN GENERATED: cost-counts-roster -->
+
+> 生成物（`scripts/gen-cost-counts.mjs`，勿手改）：逐条 = FORMULAS 注册表；`分类`/三分量
+> 由单元探针（形状全 1，同 counts.test.js）判定。符号 bytes 公式见上方 F1–F9；复合节点
+> 分解见「复合节点」表。共 **52** 条。
+
+| 条目 | group | 分类 | matrix | vector | sfu | bytes |
+|---|---|---|---|---|---|---|
+| `attention_output_gate` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `attention_qkv_split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
+| `attention_residual` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `causal_conv1d` | mamba | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `dsa_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `dsa_kpool_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `dsa_sparse_mla` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `dsv4_compressed_attention` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `dsv4_hash_route` | moe | 仅搬运 | 0 | 0 | 0 | ✓ |
+| `dsv4_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `dsv4_sparse_mla` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `dsv4_swa_attention` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `engram_gate` | elementwise | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `fused_moe_mlp` | moe | 计算+访存 | ✓ | ✓ | ✓ | ✓ |
+| `gated_delta_attention` | mamba | 计算+访存 | ✓ | ✓ | ✓ | ✓ |
+| `gated_rmsnorm` | layernorm | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `gemma_rmsnorm` | layernorm | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `hyper_connection` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `identity` | elementwise | 仅搬运 | 0 | 0 | 0 | 0 |
+| `linear` | gemm | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `linear_attention` | mamba | 计算+访存 | ✓ | ✓ | ✓ | ✓ |
+| `linear_attention_gate` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `matmul` | gemm | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `mhc_contract` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `mhc_fused_post_pre` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `mhc_post` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `mhc_pre` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `minimax_sparse_attention` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `minimax_sparse_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `mla_kv_compress` | gemm | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `mla_kv_split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
+| `mla_output_gate` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `mla_query_compress` | gemm | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `moe_add` | moe | 仅访存 | 0 | ✓ | 0 | ✓ |
+| `moe_combine` | moe | 仅访存 | 0 | ✓ | 0 | ✓ |
+| `moe_dispatch` | moe | 仅搬运 | 0 | 0 | 0 | ✓ |
+| `ple` | — | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `qsa_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `qsa_sparse_attention` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `qwen_qkvz_split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
+| `residual_add` | elementwise | 仅访存 | 0 | ✓ | 0 | ✓ |
+| `rmsnorm` | layernorm | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `rope` | attention | 仅访存 | 0 | ✓ | 0 | ✓ |
+| `sdpa_attention` | attention | 计算+访存 | ✓ | ✓ | ✓ | ✓ |
+| `shared_expert_gate` | moe | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `softmax` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
+| `swiglu` | activation | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `topk` | moe | 仅访存 | 0 | ✓ | 0 | ✓ |
+| `vision_activation` | activation | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `vision_merge` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
+| `vision_position` | embeddings | 仅访存 | 0 | ✓ | 0 | ✓ |
+
+<!-- END GENERATED: cost-counts-roster -->
 
 ## 结构级缺口 —— 已清账（M11/W4，2026-09-09）
 

@@ -168,4 +168,13 @@ else
   echo "P0 legacy root 活引用: ${ROOT_COUNT} / 基线 ${ROOT_BASELINE}（棘轮，保持 0）"
 fi
 
+# ---------- cost_counts.md 逐条清单机器段不漂移（生成物 = FORMULAS 派生） ----------
+# 逐条清单改为机器生成（scripts/gen-cost-counts.mjs），杜绝手写与注册表漂移。
+if node scripts/gen-cost-counts.mjs --check >/dev/null 2>&1; then
+  echo "cost_counts.md 逐条清单机器段: 与注册表一致"
+else
+  echo "✗ cost_counts.md 逐条清单机器段过期：运行 \`node scripts/gen-cost-counts.mjs\` 重生成。"
+  FAIL=1
+fi
+
 exit $FAIL

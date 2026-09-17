@@ -157,6 +157,12 @@ runtime-unknown
 
 不是产品 backlog，也不是「下一步默认做前端体验」。每条带触发判据：
 
+> 需 NVIDIA GPU 运行时才能验证的触发项（framework execution profile、per-stage
+> roofline / I/O shape、真实结构对账 + verify fixture 桶扩展、A2 kernel 口径、
+> V4.1-Flash 运行时/逐张量权重实证、后端生产化）已收口到
+> [`details/nv_validation_checklist.md`](details/nv_validation_checklist.md)（NV 验证清单）；
+> 本节保留其触发判据登记，在机取证与判定去该文件。
+
 - **Cost Lens 按 `FORMULAS.group` 分栏**（UI）。触发：需要按功能域看成本，而不是只看整图合计。
 - **verify fixture 桶扩展**。触发：对账出现未落入 `canonical_path_contract.json` 四桶的 diff。
 - **折叠谓词共享**。触发：前端 `compactRanges` 与后端 `fold.py` 出现未分类漂移。终态默认两套实现不合并。

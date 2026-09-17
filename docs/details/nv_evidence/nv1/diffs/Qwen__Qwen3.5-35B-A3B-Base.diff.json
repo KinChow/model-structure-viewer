@@ -1,0 +1,19 @@
+{
+  "model_id": "Qwen/Qwen3.5-35B-A3B-Base",
+  "status": "passed",
+  "ok": true,
+  "graph_present": true,
+  "structurally_consistent": true,
+  "residual_count": 0,
+  "only_transformers": [],
+  "only_msv": [],
+  "mismatches": [],
+  "classified": {
+    "renaming": 0,
+    "nonparam_drop": 285,
+    "fold_frontend_suffixes": 41,
+    "known_divergences": 84
+  },
+  "note": null,
+  "error": null
+}

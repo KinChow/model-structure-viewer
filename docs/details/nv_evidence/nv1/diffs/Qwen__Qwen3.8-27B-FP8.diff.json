@@ -1,0 +1,19 @@
+{
+  "model_id": "Qwen/Qwen3.8-27B-FP8",
+  "status": "passed",
+  "ok": true,
+  "graph_present": true,
+  "structurally_consistent": true,
+  "residual_count": 0,
+  "only_transformers": [],
+  "only_msv": [],
+  "mismatches": [],
+  "classified": {
+    "renaming": 0,
+    "nonparam_drop": 276,
+    "fold_frontend_suffixes": 65,
+    "known_divergences": 66
+  },
+  "note": null,
+  "error": null
+}

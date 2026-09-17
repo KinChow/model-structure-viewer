@@ -1,0 +1,19 @@
+{
+  "model_id": "zai-org/GLM-4.7",
+  "status": "passed",
+  "ok": true,
+  "graph_present": true,
+  "structurally_consistent": true,
+  "residual_count": 0,
+  "only_transformers": [],
+  "only_msv": [],
+  "mismatches": [],
+  "classified": {
+    "renaming": 0,
+    "nonparam_drop": 38,
+    "fold_frontend_suffixes": 5,
+    "known_divergences": 36
+  },
+  "note": null,
+  "error": null
+}

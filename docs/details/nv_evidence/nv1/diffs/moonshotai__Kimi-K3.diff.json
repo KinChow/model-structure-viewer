@@ -1,0 +1,19 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "status": "passed",
+  "ok": true,
+  "graph_present": true,
+  "structurally_consistent": true,
+  "residual_count": 0,
+  "only_transformers": [],
+  "only_msv": [],
+  "mismatches": [],
+  "classified": {
+    "renaming": 0,
+    "nonparam_drop": 588,
+    "fold_frontend_suffixes": 95,
+    "known_divergences": 77
+  },
+  "note": null,
+  "error": null
+}

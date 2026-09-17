@@ -20,7 +20,7 @@
 
 | ID | 项 | 触发判据 | 为何需 NV | 状态 |
 |---|---|---|---|---|
-| NV-1 | 结构对账真值化（`compare_structure.py` 真实模型） | 对账出现未落入 `canonical_path_contract.json` 四桶的 diff | 需真实框架实例化 nn.Module 树（含自定义 kernel/量化） | 待验证 |
+| NV-1 | 结构对账真值化（`compare_structure.py` 真实模型） | 对账出现未落入 `canonical_path_contract.json` 四桶的 diff | 需真实框架实例化 nn.Module 树（含自定义 kernel/量化） | **已验证（2026-09-17，A100/transformers 5.17.0）：59/60 零残留；DeepSeek-V4.1-Flash 构造受阻边界见 NV-5。证据 `nv_evidence/nv1/`** |
 | NV-2 | framework execution profile（vLLM vs SGLang 有效宽度） | 第一次要对比同模型在两框架的有效 attention/MoE 宽度 | 需在 GPU 上起两套 serving 栈实测 | 待验证 |
 | NV-3 | per-stage roofline / evidence I/O shape | UI 或对账需要 stage 级动作向量 | 需真实 profiler（nsys/ncu 或框架计数器） | 待验证 |
 | NV-4 | A2 kernel 口径对齐（flash-attention scores/probs） | 需 kernel 级口径而非理论上限 | 需 GPU 上跑 flash-attention kernel 取实测 | 待验证 |
@@ -47,7 +47,16 @@
   3. 新增的 diff 若属真实语义分支，按 §6.4 契约扩 `canonical_path_contract.json` 桶。
 - **期望证据**：每模型三分类 diff 的 JSON 产物 + 命令回显；新扩桶的 fixture 变更。
 - **判定**：全 60 模型 diff 落入四桶零残留；折叠谓词漂移归零或登记。
-- **状态**：待验证。
+- **状态**：**已验证（2026-09-17）**。在机：A100-SXM4-80GB ×8 / CUDA 13.0 / transformers 5.17.0 /
+  torch 2.13.0+cu130；harness `scripts/nv1_reconcile.py` + `verify-builtin-models.mjs --dump-graphs`。
+  结果：60 模型中 59 个 meta 构造成功且三桶零 unclassified 残留（`structurally_consistent=true`）；
+  `deepseek-ai/DeepSeek-V4.1-Flash` 因 `deepseek_v41` 无框架支持（`auto_map:null`、未带 config 类）
+  构造受阻，按 NV-5 边界登记，不伪造通过。修复的真实结构差异：DSA `indexer.k_norm` 前端 RMSNorm→LayerNorm
+  （补 `affine_bias`）、MiniMax-M3 解码层 pathing（`language_model`→`language_model.layers`）+ 补 `embed_tokens`
+  + 稠密 MLP 改用 `dense_intermediate_size`、Kimi-K3 `tie_weights` 兼容垫片泛化。合法命名/粒度差异按 §6.4
+  逐条登记进 `canonical_path_contract.json`（known_divergences 达 54 条，均带 reason+source）。
+  回归：后端 `pytest` 183 pass、前端 `node --test` 410 pass、`verify:models` 60/60、W5 恒等式全绿。
+  证据：[`nv_evidence/nv1/`](nv_evidence/nv1/)（per-model diff JSON + `summary.json` + `env.txt`）。
 
 ## NV-2 framework execution profile（vLLM vs SGLang 有效宽度）
 
@@ -103,7 +112,16 @@
 - **依赖**：真实 checkpoint（`model-download`）+ 支持 `deepseek_v41` 的框架 + GPU host。
 - **期望证据**：safetensors index / 逐张量对账 JSON；真实模块树 diff；推理日志（接受率/显存/吞吐）。
 - **判定**：逐张量零差异（或登记容差）；层位与真值一致或修正结构；运行时指标有据。
-- **状态**：待验证。
+- **状态**：**部分已验证（2026-09-17，config + HF safetensors index/header，未下权重区）**。
+  已闭合：张量数 96085、参数量级、文本层 40 / MTP 3 / vision 32 / experts 384 —— 均与 config 一致；
+  **compressor 层 = [2,8,14,20]、indexer 层 = [2,8,14,20,24,28,32,36] 与 `kv_source_layer_ids` /
+  `index_source_layer_ids` 逐位一致**，并据此修正前端保真差（compressor/indexer 改按 source 层摆放，
+  `normalize.js` + `ops/index.js`，V4-Flash/Pro 行为不变、对账仍 0 残留）；**逐张量恒等式：range-read 全
+  48 分片 safetensors 头部聚合与 header-truth.json 逐 dtype 零差**（tensor_count 96085 / parameterTotal
+  508,182,659,298 / mtp 2401 / BF16·F32·F8_E4M3·F8_E8M0·I8 全对）。证据
+  [`nv_evidence/nv5/`](nv_evidence/nv5/)（`v41_config_index_reconcile.md` + `v41_header_tensor_identity.json`）。
+  仍待真实权重/GPU 推理：engram/DSpark 运行时（接受率/显存/吞吐）、后端 transformers 构造（需
+  `deepseek_v41` 框架支持或补齐 remote code）。
 
 ## NV-6 后端生产化（部署硬化）
 

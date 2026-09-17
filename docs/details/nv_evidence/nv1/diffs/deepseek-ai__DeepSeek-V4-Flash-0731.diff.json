@@ -1,0 +1,19 @@
+{
+  "model_id": "deepseek-ai/DeepSeek-V4-Flash-0731",
+  "status": "passed",
+  "ok": true,
+  "graph_present": true,
+  "structurally_consistent": true,
+  "residual_count": 0,
+  "only_transformers": [],
+  "only_msv": [],
+  "mismatches": [],
+  "classified": {
+    "renaming": 0,
+    "nonparam_drop": 520,
+    "fold_frontend_suffixes": 1,
+    "known_divergences": 68
+  },
+  "note": null,
+  "error": null
+}

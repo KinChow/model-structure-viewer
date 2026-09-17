@@ -1,4 +1,8 @@
 {
+  "diag": {
+    "missingLayerCount": "config 中未找到文本层数",
+    "unsupportedArchitecture": "config 未映射到受支持的架构。受支持架构：{supported}"
+  },
   "diagram": {
     "childCount": "{n, plural, other {# 个子模块}}",
     "draftBadge": "投机头 · 不计前向",
@@ -80,6 +84,19 @@
     "loadFailed": "chips.local.json 加载失败，请检查本地芯片配置格式"
   },
   "cost": {
+    "byDomain": "按功能域 MACs",
+    "domain": {
+      "gemm": "GEMM",
+      "attention": "注意力",
+      "moe": "MoE",
+      "layernorm": "归一化",
+      "activation": "激活",
+      "embeddings": "嵌入",
+      "elementwise": "逐元素",
+      "memory": "访存",
+      "mamba": "线性/Mamba",
+      "other": "其他"
+    },
     "estimate": "理论成本估算",
     "disclaimer": "理论计算，非仿真、非预测",
     "expand": "展开配置",

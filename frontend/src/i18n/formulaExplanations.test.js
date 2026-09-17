@@ -10,5 +10,5 @@ test("every registered formula has English explanation copy without Han characte
     assert.ok(explanation, `${id} explanation is empty`);
     assert.doesNotMatch(explanation, han, `${id} explanation contains Han characters`);
   }
-  assert.equal(Object.keys(EXPLANATIONS_EN).length, 51);
+  assert.equal(Object.keys(EXPLANATIONS_EN).length, 52);
 });

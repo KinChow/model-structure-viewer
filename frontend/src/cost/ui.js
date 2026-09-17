@@ -2,12 +2,38 @@
 // 只做数据形状映射与文案，不做计算；渲染层（components/）保持哑组件。
 // 五类瓶颈单元命名与 roofline.js 的 times 键一一对应（§3.7）。
 import { t } from "../i18n/format.js";
+import { FORMULAS } from "../structure/operators/formulas/index.js";
 
 const MACS_SOURCE_ORDER = ["formula", "aggregate", "not-compute", "unknown"];
 const UNIT_KEYS = ["matrix", "vector", "sfu", "memory", "comm"];
 
 function lang({ english } = {}) {
   return english ? "en" : "zh";
+}
+
+/**
+ * Cost Lens 按 FORMULAS.group（SGLang kernels/ops 功能域）分栏：把逐算子叶的
+ * compute_macs（已含 repeat 乘子）归到其功能域（gemm/attention/moe/layernorm/
+ * activation/embeddings/elementwise/memory/mamba），返回按 MACs 降序的构成表，
+ * 供成本面板展示“成本花在哪类算子”。未注册 group 的算子归 "other"（诚实计，不吞）。
+ * compute 未完整（有 unknown 叶）时返回空表——分栏是“已知量的构成”，不猜。
+ */
+export function costByFormulaGroup(cost) {
+  if (!cost?.computeComplete) return [];
+  const rows = cost?.nodes || [];
+  const byGroup = new Map();
+  let total = 0;
+  for (const row of rows) {
+    const macs = row?.compute_macs;
+    if (!(macs > 0)) continue;
+    const operatorId = String(row?.node?.attributes?.operator_id || "").toLowerCase();
+    const group = FORMULAS[operatorId]?.group || "other";
+    byGroup.set(group, (byGroup.get(group) || 0) + macs);
+    total += macs;
+  }
+  return [...byGroup.entries()]
+    .map(([group, macs]) => ({ group, macs, pct: total > 0 ? macs / total : 0 }))
+    .sort((left, right) => right.macs - left.macs);
 }
 
 /**

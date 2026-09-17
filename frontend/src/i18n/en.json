@@ -1,4 +1,8 @@
 {
+  "diag": {
+    "missingLayerCount": "No text layer count was found in config",
+    "unsupportedArchitecture": "Config does not map to a supported architecture. Supported architectures: {supported}"
+  },
   "diagram": {
     "childCount": "{n, plural, one {# child} other {# children}}",
     "draftBadge": "draft · not in forward",
@@ -80,6 +84,19 @@
     "loadFailed": "Failed to load chips.local.json; check the local chip config format"
   },
   "cost": {
+    "byDomain": "MACs by domain",
+    "domain": {
+      "gemm": "GEMM",
+      "attention": "Attention",
+      "moe": "MoE",
+      "layernorm": "LayerNorm",
+      "activation": "Activation",
+      "embeddings": "Embeddings",
+      "elementwise": "Elementwise",
+      "memory": "Memory",
+      "mamba": "Linear/Mamba",
+      "other": "Other"
+    },
     "estimate": "Theoretical cost estimate",
     "disclaimer": "Theoretical calculation; not simulation or prediction",
     "expand": "Expand config",

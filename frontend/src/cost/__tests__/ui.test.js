@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { costSummaryModel, diagnosticsModel } from "../ui.js";
+import { costByFormulaGroup, costSummaryModel, diagnosticsModel } from "../ui.js";
 
 test("costSummaryModel：五类时间命名与未知计费计数", () => {
   const model = costSummaryModel(
@@ -14,6 +14,27 @@ test("costSummaryModel：五类时间命名与未知计费计数", () => {
   const sfu = model.times.find((t) => t.unit === "sfu");
   assert.equal(sfu.known, false);
   assert.equal(sfu.label, "SFU");
+});
+
+test("costByFormulaGroup：按 FORMULAS.group 归并 compute_macs（含 repeat 乘子）并降序", () => {
+  const cost = {
+    computeComplete: true,
+    nodes: [
+      { compute_macs: 100, node: { attributes: { operator_id: "linear" } } }, // gemm
+      { compute_macs: 300, node: { attributes: { operator_id: "sdpa_attention" } } }, // attention
+      { compute_macs: 50, node: { attributes: { operator_id: "fused_moe_mlp" } } }, // moe
+      { compute_macs: 0, node: { attributes: { operator_id: "rope" } } }, // 零 macs 跳过
+      { compute_macs: null, node: { attributes: { operator_id: "linear" } } }, // 未知跳过
+    ],
+  };
+  const groups = costByFormulaGroup(cost);
+  assert.deepEqual(groups.map((entry) => entry.group), ["attention", "gemm", "moe"]);
+  assert.equal(groups[0].macs, 300);
+  assert.ok(Math.abs(groups[0].pct - 300 / 450) < 1e-9);
+});
+
+test("costByFormulaGroup：compute 未完整时返回空表（不猜构成）", () => {
+  assert.deepEqual(costByFormulaGroup({ computeComplete: false, nodes: [{ compute_macs: 1, node: { attributes: { operator_id: "linear" } } }] }), []);
 });
 
 test("costSummaryModel：英文文案与 unknown bound", () => {

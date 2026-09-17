@@ -8,6 +8,12 @@ import { formulaForOperator } from "../frontend/src/structure/operators/formulas
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models", "catalog.json"), "utf8"));
 
+// --dump-graphs <dir>：把每模型 structure.graph 落盘（供 NV-1 对账 harness 作 msv_graph）。
+// 不传该参数时行为不变（仍只打印通过/节点数）。
+const dumpArgIndex = process.argv.indexOf("--dump-graphs");
+const dumpDir = dumpArgIndex !== -1 ? path.resolve(process.argv[dumpArgIndex + 1]) : null;
+if (dumpDir) await fs.mkdir(dumpDir, { recursive: true });
+
 const results = [];
 // P7（步骤 7）：判据全部改走 structure.graph——legacy root 视图已停产。
 // 层级判据 = root_id 直接子节点（parent_id 挂接 + order 排序）；算子注册
@@ -54,6 +60,10 @@ for (const entry of catalog.models) {
       source: "built-in config verification",
     });
     const errors = collectValidationErrors(structure, normalized);
+    if (dumpDir && structure?.graph) {
+      const file = path.join(dumpDir, `${entry.model_id.replace(/\//g, "__")}.graph.json`);
+      await fs.writeFile(file, JSON.stringify(structure.graph));
+    }
     const ok = errors.length === 0;
     results.push({
       model_id: entry.model_id,

@@ -141,6 +141,234 @@
         "pattern": "^(layers\\.mlp|layers\\.(linear_attn|self_attn))\\.act_fn$|act_fn$",
         "reason": "backend 把激活函数当 nn.Module（act_fn），前端是算子叶（swiglu，无声明已 drop）",
         "source": "torch nn.SiLU 模块化 vs 前端算子建模"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.experts($|\\.)",
+        "apply_to": ["only_transformers"],
+        "reason": "后端 MoE experts ModuleList 及 per-expert down/gate/up_proj 叶 ↔ 前端把 N 个专家融合成单个 expert_mlp 算子（不逐专家展开），同源不同粒度",
+        "source": "transformers DeepseekV3MoE.experts / Qwen3MoE experts vs 前端 ops fused_moe_mlp"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.gate($|\\.score_fn$)",
+        "apply_to": ["only_transformers"],
+        "reason": "后端路由门 MoEGate（含 score_fn）↔ 前端 router 算子，同槽不同名/粒度",
+        "source": "transformers DeepseekV3TopkRouter / MoEGate vs 前端 ops router"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.(expert_mlp|router)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端融合 expert_mlp / router 算子 ↔ 后端 experts ModuleList + gate 模块",
+        "source": "前端 ops fused_moe_mlp / router 模板"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.(kv_a_layernorm|q_a_layernorm|kv_a_proj_with_mqa)$",
+        "apply_to": ["only_transformers"],
+        "reason": "DeepSeek MLA 后端属性名（kv_a_layernorm/q_a_layernorm/kv_a_proj_with_mqa）↔ 前端 kv_a_norm/q_a_norm/kv_a_proj，同槽不同名",
+        "source": "transformers modeling_deepseek_v3 MLA vs 前端 ops MLA 模板"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.(kv_a_norm|kv_a_proj|q_a_norm)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 MLA 命名（kv_a_norm/kv_a_proj/q_a_norm）↔ 后端 kv_a_layernorm/kv_a_proj_with_mqa/q_a_layernorm",
+        "source": "前端 ops MLA 模板"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.q_a_proj$",
+        "apply_to": ["mismatches"],
+        "reason": "同槽 class 词汇不同源：后端 torch Linear ↔ 前端描述性算子标签「query down projection」",
+        "source": "transformers MLA q_a_proj(Linear) vs 前端 ops 标签"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.rotary_emb$",
+        "apply_to": ["only_transformers"],
+        "reason": "后端逐层 RotaryEmbedding 模块（无参）↔ 前端 rope 算子叶（无声明已 drop），与既有顶层 ^rotary_emb$ 同款",
+        "source": "transformers per-layer rotary_emb vs 前端 rope 算子"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.shared_expert($|\\.)",
+        "apply_to": ["only_transformers"],
+        "reason": "后端共享专家 HF 单数名 shared_expert(.down/gate/up_proj)（Qwen MoE）↔ 前端复数 shared_experts，同槽单复数命名差",
+        "source": "transformers Qwen3MoE shared_expert vs 前端 ops shared_experts"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.shared_experts($|\\.)",
+        "apply_to": ["only_msv"],
+        "reason": "前端共享专家复数名 shared_experts(.down/gate/up_proj) ↔ 后端单数 shared_expert",
+        "source": "前端 ops shared_experts 模板"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.shared_expert_gate$",
+        "apply_to": ["mismatches"],
+        "reason": "共享专家门 class 词汇不同源：后端门控 Linear ↔ 前端 shared_expert_gate 算子标签",
+        "source": "transformers Qwen3MoE shared_expert_gate vs 前端 ops 标签"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.indexer$|^layers\\.self_attn\\.indexer\\.(wk|wq_b|weights_proj)$",
+        "apply_to": ["only_transformers"],
+        "reason": "DSA indexer 后端 container 模块（DeepseekV32Indexer/GlmMoeDsaIndexer）及 wk/wq_b/weights_proj Linear 叶 ↔ 前端把 indexer 建成 dsa_indexer 计算算子 + 融合投影叶，同源不同粒度",
+        "source": "transformers DeepseekV32Indexer / GlmMoeDsaIndexer vs 前端 ops dsa_indexer"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.indexer\\.(q_proj|wk_weights_proj)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 indexer 融合投影算子（q_proj / wk_weights_proj）↔ 后端 wq_b 与 (wk+weights_proj) 拆法",
+        "source": "前端 ops indexer q_proj / wk_weights_proj 模板"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.indexer\\.k_norm$",
+        "apply_to": ["mismatches"],
+        "reason": "indexer key norm class 词汇不同源：后端 nn.LayerNorm ↔ 前端 norm 算子；bias 参数量已用 affine_bias 对齐（NV-1 修正），仅 class 标签差",
+        "source": "transformers indexer LayerNorm vs 前端 rmsnorm 算子（affine_bias=true）"
+      },
+      {
+        "pattern": "^(mm_projector|multi_modal_projector)($|\\.)",
+        "apply_to": ["only_transformers"],
+        "reason": "视觉投影后端名 mm_projector/multi_modal_projector（PatchMergerMLP 等）及 pre_norm/post_norm/proj/act/linear_* 叶 ↔ 前端统一 projector 命名与融合叶",
+        "source": "transformers PatchMergerMLP / MiniMaxM3VLMultiModalProjector vs 前端 layers/projector.js"
+      },
+      {
+        "pattern": "^projector($|\\.)",
+        "apply_to": ["only_msv"],
+        "reason": "前端 projector（fc1/fc2/pre_norm/linear）↔ 后端 mm_projector/multi_modal_projector",
+        "source": "前端 layers/projector.js"
+      },
+      {
+        "pattern": "^hc_head($|\\.)|^layers\\.(attn_hc|ffn_hc)($|\\.)|^(layers\\.)?(attn_hyper_connection|mlp_hyper_connection|hyper_connection_mixer)($|\\.)",
+        "apply_to": ["only_transformers"],
+        "reason": "超连接后端模块（HyperHead/HyperConnection/hyper_connection_mixer 及 input_norm/hc_norm/input_mix_weight_*/block_inject_weight 叶）↔ 前端 mHC 融合算子，同源不同粒度",
+        "source": "transformers Glm5Next/DeepseekV4/Qwen4Exp HyperConnection vs 前端 mhc/hyper_connection 算子"
+      },
+      {
+        "pattern": "^layers\\.mhc_(attn_pre|contract|ffn_pre|final_post)($|\\.)|^(layers\\.)?(attn_hyper_connection\\.attn_mix|mlp_hyper_connection\\.mlp_combine_mix|hyper_connection_mixer\\.final)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 mHC 融合算子（mhc_attn_pre/contract/ffn_pre/final_post、*_mix、final）↔ 后端逐权重超连接模块",
+        "source": "前端 ops mhc_* / hyper_connection mix 模板"
+      },
+      {
+        "pattern": "^layers\\.ple\\.(conv1d|key_proj|value_proj|norm_conv|norm_key|norm_query)$",
+        "apply_to": ["only_transformers"],
+        "reason": "PLE 后端 conv1d/key_proj/value_proj + 三个 RMSNorm 叶 ↔ 前端 ple.inject 融合算子",
+        "source": "transformers Qwen4Exp PLE vs 前端 ops ple.inject"
+      },
+      {
+        "pattern": "^layers\\.ple\\.inject$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 PLE 注入融合算子 ↔ 后端 ple 明细叶",
+        "source": "前端 ops ple.inject"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.(kv_proj|o_a_proj|o_b_proj|q_a_norm|q_a_proj|q_b_norm|q_b_proj)$",
+        "apply_to": ["only_transformers"],
+        "reason": "DeepSeek-V4 MLA 后端拆法（q_a/q_b/kv_proj/o_a/o_b + q_a/q_b_norm）↔ 前端 fused_wqa_wkv/q_proj/wo_a/wo_b/compressor 融合，同源不同拆法",
+        "source": "transformers DeepseekV4 MLA vs 前端 ops V4 MLA 模板"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.(compressor|fused_wqa_wkv|q_proj|wo_a|wo_b)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 V4 MLA 融合算子（compressor/fused_wqa_wkv/q_proj/wo_a/wo_b）↔ 后端 q_a/q_b/kv/o_a/o_b 明细",
+        "source": "前端 ops V4 MLA 模板"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.indexer\\.(index_qk_proj|k_layernorm|q_layernorm|k_proj|q_proj|k_norm|q_norm|weights_proj)$",
+        "apply_to": ["only_transformers", "only_msv"],
+        "reason": "indexer 明细在两侧命名/拆分不同（index_qk_proj/k_layernorm/q_layernorm/k_proj/q_proj 后端 ↔ 前端 index_* / qkv_index_proj / weights_proj 融合）",
+        "source": "transformers Qwen4Exp/MiniMax/DSA indexer vs 前端 ops indexer"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.o_proj$",
+        "apply_to": ["only_transformers"],
+        "reason": "后端 o_proj ↔ 前端 out_proj（同槽不同名）；GLM-5.3-Flash 的 o_proj 是交集内 params 口径问题，另行修正，不走本条",
+        "source": "transformers self_attn.o_proj vs 前端 ops out_proj"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.(out_proj|mla_gate)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 out_proj/mla_gate 算子 ↔ 后端 o_proj / 门控明细",
+        "source": "前端 ops out_proj / mla_gate"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.(b_proj|g_a_proj|g_proj|o_norm|f_a_proj|forget_gate(\\.(f_a_proj|f_b_proj))?)$",
+        "apply_to": ["only_transformers"],
+        "reason": "线性注意力后端门控/低秩明细（forget_gate/b_proj/g_(a_)proj/o_norm/f_a_proj）↔ 前端 f_b_proj/mla_gate/out_proj 融合",
+        "source": "transformers Glm5Next/Kimi linear-attn vs 前端 ops"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.f_b_proj$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 f_b_proj（decay 低秩投影）算子 ↔ 后端 forget_gate/g_proj 明细",
+        "source": "前端 ops f_b_proj"
+      },
+      {
+        "pattern": "^layers\\.block_sparse_moe\\.(experts($|\\.(w1|w2|w3))|gate)$",
+        "apply_to": ["only_transformers"],
+        "reason": "Kimi-K3 block_sparse_moe 后端 experts(w1/w2/w3)+gate(KimiMoEGate) ↔ 前端 expert_mlp/router 融合，同源不同粒度",
+        "source": "transformers KimiK3 block_sparse_moe vs 前端 ops fused MoE"
+      },
+      {
+        "pattern": "^layers\\.block_sparse_moe\\.(expert_mlp|router)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 block_sparse_moe 融合 expert_mlp/router ↔ 后端 experts ModuleList + gate",
+        "source": "前端 ops fused MoE"
+      },
+      {
+        "pattern": "^layers\\.(mlp_res_norm|mlp_res_proj|self_attention_res_norm|self_attention_res_proj)$|^(output_attn_res_norm|output_attn_res_proj)$|^layers\\.self_attn\\.(k_conv1d|q_conv1d|v_conv1d)$",
+        "apply_to": ["only_transformers"],
+        "reason": "Kimi-K3 后端扁平残差 norm/proj 与逐支 conv1d ↔ 前端 attn_residual/output_attn_residual 容器 + 融合卷积",
+        "source": "transformers KimiK3 残差/短卷积 vs 前端 residual 容器"
+      },
+      {
+        "pattern": "^layers\\.attn_residual($|\\.)|^output_attn_residual($|\\.)",
+        "apply_to": ["only_msv"],
+        "reason": "前端残差容器 attn_residual/output_attn_residual（含 norm/proj）↔ 后端扁平残差模块",
+        "source": "前端 ops residual 容器"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.compressor\\.(gate_proj|kv_norm|kv_proj|rotary_emb)$",
+        "apply_to": ["only_transformers"],
+        "reason": "DeepSeek-V4-Pro HCA compressor 后端明细叶（gate_proj/kv_norm/kv_proj/rotary_emb）↔ 前端 compressor 融合算子",
+        "source": "transformers DeepseekV4HCACompressor vs 前端 ops compressor"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.compressor$",
+        "apply_to": ["mismatches"],
+        "reason": "compressor class/params 粒度差：后端 container 直参 + gate_proj/kv_proj 子叶总量 ≈ 前端 compressor 融合算子声明，同源不同粒度",
+        "source": "transformers DeepseekV4HCACompressor(容器) vs 前端 compressor 融合"
+      },
+      {
+        "pattern": "^layers\\.mlp$",
+        "apply_to": ["only_transformers"],
+        "reason": "MiniMax MoE 容器后端名 mlp ↔ 前端 block_sparse_moe（仅当 backend orphan 时分类；稠密层两侧同键不受影响）",
+        "source": "transformers MiniMax mlp vs 前端 block_sparse_moe"
+      },
+      {
+        "pattern": "^layers\\.block_sparse_moe$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 MoE 容器名 block_sparse_moe ↔ 后端 mlp（MiniMax）",
+        "source": "前端 ops block_sparse_moe 容器"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.(shared_experts\\.)?gate_up_proj$",
+        "apply_to": ["only_transformers"],
+        "reason": "MiniMax 稠密/共享 MLP 后端融合 gate_up_proj ↔ 前端拆成 gate_proj+up_proj，同源不同拆法",
+        "source": "transformers MiniMaxM3VLDenseMLP gate_up_proj vs 前端 gate/up 拆分"
+      },
+      {
+        "pattern": "^layers\\.mlp\\.(shared_experts\\.)?(gate_proj|up_proj)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 gate_proj/up_proj 拆分 ↔ 后端融合 gate_up_proj（仅融合后端时为 orphan，非融合模型两侧同键不受影响）",
+        "source": "前端 MLP gate/up 拆分"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.(index_k_norm|index_q_norm|qkv_index_proj)$",
+        "apply_to": ["only_msv"],
+        "reason": "前端 MiniMax 稀疏注意力 index 归一/融合投影（index_k_norm/index_q_norm/qkv_index_proj）↔ 后端 indexer.* 明细命名",
+        "source": "前端 minimaxSparseAttention 模板 vs transformers MiniMax indexer"
+      },
+      {
+        "pattern": "^layers\\.self_attn\\.o_proj$",
+        "apply_to": ["mismatches"],
+        "reason": "GLM-5.3-Flash 异构层折叠首见：后端 linear 层也名 o_proj（qkv_dim）与 DSA 层 o_proj（heads×v_head_dim）折同键取首见，前端 linear 层名 out_proj 故 o_proj 仅来自 DSA 层，params 口径差源于折叠而非真实错误",
+        "source": "modeling_glm5_next.py:626(linear o_proj) vs :1126(DSA o_proj)"
       }
     ]
   }

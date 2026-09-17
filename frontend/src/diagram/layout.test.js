@@ -189,6 +189,40 @@ test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", as
   }
 });
 
+test("展开的草稿子树完整落在 model 容器 frame 内（不越界）", async () => {
+  // 手动把草稿挪到主干下方后，必须同步撑高 model 容器高度，否则草稿展开更高时
+  // 会溢出容器框底部（展示层越界回归）。
+  const graph = layoutGraph(structureFrom({
+    name: "DeepseekV4ForCausalLM", type: "model", children: [
+      { name: "embed tokens", type: "embedding", input_shape: [1, 2], output_shape: [1, 4], children: [] },
+      { name: "decoder", type: "decoder", input_shape: [1, 4], output_shape: [1, 4], children: [
+        { name: "layer", type: "module", children: [] },
+      ] },
+      { name: "dspark", type: "dspark", input_shape: [1, 4], output_shape: [1, 4], attributes: { dataflow_edges: [] }, children: [
+        { name: "s0", type: "operator", children: [] },
+        { name: "s1", type: "normalization", children: [] },
+        { name: "s2", type: "decoder", children: [] },
+        { name: "s3", type: "decoder", children: [] },
+        { name: "s4", type: "operator", children: [] },
+        { name: "s5", type: "normalization", children: [] },
+      ] },
+      { name: "final norm", type: "normalization", input_shape: [1, 4], output_shape: [1, 4], children: [] },
+      { name: "lm head", type: "output", input_shape: [1, 4], output_shape: [1, 8], children: [] },
+    ],
+  }), new Set(["root", "root.2"]));
+  const laidOut = await layoutGraphWithElk(graph);
+  const modelFrame = laidOut.containerFrames.find((frame) => frame.id === "root");
+  assert.ok(modelFrame, "model 容器 frame 存在");
+  const draftKids = laidOut.nodes.filter((node) => node.path.startsWith("root.2"));
+  const frameBottom = modelFrame.y + modelFrame.height;
+  for (const node of draftKids) {
+    assert.ok(
+      node.y + node.height <= frameBottom + 2,
+      `草稿子节点 ${node.path} 底部 ${Math.round(node.y + node.height)} 越界 model frame 底部 ${Math.round(frameBottom)}`,
+    );
+  }
+});
+
 test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
   const graph = layoutGraph(structureFrom({
     name: "block", type: "module", children: [

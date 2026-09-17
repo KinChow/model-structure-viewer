@@ -151,6 +151,15 @@ export async function layoutGraphWithElk(graph) {
       draft.y = draftTop;
       draftTop += (draft.height || 0) + DRAFT_ROW_GAP;
     }
+    // 上面手动把草稿挪到主干下方独立行带后，ELK 早先为 model 容器算的高度仍基于草稿
+    // 旁挂在主干同层（更紧凑）时的布局，并未覆盖被下移、且展开后更高的草稿子树，
+    // 导致草稿溢出 model 容器框底部（展示层越界）。这里按重定位后的所有直接子节点
+    // 重新撑高 model 容器 shape.height，使随后 walk() 生成的 frame 自洽包住全部子树。
+    const MODEL_BOTTOM_PAD = 32;
+    const childrenBottom = Math.max(
+      ...modelLayout.children.map((child) => (child.y || 0) + (child.height || 0)),
+    );
+    modelLayout.height = Math.max(modelLayout.height || 0, childrenBottom + MODEL_BOTTOM_PAD);
   }
   const positions = new Map();
   const groupFrames = [];

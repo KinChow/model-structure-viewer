@@ -1,0 +1,63 @@
+// 算子公式的 LaTeX 源（KaTeX 渲染用）。与 formulaExplanations.js 同构：UI 排版用的
+// 文案/公式放 i18n 层，不进 cost 注册表。键 = FORMULAS 的 operator_id；值为对现有
+// `formula` ASCII 串的**忠实排版转写**（同一数学，仅改成数学式），不重解释语义。
+// 覆盖性由 formulaTex.test.js 双向锁定（每个 FORMULAS 键都要有、且 KaTeX 可解析）。
+export const FORMULA_TEX = {
+  linear: "Y = XW^{\\top} + b",
+  matmul: "Y = AB",
+  softmax: "\\operatorname{softmax}(x_i) = \\dfrac{\\exp(x_i)}{\\sum_j \\exp(x_j)}",
+  sdpa_attention: "O = \\operatorname{softmax}\\!\\left(\\dfrac{QK^{\\top}}{\\sqrt{d}}\\right) V",
+  split: "[y_1, \\dots, y_n] = \\operatorname{split}(z;\\ \\text{split\\_sizes})",
+  causal_conv1d: "x'_t = \\operatorname{SiLU}\\!\\big(\\operatorname{Conv1D}(x_{t-w+1:t};\\ w)\\big)",
+  rope: "q', k' = \\operatorname{rotate}(q, k, \\text{position})",
+  vision_position: "x' = x + \\operatorname{position}(\\text{image or video})",
+  vision_merge: "y_{i,j} = \\operatorname{concat}\\!\\big(x_{mi+a,\\,mj+b}\\big)_{a,b=0}^{r-1}",
+  vision_activation: "y = \\phi(x)",
+  rmsnorm: "y = \\dfrac{x}{\\sqrt{\\operatorname{mean}(x^2) + \\epsilon}} \\cdot w",
+  gemma_rmsnorm: "y = \\dfrac{x}{\\sqrt{\\operatorname{mean}(x^2) + \\epsilon}} \\cdot (1 + w)",
+  swiglu: "y = \\operatorname{SiLU}(xW_{\\text{gate}}) \\cdot (xW_{\\text{up}})",
+  topk: "\\text{experts} = \\operatorname{topk}(\\text{router\\_logits},\\ k)",
+  moe_dispatch: "x_e = \\operatorname{dispatch}(x,\\ \\text{expert\\_ids})",
+  moe_combine: "y = \\sum_e w_e \\cdot \\operatorname{expert}_e(x_e)",
+  fused_moe_mlp: "y = \\big(\\operatorname{SiLU}(xW_{\\text{gate}}^{\\top}) \\odot (xW_{\\text{up}}^{\\top})\\big) W_{\\text{down}}^{\\top}",
+  residual_add: "h = x + \\operatorname{sublayer}(x)",
+  identity: "y = x",
+  moe_add: "y = y_{\\text{routed}} + y_{\\text{shared}}",
+  linear_attention: "S_t = \\operatorname{decay}_t \\cdot S_{t-1} + k_t^{\\top} v_t;\\quad y_t = q_t S_t",
+  linear_attention_gate: "y_t = \\operatorname{gate}(z_t) \\cdot y_t",
+  gated_delta_attention: "\\beta_t = \\sigma(\\beta^{\\text{raw}}_t);\\quad v'_t = \\beta_t(v_t - S_{t-1}k_t);\\quad S_t = e^{g_t} S_{t-1} + v'_t k_t^{\\top};\\quad o_t = S_t q_t",
+  gated_rmsnorm: "y = \\operatorname{RMSNorm}(o, w) \\cdot \\phi(g_2)",
+  mhc_pre: "p = \\sigma(M_a s_a + b_a) + \\epsilon;\\quad C = \\operatorname{Sinkhorn}(\\operatorname{softmax}(M_c s_c + b_c) + \\epsilon);\\quad x = \\sum_i p_i H_i",
+  mhc_fused_post_pre: "(H', \\text{post}', C', x') = \\operatorname{MHCPre}(\\operatorname{MHCPost}(x, H, \\text{post}, C);\\ F, \\text{scale}, \\text{base})",
+  mhc_post: "H'_j = \\text{post}_j \\cdot x + \\sum_i C_{ij} H_i",
+  mhc_contract: "h = \\dfrac{1}{n} \\sum_i H_i",
+  mla_query_compress: "c^q_t = W_{qa} x_t;\\quad q_t = W_{qb}\\,\\operatorname{RMSNorm}(c^q_t)",
+  mla_kv_compress: "[c^{KV}_t, k^R_t] = W_{kv} x_t",
+  mla_kv_split: "[c^{KV}, k^R] = \\operatorname{split}(z;\\ \\text{kv\\_lora\\_rank},\\ \\text{rope\\_dim})",
+  mla_output_gate: "O' = \\sigma(W_g x) \\cdot O",
+  attention_residual: "s_i = \\langle \\operatorname{RMSNorm}(x_i), w\\rangle;\\quad p = \\operatorname{softmax}(s);\\quad y = \\operatorname{RMSNorm}\\!\\Big(\\sum_i p_i x_i\\Big)",
+  hyper_connection: "x_n = \\operatorname{GroupedRMSNorm}(H_{hc});\\quad l = \\operatorname{SiLU}(W_{\\text{down}} x_n / hc);\\quad g = \\sigma(W_{\\text{up}} l);\\quad \\text{block\\_input} = \\operatorname{mean}(g \\odot x_n);\\quad H' = H + 2\\sigma(W_{\\text{inj}} x_n / hc) \\odot \\text{block\\_output}",
+  ple: "[k, v] = W_{kv} e;\\quad y = \\operatorname{ShortConv}(\\operatorname{GatedNorm}(k, v, \\operatorname{RMSNorm}(H)))",
+  shared_expert_gate: "y = y_{\\text{routed}} + \\sigma(W_g x) \\cdot y_{\\text{shared}}",
+  qsa_indexer: "s_t = \\sum_h \\operatorname{ReLU}(q_{t,h} \\cdot \\operatorname{pool}(k)) / \\sqrt{d_i};\\quad I = \\operatorname{topk\\_blocks}(s_t, \\text{budget}/\\text{ratio})",
+  dsa_indexer: "s_t = \\sum_h w_{t,h} \\cdot \\operatorname{ReLU}(q_{t,h} \\cdot k_s) / \\sqrt{d_i};\\quad I = \\operatorname{topk}(s_t, \\text{index\\_topk})",
+  dsa_kpool_indexer: "s_t = \\sum_h w_{t,h} \\cdot \\operatorname{ReLU}(q_{t,h} \\cdot \\operatorname{pool}(k)) / \\sqrt{d_i};\\quad I = \\operatorname{topk}(s_t, \\text{index\\_topk}/\\text{kpool}) \\cdot \\text{kpool} + \\text{tail}",
+  dsv4_indexer: "s_t = \\sum_h w_{t,h} \\cdot \\operatorname{ReLU}(q_{t,h} \\cdot k^c_s) / \\sqrt{d_i};\\quad I = \\operatorname{topk}(s_t, \\text{index\\_topk})",
+  qsa_sparse_attention: "O = \\operatorname{softmax}\\!\\left(\\dfrac{QK_I^{\\top}}{\\sqrt{d}}\\right) V_I",
+  dsa_sparse_mla: "O = \\operatorname{softmax}\\!\\left(\\dfrac{Q W_{kv_b} C_I^{\\top}}{\\sqrt{d}}\\right) C_I W_{v_b}",
+  dsv4_sparse_mla: "O = \\operatorname{softmax}\\!\\left(\\dfrac{Q [K^c_I; K_{t-w:t}]^{\\top}}{\\sqrt{d}}\\right) [V^c_I; V_{t-w:t}]",
+  qwen_qkvz_split: "[q, k, v, z] = \\operatorname{split}(W_{qkvz} x;\\ q, k, v, z)",
+  attention_qkv_split: "[q, k, v] = \\operatorname{split}(W_{qkv} x;\\ q, k, v)",
+  attention_output_gate: "O' = \\sigma(G) \\cdot O",
+  minimax_sparse_indexer: "B = \\operatorname{topk\\_blocks}\\!\\big(\\operatorname{amax\\_block}(\\text{ReLU-free }\\operatorname{scores}(Q_i K_i^{\\top}) / \\sqrt{d_i}), \\text{topk\\_blocks}\\big) \\cup \\text{local}",
+  minimax_sparse_attention: "O = \\operatorname{softmax}\\!\\left(\\dfrac{QK_B^{\\top}}{\\sqrt{d}}\\right) V_B",
+  dsv4_hash_route: "\\text{expert\\_ids} = \\text{hash\\_table}[\\text{input\\_ids}]",
+  dsv4_swa_attention: "O = \\operatorname{softmax}\\!\\left(\\dfrac{QK_{t-w:t}^{\\top}}{\\sqrt{d}}\\right) V_{t-w:t}",
+  dsv4_compressed_attention: "O = \\operatorname{softmax}\\!\\left(\\dfrac{Q C_{KV}^{\\top}}{\\sqrt{d}}\\right) C_{KV}",
+  engram_gate: "g = \\sigma(\\operatorname{sign}(d) \\cdot \\sqrt{|d|}),\\quad d = \\Big(\\sum_c h_c \\cdot w_c \\cdot k_c\\Big) \\cdot \\text{rstd} \\cdot \\text{dim}^{-1/2};\\quad h' = h + g \\cdot v",
+};
+
+/** 返回 operator_id 的 LaTeX；未登记返回 null（调用方回退到 ASCII code 展示）。 */
+export function formulaTex(operatorId) {
+  return FORMULA_TEX[String(operatorId || "").toLowerCase()] || null;
+}

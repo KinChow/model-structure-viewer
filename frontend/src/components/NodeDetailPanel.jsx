@@ -1,9 +1,23 @@
 import { useState } from "react";
+import katex from "katex";
 import AttributeGrid from "./AttributeGrid";
 import ShapeFlow from "./ShapeFlow";
 import { formatBytes, formatCount, formatQuantity, formatSeconds } from "../formatters.js";
 import { nodeBadges } from "../diagram/nodeBadges.js";
 import { formulaExplanation } from "../i18n/formulaExplanations.js";
+import { formulaTex } from "../i18n/formulaTex.js";
+import { formulaForOperator } from "../structure/operators/formulas/index.js";
+
+// 公式以数学式（KaTeX）展示；tex 源自 formulaTex.js 的忠实转写（本仓自有、非用户输入）。
+// throwOnError:false —— 万一某条 tex 出问题也不炸组件，退化成可读错误标记，同时保留 code 兜底。
+function renderFormulaMath(tex) {
+  if (!tex) return null;
+  try {
+    return katex.renderToString(tex, { throwOnError: false, displayMode: false });
+  } catch {
+    return null;
+  }
+}
 
 function TruthSection({ node, language = "zh" }) {
   const english = language === "en";
@@ -50,7 +64,12 @@ function FormulaSection({ node, language = "zh" }) {
   const formulaId = node.attributes?.operator_id;
   if (!formulaId && !formula) return null;
   const explanation = language === "en" ? formulaExplanation(formulaId, formulaId || "operator") : node.attributes?.explanation;
-  return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{formula && <code>{formula}</code>}{explanation && <p>{explanation}</p>}</section>;
+  // LaTeX 仅用于「节点公式 == 注册表规范公式」的情形；内联覆盖式（如 scores/context 子叶
+  // 的 S=QKᵀ/√d）与规范式不同，回退 ASCII code，避免张冠李戴。
+  const canonical = formulaId ? formulaForOperator(formulaId) : null;
+  const tex = canonical && formula === canonical.formula ? formulaTex(formulaId) : null;
+  const mathHtml = renderFormulaMath(tex);
+  return <section className="formula-section"><h4>{language === "en" ? "Formula" : "公式"} <span className="badge class">{formulaId || "operator"}</span></h4>{mathHtml ? <div className="formula-math" role="math" aria-label={formula} dangerouslySetInnerHTML={{ __html: mathHtml }} /> : formula && <code>{formula}</code>}{explanation && <p>{explanation}</p>}</section>;
 }
 
 function SourceRefSection({ node, language = "zh" }) {

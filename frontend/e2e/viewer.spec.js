@@ -28,9 +28,10 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
   await expect(page.getByRole("button", { name: "用 Transformers 校验" })).toHaveCount(0);
   await expect(page.locator(".diagnostics-meta")).toContainText("张量");
 
-  // W6-2（§2.2）：evidence 数据契约上 DOM。折叠态下只有顶层 module-order 序列边，
-  // 展开内层模块后 declared 声明边出现——两类类名互异。
-  await expect.poll(async () => page.locator('path[data-evidence="module-order"]').count()).toBeGreaterThan(0);
+  // W6-2（§2.2）：evidence 数据契约上 DOM。顶层主干（embed→decoder→norm→lm_head）
+  // 是真实顺序数据流，声明为 declared 实线边（无草稿模型也统一实线，见
+  // networkSpecWithDraft）；折叠态下即可在 DOM 上看到 declared 边，evidence 契约生效。
+  await expect.poll(async () => page.locator('path[data-evidence="declared"]').count()).toBeGreaterThan(0);
   await expect.poll(async () => page.locator(".react-flow__edge title").count()).toBeGreaterThan(0);
 
   await page.locator(".detail-cost-toggle > button").click();

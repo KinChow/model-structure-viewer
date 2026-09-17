@@ -37,7 +37,12 @@ export function mtpBlock(id, normalized, { layerKind, attentionKind, layerIndex 
   }, { layerKind, attentionKind, layerIndex, forceLastMhc });
 }
 
-/** vLLM SharedHead：self.norm + 共享 lm_head。checkpoint 路径 shared_head.norm。 */
+/**
+ * vLLM SharedHead：self.norm + self.head(ParallelLMHead)。checkpoint 有独立
+ * shared_head.norm.weight 与 shared_head.head.weight 两份张量（DeepSeek-V3/V3.2
+ * `tie_word_embeddings=false`，MTP 草稿头不复用主干 lm_head，见
+ * vllm/model_executor/models/deepseek_mtp.py:SharedHead）。
+ */
 export function sharedHead(id, normalized) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
@@ -48,10 +53,23 @@ export function sharedHead(id, normalized) {
     {
       class: "SharedHead",
       implementation: ["vLLM.models.deepseek_mtp.SharedHead"],
-      ...shapeFlow(shapes.hidden, shapes.hidden),
+      dataflow_edges: [["norm", "head"]],
+      ...shapeFlow(shapes.hidden, shapes.logits),
     },
-    [rmsNormModule(`${id}.shared_head.norm`, "shared head norm", normalized)],
-  ), dims.hidden, dims.hidden);
+    [
+      rmsNormModule(`${id}.shared_head.norm`, "shared head norm", normalized),
+      operatorSpec(`${id}.shared_head.head`, "draft output projection", "linear", {
+        ...shapeFlow(shapes.hidden, shapes.logits),
+        class: "ParallelLMHead",
+        vocab_size: normalized.vocabSize,
+        weightMatrices: [weightMatrixDecl("vocab", {
+          shape: [normalized.vocabSize || 0, normalized.hiddenSize || 0],
+          quantizable: false,
+        })],
+        implementation: ["vLLM.models.deepseek_mtp.SharedHead.head"],
+      }, { input: dims.hidden, output: dims.logits }),
+    ],
+  ), dims.hidden, dims.logits);
 }
 
 function ehProj(id, normalized) {

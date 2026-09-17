@@ -38,12 +38,18 @@ export function networkSpec(id, name, architecture, children, attributes = {}) {
  * children 里草稿仍置于 decoder 之后（默认布局顺序），边由 id 声明决定拓扑。
  */
 export function networkSpecWithDraft(id, name, architecture, children, draft) {
-  if (!draft) return networkSpec(id, name, architecture, children, { sequence: true });
+  // 主干（embed → decoder → final norm → lm_head，含 vision/projector 前置）是真实
+  // 顺序数据流（HF/vLLM forward 逐模块串行），应声明为 declared 实线边。此前无草稿
+  // 模型走 { sequence: true }，该标记不产出 declared 边，物化时退化成 module-order
+  // 虚线，导致「有草稿=实线 / 无草稿=虚线」的顶层连线风格不一致（同一条主干却两种
+  // 画法）。统一：无论是否有草稿，主干都显式声明串行边；草稿只是在此基础上追加
+  // fan-in / 出口边。
   const trunk = children.filter((child) => child !== draft);
   const edges = [];
   for (let index = 0; index < trunk.length - 1; index += 1) {
     edges.push([trunk[index].id, trunk[index + 1].id]);
   }
+  if (!draft) return networkSpec(id, name, architecture, children, { dataflow_edges: edges });
   const decoder = children.find((child) => child.type === "decoder");
   const embed = children.find((child) => child.type === "embedding");
   const outputHead = children.find((child) => child.type === "output");

@@ -152,6 +152,43 @@ test("keeps the output head inside the model compound", async () => {
   assert.ok(lmHead.x <= modelFrame.x + modelFrame.width);
 });
 
+test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", async () => {
+  // DSpark/MTP 与主干共享 decoder 输入却不回流 final norm，ELK 会把草稿排进
+  // final norm / lm_head 所在列。主干拉平 baseline 后，草稿必须落到主干整体下方
+  // 的独立行带，否则与被上移的同列主干节点压在一起（历史 overlap 回归）。
+  const graph = layoutGraph(structureFrom({
+    name: "DeepseekV4ForCausalLM", type: "model", children: [
+      { name: "embed tokens", type: "embedding", input_shape: [1, 2], output_shape: [1, 4], children: [] },
+      { name: "decoder", type: "decoder", input_shape: [1, 4], output_shape: [1, 4], children: [
+        { name: "layer", type: "module", children: [] },
+      ] },
+      { name: "dspark", type: "dspark", input_shape: [1, 4], output_shape: [1, 4], attributes: {
+        dataflow_edges: [],
+      }, children: [
+        { name: "markov head", type: "dspark-markov", children: [] },
+      ] },
+      { name: "final norm", type: "normalization", input_shape: [1, 4], output_shape: [1, 4], children: [] },
+      { name: "lm head", type: "output", input_shape: [1, 4], output_shape: [1, 8], children: [] },
+    ],
+  }), new Set(["root"]));
+  const laidOut = await layoutGraphWithElk(graph);
+  const top = laidOut.nodes.filter((node) => node.path.split(".").length === 2);
+  const draft = top.find((node) => node.path === "root.2");
+  const trunk = top.filter((node) => node.path !== "root.2");
+  // 草稿纵向排在所有主干节点之下
+  const trunkBottom = Math.max(...trunk.map((node) => node.y + node.height));
+  assert.ok(draft.y >= trunkBottom, `draft.y=${draft.y} 应不小于主干底部 ${trunkBottom}`);
+  // 无任何顶层节点两两重叠
+  for (const a of top) {
+    for (const b of top) {
+      if (a.path >= b.path) continue;
+      const ox = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+      const oy = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+      assert.ok(!(ox > 2 && oy > 2), `${a.path} 与 ${b.path} 重叠 ${Math.round(ox)}x${Math.round(oy)}`);
+    }
+  }
+});
+
 test("layoutGraph adds dataflow edges only when tensor shapes match", () => {
   const graph = layoutGraph(structureFrom({
     name: "block", type: "module", children: [

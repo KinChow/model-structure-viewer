@@ -129,10 +129,28 @@ export async function layoutGraphWithElk(graph) {
       return type === "mtp" || type === "dspark";
     };
     const trunk = modelLayout.children.filter((child) => !isDraftBranch(child));
+    const drafts = modelLayout.children.filter(isDraftBranch);
     const baseline = trunk.length
       ? Math.min(...trunk.map((child) => child.y || 0))
       : Math.min(...modelLayout.children.map((child) => child.y || 0));
     for (const child of trunk) child.y = baseline;
+    // 草稿分支（MTP / DSpark）是旁挂节点：ELK 会把它排在与主干同层节点相同的列里
+    //（MTP 落 lm_head 列、DSpark 落 final norm 列），纵向本来错开、无重叠。上面把
+    // 主干统一拉到 baseline 后，同列的主干节点被上移，若草稿仍停在 ELK 旧 y 就会与
+    // 之相撞（node overlap）。且草稿本身展开时会变高、x 位移，无法靠"同列 x 相等"
+    // 稳定判定。改为把所有草稿统一落到主干整体下方的独立行带：草稿保留 ELK 的横向
+    // 位置（横跨 decoder→lm_head 区间），纵向排到主干最低点之下，逐个堆叠。这样无论
+    // 主干或草稿是否展开都不会与主干重叠，语义上仍是"旁挂主干下方"。
+    const DRAFT_BAND_GAP = 24;
+    const DRAFT_ROW_GAP = 24;
+    const trunkBottom = trunk.length
+      ? Math.max(...trunk.map((child) => baseline + (child.height || 0)))
+      : baseline;
+    let draftTop = trunkBottom + DRAFT_BAND_GAP;
+    for (const draft of drafts) {
+      draft.y = draftTop;
+      draftTop += (draft.height || 0) + DRAFT_ROW_GAP;
+    }
   }
   const positions = new Map();
   const groupFrames = [];

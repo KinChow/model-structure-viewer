@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         }
         rows.append(row)
         (out_dir / (mid.replace("/", "__") + ".diff.json")).write_text(
-            json.dumps(row, indent=2, ensure_ascii=False)
+            json.dumps(row, indent=2, ensure_ascii=False) + "\n"
         )
         flag = "OK" if (row["ok"] and residual == 0) else ("RESIDUAL" if row["ok"] else "CONSTRUCT-FAIL")
         print(f"[{flag}] {mid} status={row['status']} residual={residual} "
@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
             {"model_id": r["model_id"], "residual": r["residual_count"]} for r in residual_models
         ],
     }
-    (out_dir.parent / "summary.json").write_text(json.dumps(agg, indent=2, ensure_ascii=False))
+    (out_dir.parent / "summary.json").write_text(json.dumps(agg, indent=2, ensure_ascii=False) + "\n")
     print("\n=== AGGREGATE ===")
     print(json.dumps(agg, indent=2, ensure_ascii=False))
     return 0 if (not failed and not residual_models) else 1

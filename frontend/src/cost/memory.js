@@ -10,6 +10,9 @@ const BYTES_PER_DTYPE = {
   // fp4 (float4_e2m1fn_x2)：2 值/字节 = 0.5 B/elem。含 scale 摊销的有效字节：
   //   F4_E4M3S16 = 压缩 KV（E4M3 scale/16）= 0.5+1/16 = 0.5625；F4_E8M0S32 = index（E8M0 scale/32）= 0.53125。
   F4: 0.5, FP4: 0.5, F4_E2M1: 0.5, F4_E4M3S16: 0.5625, F4_E8M0S32: 0.53125,
+  // DSA（deepseek_v32/glm5_next）index 键缓存：fp8(uint8,1B) + E8M0 尺度(4B/128) = 1 + 4/128 = 1.03125 B/elem。
+  // SGLang 硬编码 uint8（DSATokenToKVPool.index_k_with_scale_buffer_dtype），不受 --kv-cache-dtype 影响。
+  F8_E8M0S128: 1.03125,
 };
 
 export function bytesPerDtype(dtype, fallback = 2) {

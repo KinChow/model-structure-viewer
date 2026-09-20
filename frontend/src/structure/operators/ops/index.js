@@ -1161,8 +1161,15 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       attention_kind: "dsa_sparse_mla",
       indexer_mode: indexerMode,
       ...cacheResidentDecl({
+        // 全驻留（W5 capacity↔kvRead 不变）：MLA latent + index 键。
         kvElements: kvRank + ropeDim,
         indexElements: indexDim || 0,
+        // 边际 + 逐 dtype（Bug1 修复，对齐 dsv4_sparse_mla 768-779）：MLA latent bf16 随 token 增长；
+        // DSA index 键 = fp8(1B)+E8M0 尺度(4B/128)（SGLang 硬编码 uint8，非 bf16）。无滑窗，growth==full。
+        growthKvElements: kvRank + ropeDim,
+        growthIndexElements: indexDim || 0,
+        kvDtype: "BF16",
+        indexDtype: "F8_E8M0S128",
       }),
       implementation: ["vLLM.DeepseekV32MLAAttention", "SGLang.RadixAttention + DSA backend"],
     }, { input: [-1, -1, heads, qkDim], output: [-1, -1, heads, valueDim] }),

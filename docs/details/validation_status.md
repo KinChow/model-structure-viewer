@@ -175,6 +175,11 @@
   MoE EP×moe_tp / shared-expert 分叉不是前端 bug** —— MSV 已按 plan 参数正确表达 vLLM(ep=tp×dp,moe_tp=1)/SGLang(ep×moe_tp)/TRT(显式 moe_tp)
   三框架；「framework profile」是既有正确 plan 参数上的**可选 UX 预设**，非正确性修复（不为修复而修复）。证据 `evidence/parallelism/vllm_moe_ep.md`。
 
+- **状态（vLLM 吞吐/roofline 对账，2026-09-20，A100/vLLM 0.28.1/Qwen3-0.6B）**：`vllm bench serve`（200 req in512/out128，rate=inf 饱和）——
+  TPOT 14.41 ms、TTFT 703 ms、输出 9,451 tok/s、KV/token 114,712≈MSV 114,688。**每项实测落 MSV roofline 地板之上、bound 分类正确**
+  （prefill 算力受限→TTFT、decode 访存受限→TPOT），与 SGLang（`evidence/cost/bench_vs_roofline.md`：1.65–2.5×地板）同模式 →
+  **cost（算力/访存/roofline）维在 vLLM + SGLang 双框架均已验证**，MSV roofline 是两框架共同物理下界。证据 `evidence/cost/vllm_bench_vs_roofline.md`。
+
 ## 算子成本 / per-stage roofline（cost）
 
 - **触发判据**：UI 或对账需要 stage 级动作向量（当前 introspect 不产数值，是诚实缺项）。

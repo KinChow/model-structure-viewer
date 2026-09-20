@@ -34,6 +34,7 @@
 - **glm5_next DSA 稀疏前向（H20）复跑再确认**：KV/token **2312** == 修复后 MSV（Bug1 已落地 commit 3e6aa3b）。证据 `runtime_profiles/sglang_glm5next.md`。
 - **qwen3_5 GDN（H20）**：GQA KV/token 4096 == MSV（0.0%）；线性 state 精确复测（512 slots）conv 293,601 vs MSV 294,912、ssm 12,603,883 vs MSV 12,582,912、总量 12.30 vs 12.28 MiB —— **逐分量 <0.5%，Bug2（ssm fp32）逐字节精确验证**（初测 ~1.25× 系 4-slot 舍入伪差，已排除，**无 GDN state-shape bug**）。证据 `runtime_profiles/sglang_qwen35_gdn_h20.md`。
 - **V4.1-Flash + DSpark（H20，最后一个 fp8-only builder）**：现跑 tp8/ep8 dsv4 backend/kv fp8_e4m3/W4A8-marlin MoE + DSPARK（num_draft_tokens 6），`server fired up` + `/generate` 正确出词（"...Paris."）→ **HB1 fp8 前向 + HB6 DSpark 投机 H20 运行时通过**；EP 下 shared-expert 不融合（与 vLLM 一致，[B] 收敛）。**11 个 builder 全部具备 A100/H20 运行时证据**。证据 `runtime_profiles/sglang_dsv41_dspark_h20.md`。**边界**：W8A8/W4A8 build 走 fp8 index，fp4 设计 KV(890) 数值对拍留 fp4-build。
+- **vLLM MoE 专家并行（A100，VL3）**：DeepSeek-V2-Lite tp2 —— EP-on 每 rank 32/64 完整专家（`E=32,N=1408`，ep=tp×dp、expert-TP=1）、EP-off 全 64 专家 intermediate÷2（`E=64,N=704`）——与 MSV `expertShardDivisor`（EP `÷ep 整专家` / TP `÷tp intermediate` / shared `÷tp` 独立）**逐点一致**。**[B] MoE EP×moe_tp/shared-expert 非前端 bug**（MSV 已按 plan 参数正确表达 vLLM/SGLang/TRT 三框架）；framework profile 属可选 UX 预设、非正确性修复。证据 `parallelism/vllm_moe_ep.md`。
 
 ## 开项登记（架构级）
 

@@ -169,6 +169,12 @@
   不融合（与 vLLM 一致，[B] 收敛）。边界：W8A8/W4A8 build 走 fp8 index（`enable_deepseek_v4_fp4_indexer=False`），fp4 设计 KV(890 B/token，静态已精确)
   的运行时数值对拍留 fp4-indexer build；engram 行为量化留后续。证据 `evidence/structure/runtime_profiles/sglang_dsv41_dspark_h20.md`。
 
+- **状态（vLLM MoE 专家并行对账，2026-09-20，A100/vLLM 0.28.1/DeepSeek-V2-Lite）**：tp2 —— EP-on 每 rank `Local/global experts 32/64`、
+  FusedMoE `E=32,N=1408`（整专家、ep=tp×dp、expert-TP=1）；EP-off `E=64,N=704`（全专家、intermediate÷2）。与 MSV `expertShardDivisor`
+  （EP `÷ep 整专家` / TP `÷tp intermediate` / 混合 ETP `÷(ep·moe_tp)` / shared 独立 `÷tp`）**逐点一致**。**结论：frontend_problem_inventory 的 [B]
+  MoE EP×moe_tp / shared-expert 分叉不是前端 bug** —— MSV 已按 plan 参数正确表达 vLLM(ep=tp×dp,moe_tp=1)/SGLang(ep×moe_tp)/TRT(显式 moe_tp)
+  三框架；「framework profile」是既有正确 plan 参数上的**可选 UX 预设**，非正确性修复（不为修复而修复）。证据 `evidence/parallelism/vllm_moe_ep.md`。
+
 ## 算子成本 / per-stage roofline（cost）
 
 - **触发判据**：UI 或对账需要 stage 级动作向量（当前 introspect 不产数值，是诚实缺项）。

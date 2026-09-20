@@ -29,3 +29,10 @@ A100(SM80) 上 `assembleGlm5Next`（DSA + 线性 KDA hybrid）只能验到 cache
 - dummy 随机权重：验 kernel 路径 + cache 分配口径，非输出正确性；全权重忠实前向未做。
 - 同一 `flashmla_sparse` kernel 亦解除 `assembleDeepseekV32`(DSA) 的稀疏前向硬件前置（同 kernel）；其减层全前向可同法补（本轮未跑，仅登记）。
 - Bug 1 的前端修复须在有 node 的开发机做（`node --test` / `verify:models` / 重生成 golden）。
+
+## 复跑再确认（2026-09-20，mem-fraction 0.3，Bug1 修复后前端 == 真机）
+
+同容器复跑（`--mem-fraction-static 0.3 --port 30099`，端到端 fired up）：
+`KV Cache is allocated. dtype: torch.bfloat16, #tokens: 14,808,384, KV size: 31.89 GB` →
+**KV/token = 31.89·1024³ / 14,808,384 = 2312 B/token**，与 0.6 档一致（与 mem 档无关）。
+**Bug1 修复已落地（commit 3e6aa3b）**：前端 `dsa_sparse_mla` 现按 fp8 index（`F8_E8M0S128`=1.03125 B/elem），MSV 减层 glm5_next KV/token 由 2560 收敛到 2312，与本次真机 0.0% 吻合。

@@ -101,3 +101,12 @@ kv_cache_scheme** → 默认 bf16 时对这些 ckpt 高估 KV 2×。属"用户�
   对 vLLM-默认（bf16）会高估 GDN ssm 2×。
 - **处置**：Bug2（fp32）作为**设计/config 忠实默认**正确（非 bug）；vLLM-默认 GDN=bf16 是 vLLM 忽略 config 的运行时偏差，登记为 [B] 分叉，
   framework profile（若建）可给 vLLM-GDN 覆盖 bf16。**不改 Bug2 默认**（改则破坏 config/SGLang 忠实与 KDA 正确性；不为一个框架的 runtime 偏差改设计口径）。
+
+### vLLM 运行时确认（2026-09-20，vllm-0920 H20 现跑）
+
+- **vLLM-0920 registry 支持全部 exotic builder**：`Qwen3_5MoeForCausalLM`/`Qwen3_5ForCausalLM`/`Glm5NextForCausalLM`/`GlmMoeDsaForCausalLM`/
+  `KimiLinearForCausalLM`/`Qwen4ExpForCausalLM`/`MiniMaxM3Sparse`/`KimiK3`/`DeepseekV41`（`model_executor/models/registry.py`）。
+- **GDN 运行时跑通**：`vllm serve /ssd2/models/_reduced/qwen3_5_reduced --load-format dummy`（H20）——
+  `Mamba cache mode is set to 'align' for Qwen3_5MoeForCausalLM`、统一池 `6,542,131 tokens / 64.34 GiB`、`Application startup complete`。
+  → vLLM **运行时**确实服务 GDN 并分配 mamba cache；ssm dtype 按装机 `_mamba_state_dtype`(auto→bf16) = **bf16**（`--mamba-ssm-dtype` 在本 build 非顶层 server-arg、不可经此覆盖，佐证默认走 auto→model dtype）。
+  **[B] GDN 分叉由「装机源码 + vLLM 运行时」双重确认**（vLLM bf16 vs SGLang/config fp32；MSV 忠实 config/SGLang=fp32）。

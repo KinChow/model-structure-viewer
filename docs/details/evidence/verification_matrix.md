@@ -17,7 +17,7 @@
 | assembleQwen4Exp | 2 | qwen4_exp 减层 | ✅ | ✅ | ⬜ | 🟡 | ⬜ | ⬜ | ⬜ | qsa+index |
 | assembleGlm5Next | 2 | glm5_next_reduced | ✅ | ✅(H20 稀疏前向) | ⬜ | 🟡 | ⬜ | ⬜ | ⬜ | KDA+MLA+DSA；Bug1/Bug2 源 |
 | assembleMiniMaxM2 | 1 | minimax_m2_tiny | ✅ | ✅ | ⬜ | 🟡 | ⬜ | 🟡 | ⬜ | GQA+MoE |
-| assembleDeepseekV41 | 1 | — | ✅ | ✅(静态 890) | ⬜ | ⛔(fp4) | ⬜ | ⛔ | ⬜ | CSA2/engram/DSpark→H20(P4) |
+| assembleDeepseekV41 | 1 | — | ✅ | ✅(静态 890) | ⬜ | 🟡(H20 fp8 前向) | ⬜ | ✅(H20 tp8/ep8) | ⬜ | **H20 fp8 前向+DSpark 跑通**；engram/fp4-KV 数值留后续 |
 | assembleKimiK3 | 1 | kimi_k3/kimi_linear_tiny | ✅ | 🟡(cache) | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | KDA+MLA；vLLM 支持存疑 |
 | assembleGlm4Moe | 1 | glm4_moe_tiny | ✅ | ✅ | ⬜ | 🟡 | ⬜ | 🟡 | ⬜ | GQA+MoE(shared 融合) |
 
@@ -33,6 +33,7 @@
 - **vLLM 首次真机（A100，Qwen3-0.6B GQA 代表）**：KV/token 114,712 B ≈ MSV 114,688（0.02%）、每卡权重 ÷tp、KV 池 ×tp——**vLLM == SGLang == MSV**（GQA KV 属 [C] 干净，跨框架一致）。证据 `parallelism/vllm_width_tp.md`。→ 各 GQA-bearing builder 的 vLLM 显存/并行经此代表覆盖；vLLM MoE `EP=TP×DP`（VL3）仍待。
 - **glm5_next DSA 稀疏前向（H20）复跑再确认**：KV/token **2312** == 修复后 MSV（Bug1 已落地 commit 3e6aa3b）。证据 `runtime_profiles/sglang_glm5next.md`。
 - **qwen3_5 GDN（H20）**：GQA KV/token 4096 == MSV（0.0%）；线性 state 精确复测（512 slots）conv 293,601 vs MSV 294,912、ssm 12,603,883 vs MSV 12,582,912、总量 12.30 vs 12.28 MiB —— **逐分量 <0.5%，Bug2（ssm fp32）逐字节精确验证**（初测 ~1.25× 系 4-slot 舍入伪差，已排除，**无 GDN state-shape bug**）。证据 `runtime_profiles/sglang_qwen35_gdn_h20.md`。
+- **V4.1-Flash + DSpark（H20，最后一个 fp8-only builder）**：现跑 tp8/ep8 dsv4 backend/kv fp8_e4m3/W4A8-marlin MoE + DSPARK（num_draft_tokens 6），`server fired up` + `/generate` 正确出词（"...Paris."）→ **HB1 fp8 前向 + HB6 DSpark 投机 H20 运行时通过**；EP 下 shared-expert 不融合（与 vLLM 一致，[B] 收敛）。**11 个 builder 全部具备 A100/H20 运行时证据**。证据 `runtime_profiles/sglang_dsv41_dspark_h20.md`。**边界**：W8A8/W4A8 build 走 fp8 index，fp4 设计 KV(890) 数值对拍留 fp4-build。
 
 ## 开项登记（架构级）
 

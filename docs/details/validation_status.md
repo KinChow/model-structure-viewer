@@ -161,6 +161,14 @@
   **未在本机改**（无 node，改后须回归 + 重生成 golden）。证据 [`evidence/memory/cache_dtype_audit.md`](evidence/memory/cache_dtype_audit.md)。
 - **状态（前端 2 bug 修复落地 + 双框架在机补验，2026-09-20）**：① **Bug1/Bug2 已在本地 `main` 修复**（commit `3e6aa3b` DSA index fp8`F8_E8M0S128`；`4cd9a88` 线性 recurrent fp32）——`node --test` 422/422、`verify:models` 60/60、golden 仅目标族变（DSA 9 模型 / 线性 34 模型）、`build` 通过。② **vLLM 首次真机**（A100 `vllm-0920`，Qwen3-0.6B GQA）：KV/token 114,712 B ≈ MSV 114,688（0.02%）、每卡权重÷tp、KV 池×tp——**vLLM == SGLang == MSV**（`evidence/parallelism/vllm_width_tp.md`）。③ **glm5_next DSA 稀疏前向复跑**（H20）：KV/token **2312** == 修复后 MSV（Bug1 收敛 2560→2312，0.0%）。④ **qwen3_5 GDN**（H20）：GQA KV 4096 == MSV；线性 state 512-slot 精确复测 conv 293,601/ssm 12,603,883/总量 12.30 MiB vs MSV 294,912/12,582,912/12.28 MiB **逐分量 <0.5% → Bug2（ssm fp32）逐字节精确验证，GDN state-shape 开项关闭**（初测 ~1.25× 为 4-slot 舍入伪差）。证据 `evidence/structure/runtime_profiles/sglang_qwen35_gdn_h20.md`。
 
+- **状态（V4.1-Flash fp8 前向 + DSpark H20 运行时收口，2026-09-20）**：现跑（GPU 从 0 起、跑后清零，非复用旧服务）`dsv41_zzj_deploy`
+  容器 tp8/ep8 起 `DeepSeek-V4.1-Flash-Attn-W8A8-MoE-W4A8-INT8-Dynamic`：`DeepseekV4AttnBackend`(dsv4)、kv `fp8_e4m3`、
+  MoE `CompressedTensorsWNA16MarlinMoE`(W4A8)、`speculative_algorithm=DSPARK`(num_draft_tokens 6)——`server fired up`、
+  target/draft verify CUDA graph 全 capture、`/generate` 正确出词。**HB1（fp8 dense 前向）+ HB6（DSpark 投机）H20 运行时通过；
+  最后一个 fp8-only builder（deepseek_v41/dsv4）运行时收口，11 个 builder 全部具备 A100/H20 运行时证据**。EP 下 shared-expert
+  不融合（与 vLLM 一致，[B] 收敛）。边界：W8A8/W4A8 build 走 fp8 index（`enable_deepseek_v4_fp4_indexer=False`），fp4 设计 KV(890 B/token，静态已精确)
+  的运行时数值对拍留 fp4-indexer build；engram 行为量化留后续。证据 `evidence/structure/runtime_profiles/sglang_dsv41_dspark_h20.md`。
+
 ## 算子成本 / per-stage roofline（cost）
 
 - **触发判据**：UI 或对账需要 stage 级动作向量（当前 introspect 不产数值，是诚实缺项）。

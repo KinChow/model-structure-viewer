@@ -9,12 +9,12 @@ attention_kind 集合 / cache 类型`。**60 模型，0 unsupported，11 个 bui
 | assembleQwen3_5 | 29 | linear, qwen35_full, vision | kv,state | ✅ 真机(dense+MoE) | dense Qwen3.5-4B + **MoE 分支 qwen3_5_moe 减层真机**（GDN state 35,840 + GQA 512 与 SGLang 0.0%，MoE runner E=8 端到端；`runtime_profiles/qwen3_5_moe.md`） |
 | assembleDeepseekV3 | 9 | mla, vision | kv | ✅ 减层真机 | DeepSeek-V3.1/R1/Kimi-K2；减层 MLA(kv 576)+MoE E=8 真机（`runtime_profiles/glm4_minimax_deepseekv3.md`）；本体 fp8/过大全前向留 H20 |
 | assembleDeepseekV32 | 7 | **dsa_sparse_mla** | kv,**index** | ❌ 未验 | DSA 稀疏 indexer；V3.2/GLM-5 系。**未真机** |
-| assembleDeepseekV4 | 5 | dsv4/compressed/sparse/swa | kv,index | ❌ 未验(fp8) | 静态逐张量已验(V4-Flash)；fp8 前向→H20 |
+| assembleDeepseekV4 | 5 | dsv4/compressed/sparse/swa | kv,index | 🟡 H20 dsv4 前向(同族) | 静态逐张量已验(V4-Flash)；**dsv4 fp8 前向 kernel 经 V4.1 同 backend H20 跑通**（`runtime_profiles/sglang_dsv41_dspark_h20.md`）；V4-Flash 专测 + fp4 KV 数值留后续 |
 | assembleMiniMaxM3 | 2 | **minimax_m3_sparse_gqa, sparse**, gqa | kv,index | ✅ 减层(cache口径) | MiniMax 块稀疏。GQA kv 1024 + 稀疏 indexer 128 与 SGLang 0.0%；**修正 index 口径 512→128**（`../memory/glm5next_minimax_m3_cache.md`） |
 | assembleQwen4Exp | 2 | linear, **qsa**, vision | kv,state,index | ✅ 真机 | Qwen3.8-Flash-Next（本次）。注意含 qsa+index，与 qwen3_5 不同 |
 | assembleGlm5Next | 2 | **dsa_sparse_mla, linear** | kv,state,index | ✅ **H20 稀疏前向** | DSA+线性 hybrid；KDA 1,122,304 + MLA 512 + DSA index 128 与 SGLang 0.0%（`../memory/glm5next_minimax_m3_cache.md`）；**H20(SM90) DSA 稀疏前向端到端已跑通**（减层 dummy，`flashmla_sparse`/`fa3`/`TritonKDAKernel`，长 prompt>topk 触发稀疏，`runtime_profiles/sglang_glm5next.md`） |
 | assembleMiniMaxM2 | 1 | gqa | kv | ✅ 减层真机 | MiniMax-M2.7；减层 GQA(kv 512)+MoE E=8(sigmoid 路由) 真机（`runtime_profiles/glm4_minimax_deepseekv3.md`） |
-| assembleDeepseekV41 | 1 | dsv4/sparse/swa | kv,index | ❌ 未验(fp8) | 静态全验；fp8→H20 |
+| assembleDeepseekV41 | 1 | dsv4/sparse/swa | kv,index | ✅ **H20 fp8 前向+DSpark** | 静态全验；**H20(SM90) fp8 前向端到端 + DSpark 投机跑通**（W8A8/W4A8-INT8 build，dsv4 backend/marlin MoE/kv fp8_e4m3，`/generate` 正确出词，`runtime_profiles/sglang_dsv41_dspark_h20.md`）；fp4 设计 KV(890) 数值对拍留 fp4-build |
 | assembleKimiK3 | 1 | **linear, mla** | kv,state | ✅ 减层(cache口径) | 线性(KDA)+MLA hybrid；减层 checkpoint，KDA state 280,576 + MLA 576 与 SGLang 运行时 0.0%（`../memory/kimi_k3_kda_state.md`） |
 | assembleGlm4Moe | 1 | gqa | kv | ✅ 减层真机 | GLM-4.7(bf16)；减层 GQA(kv 512)+MoE E=9(8 routed+1 shared 融合) 真机（`runtime_profiles/glm4_minimax_deepseekv3.md`） |
 

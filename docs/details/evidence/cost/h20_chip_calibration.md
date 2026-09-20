@@ -11,6 +11,7 @@
 |---|---|---|---|---|
 | bf16 GEMM | **138.3 TFLOPS** | 148 TFLOPS | 93.5% | ✅ peak≈148 坐实（纯 GEMM 达峰 ~93%，实测<peak 合理） |
 | HBM 带宽 | **3874 GB/s** | 4800 GB/s (4.8 TB/s HBM3e) | 80.7% | ✅ peak≈4.8TB/s 坐实（clone 达 ~81%，实测<peak 合理） |
+| fp8 GEMM (e4m3, `torch._scaled_mm`) | **281.5 TFLOPS** | 296 TFLOPS | 95.1% | ✅ peak≈296 坐实（fp8/bf16=281.5/138.3=**2.04×** 标准比；实测<peak 合理） |
 
 ## 与 MSV roofline 口径对账
 
@@ -24,4 +25,4 @@
 ## 边界
 
 - 本项校准 peak 速率 + η 口径；H20 端到端 serving-vs-roofline bench 未单跑（A100 双框架已验 serving≥地板，roofline 为框架无关物理下界，H20 规格既已坐实即可信）。
-- fp8/fp4 峰值张量核速率未微基准（fp8 前向已在 V4.1 dsv4 验证跑通；fp4=Blackwell 不可得）。
+- **fp8 峰值张量核速率已微基准坐实（281.5 TFLOPS，95% of 296 peak，2.04× bf16）** → MSV 对 fp8-量化模型（dsv4/V4.1）的 H20 roofline 计算地板速率可信。fp4 峰值=Blackwell SM100，两机不可得。

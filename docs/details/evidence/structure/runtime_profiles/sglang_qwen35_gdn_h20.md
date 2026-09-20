@@ -26,3 +26,26 @@
   真机 ssm_state 每层每 slot 元素数偏大 ~1.2–1.3×（0.06GB 为 2 位有效数字，粗口径；需精确 ssm 字节定位）。
   根因待查：Qwen3.5 GatedDeltaNet 的 state shape 可能含 MSV 未建的分量（如额外 per-head 归一/衰减 state），非 dtype 问题。
   **处置：不为凑数改前端公式；下一步取精确 ssm 字节（SGLang GDN state 形状源码 / 放大 mem 使 ssm 位数更细）后再定夺是否修 `linearStateResidentDecl` 的 GDN 分支。**
+
+## 精确复测 —— 开项关闭（512 slots，2026-09-20）
+
+初测用 `max_mamba_cache_size=4` + `ssm_state 0.06GB`（2 位有效数字）÷4 得 ~15 MB/seq，与 MSV 12.28 MiB 差 ~1.25×，
+疑似 GDN state-shape 残差。**用 `--max-mamba-cache-size 512` 复测排除粗舍入/固定开销**（server fired up）：
+
+```
+Mamba Cache is allocated. max_mamba_cache_size: 512, conv_state size: 0.14GB, ssm_state size: 6.01GB
+KV Cache is allocated. dtype: torch.bfloat16, #tokens: 15,809,808, K size: 30.15 GB, V size: 30.15 GB
+```
+
+逐 seq（÷512）：
+
+| 分量 | 真机/seq | MSV/seq | 判定 |
+|---|---|---|---|
+| conv state（bf16） | 0.14GB/512 = **293,601 B** | 6 层×24,576×2 = **294,912 B** | ✅ 0.44%（0.14GB 粗舍入） |
+| ssm/temporal state（fp32） | 6.01GB/512 = **12,603,883 B** | 6 层×524,288×4 = **12,582,912 B** | ✅ **0.17%** |
+| 线性 state 总量 | (0.14+6.01)GB/512 = **12,897,484 B = 12.30 MiB** | `linearStateBytesPerSequence` **12,877,824 B = 12.28 MiB** | ✅ **0.15%** |
+| GQA KV/token | K 30.15GB/15,809,808 = 2048 B → K+V **4096 B** | 4096 B | ✅ 0.0% |
+
+**结论（开项关闭）**：qwen3_5 GDN 的 conv(bf16)+ssm(fp32) 逐分量与 MSV `linearStateResidentDecl` 逐值一致（<0.5%）。
+**没有 GDN state-shape bug**；初测 ~1.25× 是 4-slot + 2 位有效数字的舍入/固定开销伪差。**Bug2（ssm fp32）由此从"方向确认"升级为逐字节精确验证**，
+且印证"不为凑数改前端"——MSV 公式本就正确。

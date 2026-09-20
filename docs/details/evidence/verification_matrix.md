@@ -32,8 +32,8 @@
 
 - **vLLM 首次真机（A100，Qwen3-0.6B GQA 代表）**：KV/token 114,712 B ≈ MSV 114,688（0.02%）、每卡权重 ÷tp、KV 池 ×tp——**vLLM == SGLang == MSV**（GQA KV 属 [C] 干净，跨框架一致）。证据 `parallelism/vllm_width_tp.md`。→ 各 GQA-bearing builder 的 vLLM 显存/并行经此代表覆盖；vLLM MoE `EP=TP×DP`（VL3）仍待。
 - **glm5_next DSA 稀疏前向（H20）复跑再确认**：KV/token **2312** == 修复后 MSV（Bug1 已落地 commit 3e6aa3b）。证据 `runtime_profiles/sglang_glm5next.md`。
-- **qwen3_5 GDN（H20）**：GQA KV/token 4096 == MSV（0.0%）；ssm state **fp32 方向确认**（Bug2 落地 commit 4cd9a88）。**开项**：GDN recurrent state-shape 真机比 MSV KDA 式公式偏大 ~1.2–1.3×（需精确 ssm 字节定位，不为凑数改前端）。证据 `runtime_profiles/sglang_qwen35_gdn_h20.md`。
+- **qwen3_5 GDN（H20）**：GQA KV/token 4096 == MSV（0.0%）；线性 state 精确复测（512 slots）conv 293,601 vs MSV 294,912、ssm 12,603,883 vs MSV 12,582,912、总量 12.30 vs 12.28 MiB —— **逐分量 <0.5%，Bug2（ssm fp32）逐字节精确验证**（初测 ~1.25× 系 4-slot 舍入伪差，已排除，**无 GDN state-shape bug**）。证据 `runtime_profiles/sglang_qwen35_gdn_h20.md`。
 
-## 开项登记（架构级，需进一步定位后再修）
+## 开项登记（架构级）
 
-- **GDN recurrent state-shape**：`linearStateResidentDecl` 的 GDN 分支（Qwen3.5/GatedDeltaNet）recurrent 元素口径可能缺分量；待取 SGLang GDN state 形状精确字节后定夺。dtype（fp32）已对，形状待细化。
+- ~~GDN recurrent state-shape 残差~~ **已关闭（2026-09-20）**：512-slot 精确复测显示 `linearStateResidentDecl` 的 GDN conv(bf16)+ssm(fp32) 与真机逐分量 <0.5%，初测 ~1.25× 为 4-slot 粗舍入伪差，非前端 bug。

@@ -78,3 +78,11 @@ kv_cache_scheme** → 默认 bf16 时对这些 ckpt 高估 KV 2×。属"用户�
 - **其它 cache 复核（clean / 缺项）**：conv state（bf16 两侧）、SWA 窗口 KV（随 kvDtype 两侧）、MiniMax-M3 块稀疏
   index（`index_dtype` 缺省随主 KV=bf16，两侧一致）—— 均 **clean**。**MTP/投机 draft 的 state/KV** 前端完全不建模
   （`speculative_algorithm` 开时运行时另分配 draft 状态缓冲）——静态工具缺项，登记（是否建模属设计取舍）。
+
+## 观察 3 结案（2026-09-20，H20 真机证据）
+
+现跑 `DeepSeek-V4.1-Flash-Attn-W8A8-MoE-W4A8-INT8-Dynamic`（H20 dsv41 容器）启动日志明确：`Setting KV cache dtype to fp8_e4m3`
+—— 即**带 W8A8/INT8 量化标注的 ckpt，运行时 KV 实为 fp8_e4m3，不是 int8**（框架 `kv_cache_scheme` 只认 fp8/8bit-float，int8 被拒→回退 fp8）。
+**结论**：MSV **不应**为这些 ckpt 建模 int8 KV（真机不走 int8）；观察 3 不是前端 bug。MSV 的 KV dtype 是用户可选 `kvElementBytes`
+（缺省 bf16），对 fp8-KV 部署会高估 2×——修法是**可选增强**：自动读 `quantization_config.kv_cache_scheme`/`kv_cache_dtype` 映射到 fp8，
+而非默认 int8。属 UX 增强、非正确性修复（不为修复而修复）。

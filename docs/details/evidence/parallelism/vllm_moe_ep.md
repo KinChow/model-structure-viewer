@@ -32,3 +32,10 @@
 - 即 frontend_problem_inventory 的 **[B] MoE EP×moe_tp / shared-expert 分叉不是前端 bug**：MSV 已按 plan 参数正确建模，两框架差异可表达。
   「framework profile」（neutral/vLLM/SGLang 预设选择器）是在既有正确 plan 参数上加的**可选 UX 预设**，非正确性修复 → 按需增强、非本目标必需。
 - 未覆盖：vLLM all-to-all 字节直测（SGLang 侧已 `etp_deepep.md`/`alltoall_bench.py` 验）、DP-attention（attnMode=dp）跨框架。
+
+## 附：同轮 vLLM MLA KV/token 对账（内存维，免费副产）
+
+V2-Lite 是 MLA（`kv_lora_rank=512` + `qk_rope=64`，27 层全 MLA）。vLLM EP-on KV 池 845,152 tok / 24.48 GiB →
+**KV/token = 31,101 B**；MSV/设计 = 27 层 × (512+64) × 2B(bf16) = **31,104 B**（0.008%，24.48 两位小数舍入）。
+与 SGLang V2-Lite（`runtime_profiles/sglang_v2lite.md`：MLA latent 31,104 B/token）**逐值一致** →
+**vLLM MLA latent KV == SGLang == MSV**（GQA 112KiB 之外，MLA 家族的 KV 内存口径亦跨框架一致）。

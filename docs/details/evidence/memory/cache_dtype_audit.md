@@ -25,6 +25,11 @@ dtype，SGLang cache-param 代码路径（scheduler 分配同一段）取字节�
 KV 池 `73.71 GB / 34,233,856 tok = 2312 B/token`，与 fp8-index 模型精确吻合；前端 bf16-index 会给 2560 → **高估 +10.7%**。
 对比 `dsv4_sparse_mla`（`ops/index.js:768-779`）正确传了 `indexDtype`，故此 bug 仅在 glm5_next/deepseek_v32(9 模型)。
 
+> **vLLM 运行时确认 Bug1 跨框架（2026-09-20，vllm-0920 H20 现跑）**：`vllm serve glm5_next_reduced --load-format dummy`
+> `Application startup complete`——`FLASHINFER_MLA_SPARSE_SM90` 稀疏注意力 + **`DEEPSEEK_V32_INDEXER` KV backend**（block size 64）
+> + `DSA indexer decode path: ... use_fp4_cache=False`（index **非 fp4、非 bf16**，走 fp8/uint8 专用 indexer 池）+ Mamba(KDA) cache align。
+> → DSA index fp8 口径在 **vLLM 运行时**与 SGLang(2312) 一致，Bug1 修复（前端 fp8 index）**跨框架正确**。GPU 跑后清零。
+
 ## Bug 2 — KDA/GDN recurrent state 按 bf16 计（实为 fp32）→ 显存低估 ~48%（影响面最大）
 
 `linearStateResidentDecl` 返回单一 `state_elements`，`memory.js:188` 一律 ×bf16(2B)；但 SGLang

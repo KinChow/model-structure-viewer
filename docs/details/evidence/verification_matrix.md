@@ -43,3 +43,19 @@
 - （补）**vLLM 吞吐/roofline（A100，VL4）**：Qwen3-0.6B tp1 `vllm bench serve`（200 req in512/out128）——TPOT 14.41 ms、TTFT 703 ms、输出 9,451 tok/s、KV/token 114,712≈MSV 114,688。每项实测落 MSV 地板之上、bound 分类正确（prefill 算力/decode 访存），与 SGLang 同模式 → **cost 维 vLLM+SGLang 双框架均验证**。证据 `cost/vllm_bench_vs_roofline.md`。
 
 - ~~GDN recurrent state-shape 残差~~ **已关闭（2026-09-20）**：512-slot 精确复测显示 `linearStateResidentDecl` 的 GDN conv(bf16)+ssm(fp32) 与真机逐分量 <0.5%，初测 ~1.25× 为 4-slot 粗舍入伪差，非前端 bug。
+
+## vLLM 运行时缓存类型全覆盖（2026-09-20，H20/A100 现跑）
+
+vLLM-0920 registry 支持全部 exotic builder；已在 vLLM **运行时**覆盖所有主要 attention/cache 类型：
+
+| cache/attention 类型 | 代表模型（vLLM 运行时） | 关键观测 | 与 MSV/SGLang |
+|---|---|---|---|
+| GQA KV | Qwen3-0.6B (A100) | KV/token 114,712 | == MSV 114,688 == SGLang |
+| MLA latent | DeepSeek-V2-Lite (A100) | 31,101 B/token | == MSV 31,104 == SGLang |
+| MoE EP | DeepSeek-V2-Lite (A100) | ep=tp×dp 整专家 E=32/64 | == MSV expertShardDivisor |
+| GDN linear state | Qwen3.5 (H20) | Mamba align；ssm auto→bf16 | [B] 分叉（MSV/SGLang fp32；vLLM bf16） |
+| DSA index + KDA | GLM-5.3-Flash reduced (H20) | `DEEPSEEK_V32_INDEXER`+`FLASHINFER_MLA_SPARSE_SM90`，`use_fp4_cache=False`（fp8 index） | Bug1 fp8 index == SGLang(2312) |
+| dsv4 fp8 + DSpark | DeepSeek-V4.1-Flash (H20) | dsv4 backend/fp8/DSpark 跑通出词 | HB1+HB6 通过 |
+| cost/roofline | Qwen3-0.6B (A100) | 实测≥MSV 地板、bound 正确 | 双框架同下界 |
+
+→ **vLLM 与 SGLang 双框架在 显存/KV/state/并行/算力 各维的 MSV 断言均已运行时对齐**（差异仅 GDN ssm dtype 一处 [B] 分叉，MSV 忠实 config/SGLang）。剩余：fp4 数值(Blackwell)、真·多机(≥2 节点)——硬件边界。

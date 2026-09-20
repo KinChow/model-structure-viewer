@@ -31,6 +31,18 @@ export const FP32_PARAMS = Object.freeze({
   // DSpark confidence_head.proj 是 ReplicatedLinear(params_dtype=float32)
   // （vLLM qwen3_dspark.py:176-182）。
   dspark_confidence: 4,
+  // dsv4 注意力 sink：nn.Parameter(torch.empty(n_heads, dtype=torch.float32))
+  // （SGLang models/deepseek_v4.py:708）。per-head softmax sink logit。
+  attn_sink: 4,
+  // MoE 路由修正 bias：nn.Parameter([n_routed_experts], fp32)，noaux_tc 负载均衡
+  // （SGLang models/deepseek_v2.py:492；checkpoint gate.bias→gate.e_score_correction_bias）。
+  router_correction_bias: 4,
+  // V4.1 专有 VL 路由修正 bias（checkpoint gate.bias_vl，与 correction_bias 同形 fp32）。
+  router_bias_vl: 4,
+  // DeepSeek-V4 压缩器/indexer 的绝对位置嵌入 ape（SGLang compressor.py:359 `self.ape =
+  // nn.Parameter(torch.empty(ratio, coff*head_dim, float32)`；checkpoint 名 position_bias）。
+  // 仅 V4 嵌套 compressor 架构有；V4.1 flat（wkv）无。
+  compressor_ape: 4,
 });
 
 export const DEFAULT_PARAM_BYTES = 2;

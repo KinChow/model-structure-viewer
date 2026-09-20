@@ -83,6 +83,17 @@ export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
   const found = (normalized.pleLayerIds || []).indexOf(layerIndex + 1);
   const pleLayerIndex = found >= 0 ? found : 0;
   const embedOut = [-1, -1, normalized.pleEmbedDim || 0];
+  // PLE 投影/归一化宽度（对齐 transformers modular_qwen4_exp.py:730-742）：
+  //   key_proj  : Linear(ple_embed_dim → hc_hidden = hidden·hc_count)
+  //   value_proj: Linear(ple_embed_dim → hidden)
+  //   norm_key / norm_query / norm_conv: 各 RMSNorm(hc_hidden)
+  //   conv1d    : depthwise Conv1d(hc_hidden, hc_hidden, kernel=ple_conv_kernel_size, groups=hc_hidden)
+  // checkpoint 实证（Qwen3.8-Flash-Next）：key_proj[10240,2560]、value_proj[2560,2560]、
+  //   conv1d[10240,1,4]、3×norm[10240]。此前误按 [2·ple_embed] 合并投影 + 单 norm[ple_embed] 建模，
+  //   漏计了 key 的 hc_count 因子、value 分支与另外两个 norm（逐 checkpoint 对账抓出）。
+  const pleEmbed = normalized.pleEmbedDim || 0;
+  const hcHidden = (normalized.hiddenSize || 0) * (normalized.hyperConnectionCount || 1);
+  const pleNorm = () => weightMatrixDecl("replicated", { shape: [hcHidden], quantizable: false });
   return withShapeDims(moduleSpec(
     id,
     "PLE",
@@ -114,13 +125,14 @@ export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
       operatorSpec(`${id}.inject`, "PLE injection", "ple", {
         ...shapeFlow(`${shapes.hidden}, input_ids, ngram_context`, shapes.hidden),
         embed_dim: normalized.pleEmbedDim,
-        // P4-2：inject 叶只声明 W_kv / conv / norm。ngram 表是
+        // P4-2：inject 叶声明 key_proj / value_proj / conv1d(depthwise) / 3×RMSNorm。ngram 表是
         // `ple.ple_embedding.ngram_embedding` 的 nn.Embedding（modeling_qwen4_exp.py:1111），
         // 容量走 type=embedding 子叶，不进本叶 weightMatrices。
         weightMatrices: [
-          weightMatrixDecl("tp", { shape: [2 * (normalized.pleEmbedDim || 0), normalized.hiddenSize || 0], split: "output", quantizable: false }),
-          weightMatrixDecl("tp", { shape: [normalized.pleEmbedDim || 0, normalized.pleNgramSize || 1], split: "output", quantizable: false }),
-          weightMatrixDecl("replicated", { shape: [normalized.pleEmbedDim || 0], quantizable: false }),
+          weightMatrixDecl("tp", { shape: [hcHidden, pleEmbed], split: "output", quantizable: false }),
+          weightMatrixDecl("tp", { shape: [normalized.hiddenSize || 0, pleEmbed], split: "output", quantizable: false }),
+          weightMatrixDecl("tp", { shape: [hcHidden, normalized.pleConvKernelSize || 1], split: "output", quantizable: false }),
+          pleNorm(), pleNorm(), pleNorm(),
         ],
       }, { input: dims.hidden, output: dims.hidden }),
     ],

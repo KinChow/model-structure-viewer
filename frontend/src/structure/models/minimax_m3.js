@@ -15,10 +15,7 @@ export function assembleMiniMaxM3(resolved, normalized) {
     visionTowerModule(normalized),
     projectorModule(normalized),
     embeddingModule("embed_tokens", normalized),
-    decoderStackNetwork(hfLayersAttr(normalized), normalized, {
-      attentionKind: "sparse",
-      defaultLayerKind: normalized.experts ? "moe" : "dense",
-    }),
+    decoderStackNetwork(hfLayersAttr(normalized), normalized),
     ...(draft ? [draft] : []),
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),

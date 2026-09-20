@@ -22,10 +22,10 @@ test("F17 三类时间各除对应效率因子后取最大值作为 bound", () =
   }, CHIP);
   assert.equal(result.bound, "comm");
   assert.equal(result.times.matrix, 200 / 700); // W5-2：五路 max，矩阵单元取代旧"compute"单类
-  assert.equal(result.times.memory, 100 / 90);
+  assert.equal(result.times.memory, 100 / 70);
   assert.equal(result.times.comm, 10000 / 40);
   assert.equal(result.arithmeticIntensity, 2);
-  assert.equal(result.ridgePoint, 1000 * 0.7 / (100 * 0.9));
+  assert.equal(result.ridgePoint, 1000 * 0.7 / (100 * 0.7));
 });
 
 test("缺少带宽或 MACs 时显式 unknown，不伪造分类", () => {
@@ -47,7 +47,7 @@ test("只有 memory 时间时不做不完整的 bound 分类", () => {
   const result = classifyRoofline({
     actions: { matrix: null, vector: null, sfu: null, bytes: { weights: 100, actIn: 0, actOut: 0 } },
   }, { memory_bandwidth: 100 });
-  assert.equal(result.times.memory, 100 / 90);
+  assert.equal(result.times.memory, 100 / 70);
   assert.equal(result.bound, "unknown");
 });
 

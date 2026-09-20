@@ -83,7 +83,7 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
     case "mhc_contract":
       return c.multiHyperConnection ? { tokens, hidden: c.hiddenSize || 0, b } : null;
     case "ple":
-      return c.pleEmbedDim ? { tokens, hidden: c.hiddenSize || 0, embedDim: c.pleEmbedDim, ngram: c.pleNgramSize || 1, b } : null;
+      return c.pleEmbedDim ? { tokens, hidden: c.hiddenSize || 0, pleEmbed: c.pleEmbedDim, hcHidden: (c.hiddenSize || 0) * (c.hyperConnectionCount || 1), kernel: c.pleConvKernelSize || 1, b } : null;
     case "hyper_connection":
       return c.hyperConnectionCount ? { tokens, hidden: c.hiddenSize || 0, streams: c.hyperConnectionCount, lowrank: c.hyperConnectionLowrank || 0, b } : null;
     case "attention_residual":

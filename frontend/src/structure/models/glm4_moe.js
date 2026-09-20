@@ -4,7 +4,7 @@ import { deepSeekMtpChild } from "./deepseek_mtp.js";
 
 export function assembleGlm4Moe(resolved, normalized) {
   const draft = deepSeekMtpChild(normalized);
-  const opts = { defaultLayerKind: "moe", draft };
+  const opts = { draft };
   return normalized.hasVision
     ? multimodalDecoderNetwork(resolved, normalized, opts)
     : textDecoderNetwork(resolved, normalized, opts);

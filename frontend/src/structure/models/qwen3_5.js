@@ -1,4 +1,8 @@
-// 对标 vLLM model_executor/models/qwen3_5.py + qwen3_5_mtp.py
+// 对标 vLLM model_executor/models/qwen3_5.py + qwen3_5_mtp.py。
+// SGLang 把 Qwen3.5 拆成 qwen3_5.py（VL：Qwen3_5ForConditionalGeneration /
+// Qwen3_5MoeForConditionalGeneration，二者同为 Qwen3VLForConditionalGeneration 兄弟类）与
+// qwen3_5_text.py（文本：Qwen3_5MoeForCausalLM(Qwen3_5ForCausalLM) 子类）。这些变体只在
+// FFN(dense/MoE)、有无视觉塔上不同，故 MSV 用本装配器一处覆盖，差异全由 config 派生。
 import { rmsNormModule } from "../layers/norm.js";
 import { operatorSpec } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
@@ -58,10 +62,11 @@ function qwen35Draft(normalized) {
   return qwen3_5MultiTokenPredictor("mtp", normalized);
 }
 
+// 覆盖 Qwen3.5 全变体（对应上游 qwen3_5.py / qwen3_5_text.py 的兄弟/子类）：
+//   text/VL 由 hasVision 分支；dense/MoE 由 config.experts + 逐层 layerKinds 在 decoderStack 内分支。
 export function assembleQwen3_5(resolved, normalized) {
   const draft = qwen35Draft(normalized);
-  const defaultLayerKind = normalized.experts ? "moe" : "dense";
-  const opts = { defaultLayerKind, draft };
+  const opts = { draft };
   return normalized.hasVision
     ? multimodalDecoderNetwork(resolved, normalized, opts)
     : textDecoderNetwork(resolved, normalized, opts);

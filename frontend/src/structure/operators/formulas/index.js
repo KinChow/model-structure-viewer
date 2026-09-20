@@ -419,11 +419,15 @@ export const FORMULAS = {
     //      `ple.ple_embedding.ngram_embedding` = nn.Embedding（:1111），
     //      type=embedding 子叶走 embedGatherCounts，不进本叶。本叶 =
     //      F1(W_kv) + F3(norm) + F7a(short conv) + add。
-    formula: "[k,v]=W_{kv}e; y=ShortConv(GatedNorm(k,v,RMSNorm(H)))",
-    explanation: "Qwen4Exp 指定层的 PLE 注入：ngram embedding（独立 Embedding 叶）经 KV projection、grouped norm、gated output 和 dilated short-conv 后加到多流 hidden state。",
-    inputs: ["hidden_state", "e", "W_kv"],
+    formula: "[k]=W_k e; [v]=W_v e; y=ShortConv(GatedNorm(k,v,RMSNorm×3(H_c)))",
+    explanation: "Qwen4Exp 指定层的 PLE 注入：ngram embedding（独立 Embedding 叶）经 key/value projection、三路 grouped RMSNorm（norm_key/norm_query/norm_conv）、gated output 和 depthwise dilated short-conv 后加到多流 hidden state。",
+    inputs: ["hidden_state", "e", "W_key", "W_value"],
     outputs: ["hidden_state"],
-    counts: (ctx) => sumCounts(linearCounts(ctx.kv), rmsnormCounts(ctx.norm), causalConvCounts(ctx.conv), addCounts(ctx.add)),
+    counts: (ctx) => sumCounts(
+      linearCounts(ctx.key), linearCounts(ctx.value),
+      rmsnormCounts(ctx.norm), rmsnormCounts(ctx.norm), rmsnormCounts(ctx.norm),
+      causalConvCounts(ctx.conv), addCounts(ctx.add),
+    ),
   },
   shared_expert_gate: {
     title: "Shared Expert Gate",

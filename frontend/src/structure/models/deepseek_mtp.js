@@ -90,7 +90,11 @@ function ehProj(id, normalized) {
 function ehProjKind(normalized) {
   if ((normalized.sparseTopkBlocks || 0) > 0) return { attentionKind: "sparse", layerKind: "moe" };
   if (normalized.dsaIndexKpool > 1 || normalized.kvLoraRank) {
-    return { attentionKind: normalized.kvLoraRank ? "qsa" : "mla", layerKind: normalized.experts ? "moe" : "dense" };
+    // MTP 注意力须与主干同口径。此前 `kvLoraRank ? "qsa"` 无条件把所有 MLA 模型的 MTP 判成稀疏，
+    // 使**纯 MLA 且无 DSA 配置**的模型（R1/V3.1：主干 sdpa）草稿层错 emit dsa_indexer/dsa_sparse_mla。
+    // 判据改看真实 DSA 信号（index_topk / kpool）：有 → 稀疏(qsa/dsa)，无 → 纯 mla。DSA 模型(V3.2/GLM-5)行为不变。
+    const hasDsa = (normalized.dsaIndexTopk || 0) > 0 || normalized.dsaIndexKpool > 1;
+    return { attentionKind: hasDsa ? "qsa" : "mla", layerKind: normalized.experts ? "moe" : "dense" };
   }
   return { attentionKind: normalized.kvLoraRank ? "mla" : "gqa", layerKind: normalized.experts ? "moe" : "dense" };
 }

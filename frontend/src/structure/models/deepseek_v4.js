@@ -229,7 +229,7 @@ function dsparkDeepseekV4Model(id, normalized) {
   ), dims.hidden, dims.hidden);
 }
 
-function v4Draft(normalized) {
+export function v4Draft(normalized) {
   if (dsparkLayerCount(normalized)) return dsparkDeepseekV4Model("mtp", normalized);
   if (!mtpModuleCount(normalized)) return null;
   return deepSeekV4MultiTokenPredictorLayer("mtp", normalized);
@@ -237,7 +237,7 @@ function v4Draft(normalized) {
 
 export function assembleDeepseekV4(resolved, normalized) {
   const draft = v4Draft(normalized);
-  const opts = { attentionKind: "mla", defaultLayerKind: "moe", draft };
+  const opts = { draft };
   return normalized.hasVision
     ? multimodalDecoderNetwork(resolved, normalized, opts)
     : textDecoderNetwork(resolved, normalized, opts);

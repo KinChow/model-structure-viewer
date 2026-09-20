@@ -19,7 +19,7 @@ import { materializeModelStructure } from "../../../materializers/modelStructure
 import { graphRoot } from "../../../graph/selectors.js";
 import { countsForNode, isVisionPath } from "../extractor.js";
 import { childRepeatMultiplier, walkStructure } from "../../../../cost/traverse.js";
-import { kvBytesPerToken } from "../../../../cost/memory.js";
+import { kvBytesPerToken, bytesPerDtype } from "../../../../cost/memory.js";
 import { paramBytes } from "../paramDtypes.js";
 import { classifyRoofline } from "../../../../cost/roofline.js";
 import { attentionScheduleOf } from "../../../layers/schedule.js";
@@ -225,9 +225,16 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
       // P4-2：dtype-aware 判据 —— 带 param_dtype 的组按 paramDtypes 登记表的
       // 字节宽计（mHC fn/base/scale 与 KDA 衰减参数是 fp32），其余 2B。dtype
       // 知识仍单源在 paramDtypes.js，声明只引用键名。
+      // attn_sink / e_score_correction_bias / bias_vl 是纯 fp32 驻留辅助参数（per-head
+      // sink、逐专家路由修正 bias）：计入权重驻留容量（memory.js 读全声明），但其"读"未在
+      // 算子 compute counts 里单独建模（与 hc_head/confidence_head 同类：声明=驻留、counts=
+      // 相位读量）。锚 1 只对账"会被算子读一遍"的权重矩阵，故从声明侧扣除这些驻留辅助组再比。
+      const RESIDENCY_AUX = new Set(["attn_sink", "router_correction_bias", "router_bias_vl", "compressor_ape"]);
       const declaredBytes = declaration.reduce(
-        (sum, group) => sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in
-          * (group.param_dtype ? paramBytes(group.param_dtype) : B),
+        (sum, group) => (group.param_dtype && RESIDENCY_AUX.has(group.param_dtype))
+          ? sum
+          : sum + (group.count ?? 1) * (group.matrices ?? 1) * group.out * group.in
+            * (group.param_dtype ? paramBytes(group.param_dtype) : B),
         0,
       );
       // multiplier 与声明无关（声明描述单实例），与 identity 测试同口径两侧同乘可消去。
@@ -335,16 +342,23 @@ test("W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）", () =>
     const S = 4096;
     const options = { batch: 1, sequence: S, phase: "decode" };
     const schedule = attentionScheduleOf(normalized) || [];
-    let mainPerToken = 0;
-    let indexPerToken = 0;
+    let expectedMetric = 0;
     walkStructure(structure.graph, ({ node, multiplier }) => {
       const id = String(node?.id || "");
       if (isVisionPath(id) || node?.attributes?.modality === "vision") return;
       const attrs = node?.attributes || {};
-      mainPerToken += (attrs.cache_kv_elements || 0) * multiplier;
-      indexPerToken += (attrs.cache_index_elements || 0) * multiplier;
+      // 每 token 报告口径：dsv4 边际 + 逐 dtype（cache_kv_dtype 存在时用 growth × dtype 字节，滑窗有界不计）；
+      // 其余全驻留 × B。与 residentMemoryFromGraph 一致，故此处是 metric==声明 的自洽门。
+      if (attrs.cache_kv_dtype != null) {
+        const kvB = bytesPerDtype(attrs.cache_kv_dtype, B);
+        const idxB = bytesPerDtype(attrs.cache_index_dtype || attrs.cache_kv_dtype, B);
+        expectedMetric += ((attrs.cache_kv_growth_elements || 0) * kvB
+          + (attrs.cache_index_growth_elements || 0) * idxB) * multiplier;
+      } else {
+        expectedMetric += ((attrs.cache_kv_elements || 0) + (attrs.cache_index_elements || 0)) * B * multiplier;
+      }
     });
-    assert.equal(kvBytesPerToken(structure.graph, B), (mainPerToken + indexPerToken) * B);
+    assert.equal(kvBytesPerToken(structure.graph, B), expectedMetric);
 
     // 期望侧：逐层 cache 容量 × 全长 S，按「读全 cache / 只读一部分」分两桶。
     let fullCapacity = 0;

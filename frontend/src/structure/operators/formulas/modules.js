@@ -338,25 +338,31 @@ const MODULE_LIST = [
     title: "Per-Layer Embedding",
     source: { framework: "transformers", symbol: "Qwen4ExpTextPLELayer", ref: "models/Qwen/Qwen3.8-Flash-Next/modeling_qwen4_exp.py:1181-1253" },
     fused: (p) => sumCounts(
-      linearCounts({ logicalShape: [2 * p.embedDim, p.hidden], tokens: p.tokens, bytesPerElement: p.b }),
-      rmsnormCounts({ tokens: p.tokens, hidden: p.embedDim, bytesPerElement: p.b }),
-      causalConvCounts({ tokens: p.tokens, channels: p.embedDim, kernel: p.ngram, bytesPerElement: p.b }),
+      linearCounts({ logicalShape: [p.hcHidden, p.pleEmbed], tokens: p.tokens, bytesPerElement: p.b }),
+      linearCounts({ logicalShape: [p.hidden, p.pleEmbed], tokens: p.tokens, bytesPerElement: p.b }),
+      rmsnormCounts({ tokens: p.tokens, hidden: p.hcHidden, bytesPerElement: p.b }),
+      rmsnormCounts({ tokens: p.tokens, hidden: p.hcHidden, bytesPerElement: p.b }),
+      rmsnormCounts({ tokens: p.tokens, hidden: p.hcHidden, bytesPerElement: p.b }),
+      causalConvCounts({ tokens: p.tokens, channels: p.hcHidden, kernel: p.kernel, bytesPerElement: p.b }),
       addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
     ),
     decompose: (p) => [
-      ...linearAtomSteps({ tokens: p.tokens, inDim: p.hidden, out: 2 * p.embedDim, b: p.b }).decompose,
-      ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.embedDim, b: p.b }).decompose,
-      { atom: "conv1d", args: { tokens: p.tokens, channels: p.embedDim, kernel: p.ngram, bytesPerElement: p.b } },
-      { atom: "silu", args: { elements: p.tokens * p.embedDim, bytesPerElement: p.b } },
+      ...linearAtomSteps({ tokens: p.tokens, inDim: p.pleEmbed, out: p.hcHidden, b: p.b }).decompose,
+      ...linearAtomSteps({ tokens: p.tokens, inDim: p.pleEmbed, out: p.hidden, b: p.b }).decompose,
+      ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.hcHidden, b: p.b }).decompose,
+      ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.hcHidden, b: p.b }).decompose,
+      ...rmsnormAtomSteps({ tokens: p.tokens, hidden: p.hcHidden, b: p.b }).decompose,
+      { atom: "conv1d", args: { tokens: p.tokens, channels: p.hcHidden, kernel: p.kernel, bytesPerElement: p.b } },
+      { atom: "silu", args: { elements: p.tokens * p.hcHidden, bytesPerElement: p.b } },
       { atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
     ],
     residentIntermediates: (p) => [
-      { name: "卷积输出的 silu 中间量", elements: p.tokens * p.embedDim },
+      { name: "卷积输出的 silu 中间量", elements: p.tokens * p.hcHidden },
     ],
     compulsoryBytes: (p) => {
-      const convWeights = p.embedDim * p.ngram * p.b;
-      const kvWeights = 2 * p.embedDim * p.hidden * p.b;
-      return (p.tokens * p.hidden * 2 + p.tokens * p.embedDim * 2) * p.b + kvWeights + convWeights;
+      const convWeights = p.hcHidden * p.kernel * p.b;
+      const projWeights = (p.hcHidden + p.hidden) * p.pleEmbed * p.b;
+      return (p.tokens * p.hidden * 2 + p.tokens * p.hcHidden * 2) * p.b + projWeights + convWeights;
     },
     notes: [
       "ngram 表是 nn.Embedding（ple.ple_embedding.ngram_embedding），容量走 type=embedding 子叶",

@@ -81,7 +81,7 @@ function qwen4ExpDraft(normalized) {
 
 export function assembleQwen4Exp(resolved, normalized) {
   const draft = qwen4ExpDraft(normalized);
-  const opts = { defaultLayerKind: normalized.experts ? "moe" : "dense", draft };
+  const opts = { draft };
   return normalized.hasVision
     ? multimodalDecoderNetwork(resolved, normalized, opts)
     : textDecoderNetwork(resolved, normalized, opts);

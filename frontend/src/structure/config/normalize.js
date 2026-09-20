@@ -161,6 +161,25 @@ export function normalizeConfig(config) {
   const mhcStreams = pick(["mhc_num_residual_streams", "hc_mult"]);
   const mhcOn = Boolean(textConfig?.mhc ?? config?.mhc) || mhcStreams != null;
   const qwenSharedExpertWidth = pick(QWEN_SHARED_EXPERT_WIDTH_KEYS);
+  // 路由修正 bias（aux-loss-free 负载均衡）的存在性判据 = SGLang MoEGate 构造该
+  // 参数的原始条件 `topk_method=="noaux_tc"`（deepseek_v2.py:492）；天然排除
+  // softmax 路由（无 correction bias）。
+  const topkMethod = textConfig?.topk_method ?? config?.topk_method;
+  // e_score_correction_bias（负载均衡路由修正 bias）存在性：topk_method==noaux_tc，
+  // 或 sigmoid 路由（scoring_func sigmoid / 配方 sigmoidRouter）。
+  // checkpoint 实证：deepseek_v3/v4（noaux_tc）、glm4_moe（配方 sigmoidRouter，topk_method 缺省）、
+  // minimax_m2（scoring_func sigmoid）均有 gate.e_score_correction_bias；softmax 路由无。
+  // 此前只判 noaux_tc 会漏掉 sigmoid 路由的 glm4_moe/minimax_m2（逐 checkpoint 对账抓出）。
+  const archNameForBias = Array.isArray(config?.architectures) ? config.architectures[0] : undefined;
+  const isSigmoidRouterForBias = String(textConfig?.scoring_func ?? config?.scoring_func ?? "").toLowerCase() === "sigmoid"
+    || Boolean(archRecipe(archNameForBias).sigmoidRouter);
+  const routerCorrectionBias = topkMethod === "noaux_tc" || isSigmoidRouterForBias;
+  // gate.bias_vl：VL token 路由修正 bias。判据 = 路由修正 bias × 视觉塔 × 存在 compress_ratios
+  // （MLA 压缩比数组）配置。checkpoint 实证——三者同时满足的模型有 ffn.gate.bias_vl（如 V4.1-Flash、
+  // V4-Flash-Vision-Exp）；缺视觉塔（如 V4-Flash-0731）或无 compress_ratios（如 MiniMax-M3 视觉 MoE）则无。
+  // 用配置字段而非早先的「仅某配方」（会漏带视觉的其它 compress_ratios 模型）或「任意视觉」（会误扩到无压缩比的 MoE）。
+  const hasCompressRatios = Array.isArray(textConfig?.compress_ratios) || Array.isArray(config?.compress_ratios);
+  const routerBiasVl = routerCorrectionBias && hasVision && hasCompressRatios;
 
   return {
     raw: config,
@@ -187,11 +206,27 @@ export function normalizeConfig(config) {
     oGroups: pick(O_GROUP_KEYS),
     numHashLayers: pick(NUM_HASH_LAYER_KEYS),
     scoringFunc: textConfig?.scoring_func ?? config?.scoring_func,
+    // 路由修正 bias（e_score_correction_bias）与 V4.1 专有 VL bias（bias_vl）的存在性；
+    // 供 router 算子叶按需声明这两个非量化 fp32 一维参数（见 ops/index.js routerBiasMatrices）。
+    // 缺省 undefined（JSON 省略）→ 非命中模型结构哈希不受影响，与 kvCacheDtype/numExpertGroup 同惯例。
+    routerCorrectionBias: routerCorrectionBias || undefined,
+    routerBiasVl: routerBiasVl || undefined,
     compressRatios: Array.isArray(textConfig?.compress_ratios)
       ? textConfig.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
       : Array.isArray(config?.compress_ratios)
         ? config.compress_ratios.map((value) => Number(value)).filter((value) => Number.isFinite(value))
         : [],
+    // 压缩 KV cache 有效 dtype：expert_dtype=fp4 → 压缩 KV/index 走 fp4；quant_method=fp8 → fp8；否则 bf16。
+    // 仅 MLA 压缩注意力算子消费（KV 边际字节口径）。仅在存在 compress_ratios 时产出，
+    // 其余架构为 undefined（JSON 序列化省略）→ normalize 哈希不受影响。
+    kvCacheDtype: (Array.isArray(textConfig?.compress_ratios) || Array.isArray(config?.compress_ratios))
+      ? (() => {
+          const q = textConfig?.quantization_config ?? config?.quantization_config ?? {};
+          if (q.expert_dtype === "fp4") return "F4";
+          if (q.quant_method === "fp8") return "F8_E4M3";
+          return "BF16";
+        })()
+      : undefined,
     // V4.1（deepseek_v41）跨层 KV/index 复用：只有 source 层自带 compressor/indexer 权重，
     // 其余 compress_ratio>0 层复用 source 层的压缩 KV / index（checkpoint index 实证：
     // compressor 仅在 kv_source_layer_ids、indexer 仅在 index_source_layer_ids）。缺省 undefined
@@ -241,6 +276,11 @@ export function normalizeConfig(config) {
         : [],
     slidingWindow: pick(["sliding_window", "window_size"]),
     routedScalingFactor: pick(["routed_scaling_factor"]),
+    // MoE 分组受限 top-k 路由（node-limited routing）——上游 vLLM/SGLang 的 grouped_topk。
+    // DeepSeek-V3/V3.2/V4 用 n_group>1（组内选 topk_group 组再选专家）；Kimi-K2、Qwen MoE 等
+    // n_group=1（不分组）。缺省 undefined → 结构哈希不受影响（仅分组模型标注）。
+    numExpertGroup: pick(["n_group", "num_expert_group", "n_groups"]),
+    topkGroup: pick(["topk_group", "topk_groups"]),
     swigluLimit: pick(["swiglu_limit"]),
     swigluAlpha: pick(["swiglu_alpha"]),
     swigluBeta: pick(["swiglu_beta"]),

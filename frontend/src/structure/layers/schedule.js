@@ -118,6 +118,15 @@ export function layerScheduleOf(config) {
   return explicitLayerSchedule(text, layers) ?? explicitLayerSchedule(source, layers);
 }
 
+// family 级默认注意力种类（decoderStack 兜底用；逐层 attentionScheduleOf 优先覆盖）。
+// 与 MTP 路径 deepseek_mtp.ehProjKind 同一 config 判据，把此前散在 builder 的硬编码
+// attentionKind:"mla"/"sparse" 收敛成单一 config 推导：块稀疏(minimax_m3)→sparse、MLA 家族→mla、其余→gqa。
+export function attentionKindOf(normalized) {
+  if ((normalized.sparseTopkBlocks || 0) > 0) return "sparse";
+  if (normalized.kvLoraRank) return "mla";
+  return "gqa";
+}
+
 /** 注意力 kind 逐层表。读 layer_types / compress_ratios / index_topk / linear_attn_config。 */
 export function attentionScheduleOf(config) {
   const source = rawSource(config);

@@ -165,8 +165,23 @@ export function routedExpertWeightMatrices(normalized) {
 // FlashAttention 是这个核的实现，写进 implementation。默认折叠；展开才看到三叶。
 /** 每 token 驻留 cache 元素（容量，不是这次 forward 的 kvRead）。
  *  ref: vLLM AttentionSpec / MLAAttentionSpec / CompressorStateCache。 */
-export function cacheResidentDecl({ kvElements = 0, indexElements = 0 } = {}) {
-  return { cache_kv_elements: kvElements, cache_index_elements: indexElements };
+/** 每 token 驻留 cache 元素（容量，不是这次 forward 的 kvRead）。
+ *  ref: vLLM AttentionSpec / MLAAttentionSpec / CompressorStateCache。
+ *  - kvElements/indexElements = **全驻留**（含有界滑窗），W5 capacity↔kvRead 对账用，语义不变。
+ *  - 带 kvDtype 时额外声明 dsv4 的**边际 + 逐 dtype**口径：growthKvElements/growthIndexElements =
+ *    随 token 线性增长的压缩 KV/index（排除有界滑窗），配 cache_kv_dtype/cache_index_dtype（F4/F8）。
+ *    仅 residentMemoryFromGraph 的每 token 报告消费；无 kvDtype 的叶（非 dsv4/合成图）行为不变。 */
+export function cacheResidentDecl({
+  kvElements = 0, indexElements = 0, growthKvElements, growthIndexElements, kvDtype, indexDtype,
+} = {}) {
+  const out = { cache_kv_elements: kvElements, cache_index_elements: indexElements };
+  if (kvDtype) {
+    out.cache_kv_dtype = kvDtype;
+    out.cache_kv_growth_elements = growthKvElements ?? 0;
+    out.cache_index_growth_elements = growthIndexElements ?? 0;
+    out.cache_index_dtype = indexDtype ?? kvDtype;
+  }
+  return out;
 }
 
 /** KDA request state 元素。ref: vLLM MambaStateShapeCalculator.kda_state_shape。 */
@@ -617,8 +632,26 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
   // ratio===4（C4 sparse_mla 注意力）必然依赖 indexer，故除 index_source 层外，
   // ratio===4 也强制 emit indexer，避免出现 sparse_mla 无 indexer 的悬挂结构。
   const emitIndexer = (Array.isArray(indexSourceLayerIds) && indexSourceLayerIds.includes(layerIndex)) || ratio === 4;
+  // 压缩稀疏 MLA 判据：V4 CSA(ratio=4) 与 V4.1 CSA2(ratio=2) 都是"压缩 KV + indexer 选择"的稀疏注意力，
+  // 只有 ratio=128 是 HCA 稠密、ratio=0 是滑窗。此前硬编码 ratio===4 把 V4.1 的 ratio=2 层误判成滑窗 MQA
+  // （41/43 层），并使 source 层的 indexer 悬挂。改用 isSparse 后 V4(0/4/128) 行为不变、V4.1(0/2) 修正。
+  // 压缩稀疏 MLA 判据：ratio∈{1,2,4} 都是"压缩 KV + indexer 选择"的稀疏注意力（V4.1 CSA2 含 ratio=1 的
+  // Full 模式：全长压缩 KV，仍走 indexer top-k），只有 ratio=128 是 HCA 稠密、ratio=0 是纯滑窗。改为
+  // ratio>0&&!=128 后：V4-Flash/Pro（0/4/128）不变、V4.1 的 ratio=1 层（真实 layer 20-39）归入 sparse_mla
+  // （消除 ratio=1 source 层的 dangling compressor/indexer）。（全 catalog 实测仅 V4.1 含 ratio=1。）
+  const isSparse = ratio > 0 && ratio !== 128;
   const qRank = normalized.qLoraRank;
   const headDim = normalized.headDim;
+  // dsv4 KV cache 有效 dtype（边际字节口径）：V4.1=F4、V4-Flash/Pro=F8_E4M3。
+  const kvDtype = normalized.kvCacheDtype || "BF16";
+  // 逐张量实证（nv_evidence/nv5/v41_tensor_identity_reconcile.md）：V4.1 压缩 KV cache=fp4+E4M3/16、
+  // index k_cache=fp4+E8M0/32（含 scale 摊销的有效字节）；V4（F8）两者同 dtype、不变。
+  const kvCacheDtype = kvDtype === "F4" ? "F4_E4M3S16" : kvDtype;
+  const indexCacheDtype = kvDtype === "F4" ? "F4_E8M0S32" : kvDtype;
+  // index **键缓存**（owns k_cache）仅在 kv_source∩index_source（indexer.wk 实证只在 [2,8,14,20]）；
+  // 24/28/32/36 有 index 查询但复用共享键、不自带 k_cache。故 index 常驻门控在 emitCompressor && emitIndexer
+  // （V4：ratio>1 && ratio===4 = ratio===4，与原 emitIndexer 等价、行为不变）。
+  const ownsIndexKey = emitCompressor && emitIndexer;
   const groups = normalized.oGroups;
   const outputRank = normalized.oLoraRank;
   const indexHeads = normalized.dsaIndexHeads;
@@ -655,15 +688,43 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }),
   ];
 
+  // dsv4 注意力 sink：per-head fp32 标量参数（SGLang models/deepseek_v4.py:708
+  // self.attn_sink = nn.Parameter(torch.empty(n_heads, dtype=torch.float32)）——
+  // softmax 分母加一项 exp(sink - max)（decode/extend kernel）。checkpoint layers.N.attn.attn_sink。
+  // 无条件挂在 dsv4 注意力（V4/V4.1 独占）的打分算子上；非量化、replicated、不进 KV。
+  const attnSinkMatrices = [weightMatrixDecl("replicated", {
+    shape: [normalized.attentionHeads || 0],
+    quantizable: false,
+    param_dtype: "attn_sink",
+  })];
+  // DeepSeek-V4 嵌套 compressor 架构的绝对位置嵌入 ape（checkpoint 名 position_bias）：
+  // compressor 层 [ratio, coff·head_dim]（coff = ratio===4?2:1）、indexer 内嵌 compressor
+  // [4, 2·index_head_dim]。仅 V4（recipe compressorApe）；V4.1 flat（wkv）无。非量化 fp32、
+  // 驻留辅助参数（锚 1 residency-aux 扣除）。
+  const hasCompressorApe = recipeFlag(normalized, "compressorApe");
+  // SGLang Compressor（compressor.py:28）coff = 1 + (ratio==4)：ratio=4 overlap→2、其余→1。
+  // 仅在真实嵌套 compressor 架构（V4，compressorApe）用此宽；V4.1 是 flat wkv（本处 compressor
+  // 为近似），保持旧 (ratio>1?2:1) 不动，避免扰动其已标定的 890 KV 锚点。
+  const compCoff = hasCompressorApe ? (ratio === 4 ? 2 : 1) : (ratio > 1 ? 2 : 1);
+
   if (emitCompressor) {
     specs.push(operatorSpec(`${prefix}.compressor`, "compressed KV/state compressor", "mla_kv_compress", {
       ...shapeFlow(shapesForHidden(normalized), `[compressed sequence=ceil(sequence/${ratio}), state dimension]`),
       compress_ratio: ratio,
-      implementation: ["vLLM.DeepseekCompressor", "SGLang.Compressor"],
+      implementation: ["vLLM.DeepseekCompressor", "SGLang.Compressor.wkv_gate"],
       cache_role: "compressed_kv_and_score_state",
       // extractor mla_kv_compress ctx：out 以叶 output_shape 为权威（模板声明）。
-      weightMatrices: [weightMatrixDecl("tp", { shape: [2 * (ratio === 4 ? 2 : 1) * headDim, dimWidth(dims.hidden)], split: "output" })],
-    }, { input: dims.hidden, output: [-1, -1, 2 * (ratio === 4 ? 2 : 1) * headDim] }));
+      weightMatrices: [
+        weightMatrixDecl("tp", { shape: [2 * compCoff * headDim, dimWidth(dims.hidden)], split: "output" }),
+        ...(hasCompressorApe ? [weightMatrixDecl("replicated", { shape: [ratio, compCoff * headDim], quantizable: false, param_dtype: "compressor_ape" })] : []),
+      ],
+    }, { input: dims.hidden, output: [-1, -1, 2 * compCoff * headDim] }));
+    // SGLang Compressor.norm = RMSNorm(head_dim, fp32)（compressor.py:43）。checkpoint attn.compressor.norm。
+    if (hasCompressorApe) {
+      specs.push(operatorSpec(`${prefix}.compressor.norm`, "compressor latent RMSNorm", "rmsnorm",
+        shapeFlow(`[batch, sequence, head dimension=${headDim}]`, `[batch, sequence, head dimension=${headDim}]`),
+        { input: [-1, -1, headDim], output: [-1, -1, headDim] }));
+    }
   }
 
   if (emitIndexer) {
@@ -675,6 +736,17 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       ...shapeFlow(qLatent, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
       implementation: ["vLLM.DeepseekV4Indexer.wq_b", "SGLang.C4Indexer"],
     }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }));
+    // indexer 内嵌 Compressor（SGLang indexer.py:1115，ratio=4/overlap→coff=2）：wkv_gate 投影 +
+    // norm(RMSNorm index_head_dim) + ape。checkpoint attn.indexer.compressor.{wkv,wgate,norm,ape}。
+    if (hasCompressorApe) {
+      specs.push(operatorSpec(`${prefix}.indexer.compressor.wkv_gate`, "indexer compressor wkv/gate projection", "linear", {
+        ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, ${2 * 2 * (indexDim || 0)}]`),
+        implementation: ["SGLang.C4Indexer.compressor.wkv_gate"],
+      }, { input: dims.hidden, output: [-1, -1, 2 * 2 * (indexDim || 0)] }));
+      specs.push(operatorSpec(`${prefix}.indexer.compressor.norm`, "indexer compressor RMSNorm", "rmsnorm",
+        shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
+        { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }));
+    }
     specs.push(operatorSpec(`${prefix}.indexer`, "DeepSeek V4 C4 sparse indexer", "dsv4_indexer", {
       ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, selected=${budget}]`),
       indexer_heads: indexHeads,
@@ -682,28 +754,46 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       budget,
       compress_ratio: ratio,
       implementation: ["vLLM.DeepseekV4Indexer", "SGLang.C4Indexer"],
+      // indexer 内嵌 compressor 的 ape（SGLang indexer.py:1115 nested Compressor，ratio=4/overlap）。
+      ...(hasCompressorApe ? { weightMatrices: [weightMatrixDecl("replicated", { shape: [4, 2 * (indexDim || 0)], quantizable: false, param_dtype: "compressor_ape" })] } : {}),
     }, { input: dims.hidden, output: [-1, -1, budget] }));
   }
 
-  if (ratio === 4) {
+  if (isSparse) {
     specs.push(operatorSpec(`${prefix}.attention`, "C4 sparse MLA attention", "dsv4_sparse_mla", {
       ...shapeFlow(`${query}, selected compressed KV`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
       selected_tokens: budget,
       compress_ratio: ratio,
       attention_kind: "dsv4_sparse_mla",
       ...cacheResidentDecl({
-        kvElements: headDim + (2 * (ratio === 4 ? 2 : 1) * headDim) / ratio,
-        indexElements: indexDim || 0,
+        // 全驻留（W5 capacity↔kvRead 对账，语义不变）：各层滑窗 head_dim + 压缩 KV（仅 kv_source）；
+        // index 键缓存仅 owns_k（kv_source∩index_source）。V4（无 source_layer_ids）emitCompressor=ratio>1、
+        // ownsIndexKey=ratio===4，与原 emitIndexer 等价（golden 不变）。
+        kvElements: headDim + (emitCompressor ? (2 * (isSparse ? 2 : 1) * headDim) / ratio : 0),
+        indexElements: ownsIndexKey ? (indexDim || 0) : 0,
+        // 边际 + 逐 dtype（对齐官方 Global KV/token）：压缩 KV 单份 head_dim/ratio（仅 kv_source，fp4+E4M3/16）+
+        // index 键 index_head_dim/ratio（仅 owns_k，fp4+E8M0/32），滑窗有界不计。实证见 v41_tensor_identity_reconcile.md。
+        growthKvElements: emitCompressor ? headDim / ratio : 0,
+        growthIndexElements: ownsIndexKey ? (indexDim || 0) / ratio : 0,
+        kvDtype: kvCacheDtype,
+        indexDtype: indexCacheDtype,
       }),
       implementation: ["vLLM.DeepseekV4FlashMLAAttention", "SGLang.RadixAttention + DSV4 backend"],
+      weightMatrices: attnSinkMatrices,
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
   } else if (ratio === 128) {
     specs.push(operatorSpec(`${prefix}.attention`, "compressed MLA attention", "dsv4_compressed_attention", {
       ...shapeFlow(`${query}, compressed KV`, `[batch, sequence, attention heads=${normalized.attentionHeads}, head dimension=${headDim}]`),
       compress_ratio: ratio,
       attention_kind: "dsv4_compressed_mla",
-      ...cacheResidentDecl({ kvElements: headDim + (2 * 1 * headDim) / ratio }),
+      // 全驻留不变（W5）：滑窗 + 压缩 KV。边际：压缩 KV 单份 head_dim/ratio（fp4/fp8），滑窗有界不计。
+      ...cacheResidentDecl({
+        kvElements: headDim + (2 * 1 * headDim) / ratio,
+        growthKvElements: headDim / ratio,
+        kvDtype,
+      }),
       implementation: ["vLLM.DeepseekV4FlashMLAAttention", "SGLang.MQALayer"],
+      weightMatrices: attnSinkMatrices,
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
   } else {
     specs.push(operatorSpec(`${prefix}.attention`, "sliding-window MQA", "dsv4_swa_attention", {
@@ -711,8 +801,10 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       sliding_window: normalized.slidingWindow,
       compress_ratio: ratio,
       attention_kind: "dsv4_swa_mqa",
-      ...cacheResidentDecl({ kvElements: headDim }),
+      // 全驻留不变（W5）：滑窗 head_dim。边际=0（滑窗有界，不随 token 增长）。
+      ...cacheResidentDecl({ kvElements: headDim, growthKvElements: 0, kvDtype }),
       implementation: ["vLLM.DeepseekV4SWACache", "SGLang.RadixAttention"],
+      weightMatrices: attnSinkMatrices,
     }, { input: [-1, -1, normalized.attentionHeads, headDim], output: [-1, -1, normalized.attentionHeads, headDim] }));
   }
 
@@ -888,7 +980,11 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         attention_kind: "minimax_m3_sparse_gqa",
         ...cacheResidentDecl({
           kvElements: 2 * kvHeads * (normalized.headDim || 0),
-          indexElements: (normalized.sparseIndexHeads || 0) * (normalized.sparseIndexDim || 0),
+          // index cache 是**单头共享** index-k（K，V 仅在该层 disable_index_value=0 时存），
+          // 不是 index_heads 份：SGLang minimax_m3.py index_kv/index_k pool 均 head_num=1、
+          // head_dim=idx_head_dim（memory_pool.py:5433-5461）。此前误用 query 侧
+          // sparseIndexHeads·sparseIndexDim(=4·128=512)，与本文件 874-881 单头建模自相矛盾。
+          indexElements: indexKeyProjection + indexValueProjection,
         }),
         implementation: ["vLLM.MiniMaxM3SparseImpl", "SGLang.minimax_sparse_backend"],
       }, { input: dims.attentionQuery, output: dims.attentionContext }),
@@ -1110,6 +1206,42 @@ export function mlpOperatorSpecs(prefix, normalized) {
   ];
 }
 
+// MoE 分组受限 top-k（vLLM/SGLang grouped_topk）：n_group>1 时组内选 topk_group 组再选专家。
+// n_group 缺省或=1 → 普通 top-k（不加标注，结构哈希不变）。
+function groupedTopkAttrs(normalized) {
+  const nGroup = normalized.numExpertGroup;
+  if (!(nGroup > 1)) return {};
+  return {
+    topk_method: "group_limited_topk",
+    num_expert_group: nGroup,
+    topk_group: normalized.topkGroup,
+    implementation: ["vLLM.grouped_topk", "SGLang.biased_grouped_topk"],
+  };
+}
+
+// 路由（gate）叶权重：router linear 的 gate 权重 [experts, hidden]（replicated，与
+// linearWeightMatrices 对 router 的自动声明逐位一致——dims.routerLogits=[..,experts]、
+// dims.hidden=[..,hidden]）＋ noaux_tc 负载均衡的 e_score_correction_bias（[experts] fp32，
+// SGLang models/deepseek_v2.py:492；checkpoint gate.bias → gate.e_score_correction_bias，
+// 用于 (biased_)grouped_topk 分数修正）＋ 视觉路由 bias bias_vl（checkpoint
+// layers.N.ffn.gate.bias_vl，仅路由修正 bias × 视觉塔 × 存在 compress_ratios 时出现；SGLang 源码无此符号 = 文本推理路径不消费）。
+// 非 noaux 模型返回 undefined → 交回 linearWeightMatrices 自动声明（行为不变）。
+// noaux 模型显式声明时必须重放 gate 权重，否则会顶掉自动声明、漏计 gate 矩阵。
+// bias 均为非量化 replicated 一维参数，进参数量与 checkpoint 张量对账，不进量化字节 / KV。
+function routerWeightMatrices(normalized) {
+  if (!normalized.routerCorrectionBias) return undefined;
+  const experts = normalized.experts || 0;
+  const hidden = normalized.hiddenSize || 0;
+  const groups = [
+    weightMatrixDecl("replicated", { shape: [experts, hidden] }),
+    weightMatrixDecl("replicated", { shape: [experts], quantizable: false, param_dtype: "router_correction_bias" }),
+  ];
+  if (normalized.routerBiasVl) {
+    groups.push(weightMatrixDecl("replicated", { shape: [experts], quantizable: false, param_dtype: "router_bias_vl" }));
+  }
+  return groups;
+}
+
 export function moeOperatorSpecs(prefix, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
   const isSigmoidRouter = String(normalized.scoringFunc || "").toLowerCase() === "sigmoid"
@@ -1120,12 +1252,14 @@ export function moeOperatorSpecs(prefix, normalized) {
       scoring_func: isSigmoidRouter ? "sigmoid" : undefined,
       routing_bias: isSigmoidRouter ? true : undefined,
       implementation: isSigmoidRouter ? ["vLLM.GateLinear fp32 router", "SGLang.GateLinear fp32 router"] : undefined,
+      weightMatrices: routerWeightMatrices(normalized),
     }, { input: dims.hidden, output: dims.routerLogits }),
     operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
       ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
       expert_ids_shape: shapes.topExperts,
       expert_weights_shape: shapes.topExperts,
       scoring_func: isSigmoidRouter ? "sigmoid" : undefined,
+      ...groupedTopkAttrs(normalized),
     }, { input: dims.routerLogits, output: dims.topExperts }),
     operatorSpec(`${prefix}.dispatch`, "expert dispatch", "moe_dispatch", {
       ...shapeFlow(`${shapes.hidden}, ${shapes.topExperts}`, shapes.expertInput),
@@ -1171,6 +1305,7 @@ export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false
         scoring_func: "sqrtsoftplus",
         routed_scaling_factor: normalized.routedScalingFactor,
         implementation: ["vLLM.GateLinear + fused_topk_bias", "SGLang fused_moe"],
+        weightMatrices: routerWeightMatrices(normalized),
       }, { input: dims.hidden, output: dims.routerLogits }),
       operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
         ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
@@ -1178,6 +1313,7 @@ export function deepseekV4MoeOperatorSpecs(prefix, normalized, isHashMoe = false
         expert_weights_shape: shapes.topExperts,
         scoring_func: "sqrtsoftplus",
         renormalize: normalized.normTopkProb,
+        ...groupedTopkAttrs(normalized),
       }, { input: dims.routerLogits, output: dims.topExperts }),
     ];
   specs.push(
@@ -1212,11 +1348,12 @@ export function kimiK3MoeOperatorSpecs(prefix, normalized) {
   const latentShape = `[tokens_per_expert, routed expert hidden size=${latent}]`;
   const latentDims = [-1, latent];
   return [
-    operatorSpec(`${prefix}.router`, "router logits", "linear", shapeFlow(shapes.hidden, shapes.routerLogits), { input: dims.hidden, output: dims.routerLogits }),
+    operatorSpec(`${prefix}.router`, "router logits", "linear", { ...shapeFlow(shapes.hidden, shapes.routerLogits), weightMatrices: routerWeightMatrices(normalized) }, { input: dims.hidden, output: dims.routerLogits }),
     operatorSpec(`${prefix}.topk`, "top-k expert routing", "topk", {
       ...shapeFlow(shapes.routerLogits, `${shapes.topExperts}, ${shapes.topExperts}`),
       expert_ids_shape: shapes.topExperts,
       expert_weights_shape: shapes.topExperts,
+      ...groupedTopkAttrs(normalized),
     }, { input: dims.routerLogits, output: dims.topExperts }),
     operatorSpec(`${prefix}.routed_expert_down_proj`, "routed expert latent down projection", "linear", {
       ...shapeFlow(shapes.hidden, latentShape),

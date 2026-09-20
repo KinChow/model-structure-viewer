@@ -69,10 +69,10 @@ export function networkSpecWithDraft(id, name, architecture, children, draft) {
 }
 
 /** 投机头由调用方传入（对标 vLLM 各模型文件自己挂 mtp/dspark，不是共享 dispatcher）。 */
-export function textDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind, draft } = {}) {
+export function textDecoderNetwork(resolved, normalized, { draft } = {}) {
   const children = [
     embeddingModule("embed_tokens", normalized),
-    decoderStackNetwork(hfLayersAttr(normalized), normalized, { attentionKind, defaultLayerKind }),
+    decoderStackNetwork(hfLayersAttr(normalized), normalized),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     ...(draft ? [draft] : []),
     rmsNormModule("norm", "final norm", normalized),
@@ -81,12 +81,12 @@ export function textDecoderNetwork(resolved, normalized, { attentionKind, defaul
   return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft);
 }
 
-export function multimodalDecoderNetwork(resolved, normalized, { attentionKind, defaultLayerKind, draft } = {}) {
+export function multimodalDecoderNetwork(resolved, normalized, { draft } = {}) {
   const children = [
     visionTowerModule(normalized),
     ...(normalized.hasVisionProjector && !recipeVisionInternalMerger(normalized) ? [projectorModule(normalized)] : []),
     embeddingModule("embed_tokens", normalized),
-    decoderStackNetwork(hfLayersAttr(normalized), normalized, { attentionKind, defaultLayerKind }),
+    decoderStackNetwork(hfLayersAttr(normalized), normalized),
     ...(draft ? [draft] : []),
     ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),

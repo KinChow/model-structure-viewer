@@ -7,6 +7,9 @@ import { walkStructure } from "./traverse.js";
 const BYTES_PER_DTYPE = {
   BF16: 2, F16: 2, FP16: 2, F32: 4, FP32: 4, F8_E4M3: 1, F8_E5M2: 1, F8_E8M0: 1, I8: 1,
   U8: 1, I16: 2, I32: 4, I64: 8,
+  // fp4 (float4_e2m1fn_x2)：2 值/字节 = 0.5 B/elem。含 scale 摊销的有效字节：
+  //   F4_E4M3S16 = 压缩 KV（E4M3 scale/16）= 0.5+1/16 = 0.5625；F4_E8M0S32 = index（E8M0 scale/32）= 0.53125。
+  F4: 0.5, FP4: 0.5, F4_E2M1: 0.5, F4_E4M3S16: 0.5625, F4_E8M0S32: 0.53125,
 };
 
 export function bytesPerDtype(dtype, fallback = 2) {
@@ -163,17 +166,25 @@ export function bufferBytesFromGraph(graph, bytesPerElement = 4) {
  * 容量 ≠ counts.bytes.kvRead。
  */
 export function residentMemoryFromGraph(graph, { kvBytes = 2, batch = 1, tokens = 1 } = {}) {
-  let kvElementsPerToken = 0;
+  let kvBytesPerTokenValue = 0;
   let stateElements = 0;
   if (graph?.nodes?.length) {
     walkStructure(graph, ({ node, multiplier }) => {
       const attrs = node?.attributes || {};
       if (attrs.modality === "vision") return;
-      kvElementsPerToken += ((attrs.cache_kv_elements || 0) + (attrs.cache_index_elements || 0)) * multiplier;
+      // dsv4 边际 + 逐 dtype：带 cache_kv_dtype 的叶用 growth（排除有界滑窗）× dtype 字节；
+      // 其余叶（非 dsv4 / 合成图）回退全驻留 cache_kv_elements + cache_index_elements × 统一 kvBytes（不变）。
+      if (attrs.cache_kv_dtype != null) {
+        const kvB = bytesPerDtype(attrs.cache_kv_dtype, kvBytes);
+        const idxB = bytesPerDtype(attrs.cache_index_dtype || attrs.cache_kv_dtype, kvBytes);
+        kvBytesPerTokenValue += ((attrs.cache_kv_growth_elements || 0) * kvB
+          + (attrs.cache_index_growth_elements || 0) * idxB) * multiplier;
+      } else {
+        kvBytesPerTokenValue += ((attrs.cache_kv_elements || 0) + (attrs.cache_index_elements || 0)) * kvBytes * multiplier;
+      }
       stateElements += (attrs.state_elements || 0) * multiplier;
     });
   }
-  const kvBytesPerTokenValue = kvElementsPerToken * kvBytes;
   const stateBytesPerSequenceValue = stateElements * kvBytes;
   return {
     kvBytesPerToken: kvBytesPerTokenValue,

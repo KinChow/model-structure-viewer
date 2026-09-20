@@ -22,7 +22,7 @@
 //（Attention / MLP / MoE），不从 architectures[0] 剥前缀再拼。vLLM/SGLang 每个
 // 模型文件手写 class Foo，没有这套构词器。attn/ffn 变体清单不进本表。
 export const ARCH_RECIPES = {
-  DeepseekV4ForCausalLM: { moeClass: "DeepseekV4SparseMoeBlock", hashMoE: true },
+  DeepseekV4ForCausalLM: { moeClass: "DeepseekV4SparseMoeBlock", hashMoE: true, compressorApe: true },
   // DeepSeek V4.1：与 V4 同族（sqrtsoftplus/noaux_tc 路由、o_lora 分组输出投影、
   // 逐层 compress_ratios、MHC、DSpark 投机头、视觉塔）。差异 = 无 hash 层
   // （config 无 num_hash_layers → numHashLayers=0，moe.js 的 isHashMoe 恒 false，

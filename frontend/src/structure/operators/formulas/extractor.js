@@ -506,10 +506,13 @@ const FROM_NODE = {
   },
   ple: ({ config, bytesPerElement, tokens }) => {
     const H = config?.hiddenSize || 0;
+    const hcHidden = H * (config?.hyperConnectionCount || 1);
+    const ple = config?.pleEmbedDim || 0;
     return {
-          kv: { logicalShape: [2 * (config?.pleEmbedDim || 0), H], tokens, bytesPerElement },
-          norm: { tokens, hidden: config?.pleEmbedDim || 0, bytesPerElement },
-          conv: { tokens, channels: config?.pleEmbedDim || 0, kernel: config?.pleNgramSize || 1, bytesPerElement },
+          key: { logicalShape: [hcHidden, ple], tokens, bytesPerElement },
+          value: { logicalShape: [H, ple], tokens, bytesPerElement },
+          norm: { tokens, hidden: hcHidden, bytesPerElement },
+          conv: { tokens, channels: hcHidden, kernel: config?.pleConvKernelSize || 1, bytesPerElement },
           add: { tokens, hidden: H, bytesPerElement },
         };
   },

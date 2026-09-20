@@ -391,6 +391,10 @@
   head-slice 聚合 → **确实触发跨-TP KV head 布局重排**；decode(tp1) K+V=114,688 B/token（每 prefill tp2 rank 持 4/8 kv_heads，聚合 4+4）。
   **MSV `layoutRepackRequired=(prefill_tp≠decode_tp)` 与 SGLang 真机一致**（等 TP 无重排、hetero-TP 触发重排且跑通）。仅 inter-node RDMA 实测带宽留 ≥2 节点。证据 `evidence/parallelism/pd_disaggregation.md`。
 
+- **状态（H20-3e 芯片规格微基准校准，2026-09-20）**：把 A100 已验的 roofline 口径扩到 H20 硬件。H20 容器微基准：bf16 GEMM **138.3 TFLOPS**（93.5% of 148 peak）、
+  HBM **3874 GB/s**（80.7% of 4.8 TB/s peak）——两者均在 peak 之下、比例合理 → **chips.local.json 的 H20-3e peak 规格坐实**、MSV H20 roofline 速率常数可信（bound 不再占位）。
+  η_flops=0.7 对纯 GEMM 保守、η_hbm=0.9 略乐观但访存地板仍是有效下界（实测≥地板）。证据 `evidence/cost/h20_chip_calibration.md`。
+
 ## 计算量 / 访存量 / 通信量 / Roofline —— 已验状态（汇总）
 
 - **计算量(FLOPs)**：算子成本 `evidence/cost/operator_cost.md` —— GEMM `MSV MACs×2 == torch FlopCounterMode` 逐位相等；

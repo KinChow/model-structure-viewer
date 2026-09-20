@@ -184,7 +184,18 @@ export function cacheResidentDecl({
   return out;
 }
 
-/** KDA request state 元素。ref: vLLM MambaStateShapeCalculator.kda_state_shape。 */
+/** SGLang temporal(ssm) state dtype：默认 fp32；config.mamba_ssm_dtype 可覆盖为 bf16/fp16。 */
+function normalizeSsmStateDtype(dtype) {
+  const s = String(dtype || "").toLowerCase().replace(/^torch\./, "");
+  if (s === "bfloat16" || s === "bf16") return "BF16";
+  if (s === "float16" || s === "fp16" || s === "f16") return "F16";
+  return "F32"; // 缺省 fp32（vLLM/SGLang 默认；SGLang mamba2_state_dtype temporal 默认 fp32）
+}
+
+/** KDA/GDN request state 元素。ref: vLLM MambaStateShapeCalculator.kda_state_shape。
+ *  SGLang `mamba2_state_dtype`：conv 恒 bf16(2B)、temporal(recurrent/ssm) 默认 fp32(4B)。
+ *  memory lens 按 conv/recurrent 分量逐 dtype 计（Bug2 修复：此前统一 bf16 低估线性 state ~48%）；
+ *  state_elements 保留总量给 parallel.js / W5 / 向后兼容。config 覆盖经 normalized.mambaSsmDtype。 */
 export function linearStateResidentDecl(normalized) {
   const keyHeads = normalized.linearKeyHeads || normalized.attentionHeads || 0;
   const valueHeads = normalized.linearValueHeads || normalized.attentionHeads || 0;
@@ -193,7 +204,13 @@ export function linearStateResidentDecl(normalized) {
   const kernel = Math.max(0, (normalized.linearConvKernelSize || 1) - 1);
   const convElements = keyHeads * keyDim * 2 + valueHeads * valueDim;
   const recurrentElements = valueHeads * valueDim * keyDim;
-  return { state_elements: convElements * kernel + recurrentElements };
+  const convStateElements = convElements * kernel;
+  return {
+    state_elements: convStateElements + recurrentElements,
+    state_conv_elements: convStateElements,
+    state_recurrent_elements: recurrentElements,
+    state_recurrent_dtype: normalizeSsmStateDtype(normalized.mambaSsmDtype),
+  };
 }
 
 export function sdpaAttentionModule(prefix, shapes, dims, { scoresName = "attention scores", scores = {}, context = {}, modality } = {}) {

@@ -167,7 +167,8 @@ export function bufferBytesFromGraph(graph, bytesPerElement = 4) {
  */
 export function residentMemoryFromGraph(graph, { kvBytes = 2, batch = 1, tokens = 1 } = {}) {
   let kvBytesPerTokenValue = 0;
-  let stateElements = 0;
+  let stateElements = 0;              // 旧口径：无 split 的合成叶按统一 kvBytes（memory.test 不变）
+  let stateBytesPerSequenceSplit = 0; // 新口径：conv bf16(2B) + recurrent 逐 dtype（默认 fp32=4B）
   if (graph?.nodes?.length) {
     walkStructure(graph, ({ node, multiplier }) => {
       const attrs = node?.attributes || {};
@@ -182,10 +183,18 @@ export function residentMemoryFromGraph(graph, { kvBytes = 2, batch = 1, tokens 
       } else {
         kvBytesPerTokenValue += ((attrs.cache_kv_elements || 0) + (attrs.cache_index_elements || 0)) * kvBytes * multiplier;
       }
-      stateElements += (attrs.state_elements || 0) * multiplier;
+      // 线性 recurrent state（Bug2）：架构强制 conv=bf16、temporal/ssm 默认 fp32，非用户统一 kvBytes。
+      // 带 split 的叶逐 dtype 计；无 split 的旧叶回退统一 kvBytes（合成图/兼容不变）。
+      if (attrs.state_recurrent_elements != null || attrs.state_conv_elements != null) {
+        const recB = bytesPerDtype(attrs.state_recurrent_dtype, 4);
+        stateBytesPerSequenceSplit += ((attrs.state_conv_elements || 0) * 2
+          + (attrs.state_recurrent_elements || 0) * recB) * multiplier;
+      } else {
+        stateElements += (attrs.state_elements || 0) * multiplier;
+      }
     });
   }
-  const stateBytesPerSequenceValue = stateElements * kvBytes;
+  const stateBytesPerSequenceValue = stateBytesPerSequenceSplit + stateElements * kvBytes;
   return {
     kvBytesPerToken: kvBytesPerTokenValue,
     kvBytes: kvBytesPerTokenValue * batch * tokens,

@@ -12,7 +12,7 @@ attention_kind 集合 / cache 类型`。**60 模型，0 unsupported，11 个 bui
 | assembleDeepseekV4 | 5 | dsv4/compressed/sparse/swa | kv,index | ❌ 未验(fp8) | 静态逐张量已验(V4-Flash)；fp8 前向→H20 |
 | assembleMiniMaxM3 | 2 | **minimax_m3_sparse_gqa, sparse**, gqa | kv,index | ✅ 减层(cache口径) | MiniMax 块稀疏。GQA kv 1024 + 稀疏 indexer 128 与 SGLang 0.0%；**修正 index 口径 512→128**（`../memory/glm5next_minimax_m3_cache.md`） |
 | assembleQwen4Exp | 2 | linear, **qsa**, vision | kv,state,index | ✅ 真机 | Qwen3.8-Flash-Next（本次）。注意含 qsa+index，与 qwen3_5 不同 |
-| assembleGlm5Next | 2 | **dsa_sparse_mla, linear** | kv,state,index | ✅ 减层(cache口径) | DSA+线性 hybrid；KDA 1,122,304 + MLA 512 + DSA index 128 与 SGLang 0.0%（`../memory/glm5next_minimax_m3_cache.md`）；稀疏前向 SM90+ 留 H20 |
+| assembleGlm5Next | 2 | **dsa_sparse_mla, linear** | kv,state,index | ✅ **H20 稀疏前向** | DSA+线性 hybrid；KDA 1,122,304 + MLA 512 + DSA index 128 与 SGLang 0.0%（`../memory/glm5next_minimax_m3_cache.md`）；**H20(SM90) DSA 稀疏前向端到端已跑通**（减层 dummy，`flashmla_sparse`/`fa3`/`TritonKDAKernel`，长 prompt>topk 触发稀疏，`runtime_profiles/sglang_glm5next.md`） |
 | assembleMiniMaxM2 | 1 | gqa | kv | ✅ 减层真机 | MiniMax-M2.7；减层 GQA(kv 512)+MoE E=8(sigmoid 路由) 真机（`runtime_profiles/glm4_minimax_deepseekv3.md`） |
 | assembleDeepseekV41 | 1 | dsv4/sparse/swa | kv,index | ❌ 未验(fp8) | 静态全验；fp8→H20 |
 | assembleKimiK3 | 1 | **linear, mla** | kv,state | ✅ 减层(cache口径) | 线性(KDA)+MLA hybrid；减层 checkpoint，KDA state 280,576 + MLA 576 与 SGLang 运行时 0.0%（`../memory/kimi_k3_kda_state.md`） |
@@ -95,3 +95,21 @@ attention_kind 集合 / cache 类型`。**60 模型，0 unsupported，11 个 bui
 探测门控**——bf16 反量化 → fp4 探测返回 None → 掉进无 `compress_ratios` 的通用 DeepseekV3Config 别名分支 →
 `deepseek_v4.py:670` AttributeError 崩溃；保 fp4 则 SM80 无 fp4 张量核。V4.1 非 transformers-native、fp8 前向
 在 SM80 报 `CUTE_ARCH_MMA_F32_SM89` 缺失。**双重硬边界（框架 fp4 耦合 + SM80 无 fp4/fp8），非建模缺口。**
+
+## H20 补验①（2026-09-20）——glm5_next DSA 稀疏前向端到端跑通
+
+环境切到 **8× H20-3e（SM90 Hopper）/ CUDA 13 / sglang 0.0.0.dev1+g20518d851**。对 `assembleGlm5Next`
+（GLM-5.3-Flash）用减层 + `--load-format dummy`（`scripts/evidence/structure/glm5_next_reduce.py`，8 层
+DSA[3,7]+KDA[0,1,2,4,5,6]、16 experts、去 fp8→bf16，保全部 per-head 维度）起 SGLang TP1：
+
+- **DSA 稀疏前向 kernel 在 H20 端到端跑通**——`prefill=flashmla_sparse / decode=fa3`、KDA `TritonKDAKernel`，
+  长 prompt 3001 tok（> 本轮 index_topk 2048）触发稀疏 top-k、`Prefill batch #new-token 3001` 成功出 token。
+  **A100(SM80) 只能到 cache 分配、稀疏前向留 H20 的那块收口。**
+- **三 cache 元素口径对前端 0.0%**：KDA state 1,122,304（conv 73,728 + temporal 1,048,576）、MLA latent 512、DSA index 128。
+- **逐字节挖出前端 bug**：`dsa_sparse_mla` 把 DSA index 按 bf16 计（256 B/层），实测 SGLang 存 fp8+尺度（132 B/层）→
+  glm5_next/deepseek_v32(9 模型) KV-per-token 高估 +10.7%（实测 2312 vs 前端 2560 B/token）；dsv4 分支正确、此分支漏传
+  index dtype。详见 `runtime_profiles/sglang_glm5next.md`（修法留有 node 的开发机 + golden 重生成）。
+- 边界：dummy 权重（验 kernel 路径 + cache，非输出正确性）；全权重忠实前向未做。证据
+  `runtime_profiles/sglang_glm5next.md`。
+- **顺带确认**：DSA 稀疏前向 kernel（`flashmla_sparse`）在 H20 可用 → `assembleDeepseekV32`(DSA) 的稀疏前向
+  硬件前置同样解除（同一 kernel），其减层全前向可同法补（本轮未跑，仅登记）。

@@ -38,6 +38,7 @@ cost / parallelism 多为**口径-代表模型**验证（Qwen3-0.6B、减层 MoE
 | MiniMax M2 / M3 | ✅ | ✅ | ⬜ | ⬜ |
 
 - structure 深度证据：`structure/deepseek_v41_*`、`deepseek_v4flash_tensor.md`、`deepseek_v4_proxy.md`、`runtime_profiles/*`。
-- memory：`memory/deepseek_v41_csa2_kv_bytes.md`、`glm5next_minimax_m3_cache.md`、`kimi_k3_kda_state.md`、`sglang_width_kv.md`、`deepseek_v4_v41_a100_boundary.md`（⛔ fp8/fp4 前向留 H20）。
+- memory：`memory/deepseek_v41_csa2_kv_bytes.md`、`glm5next_minimax_m3_cache.md`、`kimi_k3_kda_state.md`、`sglang_width_kv.md`、`deepseek_v4_v41_a100_boundary.md`（⛔ fp8/fp4 前向留 H20）、`cache_dtype_audit.md`（H20 逐字节 dtype 审计：DSA index fp8 / 线性 ssm fp32 两处前端低估/高估 bug）。
 - cost：`cost/operator_cost.md`（Qwen3 稠密）、`operator_cost_moe*.md`（DeepSeek MoE）、`roofline_*`、`stage_vectors.md`、`flash_kernel_caliber.md`。
 - parallelism：`parallelism/tp*.md`、`ep*.md`、`allreduce*.md`、`nsys.md`、`pd_disaggregation.md`（Qwen3 + 减层 qwen3_moe/DeepSeek-V2-Lite 代表）。
+- **总排查**：`frontend_problem_inventory.md` —— 对标 vLLM+SGLang 两框架的前端问题总清单（真 bug / 框架分叉 / 干净 / 缺项 分类，本阶段只摸排不修）。

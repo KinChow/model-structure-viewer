@@ -137,6 +137,28 @@
   /bf16 随机 ckpt（去 fp8 quant），SGLang 起——**DSA backend + index_topk + KV cache 分配成功**，KV 7,704 B/token vs
   前端 8,448（比值 1.10，MLA latent+index 同结构）→ **DSA cache 口径 A100 补验通过**；但 **DSA 稀疏前向 kernel =
   SM90a/SM100f only**（A100 到 cache 分配为止，前向留 H20）。证据 `evidence/structure/runtime_profiles/sglang_dsa.md`。
+- **状态（H20 补维·glm5_next DSA 稀疏前向端到端，2026-09-20，8×H20-3e/SM90/sglang dev）**：环境切到 H20，补上
+  A100 到不了的 DSA 稀疏**前向**。对 `assembleGlm5Next`（GLM-5.3-Flash）减层 + `--load-format dummy`
+  （`scripts/evidence/structure/glm5_next_reduce.py`，8 层 DSA[3,7]+KDA[0,1,2,4,5,6]、16 experts、去 fp8→bf16、
+  保全部 per-head 维度）SGLang TP1：**`prefill=flashmla_sparse`/`decode=fa3`/KDA `TritonKDAKernel` 在 SM90 全跑通**，
+  长 prompt 3001 tok（>index_topk 2048）触发稀疏 top-k、`Prefill batch #new-token 3001` 成功端到端出 token；
+  **三 cache 元素口径对前端 `assembleGlm5Next` 逐点 0.0%**——KDA state 1,122,304（conv 73,728+temporal 1,048,576）、
+  MLA latent 512、DSA index 128（`Glm5NextTextConfig`/`KimiLinearStateShape` 真值）。**逐字节挖出一处前端 bug**：
+  `dsa_sparse_mla` 算子把 DSA index 键缓存按 bf16 计（256 B/层），实测 SGLang 存 fp8+E8M0 尺度（132 B/层）→
+  glm5_next/deepseek_v32(9 模型) KV-per-token 高估 **+10.7%**（实测 2312 vs 前端 2560 B/token）；dsv4/v41 分支正确传了
+  index dtype、此分支漏传（`ops/index.js:1146` vs `768-779`）。**glm5_next"稀疏前向 SM90+ 留 H20"收口**；
+  同一 `flashmla_sparse` kernel 亦解除 `assembleDeepseekV32`(DSA) 前向硬件前置（其减层全前向可同法补，未跑仅登记）。
+  边界：dummy 随机权重（验 kernel 路径 + cache 口径，非输出正确性）；全权重忠实前向未做。证据
+  [`evidence/structure/runtime_profiles/sglang_glm5next.md`](evidence/structure/runtime_profiles/sglang_glm5next.md)。
+- **状态（H20 逐字节 KV/state dtype 审计 · 挖出 2 个前端 bug，2026-09-20，本机 /ssd*/models）**：把 KV/state 拆到
+  **dtype×元素**对前端 memory lens 逐 builder 扫。**Bug 1**：`dsa_sparse_mla` 的 DSA index 按 bf16 计（256 B/层），
+  实为 fp8+尺度（132 B/层）→ glm5_next/deepseek_v32(9 模型) KV-per-token 高估 +10.7%（glm5_next 减层 H20 实测 2312 vs
+  前端 2560 B/token）。**Bug 2（影响最大）**：线性 recurrent(ssm) state 前端按 bf16 计、实为 **fp32**（`mamba2_state_dtype`
+  默认；qwen3_5 config 显式 float32）→ 线性 state **低估 ~1.934×(48.3%)**，波及 glm5_next/kimi_k3/qwen3_5/qwen4_exp
+  （真实 GLM-5.3-Flash 34 KDA 层：140.78 vs 72.78 MiB/seq）。qwen3_5 减层 H20 真机（GDN + GQA + MoE）已确认 ssm 池；
+  GQA KV(2047.9 vs 2048)/MLA latent/dsv4 逐 dtype 均一致（clean）。**观察 3**：W8A8C8 ckpt 强制 int8 KV，前端默认 bf16 未自动读
+  `kv_cache_scheme`（可增强）。根因：memory lens 对架构强制 dtype（fp8 index/fp32 ssm）套用户统一 KV dtype，仅 dsv4 做了逐 dtype。
+  **未在本机改**（无 node，改后须回归 + 重生成 golden）。证据 [`evidence/memory/cache_dtype_audit.md`](evidence/memory/cache_dtype_audit.md)。
 
 ## 算子成本 / per-stage roofline（cost）
 

@@ -27,7 +27,7 @@ export function decoderStackNetwork(id, normalized) {
       ? `:c${normalized.compressRatios?.[index] ?? 0}`
       : "";
     // V4.1 CSA2 跨层共享：只有 kv_source 层自带压缩 KV（resident）、index_source 层自带 index k_cache，
-    // Reuse 层复用 source（resident=0，实测见 nv_evidence/nv5/v41_kv_shapes_reduced.json）。折叠签名必须
+    // Reuse 层复用 source（resident=0，实测见 docs/details/evidence/memory/deepseek_v41_csa2_kv_bytes.md）。折叠签名必须
     // 区分 source/reuse，否则 compactRanges 会把 source 层与其后 Reuse 层折成一段、以 source 值 ×range_size
     // 计（抹平逐层门控）。缺省（V4-Flash/Pro 无 source_layer_ids）为空串 → V4 折叠不变。
     const csaShareVariant = attentionKind === "dsv4" && Array.isArray(normalized.kvSourceLayerIds)

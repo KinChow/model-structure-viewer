@@ -644,7 +644,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
   const headDim = normalized.headDim;
   // dsv4 KV cache 有效 dtype（边际字节口径）：V4.1=F4、V4-Flash/Pro=F8_E4M3。
   const kvDtype = normalized.kvCacheDtype || "BF16";
-  // 逐张量实证（nv_evidence/nv5/v41_tensor_identity_reconcile.md）：V4.1 压缩 KV cache=fp4+E4M3/16、
+  // 逐张量实证（docs/details/evidence/structure/deepseek_v41_tensor_identity.md）：V4.1 压缩 KV cache=fp4+E4M3/16、
   // index k_cache=fp4+E8M0/32（含 scale 摊销的有效字节）；V4（F8）两者同 dtype、不变。
   const kvCacheDtype = kvDtype === "F4" ? "F4_E4M3S16" : kvDtype;
   const indexCacheDtype = kvDtype === "F4" ? "F4_E8M0S32" : kvDtype;
@@ -1122,7 +1122,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
     operatorSpec(`${prefix}.indexer.k_norm`, "indexer key LayerNorm", "rmsnorm", {
       ...shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
       // DSA indexer 的 key norm 在 transformers 真值里是 nn.LayerNorm（weight+bias=2×width），
-      // 非 RMSNorm；affine_bias 让声明含 bias，参数量与后端 LayerNorm 一致（NV-1 对账实证）。
+      // 非 RMSNorm；affine_bias 让声明含 bias，参数量与后端 LayerNorm 一致（结构对账实证）。
       affine_bias: true,
       implementation: ["vLLM.Indexer.k_norm", "SGLang.Indexer.k_norm"],
     }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),

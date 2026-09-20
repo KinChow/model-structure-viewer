@@ -3,10 +3,10 @@
 
 export const DEFAULT_EFFICIENCY = Object.freeze({
   flops: 0.7,
-  // η_hbm 由 NV-3 在机尺寸扫描校准：0.9→0.7（A100 memory-bound 逐元素实测可达带宽
+  // η_hbm 由算子成本在机尺寸扫描校准：0.9→0.7（A100 memory-bound 逐元素实测可达带宽
   // 0.44–0.57，0.7 取跨厂商可辩护的可达 HBM 比例、不 overfit；且有效带宽地板 1427GB/s
-  // > 实测最好点 1170GB/s 仍保持"下界"性质。证据 details/nv_evidence/nv3/operator_cost/
-  // roofline_size_sweep.md。仍是 UI/芯片可覆盖假设，非某次实测利用率。
+  // > 实测最好点 1170GB/s 仍保持"下界"性质。证据 docs/details/evidence/cost/roofline_calibration.md
+  // 与 roofline_size_sweep.md。仍是 UI/芯片可覆盖假设，非某次实测利用率。
   hbm: 0.7,
   comm: 0.6,
   intra_node_comm: 0.8,

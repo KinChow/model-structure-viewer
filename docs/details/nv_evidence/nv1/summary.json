@@ -1,9 +1,0 @@
-{
-  "total": 3,
-  "constructed": 3,
-  "construct_failed": 0,
-  "clean_zero_residual": 3,
-  "with_residual": 0,
-  "construct_failed_models": [],
-  "residual_models": []
-}

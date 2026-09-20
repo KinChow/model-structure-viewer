@@ -26,17 +26,34 @@
 5. **conv/递推 state cache**：decode 相位的卷积环形历史读写。
 6. **KV 读语义**：decode 的 K/V 读即读 KV cache；`kvRead`/`indexRead` 子桶单列（见 F2）。
 
+> **dsv4 家族 KV-per-token 报告口径（边际 + 逐 dtype）**：`residentMemoryFromGraph` 对 dsv4 注意力叶
+> （带 `cache_kv_dtype`）按**边际增长**计每 token KV——只算随 token 线性增长的压缩 KV（仅 kv_source 层，
+> 单份 `head_dim/ratio`）+ index（仅 index_source 层，`index_head_dim/ratio`），有界滑窗（`O(1)`）不计；
+> 并**逐 dtype**取字节（V4.1 压缩 KV/index=fp4≈0.5B、V4-Flash/Pro=fp8=1B）。全驻留 `cache_kv_elements`
+> （含滑窗）保留供 W5 capacity↔kvRead 对账。校准对官方「Global KV Cache Per Token」：V4-Flash ≈3,440 B
+> （真值 3,514，−2.1%）、V4.1-Flash ≈1,056 B（真值 890，+18.7%，残差见
+> `evidence/memory/deepseek_v41_csa2_kv_bytes.md`）。非 dsv4 模型（无 `cache_kv_dtype`）回退统一 `kvBytes`，口径不变。
+
 ## 全局假设（每条的 counts 注释须引用）
 
 | 编号 | 假设 | 依据 |
 |---|---|---|
 | A1 | split / view 类重排**零流量**（fused projection 拆分是视图，不发生拷贝） | 2026-09-07 拍板 |
-| A2 | softmax 按**融合单遍**实现，logits 读 1 遍；多遍未融合读放大不建模 | 2026-09-07 拍板 |
+| A2 | softmax 按**融合单遍**实现，logits 读 1 遍；多遍未融合读放大不建模 | 2026-09-07 拍板；kernel 口径实测（ncu flash_fwd_kernel，A100）：scores/probs **不落 HBM**，真实 attn HBM≈Q/K/V/O（O(H·S·D)），物化字节口径仅作 roofline 上界、长上下文按 S² 高估（见 `evidence/cost/flash_kernel_caliber.md`） |
 | A3 | rope 的 sin/cos **查表**，SFU ≈ 0 | 常规实现 |
 | A4 | 复合节点的分解假设（见「复合节点」表）逐条标注 | §3.1 分解声明 |
 | A5 | SFU 计数约定：sigmoid = 2（exp + rcp）、exp = 1、rsqrt = 1、div = 1；elementwise/vector 操作逐 flop 计 | 2026-09-07 统一口径 |
 | A6 | 线性注意力递推核（外积 / delta matvec / query）按 per-token 计；**状态流量**按 chunked steps 计（显式近似） | Gated DeltaNet arXiv 2412.06464 |
 | A7 | 融合算子（MegaMoE / fused gate+up / megakernel 等）按**语义分解**计数（matrix/vector/sfu 与融合无关）；bytes 按未融合口径（保守），融合收益记 attributes.implementation，不做流量折算 | TritonMoE arXiv 2605.23911（fused gate+up 省 35% 流量）；Megatron 2026 roadmap |
+
+> **算子成本逐算子在机实测（2026-09-17，A100/Qwen3-0.6B，见 `evidence/cost/operator_cost.md`）**：
+> ① **matrix**：全部线性/投影算子 `MSV MACs×2 == torch FlopCounterMode FLOPs` **逐位相等**
+> （prefill 610,288,009,216 / decode 1,191,968,768）；注意力 MSV 按**因果** `S(S+1)/2` 计 = torch 全方阵公式的
+> 0.501×，与 flash kernel 只算下三角的实际一致（torch 公式高估）。
+> ② **bytes**：4 个 GEMM 的 MSV compulsory 读（weights+actIn）== ncu DRAM 读，误差 0.2–0.4%；写侧常驻 L2
+> （ncu dram_write≈0）→ actOut 计入使 MSV total 成为 **DRAM 保守上界**（呼应 A2/A7 的"保守"口径）。
+> ③ **bound**：GEMM 算术强度 340–438 FLOP/B（>脊点 → compute-bound）、norm/rope/swiglu 0.2–0.33（<<脊点
+> → memory-bound），与 `classifyRoofline` 判定逐项一致。未发现公式错误。
 
 记号：`T`=tokens（phase 决定），`H`=hidden，`D`=head_dim，`I`=intermediate，
 `S`=可见 key tokens，`E`=专家数，`k`=topk，`b`=每元素字节（**激活宽**）。

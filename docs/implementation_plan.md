@@ -160,7 +160,7 @@ runtime-unknown
 > 需 NVIDIA GPU 运行时才能验证的触发项（framework execution profile、per-stage
 > roofline / I/O shape、真实结构对账 + verify fixture 桶扩展、A2 kernel 口径、
 > V4.1-Flash 运行时/逐张量权重实证、后端生产化）已收口到
-> [`details/nv_validation_checklist.md`](details/nv_validation_checklist.md)（NV 验证清单）；
+> [`details/validation_status.md`](details/validation_status.md)（验证状态总览）；
 > 本节保留其触发判据登记，在机取证与判定去该文件。
 
 - **Cost Lens 按 `FORMULAS.group` 分栏**（UI）。触发：需要按功能域看成本，而不是只看整图合计。

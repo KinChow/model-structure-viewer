@@ -38,6 +38,8 @@
 
 ## 开项登记（架构级）
 
+- **[B] GDN ssm dtype 框架分叉（已查明，MSV 无需改）**：装机 vLLM 源码确认——GDN(mamba2/gated_delta_net) temporal 默认 `auto→model dtype=bf16` 且不读 config；KDA 硬编码 fp32。SGLang GDN=fp32（读 config）。MSV(Bug2→fp32) 忠实 config/设计/SGLang（KDA 两框架均对），对 vLLM-默认 GDN(bf16) 高估 2×——属框架 runtime 偏差、非前端 bug；framework profile 可给 vLLM-GDN 覆盖 bf16。证据 `memory/cache_dtype_audit.md`。
+
 - （补）**vLLM 吞吐/roofline（A100，VL4）**：Qwen3-0.6B tp1 `vllm bench serve`（200 req in512/out128）——TPOT 14.41 ms、TTFT 703 ms、输出 9,451 tok/s、KV/token 114,712≈MSV 114,688。每项实测落 MSV 地板之上、bound 分类正确（prefill 算力/decode 访存），与 SGLang 同模式 → **cost 维 vLLM+SGLang 双框架均验证**。证据 `cost/vllm_bench_vs_roofline.md`。
 
 - ~~GDN recurrent state-shape 残差~~ **已关闭（2026-09-20）**：512-slot 精确复测显示 `linearStateResidentDecl` 的 GDN conv(bf16)+ssm(fp32) 与真机逐分量 <0.5%，初测 ~1.25× 为 4-slot 粗舍入伪差，非前端 bug。

@@ -86,3 +86,18 @@ kv_cache_scheme** → 默认 bf16 时对这些 ckpt 高估 KV 2×。属"用户�
 **结论**：MSV **不应**为这些 ckpt 建模 int8 KV（真机不走 int8）；观察 3 不是前端 bug。MSV 的 KV dtype 是用户可选 `kvElementBytes`
 （缺省 bf16），对 fp8-KV 部署会高估 2×——修法是**可选增强**：自动读 `quantization_config.kv_cache_scheme`/`kv_cache_dtype` 映射到 fp8，
 而非默认 int8。属 UX 增强、非正确性修复（不为修复而修复）。
+## [B] GDN vs KDA recurrent dtype —— 装机 vLLM 源码确认（2026-09-20，vllm-0920 0.29.1rc1.dev397）
+
+读**装机** vLLM `model_executor/layers/mamba/mamba_utils.py::MambaStateDtypeCalculator`（非 github，实际运行的这版）：
+- `_mamba_state_dtype`（**mamba2 / gated_delta_net 共用**）：`conv = get_kv_cache_torch_dtype(mamba_cache_dtype, model_dtype)`；
+  `temporal = conv`（当 `mamba_ssm_cache_dtype=="auto"`，即默认）→ **GDN temporal(ssm) = model dtype = bf16**。且 `mamba_ssm_cache_dtype`
+  来自 **`--mamba-ssm-dtype` server-arg（默认 auto）**，**不读 HF config 的 `mamba_ssm_dtype`**。
+- `kda_state_dtype`：`auto → recurrent = torch.float32`（**KDA 硬编码 fp32**）。
+
+**结论（细化 [B]，并印证 Bug2 修法）**：
+- **KDA（kimi_k3 / glm5_next）**：vLLM=fp32、SGLang=fp32 → **两框架一致**；MSV(Bug2→fp32) 对两框架都对。
+- **GDN（qwen3_5 / qwen4_exp）**：SGLang temporal 默认 fp32、且读 config（qwen3_5 config 显式 `mamba_ssm_dtype=float32`）；
+  vLLM **默认 auto→bf16、且忽略 config 字段** → **[B] 真分叉（仅 GDN）**。MSV(Bug2 读 config `mamba_ssm_dtype` 缺省 fp32) = **模型设计/config + SGLang 忠实**，
+  对 vLLM-默认（bf16）会高估 GDN ssm 2×。
+- **处置**：Bug2（fp32）作为**设计/config 忠实默认**正确（非 bug）；vLLM-默认 GDN=bf16 是 vLLM 忽略 config 的运行时偏差，登记为 [B] 分叉，
+  framework profile（若建）可给 vLLM-GDN 覆盖 bf16。**不改 Bug2 默认**（改则破坏 config/SGLang 忠实与 KDA 正确性；不为一个框架的 runtime 偏差改设计口径）。

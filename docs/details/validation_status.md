@@ -385,6 +385,11 @@
   每 token 114,688 B（`kv_heads·head_dim·层·dtype·2`）与 MSV `pdKvTransferBytes` **0.0%**；tp1→tp1 无
   `layoutRepack` 与 MSV 判据一致。**未覆盖**：跨 TP 布局重排（prefill_tp≠decode_tp）、inter-node RDMA 实测带宽
   （本次 TCP localhost）——属多机/跨拓扑。证据 [`evidence/parallelism/pd_disaggregation.md`](evidence/parallelism/pd_disaggregation.md)。
+- **状态（跨-TP 布局重排补验，2026-09-20，A100 单机 prefill_tp2→decode_tp1）**：补上条"未覆盖"的跨 TP 重排。Qwen3-0.6B
+  prefill `--tp 2` + decode `--tp 1` + router `mooncake_tcp` **端到端跑通**（router 200 OK、输出正确、非 error）；decode 日志
+  `different TP sizes for non-MLA models` + 源码 `_resolve_rank_mapping`（decode rank 从多 prefill rank 取 KV）/ `mooncake/conn.py`
+  head-slice 聚合 → **确实触发跨-TP KV head 布局重排**；decode(tp1) K+V=114,688 B/token（每 prefill tp2 rank 持 4/8 kv_heads，聚合 4+4）。
+  **MSV `layoutRepackRequired=(prefill_tp≠decode_tp)` 与 SGLang 真机一致**（等 TP 无重排、hetero-TP 触发重排且跑通）。仅 inter-node RDMA 实测带宽留 ≥2 节点。证据 `evidence/parallelism/pd_disaggregation.md`。
 
 ## 计算量 / 访存量 / 通信量 / Roofline —— 已验状态（汇总）
 

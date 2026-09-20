@@ -52,3 +52,18 @@ POST /generate {"text":"The capital of France is","sampling_params":{"max_new_to
 - 对 `validation_status` 补充：PD 分离从"仅建模+单测"更新为"**机制 + KV 传输字节口径真机已验**"。
 
 复现：上文三进程启动命令（设 `SGLANG_HOST_IP=127.0.0.1`）+ router `/generate`。
+
+## 跨-TP 布局重排补验（2026-09-20，prefill_tp=2 → decode_tp=1，A100 单机 3 卡）
+
+补上文"未覆盖"的**跨 TP 布局重排**（MSV `comm.js: layoutRepackRequired = prefill_tp !== decode_tp`）。同 Qwen3-0.6B，
+prefill server `--tp 2`（GPU0,1）+ decode server `--tp 1`（GPU2）+ mini-lb router，`mooncake_tcp`。
+
+- **端到端跑通**（非 error）：两 server `fired up`、router `/generate` 200 OK、输出正确（"…Paris…"），错误扫描空 → **SGLang 支持 hetero-TP PD**。
+- **确实触发布局重排（非 1:1 拷贝）**：decode 日志 `Performance is NOT guaranteed when using different TP sizes for non-MLA models`；
+  源码 `disaggregation/common/conn.py::_resolve_rank_mapping`——等 TP `required_dst_info_num=1`（1:1、无重排），decode_tp<prefill_tp 时
+  "one decode rank needs to retrieve KVCache from multiple prefill ranks"（`target_tp_ranks` 跨两 prefill rank）；`mooncake/conn.py`
+  比较 `dst_attn_tp_size != attn_tp_size` 后按 head-slice 分块聚合（`group_concurrent_contiguous` / `utils.py` 的 aggregation-vs-scatter）。`transfer_layer_num=28` 逐层传。
+- **字节口径一致**：decode(tp1) `KV 15.15+15.15 GB / 283,681 tok → K+V=114,688 B/token`（28·8·128·2·2）== MSV/前值；
+  每 prefill(tp2) rank `K 28,672 B/tok = 28·4·128·2`（各持 4/8 kv_heads）→ decode(8) 由 prefill(4+4) 聚合 = 重排本身。
+- **结论**：**MSV `layoutRepackRequired=(prefill_tp≠decode_tp)` 与 SGLang 真机一致**——等 TP 无重排（0.0% 已验）、hetero-TP 触发跨-TP KV head 布局重排（真机跑通、非硬失败）。
+  至此 PD 分离的机制 + KV 字节 + 跨-TP 重排判据单机全验；仅 inter-node RDMA 实测带宽（`transferSeconds` 的带宽项）留 ≥2 节点。

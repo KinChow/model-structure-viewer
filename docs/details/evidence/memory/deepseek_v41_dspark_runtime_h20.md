@@ -35,3 +35,21 @@
   **精确逐字节闭合需**：① 用原始 `/ssd4/models/DeepSeek-V4.1-Flash`（fp8/fp4，H20 上 fp4 expert 需回退）复跑；
   ② MSV 按 fp8 KV 口径重算一版，与 1670.75 逐字节对拍。1.877× 目前是**定性**佐证、非精确对账。
 - engram 常驻/预取显存、fp4 expert 真实 footprint 仍需 Hopper + 完整权重。
+
+## 追加（2026-09-21 现跑，非复用旧服务）：DSpark 草稿 KV 池对账 + fp4 硬件边界坐实
+
+现跑一版 fresh serve（GPU 从 0 起、跑后清零，`zzj_fresh_v41_fp8.log`），取到草稿池实证并明确 fp4 边界：
+
+- **草稿 KV 池无独立压缩 KV**：两次 `Initialize DeepSeekV4TokenToKVPool` —— 目标池
+  `c4_size=1544768`；**草稿池 `c4_size=0 c128_size=0 c4_state=0`**（只复用同一 `swa=19456`）。DSpark 草稿
+  （`DSparkV4MarkovHead`, gamma=5）成本 = 草稿权重 1.94 GB/卡 + draft verify CUDA graph ≈0 GB，**没有随上下文
+  增长的独立每 token 草稿 KV 池**。→ MSV `draftKvBytesPerToken`（V4.1 768 / V4-Flash 512 B/token）对 DSpark
+  是**上界式建模**，不对应独立运行时池（详见 `deepseek_dspark_draft_kv_pool_h20.md`）。
+- **`bytes_per_full_token=1670.75` 与 TP 无关**：TP4 现跑复现 TP8 旧值，`/generate` 正确（"...Paris."）。
+- **fp4 hard-blocked on H20**：`--enable-deepseek-v4-fp4-indexer requires SM100, SM120, or gfx95 GPUs`；
+  H20=SM90(Hopper) 直接被拒 → 原生 fp4（890 主干 / 768 草稿）**须 Blackwell(SM100)**，H20 不可得。
+- **V4-Flash 草稿 blocked-on-ckpt**：`DeepSeek-V4-Flash-FP8-W8A8-INT8-Dynamic` 未 bundle DSpark 头
+  （`requires setting --speculative-draft-model-path`）→ 需 V4-Flash 专用 DSpark ckpt 方可现跑。
+- **DeepEP（R4）**：`deep_ep 2.1.0` + `Buffer` 在 H20 dsv41 容器 import 通过（A100 的 ABI import 障碍在 H20 解除）；
+  但 DeepSeek-V4.1 拒绝 `--moe-a2a-backend deepep`（`V4.1 vision currently supports TP/EP without ... MoE A2A`）
+  → shared-expert 折叠字节仍无法在 dsv41 上抓，留可跑 A2A 的 shared-expert MoE 模型/镜像。

@@ -39,3 +39,13 @@ V2-Lite 是 MLA（`kv_lora_rank=512` + `qk_rope=64`，27 层全 MLA）。vLLM EP
 **KV/token = 31,101 B**；MSV/设计 = 27 层 × (512+64) × 2B(bf16) = **31,104 B**（0.008%，24.48 两位小数舍入）。
 与 SGLang V2-Lite（`runtime_profiles/sglang_v2lite.md`：MLA latent 31,104 B/token）**逐值一致** →
 **vLLM MLA latent KV == SGLang == MSV**（GQA 112KiB 之外，MLA 家族的 KV 内存口径亦跨框架一致）。
+
+## 追加：C3b `resolveFrameworkPlan` 真机确认（A100, 2026-09-21）
+
+复现：A100 `10.55.87.81` 容器 `vllm-0920`，`vllm serve /ssd2/models/DeepSeek/DeepSeek-V2-Lite --tensor-parallel-size 2
+--enable-expert-parallel --gpu-memory-utilization 0.4 --trust-remote-code`。日志 `/ssd2/models/_reduced/vllm_v2lite_c3b.log`。
+
+- 真机：`[EP Rank 0/2] ... Local/global number of experts: **32/64**`（每 rank 32 完整专家 = 64/ep(2)、moe_tp=1、intermediate 不切）。
+- MSV C3b：`resolveFrameworkPlan({tp:2,dp:1}, "vllm") = {ep:2, moeTp:1}` → `expertShardDivisor` → `epSize=2, moeTp=1, divisor=2, setDegree=2`
+  → 每 rank 64/2 = **32 完整专家、N=1408 不切** —— **与 vLLM 真机 32/64 逐点一致**。
+- 即框架预设 `vllm` 自动落到 `ep=tp×dp、moeTp=1`，产出的 plan 与 vLLM 真机 EP-on 专家分片口径一致（C3b 端到端坐实）。跑完已 `pkill` vLLM、GPU 复位。

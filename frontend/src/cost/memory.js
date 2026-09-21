@@ -225,6 +225,14 @@ export function kvBytesPerToken(graph, kvBytes = 2) {
 export function draftKvBytesPerToken(graph, config = {}, kvBytes = 2, { draftTokens = 0 } = {}) {
   const hasDraft = (graph?.nodes || []).some((node) => node?.type === "mtp" || node?.type === "dspark");
   if (!hasDraft) return 0;
+  // dsv4/V4.1 压缩 KV 家族：per-token KV 是压缩边际口径（cache_kv_growth_elements / 亚字节 dtype），
+  // 且其 MLA latent（kv_lora_rank）未在 normalized 暴露 → 简单公式会错误回退 GQA(kvHeads=1)、失真 25–276×。
+  // 这类草稿 KV 需按压缩边际口径专门建模 → 暂不建模（返回 0），避免给错数。V3.2/GLM-5 有 kvLoraRank 走 MLA 正常。
+  const usesCompressedKv = (graph?.nodes || []).some((node) => {
+    const a = node?.attributes || {};
+    return a.cache_kv_growth_elements != null || (a.cache_kv_dtype && bytesPerDtype(a.cache_kv_dtype, 2) < 1);
+  });
+  if (usesCompressedKv && config.kvLoraRank == null) return 0;
   const draftLayers = config.mtpModules || 1;
   const perLayerElements = config.kvLoraRank
     ? (config.kvLoraRank + (config.qkRopeHeadDim || 0)) // MLA latent（kv_lora_rank + qk_rope）

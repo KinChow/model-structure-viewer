@@ -160,3 +160,13 @@ test("draftKvBytesPerToken：GQA 草稿层", () => {
   const g = { nodes: [{ id: "root.3", type: "dspark" }] };
   assert.equal(draftKvBytesPerToken(g, { kvHeads: 8, headDim: 128, mtpModules: 1 }, 2), 2 * 8 * 128 * 2); // 4096
 });
+test("draftKvBytesPerToken：压缩 KV 家族且 latent 未暴露(kvLoraRank 缺)→暂不建模 0", () => {
+  const g = { nodes: [
+    { id: "root.4", type: "mtp" },
+    { id: "decoder.0.attn", type: "operator", attributes: { cache_kv_growth_elements: 22, cache_kv_dtype: "F8_E4M3" } },
+  ] };
+  // dsv4/V4-Flash 情形：kvLoraRank 未暴露 + 压缩 KV → 门控为 0（避免 GQA 回退失真）
+  assert.equal(draftKvBytesPerToken(g, { kvHeads: 1, headDim: 512, mtpModules: 1 }, 2), 0);
+  // V3.2/GLM-5 情形：压缩 KV 但 kvLoraRank 已暴露 → 走 MLA 正常计
+  assert.equal(draftKvBytesPerToken(g, { kvLoraRank: 512, qkRopeHeadDim: 64, mtpModules: 1 }, 2), (512 + 64) * 2);
+});

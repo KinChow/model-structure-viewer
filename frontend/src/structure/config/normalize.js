@@ -34,6 +34,9 @@ const LINEAR_KEY_HEADS_KEYS = ["linear_num_key_heads", "linear_key_heads"];
 const LINEAR_VALUE_HEADS_KEYS = ["linear_num_value_heads", "linear_value_heads"];
 const LINEAR_KEY_DIM_KEYS = ["linear_key_head_dim", "linear_head_dim"];
 const LINEAR_VALUE_DIM_KEYS = ["linear_value_head_dim", "linear_head_dim"];
+// 线性 recurrent(ssm/temporal) state dtype 覆盖键：HF 配置里声明后应被前端 memory lens 采用
+// （conv 恒 bf16、recurrent 缺省 fp32；见 ops/index.js normalizeSsmStateDtype）。
+const MAMBA_SSM_DTYPE_KEYS = ["mamba_ssm_dtype", "ssm_dtype", "mamba2_state_dtype"];
 
 export function firstNumber(config, keys) {
   for (const key of keys) {
@@ -244,6 +247,11 @@ export function normalizeConfig(config) {
     linearConvKernelSize: pick(["linear_conv_kernel_dim", "linear_conv_kernel_size"], { source: linearAttentionConfig, keys: ["short_conv_kernel_size"] }),
     linearLowerBound: pick(["linear_lower_bound"], { source: linearAttentionConfig, keys: ["gate_lower_bound"] }),
     linearUseFullRankGate: Boolean(textConfig?.linear_attn_config?.use_full_rank_gate ?? config?.linear_attn_config?.use_full_rank_gate),
+    // recurrent state dtype 覆盖：textConfig → linear_attn_config → 顶层 config 依次取首个字符串。
+    // 缺省（无声明）留 undefined，由 normalizeSsmStateDtype 落到 fp32（SGLang/vLLM temporal 默认）。
+    mambaSsmDtype: [textConfig, linearAttentionConfig, config]
+      .flatMap((src) => MAMBA_SSM_DTYPE_KEYS.map((k) => src?.[k]))
+      .find((v) => typeof v === "string" && v.trim()) || undefined,
     // 稀疏选择分支的字段分族（W2）。此前 index_* 与 indexer_* 被合并成同一组
     // indexer* 字段，导致 DSA（DeepSeek/GLM，index_* 键族）与 QSA（Qwen
     // qwen4_exp，indexer_* 键族）在下游无法区分——四种 indexer 原理不同却共用

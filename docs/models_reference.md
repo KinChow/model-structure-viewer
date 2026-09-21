@@ -79,7 +79,7 @@
 | `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` | `deepseek_v4` | `DeepseekV4ForCausalLM` | 304,498,520,249（304.5B） | 有 | 2026-08-31 |
 | `deepseek-ai/DeepSeek-V4-Pro` | `deepseek_v4` | `DeepseekV4ForCausalLM` | 1,599,755,654,553（1.60T） | 有 | 2026-04-22 |
 | `deepseek-ai/DeepSeek-V4-Pro-0813` | `deepseek_v4` | `DeepseekV4ForCausalLM` | 1,650,487,237,637（1.65T） | 有 | 2026-08-13 |
-| `deepseek-ai/DeepSeek-V4.1-Flash` | `deepseek_v41` | `DeepseekV41ForCausalLM` | 763,073,541,847（763.1B） | 有 | — |
+| `deepseek-ai/DeepSeek-V4.1-Flash` | `deepseek_v41` | `DeepseekV41ForCausalLM` | 763,073,541,847（763.1B） | 有 | 2026-09-10 |
 | `moonshotai/Kimi-K2-Base` | `kimi_k2` | `DeepseekV3ForCausalLM` | 1,026,408,232,448（1.03T） | 有 | 2025-07-10 |
 | `moonshotai/Kimi-K2-Instruct` | `kimi_k2` | `DeepseekV3ForCausalLM` | 1,026,408,232,448（1.03T） | 有 | 2025-07-11 |
 | `moonshotai/Kimi-K2-Instruct-0905` | `kimi_k2` | `DeepseekV3ForCausalLM` | 1,026,408,232,448（1.03T） | 有 | 2025-09-04 |

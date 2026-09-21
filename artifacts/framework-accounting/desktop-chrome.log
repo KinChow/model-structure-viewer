@@ -1,0 +1,42 @@
+
+> model-structure-viewer-frontend@0.2.0 test:e2e
+> playwright test --project=desktop-chrome
+
+[WebServer] (node:92003) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 27 tests using 1 worker
+
+(node:92005) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/27] [desktop-chrome] › e2e/framework-accounting.spec.js:28:1 › V4.1 Provider 日期快照与最新排序
+[2/27] [desktop-chrome] › e2e/framework-accounting.spec.js:36:1 › vLLM TP4 dense 和 MoE 不产生 invalid；显式 EP 可用
+[3/27] [desktop-chrome] › e2e/framework-accounting.spec.js:52:1 › Qwen draft allocation 与 Total VRAM / Fit / Max Context 同源
+[4/27] [desktop-chrome] › e2e/framework-accounting.spec.js:66:1 › SGLang fusion opt-in 增加通信量，取消恢复默认
+[5/27] [desktop-chrome] › e2e/framework-accounting.spec.js:80:1 › DSpark 三种 profile 的主/草稿/共享/总 KV 对账
+[6/27] [desktop-chrome] › e2e/framework-accounting.spec.js:95:1 › DSA 默认 KV fallback 控件不覆盖显式 dtype
+[7/27] [desktop-chrome] › e2e/framework-accounting.spec.js:104:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动）
+[8/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:8:3 › 纯前端入口与模型选项 (zh)
+[9/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:8:3 › 纯前端入口与模型选项 (en)
+[10/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:40:3 › 远程读取与搜索直连，失败不回退 (zh)
+[11/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:83:3 › 旧本地路径链接提示重新选择目录 (zh)
+[12/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:40:3 › 远程读取与搜索直连，失败不回退 (en)
+[13/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:83:3 › 旧本地路径链接提示重新选择目录 (en)
+[14/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:93:3 › 浏览器目录读取、取消、错误及导出 (zh)
+[15/27] [desktop-chrome] › e2e/frontend-boundary.spec.js:93:3 › 浏览器目录读取、取消、错误及导出 (en)
+[16/27] [desktop-chrome] › e2e/viewer.spec.js:8:1 › 首页只提供明确的模型来源
+[17/27] [desktop-chrome] › e2e/viewer.spec.js:15:1 › 内置模型以 React Flow 图打开并保留成本交互
+[18/27] [desktop-chrome] › e2e/viewer.spec.js:49:1 › 多模态模型图包含视觉塔和视觉投影路径
+[19/27] [desktop-chrome] › e2e/viewer.spec.js:61:1 › 每个内置模型都能展开父节点并保持可计算图
+[20/27] [desktop-chrome] › e2e/viewer.spec.js:117:1 › 父节点详情提供子模块和 Shape
+[21/27] [desktop-chrome] › e2e/viewer.spec.js:149:1 › 桌面对比模式保留两张可见 React Flow 画布
+[22/27] [desktop-chrome] › e2e/viewer.spec.js:167:1 › 短桌面窗口展开公式索引时保留完整控件高度
+[23/27] [desktop-chrome] › e2e/viewer.spec.js:178:1 › 短桌面视口保留画布最小高度且不产生横向溢出
+[24/27] [desktop-chrome] › e2e/viewer.spec.js:197:1 › Cost 展开后 Formula 仍可点击，桌面移动端都不覆盖内容
+[25/27] [desktop-chrome] › e2e/viewer.spec.js:210:1 › 成本并行度 TP 输入可整段清空，失焦回退到 1 且合法输入即时生效
+[26/27] [desktop-chrome] › e2e/viewer.spec.js:243:1 › 宽屏桌面按视口比例撑开画布且只有单一滚动区域
+[27/27] [desktop-chrome] › e2e/viewer.spec.js:278:1 › 高视口下 Inspector 详情不被裁到视口外且可内部滚动查看全部属性
+  27 passed (5.9m)

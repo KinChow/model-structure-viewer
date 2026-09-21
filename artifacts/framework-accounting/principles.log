@@ -1,0 +1,15 @@
+§8.1 家族名硬编码文件数: 6 / 基线 6
+  - frontend/src/structure/layers/attention.js
+  - frontend/src/structure/layers/hybrid.js
+  - frontend/src/structure/layers/moe.js
+  - frontend/src/structure/layers/schedule.js
+  - frontend/src/structure/operators/formulas/extractor.js
+  - frontend/src/structure/operators/ops/index.js
+§3.2 cost/ 显示名检查: 通过（全禁，无允许清单）
+§3.1 公式注册表: 52 条全部终止于 counts
+§3.1b 运行时接线: 52 条 fromNode 可达（switch case = 0）
+§3.1d 来源标注: 52 / 52 条（≥ 条目数）
+§3.5b /tmp 取证引用: 14 / 基线 15（只许下降）
+FORMULAS.group: 52 条（ungrouped=ple）
+P0 legacy root 活引用: 0 / 基线 0（棘轮，保持 0）
+cost_counts.md 逐条清单机器段: 与注册表一致

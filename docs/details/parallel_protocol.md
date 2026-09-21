@@ -1,5 +1,10 @@
 # 并行与权重分片协议（定稿）
 
+> 2026-09-22（Asia/Shanghai）增量：[framework accounting](framework_accounting.md) 实装 neutral /
+> vLLM / SGLang 的公式适配边界。下文“本轮不实现 framework execution profile”
+> 是 2026-09-10 的历史范围；现已实现 plan、cache ownership、state dtype、fusion
+> 和统一驻留账本，但仍不实现 runtime/backend 仿真、自动方案搜索或实测校准系数。
+
 2026-09-10 定稿。本文是 MSV **逻辑并行与权重归属协议的唯一住址**：
 `validatePlan`、`sharding`、逐卡投影、容量分桶、通信估算和 UI 输入契约都以本文为准。
 

@@ -1,0 +1,33 @@
+
+> model-structure-viewer-frontend@0.2.0 test:e2e
+> playwright test --project=mobile-chrome framework-accounting.spec.js --retries=0
+
+[WebServer] (node:48444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 16 tests using 1 worker
+
+(node:48454) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/16] [mobile-chrome] › e2e/framework-accounting.spec.js:33:1 › V4.1 Provider 日期快照与最新排序
+[2/16] [mobile-chrome] › e2e/framework-accounting.spec.js:41:1 › vLLM TP4 dense 和 MoE 不产生 invalid；显式 EP 可用
+[3/16] [mobile-chrome] › e2e/framework-accounting.spec.js:57:1 › 模型和硬件选择后按单机 1/2/4/8 卡档位给出默认并行策略
+[4/16] [mobile-chrome] › e2e/framework-accounting.spec.js:72:1 › 切换硬件后自动推荐重新按显存档位计算
+[5/16] [mobile-chrome] › e2e/framework-accounting.spec.js:90:1 › 手动修改并行后切换硬件不会覆盖，并可恢复默认
+[6/16] [mobile-chrome] › e2e/framework-accounting.spec.js:103:1 › P/D 默认各单节点，手动策略独立保存，切换模型恢复推荐
+[7/16] [mobile-chrome] › e2e/framework-accounting.spec.js:128:1 › Qwen draft allocation 与 Total VRAM / Fit / Max Context 同源
+[8/16] [mobile-chrome] › e2e/framework-accounting.spec.js:144:1 › SGLang fusion opt-in 增加通信量，取消恢复默认
+[9/16] [mobile-chrome] › e2e/framework-accounting.spec.js:158:1 › DSpark 三种 profile 的主/草稿/共享/总 KV 对账
+[10/16] [mobile-chrome] › e2e/framework-accounting.spec.js:173:1 › DSA 默认 KV fallback 控件不覆盖显式 dtype
+[11/16] [mobile-chrome] › e2e/framework-accounting.spec.js:185:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 1-10
+[12/16] [mobile-chrome] › e2e/framework-accounting.spec.js:185:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 11-20
+[13/16] [mobile-chrome] › e2e/framework-accounting.spec.js:185:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 21-30
+[14/16] [mobile-chrome] › e2e/framework-accounting.spec.js:185:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 31-40
+[15/16] [mobile-chrome] › e2e/framework-accounting.spec.js:185:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 41-50
+[16/16] [mobile-chrome] › e2e/framework-accounting.spec.js:185:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 51-60
+  Slow test file: [mobile-chrome] › e2e/framework-accounting.spec.js (12.9m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  16 passed (13.2m)

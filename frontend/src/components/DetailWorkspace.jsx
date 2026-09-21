@@ -12,7 +12,8 @@ import { structureStatus } from "../diagnostics";
 import { graphWeightCapacity } from "../cost/memory.js";
 import { COMPARISON_MODE } from "../diagram/compare.js";
 import { buildNodeLens } from "../diagram/lens.js";
-import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_NODES, DEFAULT_PLAN } from "../cost/defaults.js";
+import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_PLAN } from "../cost/defaults.js";
+import { useDeploymentDefaults } from "../hooks/useDeploymentDefaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { graphChildren, graphNodeAt, graphViewNode } from "../structure/graph/selectors.js";
 
@@ -118,10 +119,14 @@ export default function DetailWorkspace({
   const [activeLenses, setActiveLenses] = useState(() => new Set(["vram"]));
   const [activePhase, setActivePhase] = useState("prefill");
   const [activeMode, setActiveMode] = useState("centralized");
-  const [activePlans, setActivePlans] = useState(() => ({ prefill: DEFAULT_PLAN, decode: DEFAULT_PLAN }));
-  const [activeNodes, setActiveNodes] = useState(DEFAULT_NODES);
-  const [activeGpusPerNode, setActiveGpusPerNode] = useState(8);
   const [activeMachineId, setActiveMachineId] = useState(chips?.[0]?.id || "");
+  const activeChip = chips.find((chip) => chip.id === activeMachineId) || chips[0];
+  const {
+    plans: activePlans, setPlans: setActivePlans,
+    nodes: activeNodes, setNodes: setActiveNodes,
+    gpusPerNode: activeGpusPerNode, setGpusPerNode: setActiveGpusPerNode,
+    recommendation: deploymentRecommendation, manual: deploymentManual, reset: resetDeployment,
+  } = useDeploymentDefaults({ structure, chip: activeChip, frameworkProfile });
   const [activeLoads, setActiveLoads] = useState(DEFAULT_LOADS);
   const [comparisonMode, setComparisonMode] = useState(COMPARISON_MODE.OFF);
   const [compareChipId, setCompareChipId] = useState(chips?.[1]?.id || chips?.[0]?.id || "");
@@ -159,7 +164,7 @@ export default function DetailWorkspace({
     : costFitStatus?.fit ? "fit" : costFitStatus?.known ? "no-fit" : "unknown";
   const deploymentSummary = activeMode === "pd"
     ? `PD · ${activeMachineName} · P ${activeNodes.prefill || 1}×${activeGpusPerNode} GPU · D ${activeNodes.decode || 1}×${activeGpusPerNode} GPU · ${activePhase}`
-    : `${activeMachineName} · ${activeNodeCount}×${activeGpusPerNode} GPU`;
+    : `${activeMachineName} · ${activeNodeCount}×${activeGpusPerNode} GPU · ${language === "en" ? "using" : "使用"} ${lensPlan.tp * lensPlan.pp * lensPlan.dp} GPU`;
   const changeActivePhase = (next) => { setCostFitStatus(null); setActivePhase(next); };
   const changeActiveMode = (next) => { setCostFitStatus(null); setActiveMode(next); };
   const selectSearchResult = (path) => {
@@ -185,7 +190,7 @@ export default function DetailWorkspace({
             cost={{ activeLenses, activePhase, onPhaseChange: changeActivePhase, activeMode, activePlans, onPlanChange: setActivePlans, activeNodes, gpusPerNode: activeGpusPerNode, activeMachineId, onMachineChange: setActiveMachineId, activeLoads, nodeLensResult, comparisonMode, onComparisonModeChange: setComparisonMode, compareChipId, onCompareChipIdChange: setCompareChipId, comparePlan, onComparePlanChange: setComparePlan, efficiency, onEfficiencyChange: setEfficiency }}
           />
           <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen} aria-controls="detail-cost-panel"><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? deploymentSummary : `${t.centralized} · ${deploymentSummary}`}</span>{fitLabel && <span className={`detail-fit-status ${fitClass}`}>{fitLabel}</span>}<span>{costOpen ? "−" : "+"}</span></button></div>
-          <div id="detail-cost-panel" className={`detail-cost-panel${costOpen ? "" : " is-collapsed"}`} aria-hidden={!costOpen}><CostSummary structure={structure} frameworkProfile={frameworkProfile} chips={chips} onAddChip={onAddChip} language={language} onFitStatusChange={setCostFitStatus} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={changeActivePhase} mode={activeMode} onModeChange={changeActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} comparisonMode={comparisonMode} onComparisonModeChange={setComparisonMode} compareChipId={compareChipId} onCompareChipIdChange={setCompareChipId} comparePlan={comparePlan} onComparePlanChange={setComparePlan} efficiency={efficiency} onEfficiencyChange={setEfficiency} /></div>
+          <div id="detail-cost-panel" className={`detail-cost-panel${costOpen ? "" : " is-collapsed"}`} aria-hidden={!costOpen}><CostSummary structure={structure} frameworkProfile={frameworkProfile} deploymentRecommendation={deploymentRecommendation} deploymentManual={deploymentManual} onResetDeployment={resetDeployment} chips={chips} onAddChip={onAddChip} language={language} onFitStatusChange={setCostFitStatus} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={changeActivePhase} mode={activeMode} onModeChange={changeActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} comparisonMode={comparisonMode} onComparisonModeChange={setComparisonMode} compareChipId={compareChipId} onCompareChipIdChange={setCompareChipId} comparePlan={comparePlan} onComparePlanChange={setComparePlan} efficiency={efficiency} onEfficiencyChange={setEfficiency} /></div>
           {auxView === "export" && <div className="detail-aux-panel" ref={auxPanelRef}><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel" ref={auxPanelRef}><RawConfigTab rawJson={rawJson} /></div>}
         </div>

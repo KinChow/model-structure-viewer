@@ -1,0 +1,9 @@
+
+> model-structure-viewer-frontend@0.2.0 docs:check
+> node ../scripts/gen-operators-reference.mjs --check && node ../scripts/gen-model-reference.mjs --check && node ../scripts/gen-cost-counts.mjs --check
+
+operators_reference.md 机器段：与注册表/探针一致
+models_reference.md 机器段：与 catalog/registry/recipes 一致（60 行模型台账）
+architectures_reference.md 机器段：与 catalog/registry/recipes 一致（17 MODELS + 12 配方）
+details/models.md 机器段：与 catalog/registry/recipes 一致（60 模型清单）
+cost_counts.md 逐条清单机器段：与注册表一致（52 条）

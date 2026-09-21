@@ -4,4 +4,6 @@ export const DEFAULT_LOADS = Object.freeze({
   prefill: Object.freeze({ batch: 1, sequence: 2048, chunked: false, chunkSize: 8192, visionTokens: 1024 }),
   decode: Object.freeze({ batch: 1, sequence: 2048, visionTokens: 1024 }),
 });
-export const DEFAULT_NODES = Object.freeze({ centralized: 1, prefill: 1, decode: 2 });
+// Start each PD pool with one host. Users can still opt into
+// multi-node prefill/decode explicitly after opening the cost panel.
+export const DEFAULT_NODES = Object.freeze({ centralized: 1, prefill: 1, decode: 1 });

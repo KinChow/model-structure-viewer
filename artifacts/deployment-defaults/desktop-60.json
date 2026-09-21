@@ -1,0 +1,666 @@
+{
+  "project": "desktop-chrome",
+  "total": 60,
+  "results": [
+    {
+      "model": "MiniMaxAI/MiniMax-M2.7",
+      "kv": [
+        520093696,
+        0,
+        0,
+        520093696
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP4 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "MiniMaxAI/MiniMax-M3",
+      "kv": [
+        281542656,
+        0,
+        0,
+        281542656
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "kv": [
+        281542656,
+        0,
+        0,
+        281542656
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-0.8B",
+      "kv": [
+        25165824,
+        4194304,
+        0,
+        29360128
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-0.8B-Base",
+      "kv": [
+        25165824,
+        4194304,
+        0,
+        29360128
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-122B-A10B",
+      "kv": [
+        50331648,
+        4194304,
+        0,
+        54525952
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP4 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.5-122B-A10B-FP8",
+      "kv": [
+        50331648,
+        4194304,
+        0,
+        54525952
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP2 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+      "kv": [
+        50331648,
+        4194304,
+        0,
+        54525952
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-27B",
+      "kv": [
+        134217728,
+        8388608,
+        0,
+        142606336
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-27B-FP8",
+      "kv": [
+        134217728,
+        8388608,
+        0,
+        142606336
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-27B-GPTQ-Int4",
+      "kv": [
+        134217728,
+        8388608,
+        0,
+        142606336
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-2B",
+      "kv": [
+        25165824,
+        4194304,
+        0,
+        29360128
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-2B-Base",
+      "kv": [
+        25165824,
+        4194304,
+        0,
+        29360128
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B",
+      "kv": [
+        41943040,
+        4194304,
+        0,
+        46137344
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B-Base",
+      "kv": [
+        41943040,
+        4194304,
+        0,
+        46137344
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+      "kv": [
+        41943040,
+        4194304,
+        0,
+        46137344
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4",
+      "kv": [
+        41943040,
+        4194304,
+        0,
+        46137344
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-397B-A17B",
+      "kv": [
+        62914560,
+        4194304,
+        0,
+        67108864
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "kv": [
+        62914560,
+        4194304,
+        0,
+        67108864
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4",
+      "kv": [
+        62914560,
+        4194304,
+        0,
+        67108864
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP4 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-4B",
+      "kv": [
+        67108864,
+        8388608,
+        0,
+        75497472
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-4B-Base",
+      "kv": [
+        67108864,
+        8388608,
+        0,
+        75497472
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-9B",
+      "kv": [
+        67108864,
+        8388608,
+        0,
+        75497472
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.5-9B-Base",
+      "kv": [
+        67108864,
+        8388608,
+        0,
+        75497472
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.6-27B",
+      "kv": [
+        134217728,
+        8388608,
+        0,
+        142606336
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.6-27B-FP8",
+      "kv": [
+        134217728,
+        8388608,
+        0,
+        142606336
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "kv": [
+        41943040,
+        4194304,
+        0,
+        46137344
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+      "kv": [
+        41943040,
+        4194304,
+        0,
+        46137344
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.8-2.4T-A95B",
+      "kv": [
+        192937984,
+        8388608,
+        0,
+        201326592
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.8-2.4T-A95B-FP8",
+      "kv": [
+        192937984,
+        8388608,
+        0,
+        201326592
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.8-27B",
+      "kv": [
+        134217728,
+        8388608,
+        0,
+        142606336
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.8-27B-FP8",
+      "kv": [
+        134217728,
+        8388608,
+        0,
+        142606336
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP1 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "Qwen/Qwen3.8-Flash-Next",
+      "kv": [
+        56623104,
+        4718592,
+        0,
+        61341696
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "kv": [
+        56623104,
+        4718592,
+        0,
+        61341696
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-R1",
+      "kv": [
+        143917056,
+        2359296,
+        0,
+        146276352
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V3.1",
+      "kv": [
+        143917056,
+        2359296,
+        0,
+        146276352
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V3.2",
+      "kv": [
+        160407552,
+        2629632,
+        0,
+        163037184
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Flash",
+      "kv": [
+        7045120,
+        1048576,
+        0,
+        8093696
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP2 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "kv": [
+        7045120,
+        3145728,
+        0,
+        10190848
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP4 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "kv": [
+        7045120,
+        3145728,
+        0,
+        10190848
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP4 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Pro",
+      "kv": [
+        10084352,
+        1048576,
+        0,
+        11132928
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "kv": [
+        10084352,
+        3145728,
+        0,
+        13230080
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "kv": [
+        1822720,
+        1572864,
+        0,
+        3395584
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Base",
+      "kv": [
+        143917056,
+        0,
+        0,
+        143917056
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Instruct",
+      "kv": [
+        143917056,
+        0,
+        0,
+        143917056
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Instruct-0905",
+      "kv": [
+        143917056,
+        0,
+        0,
+        143917056
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Thinking",
+      "kv": [
+        143917056,
+        0,
+        0,
+        143917056
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "moonshotai/Kimi-K2.5",
+      "kv": [
+        143917056,
+        0,
+        0,
+        143917056
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "moonshotai/Kimi-K2.6",
+      "kv": [
+        143917056,
+        0,
+        0,
+        143917056
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "moonshotai/Kimi-K2.7-Code",
+      "kv": [
+        143917056,
+        0,
+        0,
+        143917056
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "moonshotai/Kimi-K3",
+      "kv": [
+        56623104,
+        0,
+        0,
+        56623104
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "zai-org/GLM-4.7",
+      "kv": [
+        771751936,
+        8388608,
+        0,
+        780140544
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "zai-org/GLM-5",
+      "kv": [
+        205111296,
+        2629632,
+        0,
+        207740928
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "zai-org/GLM-5.1",
+      "kv": [
+        205111296,
+        2629632,
+        0,
+        207740928
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "zai-org/GLM-5.2",
+      "kv": [
+        205111296,
+        2629632,
+        0,
+        207740928
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "zai-org/GLM-5.2-FP8",
+      "kv": [
+        205111296,
+        2629632,
+        0,
+        207740928
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "zai-org/GLM-5.3",
+      "kv": [
+        205111296,
+        2629632,
+        0,
+        207740928
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "zai-org/GLM-5.3-BF16",
+      "kv": [
+        205111296,
+        2629632,
+        0,
+        207740928
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    },
+    {
+      "model": "zai-org/GLM-5.3-Flash",
+      "kv": [
+        26042368,
+        2367488,
+        0,
+        28409856
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "matrix"
+    },
+    {
+      "model": "zai-org/GLM-5.3-Flash-BF16",
+      "kv": [
+        26042368,
+        2367488,
+        0,
+        28409856
+      ],
+      "deployment": "集中式\nA100 80GB SXM\n1 节点 × 8 GPU\nTP8 / PP1 / EP1 / DP1\n成本 LENS: VRAM",
+      "bound": "memory"
+    }
+  ]
+}

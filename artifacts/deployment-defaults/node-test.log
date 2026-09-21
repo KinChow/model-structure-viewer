@@ -1,0 +1,2961 @@
+
+> model-structure-viewer-frontend@0.2.0 test
+> node --test
+
+TAP version 13
+# Subtest: normalizes Hugging Face and ModelScope URLs to repo ids
+ok 1 - normalizes Hugging Face and ModelScope URLs to repo ids
+  ---
+  duration_ms: 190.905458
+  type: 'test'
+  ...
+# Subtest: fetches config with normalized repo URL and encoded revision
+ok 2 - fetches config with normalized repo URL and encoded revision
+  ---
+  duration_ms: 0.734542
+  type: 'test'
+  ...
+# Subtest: source contract: revision defaults and error classes match Python
+ok 3 - source contract: revision defaults and error classes match Python
+  ---
+  duration_ms: 21.518208
+  type: 'test'
+  ...
+# Subtest: HF search failures stay on the public Hub and retain a readable error
+ok 4 - HF search failures stay on the public Hub and retain a readable error
+  ---
+  duration_ms: 2.958875
+  type: 'test'
+  ...
+# Subtest: sorts published models newest first and keeps undated entries stable
+ok 5 - sorts published models newest first and keeps undated entries stable
+  ---
+  duration_ms: 79.988291
+  type: 'test'
+  ...
+# Subtest: formats valid release times and preserves invalid values
+ok 6 - formats valid release times and preserves invalid values
+  ---
+  duration_ms: 1479.702125
+  type: 'test'
+  ...
+# Subtest: sorts models by display name when selected
+ok 7 - sorts models by display name when selected
+  ---
+  duration_ms: 30.88825
+  type: 'test'
+  ...
+# Subtest: profile selection and GDN/KDA dtype are implementation-specific; explicit config wins
+ok 8 - profile selection and GDN/KDA dtype are implementation-specific; explicit config wins
+  ---
+  duration_ms: 597.69075
+  type: 'test'
+  ...
+# Subtest: DSA explicit index and FP4 dtype are unaffected by fallback; plain cache changes
+ok 9 - DSA explicit index and FP4 dtype are unaffected by fallback; plain cache changes
+  ---
+  duration_ms: 6.337917
+  type: 'test'
+  ...
+# Subtest: roofline state traffic uses the same profile dtype formula as residency
+ok 10 - roofline state traffic uses the same profile dtype formula as residency
+  ---
+  duration_ms: 253.706834
+  type: 'test'
+  ...
+# Subtest: one explicit shared DSpark pool is counted once regardless of visit order
+ok 11 - one explicit shared DSpark pool is counted once regardless of visit order
+  ---
+  duration_ms: 18.07025
+  type: 'test'
+  ...
+# Subtest: private MTP KV, state and buffers drive Fit, Max Context and both PD sides
+ok 12 - private MTP KV, state and buffers drive Fit, Max Context and both PD sides
+  ---
+  duration_ms: 217.004833
+  type: 'test'
+  ...
+# Subtest: uneven PP places cache by layer range and private draft on last stage
+ok 13 - uneven PP places cache by layer range and private draft on last stage
+  ---
+  duration_ms: 67.811125
+  type: 'test'
+  ...
+# Subtest: runtime DSpark retains private bounded storage, not a fake shared zero or linear context multiplier
+ok 14 - runtime DSpark retains private bounded storage, not a fake shared zero or linear context multiplier
+  ---
+  duration_ms: 7.797166
+  type: 'test'
+  ...
+# Subtest: all catalog models x profiles reconcile resident roll-up and single-card projection
+ok 15 - all catalog models x profiles reconcile resident roll-up and single-card projection
+  ---
+  duration_ms: 387201.949417
+  type: 'test'
+  ...
+# Subtest: 无 checkpoint 和节点权重时不编造闭式容量
+ok 16 - 无 checkpoint 和节点权重时不编造闭式容量
+  ---
+  duration_ms: 260.11125
+  type: 'test'
+  ...
+# Subtest: 权重 what-if 只在显式指定时覆盖默认字节数
+ok 17 - 权重 what-if 只在显式指定时覆盖默认字节数
+  ---
+  duration_ms: 70.502666
+  type: 'test'
+  ...
+# Subtest: 量化配置进入图声明容量并明确标记来源
+ok 18 - 量化配置进入图声明容量并明确标记来源
+  ---
+  duration_ms: 93.48225
+  type: 'test'
+  ...
+# Subtest: deployment recommendation memory shares the Cost accounting entry point
+ok 19 - deployment recommendation memory shares the Cost accounting entry point
+  ---
+  duration_ms: 15.74575
+  type: 'test'
+  ...
+# Subtest: KV bytes 使用用户可调假设，不计入无来源常数
+ok 20 - KV bytes 使用用户可调假设，不计入无来源常数
+  ---
+  duration_ms: 432.810834
+  type: 'test'
+  ...
+# Subtest: roofline 使用用户提供的效率因子
+ok 21 - roofline 使用用户提供的效率因子
+  ---
+  duration_ms: 2.226875
+  type: 'test'
+  ...
+# Subtest: bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁免除外）
+ok 22 - bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁免除外）
+  ---
+  duration_ms: 37892.94275
+  type: 'test'
+  ...
+# Subtest: NVIDIA 公开芯片带 TF32 dense 行，且 fp32 < tf32 < bf16（防单位错）
+ok 23 - NVIDIA 公开芯片带 TF32 dense 行，且 fp32 < tf32 < bf16（防单位错）
+  ---
+  duration_ms: 28.569666
+  type: 'test'
+  ...
+# Subtest: chipRates 以 dtype=tf32 解析矩阵费率（peak_flops·η/2）
+ok 24 - chipRates 以 dtype=tf32 解析矩阵费率（peak_flops·η/2）
+  ---
+  duration_ms: 8.918292
+  type: 'test'
+  ...
+# Subtest: 手工芯片表单透传 tf32Tflops
+ok 25 - 手工芯片表单透传 tf32Tflops
+  ---
+  duration_ms: 0.538792
+  type: 'test'
+  ...
+# Subtest: F11 TP ring all-reduce 每层两次时包含 2×(TP-1)/TP 系数
+ok 26 - F11 TP ring all-reduce 每层两次时包含 2×(TP-1)/TP 系数
+  ---
+  duration_ms: 59.4535
+  type: 'test'
+  ...
+# Subtest: F12 EP all-to-all 使用 expertsPerToken 而不是专家总数
+ok 27 - F12 EP all-to-all 使用 expertsPerToken 而不是专家总数
+  ---
+  duration_ms: 1.491375
+  type: 'test'
+  ...
+# Subtest: PP P2P 按相邻 stage 边界计算
+ok 28 - PP P2P 按相邻 stage 边界计算
+  ---
+  duration_ms: 5.855458
+  type: 'test'
+  ...
+# Subtest: 节点路径可识别 TP 与 EP 通信模块
+ok 29 - 节点路径可识别 TP 与 EP 通信模块
+  ---
+  duration_ms: 29.9185
+  type: 'test'
+  ...
+# Subtest: 显式通信语义不依赖算子路径命名
+ok 30 - 显式通信语义不依赖算子路径命名
+  ---
+  duration_ms: 41.086459
+  type: 'test'
+  ...
+# Subtest: EP=1 不产生 all-to-all，DP-attention 不产生 attention TP all-reduce
+ok 31 - EP=1 不产生 all-to-all，DP-attention 不产生 attention TP all-reduce
+  ---
+  duration_ms: 2.068333
+  type: 'test'
+  ...
+# Subtest: F15 PD KV 传输量按 decode 侧 GQA 布局计算
+ok 32 - F15 PD KV 传输量按 decode 侧 GQA 布局计算
+  ---
+  duration_ms: 0.76375
+  type: 'test'
+  ...
+# Subtest: PD KV 传输量按 decode 侧 MLA 布局复制
+ok 33 - PD KV 传输量按 decode 侧 MLA 布局复制
+  ---
+  duration_ms: 0.548666
+  type: 'test'
+  ...
+# Subtest: PD transfer includes request-scoped KDA state
+ok 34 - PD transfer includes request-scoped KDA state
+  ---
+  duration_ms: 2.968958
+  type: 'test'
+  ...
+# Subtest: PD 链路带宽取两侧可用链路的较小值
+ok 35 - PD 链路带宽取两侧可用链路的较小值
+  ---
+  duration_ms: 13.208042
+  type: 'test'
+  ...
+# Subtest: PD 两侧布局不同只标记重排，不估算重排开销
+ok 36 - PD 两侧布局不同只标记重排，不估算重排开销
+  ---
+  duration_ms: 0.602667
+  type: 'test'
+  ...
+# Subtest: 通信汇总包含重复层节点通信和 PP 边界通信
+ok 37 - 通信汇总包含重复层节点通信和 PP 边界通信
+  ---
+  duration_ms: 24.747709
+  type: 'test'
+  ...
+# Subtest: 通信汇总不重复计算父列表和范围子节点 repeat
+ok 38 - 通信汇总不重复计算父列表和范围子节点 repeat
+  ---
+  duration_ms: 4.050375
+  type: 'test'
+  ...
+# Subtest: 通信汇总按 Graph IR 节点计算（root 入参已退役）
+ok 39 - 通信汇总按 Graph IR 节点计算（root 入参已退役）
+  ---
+  duration_ms: 0.323
+  type: 'test'
+  ...
+# Subtest: P10：无 EP 但 dp>1 时 dispatch/combine 触发 all-to-all（DP-shards-experts）
+ok 40 - P10：无 EP 但 dp>1 时 dispatch/combine 触发 all-to-all（DP-shards-experts）
+  ---
+  duration_ms: 0.137
+  type: 'test'
+  ...
+# Subtest: P10：PD 传输时间 = per-rank bytes / 链路带宽（Q7②）
+ok 41 - P10：PD 传输时间 = per-rank bytes / 链路带宽（Q7②）
+  ---
+  duration_ms: 0.150375
+  type: 'test'
+  ...
+# Subtest: shared-expert fusion 默认关，仅显式 enforce 时改 all-to-all 字节
+ok 42 - shared-expert fusion 默认关，仅显式 enforce 时改 all-to-all 字节
+  ---
+  duration_ms: 0.35525
+  type: 'test'
+  ...
+# Subtest: planCommunicationBytes preserves option > camel plan > snake plan > off precedence
+ok 43 - planCommunicationBytes preserves option > camel plan > snake plan > off precedence
+  ---
+  duration_ms: 6.759417
+  type: 'test'
+  ...
+# Subtest: packed qweight is unknown without logical shape metadata
+ok 44 - packed qweight is unknown without logical shape metadata
+  ---
+  duration_ms: 42.221375
+  type: 'test'
+  ...
+# Subtest: unknown linear MACs remain unknown in model totals
+ok 45 - unknown linear MACs remain unknown in model totals
+  ---
+  duration_ms: 109.723125
+  type: 'test'
+  ...
+# Subtest: checkpoint skeleton linear leaves contribute to model totals
+ok 46 - checkpoint skeleton linear leaves contribute to model totals
+  ---
+  duration_ms: 32.16025
+  type: 'test'
+  ...
+# Subtest: template linear operators derive MACs from numeric tensor shapes
+ok 47 - template linear operators derive MACs from numeric tensor shapes
+  ---
+  duration_ms: 162.198416
+  type: 'test'
+  ...
+# Subtest: 二维专家投影按逻辑输入输出宽度估算 MACs
+ok 48 - 二维专家投影按逻辑输入输出宽度估算 MACs
+  ---
+  duration_ms: 0.366375
+  type: 'test'
+  ...
+# Subtest: 节点权重走 weightMatrices × resident，不依赖 checkpoint shape
+ok 49 - 节点权重走 weightMatrices × resident，不依赖 checkpoint shape
+  ---
+  duration_ms: 0.763875
+  type: 'test'
+  ...
+# Subtest: MTP repeat=0 仍计入驻留权重
+ok 50 - MTP repeat=0 仍计入驻留权重
+  ---
+  duration_ms: 0.544291
+  type: 'test'
+  ...
+# Subtest: 父节点 lens 可以汇总叶子成本，但模型总量不重复计费
+ok 51 - 父节点 lens 可以汇总叶子成本，但模型总量不重复计费
+  ---
+  duration_ms: 0.384917
+  type: 'test'
+  ...
+# Subtest: Graph IR 父节点只做汇总，不能把父级 attention 再计一次
+ok 52 - Graph IR 父节点只做汇总，不能把父级 attention 再计一次
+  ---
+  duration_ms: 141.733125
+  type: 'test'
+  ...
+# Subtest: 父有 counts 用父、子孙不进账（§2.4 计费主语）
+ok 53 - 父有 counts 用父、子孙不进账（§2.4 计费主语）
+  ---
+  duration_ms: 11.801583
+  type: 'test'
+  ...
+# Subtest: 参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度公式
+ok 54 - 参数无关叶节点不计入 MACs，KDA state 和短卷积保留维度公式
+  ---
+  duration_ms: 31.885333
+  type: 'test'
+  ...
+# Subtest: 模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs
+ok 55 - 模板 MoE expert 叶节点按活跃专家和逻辑宽度估算 FFN MACs
+  ---
+  duration_ms: 0.549125
+  type: 'test'
+  ...
+# Subtest: F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1
+ok 56 - F8 Linear MACs 区分 Prefill 的 B×T 与 Decode 的 B×1
+  ---
+  duration_ms: 0.330666
+  type: 'test'
+  ...
+# Subtest: F9 Attention 打分核走叶 operator_id，prefill 因果三角、decode 全长
+ok 57 - F9 Attention 打分核走叶 operator_id，prefill 因果三角、decode 全长
+  ---
+  duration_ms: 0.203417
+  type: 'test'
+  ...
+# Subtest: Qwen3.5 GDN 递推叶走 gated_delta_attention，不是容器融合公式
+ok 58 - Qwen3.5 GDN 递推叶走 gated_delta_attention，不是容器融合公式
+  ---
+  duration_ms: 21.271541
+  type: 'test'
+  ...
+# Subtest: MiniMax M3 稀疏打分核走叶，selected 夹可见长度
+ok 59 - MiniMax M3 稀疏打分核走叶，selected 夹可见长度
+  ---
+  duration_ms: 10.300792
+  type: 'test'
+  ...
+# Subtest: F16 MoE expert fraction 逐层应用且不影响 dense 层
+ok 60 - F16 MoE expert fraction 逐层应用且不影响 dense 层
+  ---
+  duration_ms: 146.974792
+  type: 'test'
+  ...
+# Subtest: F16 真实专家路径在缺少 layerSchedule 时仍使用活跃比例
+ok 61 - F16 真实专家路径在缺少 layerSchedule 时仍使用活跃比例
+  ---
+  duration_ms: 0.717375
+  type: 'test'
+  ...
+# Subtest: layernorm 名称包含 attention 时不应误判为 attention 核心
+ok 62 - layernorm 名称包含 attention 时不应误判为 attention 核心
+  ---
+  duration_ms: 0.161416
+  type: 'test'
+  ...
+# Subtest: 父节点和范围子节点同时有 repeat 时只计算一次范围倍数
+ok 63 - 父节点和范围子节点同时有 repeat 时只计算一次范围倍数
+  ---
+  duration_ms: 0.323
+  type: 'test'
+  ...
+# Subtest: V3 用户可调 visionTokens：vision 域随 tokens 线性变化，文本域不变
+ok 64 - V3 用户可调 visionTokens：vision 域随 tokens 线性变化，文本域不变
+  ---
+  duration_ms: 42.049333
+  type: 'test'
+  ...
+# Subtest: 子树与模型合计保留 kvRead/indexRead（Accelergy action 名不丢）
+ok 65 - 子树与模型合计保留 kvRead/indexRead（Accelergy action 名不丢）
+  ---
+  duration_ms: 6.475708
+  type: 'test'
+  ...
+# Subtest: 混合 dtype：矩阵时间 = bf16 段/312 + tf32 段/156（手算）
+ok 66 - 混合 dtype：矩阵时间 = bf16 段/312 + tf32 段/156（手算）
+  ---
+  duration_ms: 82.953375
+  type: 'test'
+  ...
+# Subtest: 无 tf32 桶：行为与旧口径逐位一致（回归守卫）
+ok 67 - 无 tf32 桶：行为与旧口径逐位一致（回归守卫）
+  ---
+  duration_ms: 375.049125
+  type: 'test'
+  ...
+# Subtest: 芯片无 tf32 行：整段回退全局费率，不制造 missing
+ok 68 - 芯片无 tf32 行：整段回退全局费率，不制造 missing
+  ---
+  duration_ms: 55.3635
+  type: 'test'
+  ...
+# Subtest: computeDtypes.tf32 与扁平 matrixTf32 同口径（aggregate 生产形状）
+ok 69 - computeDtypes.tf32 与扁平 matrixTf32 同口径（aggregate 生产形状）
+  ---
+  duration_ms: 1.515833
+  type: 'test'
+  ...
+# Subtest: 给定计划能得到逐 PP stage 的 fit 输入
+ok 70 - 给定计划能得到逐 PP stage 的 fit 输入
+  ---
+  duration_ms: 264.590084
+  type: 'test'
+  ...
+# Subtest: 完整芯片规格开启对应能力
+ok 71 - 完整芯片规格开启对应能力
+  ---
+  duration_ms: 65.457458
+  type: 'test'
+  ...
+# Subtest: 缺显存带宽时只禁用 memory-bound，不填估算值
+ok 72 - 缺显存带宽时只禁用 memory-bound，不填估算值
+  ---
+  duration_ms: 0.7
+  type: 'test'
+  ...
+# Subtest: 缺跨节点带宽时保留能力并给出偏乐观警告
+ok 73 - 缺跨节点带宽时保留能力并给出偏乐观警告
+  ---
+  duration_ms: 0.5095
+  type: 'test'
+  ...
+# Subtest: 缺显存容量时禁用 fit 和 max_context
+ok 74 - 缺显存容量时禁用 fit 和 max_context
+  ---
+  duration_ms: 0.153917
+  type: 'test'
+  ...
+# Subtest: 芯片条目必须有可追溯来源
+ok 75 - 芯片条目必须有可追溯来源
+  ---
+  duration_ms: 29.327417
+  type: 'test'
+  ...
+# Subtest: 缺 vector_flops/sfu_ops 时对应单元能力关闭并提示补充路径
+ok 76 - 缺 vector_flops/sfu_ops 时对应单元能力关闭并提示补充路径
+  ---
+  duration_ms: 8.295
+  type: 'test'
+  ...
+# Subtest: 声明 sfu→vector 语义映射且向量吞吐在场时不再把 sfu_ops 记为缺项
+ok 77 - 声明 sfu→vector 语义映射且向量吞吐在场时不再把 sfu_ops 记为缺项
+  ---
+  duration_ms: 0.667666
+  type: 'test'
+  ...
+# Subtest: 手工条目量级偏离所有公开卡超过 10 倍时给出双语单位警告（旁路 C）
+ok 78 - 手工条目量级偏离所有公开卡超过 10 倍时给出双语单位警告（旁路 C）
+  ---
+  duration_ms: 493.353833
+  type: 'test'
+  ...
+# Subtest: tensorDims 返回数值形状，自由维用 -1 占位
+ok 79 - tensorDims 返回数值形状，自由维用 -1 占位
+  ---
+  duration_ms: 276.212958
+  type: 'test'
+  ...
+# Subtest: kvHeads 缺省时回退 attentionHeads；valueHeadDim 缺省时回退 headDim
+ok 80 - kvHeads 缺省时回退 attentionHeads；valueHeadDim 缺省时回退 headDim
+  ---
+  duration_ms: 0.319667
+  type: 'test'
+  ...
+# Subtest: 缺字段（无 experts）→ 对应位为 null/undefined，不产生伪数值
+ok 81 - 缺字段（无 experts）→ 对应位为 null/undefined，不产生伪数值
+  ---
+  duration_ms: 34.686708
+  type: 'test'
+  ...
+# Subtest: tensorShapes 展示串与旧版逐字一致
+ok 82 - tensorShapes 展示串与旧版逐字一致
+  ---
+  duration_ms: 7.343208
+  type: 'test'
+  ...
+# Subtest: 本地覆盖按字段深合并，不丢失公开规格
+ok 83 - 本地覆盖按字段深合并，不丢失公开规格
+  ---
+  duration_ms: 162.464334
+  type: 'test'
+  ...
+# Subtest: 本地新增芯片自动标记为 local
+ok 84 - 本地新增芯片自动标记为 local
+  ---
+  duration_ms: 0.497166
+  type: 'test'
+  ...
+# Subtest: 本地配置 404 按可选空配置处理
+ok 85 - 本地配置 404 按可选空配置处理
+  ---
+  duration_ms: 0.700084
+  type: 'test'
+  ...
+# Subtest: 静态站点 HTML fallback 按文件不存在处理
+ok 86 - 静态站点 HTML fallback 按文件不存在处理
+  ---
+  duration_ms: 0.245542
+  type: 'test'
+  ...
+# Subtest: 本地配置支持 {chips: []} 并校验基本字段
+ok 87 - 本地配置支持 {chips: []} 并校验基本字段
+  ---
+  duration_ms: 0.308334
+  type: 'test'
+  ...
+# Subtest: 同 id 本地覆盖后保留 local 标记
+ok 88 - 同 id 本地覆盖后保留 local 标记
+  ---
+  duration_ms: 0.148458
+  type: 'test'
+  ...
+# Subtest: 本地配置非 404 失败抛 catalog code
+ok 89 - 本地配置非 404 失败抛 catalog code
+  ---
+  duration_ms: 250.170792
+  type: 'test'
+  ...
+# Subtest: 本地配置形状错误抛 catalog code
+ok 90 - 本地配置形状错误抛 catalog code
+  ---
+  duration_ms: 0.483167
+  type: 'test'
+  ...
+# Subtest: 公开芯片允许只覆盖单个字段
+ok 91 - 公开芯片允许只覆盖单个字段
+  ---
+  duration_ms: 1.328958
+  type: 'test'
+  ...
+# Subtest: 手动芯片输入转换为内部 SI 单位
+ok 92 - 手动芯片输入转换为内部 SI 单位
+  ---
+  duration_ms: 50.833833
+  type: 'test'
+  ...
+# Subtest: 手动芯片拒绝空名称和非正数规格
+ok 93 - 手动芯片拒绝空名称和非正数规格
+  ---
+  duration_ms: 20.282708
+  type: 'test'
+  ...
+# Subtest: 手工条目带 field_sources：已填字段逐项标注 user-input（旁路 C）
+ok 94 - 手工条目带 field_sources：已填字段逐项标注 user-input（旁路 C）
+  ---
+  duration_ms: 289.277292
+  type: 'test'
+  ...
+# Subtest: 手工条目来源可由表单 URL 覆盖 user-input，未填字段不登记来源
+ok 95 - 手工条目来源可由表单 URL 覆盖 user-input，未填字段不登记来源
+  ---
+  duration_ms: 2.364292
+  type: 'test'
+  ...
+# Subtest: F3 KV cache 使用 K/V 两份张量和 KV heads
+ok 96 - F3 KV cache 使用 K/V 两份张量和 KV heads
+  ---
+  duration_ms: 551.013667
+  type: 'test'
+  ...
+# Subtest: F4 MLA KV 使用压缩 latent 与 rotary 分量
+ok 97 - F4 MLA KV 使用压缩 latent 与 rotary 分量
+  ---
+  duration_ms: 1.976
+  type: 'test'
+  ...
+# Subtest: memory breakdown exposes token KV and request state separately
+ok 98 - memory breakdown exposes token KV and request state separately
+  ---
+  duration_ms: 8.127875
+  type: 'test'
+  ...
+# Subtest: KDA recurrent and convolution state is request-scoped, not token KV
+ok 99 - KDA recurrent and convolution state is request-scoped, not token KV
+  ---
+  duration_ms: 18.534375
+  type: 'test'
+  ...
+# Subtest: Qwen3.5 GDN state uses separate key/value heads and dimensions
+ok 100 - Qwen3.5 GDN state uses separate key/value heads and dimensions
+  ---
+  duration_ms: 0.535792
+  type: 'test'
+  ...
+# Subtest: MiniMax M3 sparse layers include index KV side cache
+ok 101 - MiniMax M3 sparse layers include index KV side cache
+  ---
+  duration_ms: 0.44575
+  type: 'test'
+  ...
+# Subtest: offline weight fallback multiplies folded layer repeats
+ok 102 - offline weight fallback multiplies folded layer repeats
+  ---
+  duration_ms: 43.032042
+  type: 'test'
+  ...
+# Subtest: declaredElementsForHeader 按 checkpoint MTP key 计数，不近邻总量
+ok 103 - declaredElementsForHeader 按 checkpoint MTP key 计数，不近邻总量
+  ---
+  duration_ms: 1.177458
+  type: 'test'
+  ...
+# Subtest: empty parameterCount falls back to node weights
+ok 104 - empty parameterCount falls back to node weights
+  ---
+  duration_ms: 43.861833
+  type: 'test'
+  ...
+# Subtest: 动态数值 shape 分别解析普通张量和 attention 矩阵
+ok 105 - 动态数值 shape 分别解析普通张量和 attention 矩阵
+  ---
+  duration_ms: 53.812542
+  type: 'test'
+  ...
+# Subtest: 未知视觉输入尺寸不被当作文本 sequence
+ok 106 - 未知视觉输入尺寸不被当作文本 sequence
+  ---
+  duration_ms: 2.588625
+  type: 'test'
+  ...
+# Subtest: draftKvBytesPerToken：无草稿 cache 叶返回 0（含 dsv4 未实装 draft attn）
+ok 107 - draftKvBytesPerToken：无草稿 cache 叶返回 0（含 dsv4 未实装 draft attn）
+  ---
+  duration_ms: 2.166583
+  type: 'test'
+  ...
+# Subtest: draftKvBytesPerToken：MLA 草稿层从图读取，draftTokens 叠加 verify 窗口
+ok 108 - draftKvBytesPerToken：MLA 草稿层从图读取，draftTokens 叠加 verify 窗口
+  ---
+  duration_ms: 10.192625
+  type: 'test'
+  ...
+# Subtest: draftKvBytesPerToken：压缩(dsv4) draft 叶按逐 dtype 边际口径
+ok 109 - draftKvBytesPerToken：压缩(dsv4) draft 叶按逐 dtype 边际口径
+  ---
+  duration_ms: 0.603666
+  type: 'test'
+  ...
+# Subtest: draftWeightBytes：草稿子树权重按图占比拆分（含 total 摊分）
+ok 110 - draftWeightBytes：草稿子树权重按图占比拆分（含 total 摊分）
+  ---
+  duration_ms: 212.407167
+  type: 'test'
+  ...
+# Subtest: draftWeightBytes：无 mtp/dspark 子树返回 0（主干逐字节不变）
+ok 111 - draftWeightBytes：无 mtp/dspark 子树返回 0（主干逐字节不变）
+  ---
+  duration_ms: 0.248584
+  type: 'test'
+  ...
+# Subtest: framework accounting keeps private draft KV separate and shared pools unique
+ok 112 - framework accounting keeps private draft KV separate and shared pools unique
+  ---
+  duration_ms: 39.326083
+  type: 'test'
+  ...
+# Subtest: 并行计划校验 TP×PP×DP 与 world_size
+ok 113 - 并行计划校验 TP×PP×DP 与 world_size
+  ---
+  duration_ms: 167.899375
+  type: 'test'
+  ...
+# Subtest: F5 GQA 的 KV 分片因子为 min(TP, kv_heads)
+ok 114 - F5 GQA 的 KV 分片因子为 min(TP, kv_heads)
+  ---
+  duration_ms: 2.314959
+  type: 'test'
+  ...
+# Subtest: F6 MLA 的 KV 在 TP 下全量复制
+ok 115 - F6 MLA 的 KV 在 TP 下全量复制
+  ---
+  duration_ms: 1.996416
+  type: 'test'
+  ...
+# Subtest: F7 DP-attention 下每个 rank 持有完整 KV
+ok 116 - F7 DP-attention 下每个 rank 持有完整 KV
+  ---
+  duration_ms: 0.315625
+  type: 'test'
+  ...
+# Subtest: KDA request state follows attention TP and is replicated under DP-attention
+ok 117 - KDA request state follows attention TP and is replicated under DP-attention
+  ---
+  duration_ms: 6.153125
+  type: 'test'
+  ...
+# Subtest: 权重按声明 class 选择 TP/EP/复制投影；无声明带权叶 = unknown（P5）
+ok 118 - 权重按声明 class 选择 TP/EP/复制投影；无声明带权叶 = unknown（P5）
+  ---
+  duration_ms: 2.611708
+  type: 'test'
+  ...
+# Subtest: DP-attention 下 attention 权重复制，MLP 仍按 TP 切
+ok 119 - DP-attention 下 attention 权重复制，MLP 仍按 TP 切
+  ---
+  duration_ms: 27.988875
+  type: 'test'
+  ...
+# Subtest: 节点 roofline 成本按声明 class 投影到单卡（P5：声明式）
+ok 120 - 节点 roofline 成本按声明 class 投影到单卡（P5：声明式）
+  ---
+  duration_ms: 63.025709
+  type: 'test'
+  ...
+# Subtest: PP 层归属和逐 stage 投影返回结构
+ok 121 - PP 层归属和逐 stage 投影返回结构
+  ---
+  duration_ms: 91.130917
+  type: 'test'
+  ...
+# Subtest: PD 双 plan 分别校验并保留两侧配置
+ok 122 - PD 双 plan 分别校验并保留两侧配置
+  ---
+  duration_ms: 27.244
+  type: 'test'
+  ...
+# Subtest: F14 按节点路径分配 PP stage，首尾模块不平均摊薄
+ok 123 - F14 按节点路径分配 PP stage，首尾模块不平均摊薄
+  ---
+  duration_ms: 40.456958
+  type: 'test'
+  ...
+# Subtest: projectNodePlan walks Graph IR nodes with declared ranges
+ok 124 - projectNodePlan walks Graph IR nodes with declared ranges
+  ---
+  duration_ms: 60.689375
+  type: 'test'
+  ...
+# Subtest: PP 按 stage 层数分配 KV 而不是每个 stage 复制全量
+ok 125 - PP 按 stage 层数分配 KV 而不是每个 stage 复制全量
+  ---
+  duration_ms: 48.387917
+  type: 'test'
+  ...
+# Subtest: PP 按实际 linear-attention 层分配 KDA state
+ok 126 - PP 按实际 linear-attention 层分配 KDA state
+  ---
+  duration_ms: 68.208833
+  type: 'test'
+  ...
+# Subtest: PP 汇总不重复计算父列表和范围子节点 repeat
+ok 127 - PP 汇总不重复计算父列表和范围子节点 repeat
+  ---
+  duration_ms: 1.759208
+  type: 'test'
+  ...
+# Subtest: EP 返回专家权重平均值和最坏值区间
+ok 128 - EP 返回专家权重平均值和最坏值区间
+  ---
+  duration_ms: 42.532334
+  type: 'test'
+  ...
+# Subtest: stage 权重返回 EP 平均/最坏两种投影（P5：声明驱动）
+ok 129 - stage 权重返回 EP 平均/最坏两种投影（P5：声明驱动）
+  ---
+  duration_ms: 5.458208
+  type: 'test'
+  ...
+# Subtest: PD fit 分别按两侧芯片容量判定
+ok 130 - PD fit 分别按两侧芯片容量判定
+  ---
+  duration_ms: 1.550458
+  type: 'test'
+  ...
+# Subtest: PD fit accepts independent prefill and decode KV footprints
+ok 131 - PD fit accepts independent prefill and decode KV footprints
+  ---
+  duration_ms: 0.3565
+  type: 'test'
+  ...
+# Subtest: 计划最大上下文由最紧张 stage 决定
+ok 132 - 计划最大上下文由最紧张 stage 决定
+  ---
+  duration_ms: 0.370792
+  type: 'test'
+  ...
+# Subtest: Fit / card 读 stage.totalBytes，不拿未分片总量比单卡
+ok 133 - Fit / card 读 stage.totalBytes，不拿未分片总量比单卡
+  ---
+  duration_ms: 9.970625
+  type: 'test'
+  ...
+# Subtest: 权重 what-if 比例同步应用到节点级 stage 投影
+ok 134 - 权重 what-if 比例同步应用到节点级 stage 投影
+  ---
+  duration_ms: 0.863583
+  type: 'test'
+  ...
+# Subtest: small model defaults to the smallest fitting 1/2/4/8 card tier
+ok 135 - small model defaults to the smallest fitting 1/2/4/8 card tier
+  ---
+  duration_ms: 428.744125
+  type: 'test'
+  ...
+# Subtest: model that needs the full single node defaults to TP8
+ok 136 - model that needs the full single node defaults to TP8
+  ---
+  duration_ms: 29.204042
+  type: 'test'
+  ...
+# Subtest: model that still cannot fit keeps the one-node TP8 default and reports no fit
+ok 137 - model that still cannot fit keeps the one-node TP8 default and reports no fit
+  ---
+  duration_ms: 0.744042
+  type: 'test'
+  ...
+# Subtest: unknown capacity or weight accounting is not a proved one-card fit
+ok 138 - unknown capacity or weight accounting is not a proved one-card fit
+  ---
+  duration_ms: 36.652083
+  type: 'test'
+  ...
+# Subtest: main, draft, shared KV, state and buffers all affect the default tier
+ok 139 - main, draft, shared KV, state and buffers all affect the default tier
+  ---
+  duration_ms: 268.470291
+  type: 'test'
+  ...
+# Subtest: MLA KV replication cannot be hidden by dividing total bytes by TP
+ok 140 - MLA KV replication cannot be hidden by dividing total bytes by TP
+  ---
+  duration_ms: 19.759417
+  type: 'test'
+  ...
+# Subtest: vLLM and SGLang MoE defaults keep EP disabled and valid TP-only plans
+ok 141 - vLLM and SGLang MoE defaults keep EP disabled and valid TP-only plans
+  ---
+  duration_ms: 6.974542
+  type: 'test'
+  ...
+# Subtest: PD 摘要使用 decode 侧 TP 计算每 rank 传输量
+ok 142 - PD 摘要使用 decode 侧 TP 计算每 rank 传输量
+  ---
+  duration_ms: 68.958459
+  type: 'test'
+  ...
+# Subtest: PD 双侧计划支持 PP/EP/DP 字段
+ok 143 - PD 双侧计划支持 PP/EP/DP 字段
+  ---
+  duration_ms: 41.633375
+  type: 'test'
+  ...
+# Subtest: 公开芯片目录每条都有来源且 id 唯一
+ok 144 - 公开芯片目录每条都有来源且 id 唯一
+  ---
+  duration_ms: 182.7175
+  type: 'test'
+  ...
+# Subtest: 公开芯片目录保留独立 FP32 峰值
+ok 145 - 公开芯片目录保留独立 FP32 峰值
+  ---
+  duration_ms: 17.367541
+  type: 'test'
+  ...
+# Subtest: 公开芯片目录不使用二进制 GiB 冒充厂商十进制 GB
+ok 146 - 公开芯片目录不使用二进制 GiB 冒充厂商十进制 GB
+  ---
+  duration_ms: 0.372458
+  type: 'test'
+  ...
+# Subtest: H100 稠密算力保留由官方稀疏峰值换算的说明
+ok 147 - H100 稠密算力保留由官方稀疏峰值换算的说明
+  ---
+  duration_ms: 0.172667
+  type: 'test'
+  ...
+# Subtest: L40S 使用官方未启用稀疏性的 BF16 与双向 PCIe 数据
+ok 148 - L40S 使用官方未启用稀疏性的 BF16 与双向 PCIe 数据
+  ---
+  duration_ms: 0.167458
+  type: 'test'
+  ...
+# Subtest: 昇腾 910B4 按保守口径入库，无独立 SFU 时声明 sfu→vector 语义映射
+ok 149 - 昇腾 910B4 按保守口径入库，无独立 SFU 时声明 sfu→vector 语义映射
+  ---
+  duration_ms: 35.768041
+  type: 'test'
+  ...
+# Subtest: 芯片 notes 双语：每条中文 notes 都有等长英文 notes_en（无汉字）
+ok 150 - 芯片 notes 双语：每条中文 notes 都有等长英文 notes_en（无汉字）
+  ---
+  duration_ms: 1.04425
+  type: 'test'
+  ...
+# Subtest: fp8 块量化：权重 1B/元素 + scale（ue8m0 1B/块，默认 fp32 4B/块）
+ok 151 - fp8 块量化：权重 1B/元素 + scale（ue8m0 1B/块，默认 fp32 4B/块）
+  ---
+  duration_ms: 100.357208
+  type: 'test'
+  ...
+# Subtest: mxfp8：[1,32] 块，e8m0 scale 1B/块
+ok 152 - mxfp8：[1,32] 块，e8m0 scale 1B/块
+  ---
+  duration_ms: 14.330833
+  type: 'test'
+  ...
+# Subtest: gptq int4：0.5B/元素 + 每组 fp16 scale + int4 qzeros
+ok 153 - gptq int4：0.5B/元素 + 每组 fp16 scale + int4 qzeros
+  ---
+  duration_ms: 2.186417
+  type: 'test'
+  ...
+# Subtest: compressed-tensors w4a16：0.5B/元素 + 每组 fp16 scale（symmetric 无零点）
+ok 154 - compressed-tensors w4a16：0.5B/元素 + 每组 fp16 scale（symmetric 无零点）
+  ---
+  duration_ms: 0.25875
+  type: 'test'
+  ...
+# Subtest: compressed-tensors mxfp4（K3）：0.5B/元素 + e8m0 scale 1B/32 组
+ok 155 - compressed-tensors mxfp4（K3）：0.5B/元素 + e8m0 scale 1B/32 组
+  ---
+  duration_ms: 2.903292
+  type: 'test'
+  ...
+# Subtest: compressed-tensors 的 ignore 数组 = modules_to_not_convert 同义（'re:' 前缀正则）
+ok 156 - compressed-tensors 的 ignore 数组 = modules_to_not_convert 同义（'re:' 前缀正则）
+  ---
+  duration_ms: 12.923792
+  type: 'test'
+  ...
+# Subtest: 未知方案 / 非正形状：返回 null（调用方退回标量）
+ok 157 - 未知方案 / 非正形状：返回 null（调用方退回标量）
+  ---
+  duration_ms: 1.0685
+  type: 'test'
+  ...
+# Subtest: dynamic 排除/包含：'-:' 前缀为排除正则，显式列出为包含，候选路径桥接命名差异
+ok 158 - dynamic 排除/包含：'-:' 前缀为排除正则，显式列出为包含，候选路径桥接命名差异
+  ---
+  duration_ms: 6.592917
+  type: 'test'
+  ...
+# Subtest: modules_to_not_convert 数组：命中即不量化，优先于 dynamic
+ok 159 - modules_to_not_convert 数组：命中即不量化，优先于 dynamic
+  ---
+  duration_ms: 120.466958
+  type: 'test'
+  ...
+# Subtest: logicalElementsFromHeader：GPTQ I32×8 扣 qzeros，scale 的 F16 不计
+ok 160 - logicalElementsFromHeader：GPTQ I32×8 扣 qzeros，scale 的 F16 不计
+  ---
+  duration_ms: 9.010709
+  type: 'test'
+  ...
+# Subtest: logicalElementsFromHeader：MXFP8 跳过 U8 scale，权重 F8 1:1
+ok 161 - logicalElementsFromHeader：MXFP8 跳过 U8 scale，权重 F8 1:1
+  ---
+  duration_ms: 13.581959
+  type: 'test'
+  ...
+# Subtest: logicalElementsFromHeader：FP8 跳过 F8_E8M0 scale，F8_E4M3 1:1
+ok 162 - logicalElementsFromHeader：FP8 跳过 F8_E8M0 scale，F8_E4M3 1:1
+  ---
+  duration_ms: 0.316541
+  type: 'test'
+  ...
+# Subtest: logicalElementsFromHeader：NVFP4 I8×2，跳过 E8M0 scale
+ok 163 - logicalElementsFromHeader：NVFP4 I8×2，跳过 E8M0 scale
+  ---
+  duration_ms: 0.835542
+  type: 'test'
+  ...
+# Subtest: logicalElementsFromHeader：compressed-tensors I32×8，BF16 里扣 scale
+ok 164 - logicalElementsFromHeader：compressed-tensors I32×8，BF16 里扣 scale
+  ---
+  duration_ms: 0.168833
+  type: 'test'
+  ...
+# Subtest: logicalElementsFromHeader：缺 parameterCount 或空桶 → null
+ok 165 - logicalElementsFromHeader：缺 parameterCount 或空桶 → null
+  ---
+  duration_ms: 0.135417
+  type: 'test'
+  ...
+# Subtest: quantizationConfigOf：顶层 / raw 嵌套 / text_config 嵌套（normalized 的 raw.text_config 同样命中）
+ok 166 - quantizationConfigOf：顶层 / raw 嵌套 / text_config 嵌套（normalized 的 raw.text_config 同样命中）
+  ---
+  duration_ms: 0.257458
+  type: 'test'
+  ...
+# Subtest: 效率因子使用文献默认值并支持芯片覆盖
+ok 167 - 效率因子使用文献默认值并支持芯片覆盖
+  ---
+  duration_ms: 214.260542
+  type: 'test'
+  ...
+# Subtest: F17 三类时间各除对应效率因子后取最大值作为 bound
+ok 168 - F17 三类时间各除对应效率因子后取最大值作为 bound
+  ---
+  duration_ms: 31.571084
+  type: 'test'
+  ...
+# Subtest: 缺少带宽或 MACs 时显式 unknown，不伪造分类
+ok 169 - 缺少带宽或 MACs 时显式 unknown，不伪造分类
+  ---
+  duration_ms: 83.840375
+  type: 'test'
+  ...
+# Subtest: 跨节点通信使用 inter_node 带宽与效率因子
+ok 170 - 跨节点通信使用 inter_node 带宽与效率因子
+  ---
+  duration_ms: 9.961417
+  type: 'test'
+  ...
+# Subtest: 只有 memory 时间时不做不完整的 bound 分类
+ok 171 - 只有 memory 时间时不做不完整的 bound 分类
+  ---
+  duration_ms: 0.396083
+  type: 'test'
+  ...
+# Subtest: 存在通信量但缺链路带宽时 bound 为 unknown
+ok 172 - 存在通信量但缺链路带宽时 bound 为 unknown
+  ---
+  duration_ms: 5.343833
+  type: 'test'
+  ...
+# Subtest: W5-2 同一动作向量换卡只走表乘法：时间比 = 费率倒数比
+ok 173 - W5-2 同一动作向量换卡只走表乘法：时间比 = 费率倒数比
+  ---
+  duration_ms: 13.679042
+  type: 'test'
+  ...
+# Subtest: W5-2 softmax 定性分类：prefill 落 memory-bound，矩阵已知零不伪造 compute 主导
+ok 174 - W5-2 softmax 定性分类：prefill 落 memory-bound，矩阵已知零不伪造 compute 主导
+  ---
+  duration_ms: 17.615042
+  type: 'test'
+  ...
+# Subtest: W5-2 sfu 单元参与五路 max
+ok 175 - W5-2 sfu 单元参与五路 max
+  ---
+  duration_ms: 1.542625
+  type: 'test'
+  ...
+# Subtest: all built-in models classify a roofline bound through the aggregate chain
+ok 176 - all built-in models classify a roofline bound through the aggregate chain
+  ---
+  duration_ms: 213230.0805
+  type: 'test'
+  ...
+# Subtest: 单文件：读 header 结构、逐 dtype 参数量、总参数量
+ok 177 - 单文件：读 header 结构、逐 dtype 参数量、总参数量
+  ---
+  duration_ms: 34.641167
+  type: 'test'
+  ...
+# Subtest: 分片：按 index 读多个 shard 并合并
+ok 178 - 分片：按 index 读多个 shard 并合并
+  ---
+  duration_ms: 10.213417
+  type: 'test'
+  ...
+# Subtest: header 长度字段不足 8 字节时报错
+ok 179 - header 长度字段不足 8 字节时报错
+  ---
+  duration_ms: 0.994584
+  type: 'test'
+  ...
+# Subtest: Range 不被支持时拒绝读取完整权重响应
+ok 180 - Range 不被支持时拒绝读取完整权重响应
+  ---
+  duration_ms: 0.38175
+  type: 'test'
+  ...
+# Subtest: 拒绝超过成熟库上限的 safetensors header
+ok 181 - 拒绝超过成熟库上限的 safetensors header
+  ---
+  duration_ms: 0.556
+  type: 'test'
+  ...
+# Subtest: 浏览器本地目录：按 safetensors index 读取分片 header
+ok 182 - 浏览器本地目录：按 safetensors index 读取分片 header
+  ---
+  duration_ms: 14.457167
+  type: 'test'
+  ...
+# Subtest: expertShardDivisor：无 EP 时专家跟 TP 切，DP 也把专家集合 ÷dp 切
+ok 183 - expertShardDivisor：无 EP 时专家跟 TP 切，DP 也把专家集合 ÷dp 切
+  ---
+  duration_ms: 3.747833
+  type: 'test'
+  ...
+# Subtest: expertShardDivisor：EP 启用时每卡持完整专家（不再 TP 内切），除数 = epSize
+ok 184 - expertShardDivisor：EP 启用时每卡持完整专家（不再 TP 内切），除数 = epSize
+  ---
+  duration_ms: 1.019292
+  type: 'test'
+  ...
+# Subtest: expertShardDivisor：TRT-LLM 混合 ETP（每卡 E/moe_ep 个完整专家、再 ÷moe_tp）
+ok 185 - expertShardDivisor：TRT-LLM 混合 ETP（每卡 E/moe_ep 个完整专家、再 ÷moe_tp）
+  ---
+  duration_ms: 21.660375
+  type: 'test'
+  ...
+# Subtest: validatePlan：协议 Q2 专家域闭合 + Q4 无 EP moe_tp=tp + EP=TP×DP 组合校验（P6）
+ok 186 - validatePlan：协议 Q2 专家域闭合 + Q4 无 EP moe_tp=tp + EP=TP×DP 组合校验（P6）
+  ---
+  duration_ms: 1.646708
+  type: 'test'
+  ...
+# Subtest: declaredClassDivisor / declaredWeightBytesPerCard：四类 class 的单卡响应
+ok 187 - declaredClassDivisor / declaredWeightBytesPerCard：四类 class 的单卡响应
+  ---
+  duration_ms: 3.601042
+  type: 'test'
+  ...
+# Subtest: 锚 3 终态：无声明带权叶返回 unknown（不猜归属），零权重叶按复制
+ok 188 - 锚 3 终态：无声明带权叶返回 unknown（不猜归属），零权重叶按复制
+  ---
+  duration_ms: 2.031833
+  type: 'test'
+  ...
+# Subtest: 锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其余÷tp（聚合投影与闭式分解一致）
+ok 189 - 锚 2：M2.7 EP 计划每卡权重 = 专家块÷moe_ep + 复制类 + 其余÷tp（聚合投影与闭式分解一致）
+  ---
+  duration_ms: 438.736709
+  type: 'test'
+  ...
+# Subtest: 锚 2：expertWeightRange 接声明的专家数与组合 setDegree（平均/最坏区间一致）
+ok 190 - 锚 2：expertWeightRange 接声明的专家数与组合 setDegree（平均/最坏区间一致）
+  ---
+  duration_ms: 70.769125
+  type: 'test'
+  ...
+# Subtest: 量化枚举消费 weightMatrices：fp8 下专家矩阵按声明组精确计（含 scale）
+ok 191 - 量化枚举消费 weightMatrices：fp8 下专家矩阵按声明组精确计（含 scale）
+  ---
+  duration_ms: 15.919375
+  type: 'test'
+  ...
+# Subtest: 量化枚举排除语义对声明组同源：modules_to_not_convert 命中即整叶留 bf16 基桶
+ok 192 - 量化枚举排除语义对声明组同源：modules_to_not_convert 命中即整叶留 bf16 基桶
+  ---
+  duration_ms: 84.628333
+  type: 'test'
+  ...
+# Subtest: P6 接缝：UI 输入的 snake_case 计划贯通 validatePlan 与声明分片
+ok 193 - P6 接缝：UI 输入的 snake_case 计划贯通 validatePlan 与声明分片
+  ---
+  duration_ms: 0.761625
+  type: 'test'
+  ...
+# Subtest: resolveFrameworkPlan：vLLM 保留 TP-only，显式 EP 才采用整专家语义
+ok 194 - resolveFrameworkPlan：vLLM 保留 TP-only，显式 EP 才采用整专家语义
+  ---
+  duration_ms: 0.343458
+  type: 'test'
+  ...
+# Subtest: resolveFrameworkPlan(vLLM) 不为 dense 或普通 TP4 注入 MoE 规则
+ok 195 - resolveFrameworkPlan(vLLM) 不为 dense 或普通 TP4 注入 MoE 规则
+  ---
+  duration_ms: 0.126125
+  type: 'test'
+  ...
+# Subtest: resolveFrameworkPlan(vLLM) 显式 EP 与 expertShardDivisor 组合
+ok 196 - resolveFrameworkPlan(vLLM) 显式 EP 与 expertShardDivisor 组合
+  ---
+  duration_ms: 0.099666
+  type: 'test'
+  ...
+# Subtest: resolveFrameworkPlan(vLLM) 显式 EP 启用后使用 TP×DP group
+ok 197 - resolveFrameworkPlan(vLLM) 显式 EP 启用后使用 TP×DP group
+  ---
+  duration_ms: 0.093542
+  type: 'test'
+  ...
+# Subtest: walkStructure applies a parent repeat to ordinary children
+ok 198 - walkStructure applies a parent repeat to ordinary children
+  ---
+  duration_ms: 2.6235
+  type: 'test'
+  ...
+# Subtest: explicit child repeats replace an informational parent repeat
+ok 199 - explicit child repeats replace an informational parent repeat
+  ---
+  duration_ms: 1.318666
+  type: 'test'
+  ...
+# Subtest: residentRepeat keeps MTP repeat=0 resident
+ok 200 - residentRepeat keeps MTP repeat=0 resident
+  ---
+  duration_ms: 0.843459
+  type: 'test'
+  ...
+# Subtest: residentRepeat multiplies a template MTP, not expanded DSpark stages
+ok 201 - residentRepeat multiplies a template MTP, not expanded DSpark stages
+  ---
+  duration_ms: 6.471416
+  type: 'test'
+  ...
+# Subtest: walkStructure consumes Graph IR nodes and preserves repeat multipliers
+ok 202 - walkStructure consumes Graph IR nodes and preserves repeat multipliers
+  ---
+  duration_ms: 81.75975
+  type: 'test'
+  ...
+# Subtest: costSummaryModel：五类时间命名与未知计费计数
+ok 203 - costSummaryModel：五类时间命名与未知计费计数
+  ---
+  duration_ms: 40.463
+  type: 'test'
+  ...
+# Subtest: costByFormulaGroup：按 FORMULAS.group 归并 compute_macs（含 repeat 乘子）并降序
+ok 204 - costByFormulaGroup：按 FORMULAS.group 归并 compute_macs（含 repeat 乘子）并降序
+  ---
+  duration_ms: 52.223958
+  type: 'test'
+  ...
+# Subtest: costByFormulaGroup：compute 未完整时返回空表（不猜构成）
+ok 205 - costByFormulaGroup：compute 未完整时返回空表（不猜构成）
+  ---
+  duration_ms: 0.344791
+  type: 'test'
+  ...
+# Subtest: costSummaryModel：英文文案与 unknown bound
+ok 206 - costSummaryModel：英文文案与 unknown bound
+  ---
+  duration_ms: 20.714958
+  type: 'test'
+  ...
+# Subtest: diagnosticsModel：skeleton-truth 触发未适配 banner，歧义计数
+ok 207 - diagnosticsModel：skeleton-truth 触发未适配 banner，歧义计数
+  ---
+  duration_ms: 115.891041
+  type: 'test'
+  ...
+# Subtest: diagnosticsModel：template+header-truth 视为已适配，无未适配 banner
+ok 208 - diagnosticsModel：template+header-truth 视为已适配，无未适配 banner
+  ---
+  duration_ms: 6.794875
+  type: 'test'
+  ...
+# Subtest: diagnosticsModel：template+truth 无 banner；mergeSemantics 旧键兼容
+ok 209 - diagnosticsModel：template+truth 无 banner；mergeSemantics 旧键兼容
+  ---
+  duration_ms: 0.783667
+  type: 'test'
+  ...
+# Subtest: diagnosticsModel：unsupported 与 warnings 透传（M11-P0-3）
+ok 210 - diagnosticsModel：unsupported 与 warnings 透传（M11-P0-3）
+  ---
+  duration_ms: 0.342417
+  type: 'test'
+  ...
+# Subtest: missingLabelsModel：已知键翻译 + 动态费率键 + 未知键透传
+ok 211 - missingLabelsModel：已知键翻译 + 动态费率键 + 未知键透传
+  ---
+  duration_ms: 465.108917
+  type: 'test'
+  ...
+# Subtest: macsSourcesModel：固定类目顺序 + 零计数省略
+ok 212 - macsSourcesModel：固定类目顺序 + 零计数省略
+  ---
+  duration_ms: 1.143708
+  type: 'test'
+  ...
+# Subtest: checkpointTruthModel：静默切换披露 + 错误透传
+ok 213 - checkpointTruthModel：静默切换披露 + 错误透传
+  ---
+  duration_ms: 146.8855
+  type: 'test'
+  ...
+# Subtest: etaDisclosureModel：显式乐观上界披露
+ok 214 - etaDisclosureModel：显式乐观上界披露
+  ---
+  duration_ms: 53.136208
+  type: 'test'
+  ...
+# Subtest: mtpTensorCount：mtp.{i} 前缀（V4 / MiniMax / Qwen）
+ok 215 - mtpTensorCount：mtp.{i} 前缀（V4 / MiniMax / Qwen）
+  ---
+  duration_ms: 9.252917
+  type: 'test'
+  ...
+# Subtest: mtpTensorCount：越界 layers.{n}（V3 把 MTP 编进层号）
+ok 216 - mtpTensorCount：越界 layers.{n}（V3 把 MTP 编进层号）
+  ---
+  duration_ms: 22.651125
+  type: 'test'
+  ...
+# Subtest: mtpTensorCount：DSpark 的 mtp.{0,1,2} 都计入，主干 layers.40 不计
+ok 217 - mtpTensorCount：DSpark 的 mtp.{0,1,2} 都计入，主干 layers.40 不计
+  ---
+  duration_ms: 0.303166
+  type: 'test'
+  ...
+# Subtest: mtpTensorCount：空声明 / 无张量 → 0
+ok 218 - mtpTensorCount：空声明 / 无张量 → 0
+  ---
+  duration_ms: 0.162625
+  type: 'test'
+  ...
+# Subtest: 空字符串在非 allowEmpty 时回退到 fallback
+ok 219 - 空字符串在非 allowEmpty 时回退到 fallback
+  ---
+  duration_ms: 51.217375
+  type: 'test'
+  ...
+# Subtest: 空字符串在 allowEmpty 时返回 undefined
+ok 220 - 空字符串在 allowEmpty 时返回 undefined
+  ---
+  duration_ms: 35.131917
+  type: 'test'
+  ...
+# Subtest: 低于 min 的值被夹到 min
+ok 221 - 低于 min 的值被夹到 min
+  ---
+  duration_ms: 0.387375
+  type: 'test'
+  ...
+# Subtest: 合法值原样返回并按上界夹取
+ok 222 - 合法值原样返回并按上界夹取
+  ---
+  duration_ms: 14.553458
+  type: 'test'
+  ...
+# Subtest: 非法输入回退到 fallback
+ok 223 - 非法输入回退到 fallback
+  ---
+  duration_ms: 0.238125
+  type: 'test'
+  ...
+# Subtest: 小数在区间内保留
+ok 224 - 小数在区间内保留
+  ---
+  duration_ms: 0.49625
+  type: 'test'
+  ...
+# Subtest: structureStatus explains successful meta introspection
+ok 225 - structureStatus explains successful meta introspection
+  ---
+  duration_ms: 46.858541
+  type: 'test'
+  ...
+# Subtest: structureStatus explains frontend architecture template output
+ok 226 - structureStatus explains frontend architecture template output
+  ---
+  duration_ms: 17.363417
+  type: 'test'
+  ...
+# Subtest: structureStatus reports when checkpoint truth falls back to config
+ok 227 - structureStatus reports when checkpoint truth falls back to config
+  ---
+  duration_ms: 340.586666
+  type: 'test'
+  ...
+# Subtest: structureStatus 区分 checkpoint 骨架真值与模板合并真值
+ok 228 - structureStatus 区分 checkpoint 骨架真值与模板合并真值
+  ---
+  duration_ms: 8.049208
+  type: 'test'
+  ...
+# Subtest: structureStatus English labels contain no Han
+ok 229 - structureStatus English labels contain no Han
+  ---
+  duration_ms: 5.830625
+  type: 'test'
+  ...
+# Subtest: structureStatus explains repaired meta introspection
+ok 230 - structureStatus explains repaired meta introspection
+  ---
+  duration_ms: 2.684916
+  type: 'test'
+  ...
+# Subtest: 三类 evidence 的展示互不相同（§2.2）
+ok 231 - 三类 evidence 的展示互不相同（§2.2）
+  ---
+  duration_ms: 14.734292
+  type: 'test'
+  ...
+# Subtest: tensor 感知宽度：宽度随声明边源张量规模增长且有上界
+ok 232 - tensor 感知宽度：宽度随声明边源张量规模增长且有上界
+  ---
+  duration_ms: 0.297708
+  type: 'test'
+  ...
+# Subtest: module-order 推断边弱于声明边，声明边宽度随张量规模增长
+ok 233 - module-order 推断边弱于声明边，声明边宽度随张量规模增长
+  ---
+  duration_ms: 0.338625
+  type: 'test'
+  ...
+# Subtest: all built-in multi-operator modules use semantic graph edges
+ok 234 - all built-in multi-operator modules use semantic graph edges
+  ---
+  duration_ms: 115847.325916
+  type: 'test'
+  ...
+# Subtest: lens 可将 TP 通信量传入节点 bound 计算
+ok 235 - lens 可将 TP 通信量传入节点 bound 计算
+  ---
+  duration_ms: 25.2205
+  type: 'test'
+  ...
+# Subtest: 芯片对比输出 bound 翻转节点
+ok 236 - 芯片对比输出 bound 翻转节点
+  ---
+  duration_ms: 18.311542
+  type: 'test'
+  ...
+# Subtest: 同卡不同并行计划也可复用 bound 翻转比较
+ok 237 - 同卡不同并行计划也可复用 bound 翻转比较
+  ---
+  duration_ms: 25.428167
+  type: 'test'
+  ...
+# Subtest: 芯片对比只替换芯片并锁定基准计划
+ok 238 - 芯片对比只替换芯片并锁定基准计划
+  ---
+  duration_ms: 0.322375
+  type: 'test'
+  ...
+# Subtest: 方案对比只替换计划并锁定基准芯片
+ok 239 - 方案对比只替换计划并锁定基准芯片
+  ---
+  duration_ms: 0.184709
+  type: 'test'
+  ...
+# Subtest: 收集公式节点路径并保留解释
+ok 240 - 收集公式节点路径并保留解释
+  ---
+  duration_ms: 9.999375
+  type: 'test'
+  ...
+# Subtest: Graph IR formula links use stable node paths
+ok 241 - Graph IR formula links use stable node paths
+  ---
+  duration_ms: 0.28125
+  type: 'test'
+  ...
+# Subtest: 悬停节点关联自身、祖先和后代
+ok 242 - 悬停节点关联自身、祖先和后代
+  ---
+  duration_ms: 21.058875
+  type: 'test'
+  ...
+# Subtest: 悬停节点关联经过它的边
+ok 243 - 悬停节点关联经过它的边
+  ---
+  duration_ms: 0.391208
+  type: 'test'
+  ...
+# Subtest: 图节点聚焦时直接高亮相连的兄弟边
+ok 244 - 图节点聚焦时直接高亮相连的兄弟边
+  ---
+  duration_ms: 0.270791
+  type: 'test'
+  ...
+# Subtest: 图节点聚焦时高亮完整的数据流连通路径
+ok 245 - 图节点聚焦时高亮完整的数据流连通路径
+  ---
+  duration_ms: 26.056167
+  type: 'test'
+  ...
+# Subtest: layoutGraph exposes independent visible nodes and edges
+ok 246 - layoutGraph exposes independent visible nodes and edges
+  ---
+  duration_ms: 62.966458
+  type: 'test'
+  ...
+# Subtest: layoutGraph consumes explicit IR edges without inferring replacements
+ok 247 - layoutGraph consumes explicit IR edges without inferring replacements
+  ---
+  duration_ms: 1.332459
+  type: 'test'
+  ...
+# Subtest: layoutGraph builds the canvas view from Graph IR and ignores stale legacy fields
+ok 248 - layoutGraph builds the canvas view from Graph IR and ignores stale legacy fields
+  ---
+  duration_ms: 0.929666
+  type: 'test'
+  ...
+# Subtest: layoutGraph consumes builder-declared edges without using display names
+ok 249 - layoutGraph consumes builder-declared edges without using display names
+  ---
+  duration_ms: 20.189292
+  type: 'test'
+  ...
+# Subtest: graph view projection preserves hierarchy and node facts
+ok 250 - graph view projection preserves hierarchy and node facts
+  ---
+  duration_ms: 0.373041
+  type: 'test'
+  ...
+# Subtest: ELK lays out the graph without changing stable node paths
+ok 251 - ELK lays out the graph without changing stable node paths
+  ---
+  duration_ms: 11683.435
+  type: 'test'
+  ...
+# Subtest: keeps the output head inside the model compound
+ok 252 - keeps the output head inside the model compound
+  ---
+  duration_ms: 487.03625
+  type: 'test'
+  ...
+# Subtest: 旁挂草稿分支排到主干下方，不与同列主干节点重叠
+ok 253 - 旁挂草稿分支排到主干下方，不与同列主干节点重叠
+  ---
+  duration_ms: 243.633875
+  type: 'test'
+  ...
+# Subtest: 展开容器后相邻模块可见间距不被边框外扩压窄
+ok 254 - 展开容器后相邻模块可见间距不被边框外扩压窄
+  ---
+  duration_ms: 750.013334
+  type: 'test'
+  ...
+# Subtest: 展开的草稿子树完整落在 model 容器 frame 内（不越界）
+ok 255 - 展开的草稿子树完整落在 model 容器 frame 内（不越界）
+  ---
+  duration_ms: 677.138916
+  type: 'test'
+  ...
+# Subtest: layoutGraph adds dataflow edges only when tensor shapes match
+ok 256 - layoutGraph adds dataflow edges only when tensor shapes match
+  ---
+  duration_ms: 32.673708
+  type: 'test'
+  ...
+# Subtest: layoutGraph models MLA as a branched attention graph
+ok 257 - layoutGraph models MLA as a branched attention graph
+  ---
+  duration_ms: 4.870167
+  type: 'test'
+  ...
+# Subtest: ELK keeps all MLA input projections on the first internal layer
+ok 258 - ELK keeps all MLA input projections on the first internal layer
+  ---
+  duration_ms: 851.688916
+  type: 'test'
+  ...
+# Subtest: layoutGraph models MLP as a gated branch instead of a sequential chain
+ok 259 - layoutGraph models MLP as a gated branch instead of a sequential chain
+  ---
+  duration_ms: 50.097667
+  type: 'test'
+  ...
+# Subtest: layoutGraph models MoE routing and combine branches semantically
+ok 260 - layoutGraph models MoE routing and combine branches semantically
+  ---
+  duration_ms: 0.453792
+  type: 'test'
+  ...
+# Subtest: roofline 按动作向量分类 bound（M11-P0-4 迁移到 actions 形状）
+ok 261 - roofline 按动作向量分类 bound（M11-P0-4 迁移到 actions 形状）
+  ---
+  duration_ms: 229.609167
+  type: 'test'
+  ...
+# Subtest: 节点 lens 使用校验后的逐卡并行投影
+ok 262 - 节点 lens 使用校验后的逐卡并行投影
+  ---
+  duration_ms: 126.804
+  type: 'test'
+  ...
+# Subtest: 节点 lens 缺结构时返回 catalog code 而非中文句子
+ok 263 - 节点 lens 缺结构时返回 catalog code 而非中文句子
+  ---
+  duration_ms: 2.823584
+  type: 'test'
+  ...
+# Subtest: 叶子 VRAM 只按声明轴切一次；父 = Σ 子每卡权重 + 自身边界
+ok 264 - 叶子 VRAM 只按声明轴切一次；父 = Σ 子每卡权重 + 自身边界
+  ---
+  duration_ms: 1.911333
+  type: 'test'
+  ...
+# Subtest: exports structure as JSON on the frontend
+ok 265 - exports structure as JSON on the frontend
+  ---
+  duration_ms: 288.420458
+  type: 'test'
+  ...
+# Subtest: exports structure as Mermaid on the frontend
+ok 266 - exports structure as Mermaid on the frontend
+  ---
+  duration_ms: 0.991458
+  type: 'test'
+  ...
+# Subtest: exports structure as DOT on the frontend
+ok 267 - exports structure as DOT on the frontend
+  ---
+  duration_ms: 10.577167
+  type: 'test'
+  ...
+# Subtest: exports Graph IR only and ignores foreign legacy fields
+ok 268 - exports Graph IR only and ignores foreign legacy fields
+  ---
+  duration_ms: 9.684125
+  type: 'test'
+  ...
+# Subtest: empty graph yields a header-only diagram instead of falling back to a tree
+ok 269 - empty graph yields a header-only diagram instead of falling back to a tree
+  ---
+  duration_ms: 0.542917
+  type: 'test'
+  ...
+# Subtest: shared count formatter preserves summary and inspector precision
+ok 270 - shared count formatter preserves summary and inspector precision
+  ---
+  duration_ms: 6.419042
+  type: 'test'
+  ...
+# Subtest: shared byte formatter supports compact diagram KiB output
+ok 271 - shared byte formatter supports compact diagram KiB output
+  ---
+  duration_ms: 6.663
+  type: 'test'
+  ...
+# Subtest: shared cost formatters keep units stable across panels
+ok 272 - shared cost formatters keep units stable across panels
+  ---
+  duration_ms: 21.564459
+  type: 'test'
+  ...
+# Subtest: source formatter handles strings, metadata objects, empty values, and cycles
+ok 273 - source formatter handles strings, metadata objects, empty values, and cycles
+  ---
+  duration_ms: 0.380917
+  type: 'test'
+  ...
+# Subtest: buildStructureForPayload handles pasted config in the frontend without API
+ok 274 - buildStructureForPayload handles pasted config in the frontend without API
+  ---
+  duration_ms: 248.370875
+  type: 'test'
+  ...
+# Subtest: buildStructureForPayload keeps local safetensors truth for a picked directory
+ok 275 - buildStructureForPayload keeps local safetensors truth for a picked directory
+  ---
+  duration_ms: 102.475541
+  type: 'test'
+  ...
+# Subtest: buildStructureForPayload reads built-in config without backend API
+ok 276 - buildStructureForPayload reads built-in config without backend API
+  ---
+  duration_ms: 1209.073875
+  type: 'test'
+  ...
+# Subtest: built-in model enriches its config with remote safetensors truth
+ok 277 - built-in model enriches its config with remote safetensors truth
+  ---
+  duration_ms: 139.172167
+  type: 'test'
+  ...
+# Subtest: built-in header-truth sidecar supplies parameterTotal without remote tensors
+ok 278 - built-in header-truth sidecar supplies parameterTotal without remote tensors
+  ---
+  duration_ms: 38.287291
+  type: 'test'
+  ...
+# Subtest: built-in config returns before deferred safetensors truth and updates in background
+ok 279 - built-in config returns before deferred safetensors truth and updates in background
+  ---
+  duration_ms: 243.164042
+  type: 'test'
+  ...
+# Subtest: buildStructureForPayload reads HF config then builds in frontend
+ok 280 - buildStructureForPayload reads HF config then builds in frontend
+  ---
+  duration_ms: 51.224125
+  type: 'test'
+  ...
+# Subtest: HF config failure falls back to ModelScope directly
+ok 281 - HF config failure falls back to ModelScope directly
+  ---
+  duration_ms: 140.315666
+  type: 'test'
+  ...
+# Subtest: buildStructureForPayload enriches HF tree with checkpoint truth when available
+ok 282 - buildStructureForPayload enriches HF tree with checkpoint truth when available
+  ---
+  duration_ms: 13.34325
+  type: 'test'
+  ...
+# Subtest: 无模板 HF 架构把 checkpoint trie 报告为骨架真值
+ok 283 - 无模板 HF 架构把 checkpoint trie 报告为骨架真值
+  ---
+  duration_ms: 6.016791
+  type: 'test'
+  ...
+# Subtest: legacy auto resolves builtin then remote without local or structure APIs
+ok 284 - legacy auto resolves builtin then remote without local or structure APIs
+  ---
+  duration_ms: 10.910584
+  type: 'test'
+  ...
+# Subtest: legacy local and invalid sources fail before any network access
+ok 285 - legacy local and invalid sources fail before any network access
+  ---
+  duration_ms: 16.496666
+  type: 'test'
+  ...
+# Subtest: all remote failures report model and endpoints without server fallback
+ok 286 - all remote failures report model and endpoints without server fallback
+  ---
+  duration_ms: 2.290417
+  type: 'test'
+  ...
+# Subtest: en and zh catalogs have the same keys
+ok 287 - en and zh catalogs have the same keys
+  ---
+  duration_ms: 87.1445
+  type: 'test'
+  ...
+# Subtest: English catalog contains no Han
+ok 288 - English catalog contains no Han
+  ---
+  duration_ms: 0.997958
+  type: 'test'
+  ...
+# Subtest: DSpark node badges do not render billing zero as a count
+ok 289 - DSpark node badges do not render billing zero as a count
+  ---
+  duration_ms: 377.417583
+  type: 'test'
+  ...
+# Subtest: repeat greater than 1 still shows a multiplier
+ok 290 - repeat greater than 1 still shows a multiplier
+  ---
+  duration_ms: 2.581375
+  type: 'test'
+  ...
+# Subtest: undeclared repeat is not a draft badge
+ok 291 - undeclared repeat is not a draft badge
+  ---
+  duration_ms: 0.820167
+  type: 'test'
+  ...
+# Subtest: plan errors format in English without Han
+ok 292 - plan errors format in English without Han
+  ---
+  duration_ms: 5.433583
+  type: 'test'
+  ...
+# Subtest: HTTP and chip load issues format without leaking Han in English
+ok 293 - HTTP and chip load issues format without leaking Han in English
+  ---
+  duration_ms: 1.811
+  type: 'test'
+  ...
+# Subtest: PD link source and lens missing-input codes format in both languages
+ok 294 - PD link source and lens missing-input codes format in both languages
+  ---
+  duration_ms: 7.572542
+  type: 'test'
+  ...
+# Subtest: every registered formula has English explanation copy without Han characters
+ok 295 - every registered formula has English explanation copy without Han characters
+  ---
+  duration_ms: 14.688917
+  type: 'test'
+  ...
+# Subtest: every registered formula has KaTeX-parseable LaTeX（双向覆盖 + 可解析）
+ok 296 - every registered formula has KaTeX-parseable LaTeX（双向覆盖 + 可解析）
+  ---
+  duration_ms: 1196.415917
+  type: 'test'
+  ...
+# Subtest: formulaTex 未登记算子返回 null（调用方回退 ASCII）
+ok 297 - formulaTex 未登记算子返回 null（调用方回退 ASCII）
+  ---
+  duration_ms: 0.297667
+  type: 'test'
+  ...
+# Subtest: operators_reference.md 机器段与注册表/探针一致（docs:check）
+ok 298 - operators_reference.md 机器段与注册表/探针一致（docs:check）
+  ---
+  duration_ms: 89037.301417
+  type: 'test'
+  ...
+# Subtest: vLLM 预设：config 未声明 ssm dtype → 默认 bf16
+ok 299 - vLLM 预设：config 未声明 ssm dtype → 默认 bf16
+  ---
+  duration_ms: 8.140709
+  type: 'test'
+  ...
+# Subtest: SGLang 预设：config 未声明 → 默认 fp32
+ok 300 - SGLang 预设：config 未声明 → 默认 fp32
+  ---
+  duration_ms: 0.275208
+  type: 'test'
+  ...
+# Subtest: neutral 预设：不改（保持 config 或缺省）
+ok 301 - neutral 预设：不改（保持 config 或缺省）
+  ---
+  duration_ms: 0.139083
+  type: 'test'
+  ...
+# Subtest: config 显式声明恒胜（预设不覆盖）
+ok 302 - config 显式声明恒胜（预设不覆盖）
+  ---
+  duration_ms: 0.12525
+  type: 'test'
+  ...
+# Subtest: FRAMEWORK_PROFILES 取值集合
+ok 303 - FRAMEWORK_PROFILES 取值集合
+  ---
+  duration_ms: 1.6955
+  type: 'test'
+  ...
+# Subtest: vLLM KDA 默认 FP32，架构分类由 recipe registry 提供
+ok 304 - vLLM KDA 默认 FP32，架构分类由 recipe registry 提供
+  ---
+  duration_ms: 0.142458
+  type: 'test'
+  ...
+# Subtest: 结构分层：operators/formulas 不 import models|layers；config 不 import operators|models|layers
+ok 305 - 结构分层：operators/formulas 不 import models|layers；config 不 import operators|models|layers
+  ---
+  duration_ms: 335.058834
+  type: 'test'
+  ...
+# Subtest: hfNamedClass：配方写全名则用全名，没写用词干，不剥 architectures[0] 再拼
+ok 306 - hfNamedClass：配方写全名则用全名，没写用词干，不剥 architectures[0] 再拼
+  ---
+  duration_ms: 8.410041
+  type: 'test'
+  ...
+# Subtest: hfAttentionAttr 跟随 transformers 属性名
+ok 307 - hfAttentionAttr 跟随 transformers 属性名
+  ---
+  duration_ms: 31.39975
+  type: 'test'
+  ...
+# Subtest: hfFfnAttr 跟随 HF _modules key，不按 layerKind 二分
+ok 308 - hfFfnAttr 跟随 HF _modules key，不按 layerKind 二分
+  ---
+  duration_ms: 0.362875
+  type: 'test'
+  ...
+# Subtest: all built-in models have modules, formulas, and finite cost inputs
+ok 309 - all built-in models have modules, formulas, and finite cost inputs
+  ---
+  duration_ms: 210635.561542
+  type: 'test'
+  ...
+# Subtest: grouped top-k routing conforms to upstream n_group/topk_group
+ok 310 - grouped top-k routing conforms to upstream n_group/topk_group
+  ---
+  duration_ms: 16039.668459
+  type: 'test'
+  ...
+# Subtest: MoE models render MoE layers (defaultLayerKind not silently dense)
+ok 311 - MoE models render MoE layers (defaultLayerKind not silently dense)
+  ---
+  duration_ms: 15479.820625
+  type: 'test'
+  ...
+# Subtest: checkpoint 叶对账：attn_sink / e_score_correction_bias / bias_vl 命中即必现、未命中不得现
+ok 312 - checkpoint 叶对账：attn_sink / e_score_correction_bias / bias_vl 命中即必现、未命中不得现
+  ---
+  duration_ms: 22510.1375
+  type: 'test'
+  ...
+# Subtest: all 60 built-in models have an ISO UTC release snapshot; V4.1 is newest DeepSeek
+ok 313 - all 60 built-in models have an ISO UTC release snapshot; V4.1 is newest DeepSeek
+  ---
+  duration_ms: 45.328667
+  type: 'test'
+  ...
+# Subtest: normalizes catalog entries for verified built-in models
+ok 314 - normalizes catalog entries for verified built-in models
+  ---
+  duration_ms: 29.796083
+  type: 'test'
+  ...
+# Subtest: uses Vite base path for static deployment assets
+ok 315 - uses Vite base path for static deployment assets
+  ---
+  duration_ms: 0.559708
+  type: 'test'
+  ...
+# Subtest: rejects catalog entries missing model id or config path
+ok 316 - rejects catalog entries missing model id or config path
+  ---
+  duration_ms: 0.934459
+  type: 'test'
+  ...
+# Subtest: recurrent state dtype 缺省落到 fp32（无声明）
+ok 317 - recurrent state dtype 缺省落到 fp32（无声明）
+  ---
+  duration_ms: 516.259875
+  type: 'test'
+  ...
+# Subtest: mamba_ssm_dtype=bfloat16 被读取并令 recurrent state 用 BF16
+ok 318 - mamba_ssm_dtype=bfloat16 被读取并令 recurrent state 用 BF16
+  ---
+  duration_ms: 66.548625
+  type: 'test'
+  ...
+# Subtest: torch.float16 / 别名键 ssm_dtype 也被识别
+ok 319 - torch.float16 / 别名键 ssm_dtype 也被识别
+  ---
+  duration_ms: 5.9855
+  type: 'test'
+  ...
+# Subtest: W3-C：normalizeConfig 输出哈希与基线一致
+ok 320 - W3-C：normalizeConfig 输出哈希与基线一致
+  ---
+  duration_ms: 1131.163417
+  type: 'test'
+  ...
+# Subtest: W3-C：调度函数 + recipe* 与搬迁前方案字段逐值相等（parity fixture）
+ok 321 - W3-C：调度函数 + recipe* 与搬迁前方案字段逐值相等（parity fixture）
+  ---
+  duration_ms: 561.025541
+  type: 'test'
+  ...
+# Subtest: routerBiasVl：有 compress_ratios + 视觉塔（V4.1 / V4-Flash-Vision）两者真
+ok 322 - routerBiasVl：有 compress_ratios + 视觉塔（V4.1 / V4-Flash-Vision）两者真
+  ---
+  duration_ms: 17.987208
+  type: 'test'
+  ...
+# Subtest: routerBiasVl：有 compress_ratios 无视觉（V4-Flash-0731）correction真/vl省略
+ok 323 - routerBiasVl：有 compress_ratios 无视觉（V4-Flash-0731）correction真/vl省略
+  ---
+  duration_ms: 86.343416
+  type: 'test'
+  ...
+# Subtest: routerBiasVl：无 compress_ratios 的视觉 MoE（MiniMax-M3 类，sigmoid+视觉）vl省略
+ok 324 - routerBiasVl：无 compress_ratios 的视觉 MoE（MiniMax-M3 类，sigmoid+视觉）vl省略
+  ---
+  duration_ms: 8.516042
+  type: 'test'
+  ...
+# Subtest: routerCorrectionBias 派生：V3(noaux_tc, 无视觉) correction真/vl省略
+ok 325 - routerCorrectionBias 派生：V3(noaux_tc, 无视觉) correction真/vl省略
+  ---
+  duration_ms: 1.067542
+  type: 'test'
+  ...
+# Subtest: routerCorrectionBias/routerBiasVl 派生：非 noaux_tc(Qwen) 两者省略
+ok 326 - routerCorrectionBias/routerBiasVl 派生：非 noaux_tc(Qwen) 两者省略
+  ---
+  duration_ms: 1.01125
+  type: 'test'
+  ...
+# Subtest: routerCorrectionBias 派生：sigmoid 路由(scoring_func) correction真/vl省略（MiniMax-M2）
+ok 327 - routerCorrectionBias 派生：sigmoid 路由(scoring_func) correction真/vl省略（MiniMax-M2）
+  ---
+  duration_ms: 8.947125
+  type: 'test'
+  ...
+# Subtest: routerCorrectionBias 派生：配方 sigmoidRouter(GLM4-MoE，topk_method 缺省) correction真
+ok 328 - routerCorrectionBias 派生：配方 sigmoidRouter(GLM4-MoE，topk_method 缺省) correction真
+  ---
+  duration_ms: 42.138583
+  type: 'test'
+  ...
+# Subtest: graph selectors preserve stable graph paths while exposing view children
+ok 329 - graph selectors preserve stable graph paths while exposing view children
+  ---
+  duration_ms: 94.60225
+  type: 'test'
+  ...
+# Subtest: ngramEmbeddingTable copies Qwen4Exp prime-pad (Flash-Next config)
+ok 330 - ngramEmbeddingTable copies Qwen4Exp prime-pad (Flash-Next config)
+  ---
+  duration_ms: 146.598292
+  type: 'test'
+  ...
+# Subtest: 单层折叠名保留单个层号（对标 PyTorch ModuleList 单块 repr）
+ok 331 - 单层折叠名保留单个层号（对标 PyTorch ModuleList 单块 repr）
+  ---
+  duration_ms: 15.388916
+  type: 'test'
+  ...
+# Subtest: 多层折叠名用区间，避免只显示起始层号
+ok 332 - 多层折叠名用区间，避免只显示起始层号
+  ---
+  duration_ms: 0.410583
+  type: 'test'
+  ...
+# Subtest: normalizes common config fields before architecture resolution
+ok 333 - normalizes common config fields before architecture resolution
+  ---
+  duration_ms: 82.195875
+  type: 'test'
+  ...
+# Subtest: resolves architecture by config architecture before field inference
+ok 334 - resolves architecture by config architecture before field inference
+  ---
+  duration_ms: 24.739167
+  type: 'test'
+  ...
+# Subtest: resolves known vendor aliases without string inference
+ok 335 - resolves known vendor aliases without string inference
+  ---
+  duration_ms: 101.76525
+  type: 'test'
+  ...
+# Subtest: module class uses recipe full names or stems, not algorithm labels
+ok 336 - module class uses recipe full names or stems, not algorithm labels
+  ---
+  duration_ms: 396.970041
+  type: 'test'
+  ...
+# Subtest: selects dedicated model builders by canonical architecture
+ok 337 - selects dedicated model builders by canonical architecture
+  ---
+  duration_ms: 8.09675
+  type: 'test'
+  ...
+# Subtest: builds Qwen multimodal models with vision tower and projector
+ok 338 - builds Qwen multimodal models with vision tower and projector
+  ---
+  duration_ms: 192.769375
+  type: 'test'
+  ...
+# Subtest: maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks
+ok 339 - maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks
+  ---
+  duration_ms: 1574.77425
+  type: 'test'
+  ...
+# Subtest: keeps unsupported architecture diagnostics in the IR
+ok 340 - keeps unsupported architecture diagnostics in the IR
+  ---
+  duration_ms: 33.205542
+  type: 'test'
+  ...
+# Subtest: builds network modules and materializes operator formulas
+ok 341 - builds network modules and materializes operator formulas
+  ---
+  duration_ms: 437.709459
+  type: 'test'
+  ...
+# Subtest: adds readable tensor shapes to modules and operators
+ok 342 - adds readable tensor shapes to modules and operators
+  ---
+  duration_ms: 82.631583
+  type: 'test'
+  ...
+# Subtest: multi-input MLP and MoE operators expose complete shape flows
+ok 343 - multi-input MLP and MoE operators expose complete shape flows
+  ---
+  duration_ms: 68.467667
+  type: 'test'
+  ...
+# Subtest: maps GLM-5.3-Flash KDA, DSA, and mHC to the published layer layout
+ok 344 - maps GLM-5.3-Flash KDA, DSA, and mHC to the published layer layout
+  ---
+  duration_ms: 3067.5185
+  type: 'test'
+  ...
+# Subtest: keeps Kimi-K3 KDA semantics canonical while retaining its model-specific implementations
+ok 345 - keeps Kimi-K3 KDA semantics canonical while retaining its model-specific implementations
+  ---
+  duration_ms: 7727.758666
+  type: 'test'
+  ...
+# Subtest: maps DeepSeek V4 compression variants and hash MoE without duplicating framework kernels
+ok 346 - maps DeepSeek V4 compression variants and hash MoE without duplicating framework kernels
+  ---
+  duration_ms: 4110.523875
+  type: 'test'
+  ...
+# Subtest: maps DeepSeek V4 DSpark as an independent draft, not MTP-3
+ok 347 - maps DeepSeek V4 DSpark as an independent draft, not MTP-3
+  ---
+  duration_ms: 2669.771042
+  type: 'test'
+  ...
+# Subtest: maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries
+ok 348 - maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries
+  ---
+  duration_ms: 2224.088334
+  type: 'test'
+  ...
+# Subtest: maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
+ok 349 - maps Qwen3.5/3.6/3.8 GDN, full attention gate, and shared expert semantics
+  ---
+  duration_ms: 1116.692208
+  type: 'test'
+  ...
+# Subtest: maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse schedule
+ok 350 - maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse schedule
+  ---
+  duration_ms: 1606.369667
+  type: 'test'
+  ...
+# Subtest: maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE
+ok 351 - maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE
+  ---
+  duration_ms: 56.472292
+  type: 'test'
+  ...
+# Subtest: maps MiniMax M2 fused QKV, QK norms, and partial RoPE
+ok 352 - maps MiniMax M2 fused QKV, QK norms, and partial RoPE
+  ---
+  duration_ms: 64.078625
+  type: 'test'
+  ...
+# Subtest: maps Kimi K2 family MLA latent norms and shared expert branch
+ok 353 - maps Kimi K2 family MLA latent norms and shared expert branch
+  ---
+  duration_ms: 26.14525
+  type: 'test'
+  ...
+# Subtest: maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE
+ok 354 - maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE
+  ---
+  duration_ms: 40.886792
+  type: 'test'
+  ...
+# Subtest: MiniMax M2/M3 attention edges are builder-declared
+ok 355 - MiniMax M2/M3 attention edges are builder-declared
+  ---
+  duration_ms: 97.011209
+  type: 'test'
+  ...
+# Subtest: Qwen3.5/3.6 linear and full attention edges are builder-declared
+ok 356 - Qwen3.5/3.6 linear and full attention edges are builder-declared
+  ---
+  duration_ms: 610.391333
+  type: 'test'
+  ...
+# Subtest: QSA variants use builder-declared graph edges
+ok 357 - QSA variants use builder-declared graph edges
+  ---
+  duration_ms: 1829.372709
+  type: 'test'
+  ...
+# Subtest: DeepSeek V4 DSV4 attention edges are builder-declared
+ok 358 - DeepSeek V4 DSV4 attention edges are builder-declared
+  ---
+  duration_ms: 1995.564583
+  type: 'test'
+  ...
+# Subtest: DeepSeek V4 Flash Vision DSV4 graph connects every attention node
+ok 359 - DeepSeek V4 Flash Vision DSV4 graph connects every attention node
+  ---
+  duration_ms: 538.020917
+  type: 'test'
+  ...
+# Subtest: Kimi K3, GLM5 Flash, and Qwen4Exp linear edges are builder-declared
+ok 360 - Kimi K3, GLM5 Flash, and Qwen4Exp linear edges are builder-declared
+  ---
+  duration_ms: 2172.965667
+  type: 'test'
+  ...
+# Subtest: DSpark config suppresses MTP module count
+ok 361 - DSpark config suppresses MTP module count
+  ---
+  duration_ms: 300.114542
+  type: 'test'
+  ...
+# Subtest: checkpoint 真值抑制幻影 MTP：config 声明 MTP 但权重无 MTP 张量则不计
+ok 362 - checkpoint 真值抑制幻影 MTP：config 声明 MTP 但权重无 MTP 张量则不计
+  ---
+  duration_ms: 6.131
+  type: 'test'
+  ...
+# Subtest: 各架构文件自己挂对应 vLLM 投机头，不经 draftClassOf 分派
+ok 363 - 各架构文件自己挂对应 vLLM 投机头，不经 draftClassOf 分派
+  ---
+  duration_ms: 2275.211833
+  type: 'test'
+  ...
+# Subtest: W3-D2：所有多子节点模块均有 dataflow_edges 或 sequence 标记
+ok 364 - W3-D2：所有多子节点模块均有 dataflow_edges 或 sequence 标记
+  ---
+  duration_ms: 43771.590709
+  type: 'test'
+  ...
+# Subtest: W3-D2：所有输出边 evidence 非空
+ok 365 - W3-D2：所有输出边 evidence 非空
+  ---
+  duration_ms: 36197.41375
+  type: 'test'
+  ...
+# Subtest: W3-D2：边集合（含 evidence）与基线一致
+ok 366 - W3-D2：边集合（含 evidence）与基线一致
+  ---
+  duration_ms: 32927.200625
+  type: 'test'
+  ...
+# Subtest: W2 差分：spec 树与重构前基线深度相等
+ok 367 - W2 差分：spec 树与重构前基线深度相等
+  ---
+  duration_ms: 84893.608125
+  type: 'test'
+  ...
+# Subtest: unsupported builds an explicit empty network instead of a guessed structure
+ok 368 - unsupported builds an explicit empty network instead of a guessed structure
+  ---
+  duration_ms: 111.562292
+  type: 'test'
+  ...
+# Subtest: unsupported diagnostic enumerates supported architectures
+ok 369 - unsupported diagnostic enumerates supported architectures
+  ---
+  duration_ms: 42.476791
+  type: 'test'
+  ...
+# Subtest: buildStructureFromConfig completes for a config with no known architecture
+ok 370 - buildStructureFromConfig completes for a config with no known architecture
+  ---
+  duration_ms: 110.937458
+  type: 'test'
+  ...
+# Subtest: A1 matmul: 激活 x 激活 [1,2,2]x[1,2,2]
+ok 371 - A1 matmul: 激活 x 激活 [1,2,2]x[1,2,2]
+  ---
+  duration_ms: 221.154166
+  type: 'test'
+  ...
+# Subtest: A1 matmul: 激活 x 权重（权重不随 batch 复制）
+ok 372 - A1 matmul: 激活 x 权重（权重不随 batch 复制）
+  ---
+  duration_ms: 1.521
+  type: 'test'
+  ...
+# Subtest: A1 matmul: density 只缩放 matrix 与输出（因果/块稀疏用）
+ok 373 - A1 matmul: density 只缩放 matrix 与输出（因果/块稀疏用）
+  ---
+  duration_ms: 5.73475
+  type: 'test'
+  ...
+# Subtest: A1 matmul: 调用方可声明真实操作数足迹（GQA 共享 K）
+ok 374 - A1 matmul: 调用方可声明真实操作数足迹（GQA 共享 K）
+  ---
+  duration_ms: 8.300417
+  type: 'test'
+  ...
+# Subtest: A2 softmax: 4 个元素
+ok 375 - A2 softmax: 4 个元素
+  ---
+  duration_ms: 1.99725
+  type: 'test'
+  ...
+# Subtest: A3 scale: 4 个元素乘常量
+ok 376 - A3 scale: 4 个元素乘常量
+  ---
+  duration_ms: 0.194167
+  type: 'test'
+  ...
+# Subtest: A4 add: 3 操作数 4 元素 = 2 次加法/元素
+ok 377 - A4 add: 3 操作数 4 元素 = 2 次加法/元素
+  ---
+  duration_ms: 0.295291
+  type: 'test'
+  ...
+# Subtest: A5 mul: 2 操作数 4 元素
+ok 378 - A5 mul: 2 操作数 4 元素
+  ---
+  duration_ms: 0.140083
+  type: 'test'
+  ...
+# Subtest: A5 mul: 末操作数是学习参数时计入 weights 而非 actIn（norm weight）
+ok 379 - A5 mul: 末操作数是学习参数时计入 weights 而非 actIn（norm weight）
+  ---
+  duration_ms: 0.701708
+  type: 'test'
+  ...
+# Subtest: A6 relu: 4 元素比较选择，无 SFU
+ok 380 - A6 relu: 4 元素比较选择，无 SFU
+  ---
+  duration_ms: 1.067875
+  type: 'test'
+  ...
+# Subtest: A7 sigmoid: 4 元素 = 8 SFU，vector 为零（乘法归 mul 原子）
+ok 381 - A7 sigmoid: 4 元素 = 8 SFU，vector 为零（乘法归 mul 原子）
+  ---
+  duration_ms: 0.361333
+  type: 'test'
+  ...
+# Subtest: A8 silu: 4 元素 = 8 SFU + 4 乘
+ok 382 - A8 silu: 4 元素 = 8 SFU + 4 乘
+  ---
+  duration_ms: 0.154208
+  type: 'test'
+  ...
+# Subtest: A9 reduce_max: 8 元素分 2 组 = 每组 3 次比较
+ok 383 - A9 reduce_max: 8 元素分 2 组 = 每组 3 次比较
+  ---
+  duration_ms: 0.121792
+  type: 'test'
+  ...
+# Subtest: A10 reduce_sum: 8 元素分 4 组 = 每组 1 次加法
+ok 384 - A10 reduce_sum: 8 元素分 4 组 = 每组 1 次加法
+  ---
+  duration_ms: 0.09175
+  type: 'test'
+  ...
+# Subtest: A11 rsqrt: 2 元素 = 2 SFU
+ok 385 - A11 rsqrt: 2 元素 = 2 SFU
+  ---
+  duration_ms: 0.626291
+  type: 'test'
+  ...
+# Subtest: A19 div: 4 元素 = 4 SFU（W1 补：首版原子表缺 div，topk 归一化无法表达）
+ok 386 - A19 div: 4 元素 = 4 SFU（W1 补：首版原子表缺 div，topk 归一化无法表达）
+  ---
+  duration_ms: 0.149709
+  type: 'test'
+  ...
+# Subtest: A12 rope: 4 元素 = 12 flop，sfu 精确零（A3 查表）
+ok 387 - A12 rope: 4 元素 = 12 flop，sfu 精确零（A3 查表）
+  ---
+  duration_ms: 0.495709
+  type: 'test'
+  ...
+# Subtest: A13 gather: 2 行 x 宽 3 = 按真实拷贝元素计（G1）
+ok 388 - A13 gather: 2 行 x 宽 3 = 按真实拷贝元素计（G1）
+  ---
+  duration_ms: 0.191458
+  type: 'test'
+  ...
+# Subtest: A13 gather: writeOut=false（KV cache 读进寄存器直接消费）
+ok 389 - A13 gather: writeOut=false（KV cache 读进寄存器直接消费）
+  ---
+  duration_ms: 8.636167
+  type: 'test'
+  ...
+# Subtest: A14 scatter: 与 gather 对称
+ok 390 - A14 scatter: 与 gather 对称
+  ---
+  duration_ms: 1.2475
+  type: 'test'
+  ...
+# Subtest: A14 scatter: readIn=false（刚算出的 K/V 写回 cache）
+ok 391 - A14 scatter: readIn=false（刚算出的 K/V 写回 cache）
+  ---
+  duration_ms: 3.04675
+  type: 'test'
+  ...
+# Subtest: A15 permute_copy: 6 元素物化拷贝
+ok 392 - A15 permute_copy: 6 元素物化拷贝
+  ---
+  duration_ms: 7.835542
+  type: 'test'
+  ...
+# Subtest: A16 conv1d: T=2 channels=2 kernel=2，无 state
+ok 393 - A16 conv1d: T=2 channels=2 kernel=2，无 state
+  ---
+  duration_ms: 0.445125
+  type: 'test'
+  ...
+# Subtest: A16 conv1d: decode 相位带 conv state（channels·(kernel-1)=2）
+ok 394 - A16 conv1d: decode 相位带 conv state（channels·(kernel-1)=2）
+  ---
+  duration_ms: 0.202667
+  type: 'test'
+  ...
+# Subtest: A17 topk: 2 行 x 4 候选选 2，写出 values + int32 索引
+ok 395 - A17 topk: 2 行 x 4 候选选 2，写出 values + int32 索引
+  ---
+  duration_ms: 0.243791
+  type: 'test'
+  ...
+# Subtest: A17 topk: k 大于候选数时按候选数截断
+ok 396 - A17 topk: k 大于候选数时按候选数截断
+  ---
+  duration_ms: 0.114125
+  type: 'test'
+  ...
+# Subtest: A18 decay_scan: 2 步 x state 4，单头每步 1 次 exp
+ok 397 - A18 decay_scan: 2 步 x state 4，单头每步 1 次 exp
+  ---
+  duration_ms: 4.069125
+  type: 'test'
+  ...
+# Subtest: 原子注册表恰好 19 条，且 evaluateDecomposition 与手工求和一致
+ok 398 - 原子注册表恰好 19 条，且 evaluateDecomposition 与手工求和一致
+  ---
+  duration_ms: 83.079875
+  type: 'test'
+  ...
+# Subtest: evaluateDecomposition 对未注册原子直接报错，不静默记零
+ok 399 - evaluateDecomposition 对未注册原子直接报错，不静默记零
+  ---
+  duration_ms: 88.270542
+  type: 'test'
+  ...
+# Subtest: cost_counts.md 逐条清单机器段与 FORMULAS 不漂移
+ok 400 - cost_counts.md 逐条清单机器段与 FORMULAS 不漂移
+  ---
+  duration_ms: 217.460375
+  type: 'test'
+  ...
+# Subtest: F1 linear：T·out·in MACs，权重整表读一遍
+ok 401 - F1 linear：T·out·in MACs，权重整表读一遍
+  ---
+  duration_ms: 55.30775
+  type: 'test'
+  ...
+# Subtest: F2 选择集注意力：两组 bmm + softmax（A2 单遍）+ KV cache 写
+ok 402 - F2 选择集注意力：两组 bmm + softmax（A2 单遍）+ KV cache 写
+  ---
+  duration_ms: 23.215042
+  type: 'test'
+  ...
+# Subtest: F2 GQA/MQA：matrix 不随 kvHeads 变，K/V 流量随 kvHeads 缩小
+ok 403 - F2 GQA/MQA：matrix 不随 kvHeads 变，K/V 流量随 kvHeads 缩小
+  ---
+  duration_ms: 1.41975
+  type: 'test'
+  ...
+# Subtest: F2 MLA：共享 latent → kvHeads=1，打分宽度 = latent + rope，V 宽 = latent
+ok 404 - F2 MLA：共享 latent → kvHeads=1，打分宽度 = latent + rope，V 宽 = latent
+  ---
+  duration_ms: 0.231416
+  type: 'test'
+  ...
+# Subtest: F2 prefill vs decode：因果三角 vs 全长，decode 的 K/V 读即读 cache
+ok 405 - F2 prefill vs decode：因果三角 vs 全长，decode 的 K/V 读即读 cache
+  ---
+  duration_ms: 3.113708
+  type: 'test'
+  ...
+# Subtest: embedding gather：无 MAC，行拷贝 T·H，不扫全表
+ok 406 - embedding gather：无 MAC，行拷贝 T·H，不扫全表
+  ---
+  duration_ms: 20.249125
+  type: 'test'
+  ...
+# Subtest: F3 rmsnorm：3TH 向量 + T 次 rsqrt；gemma 多 TH；gated 多一路门
+ok 407 - F3 rmsnorm：3TH 向量 + T 次 rsqrt；gemma 多 TH；gated 多一路门
+  ---
+  duration_ms: 16.190542
+  type: 'test'
+  ...
+# Subtest: F4 门控乘：TW 次 sigmoid + TW 次乘；带输入投影时计权重
+ok 408 - F4 门控乘：TW 次 sigmoid + TW 次乘；带输入投影时计权重
+  ---
+  duration_ms: 7.846416
+  type: 'test'
+  ...
+# Subtest: F5 SwiGLU：2TI 乘 + TI 次 sigmoid；输入是 gate/up 两路
+ok 409 - F5 SwiGLU：2TI 乘 + TI 次 sigmoid；输入是 gate/up 两路
+  ---
+  duration_ms: 4.936334
+  type: 'test'
+  ...
+# Subtest: F6 rope：查表假设下 sfu=0，每元素 3 flop，读+写 2TD
+ok 410 - F6 rope：查表假设下 sfu=0，每元素 3 flop，读+写 2TD
+  ---
+  duration_ms: 19.413375
+  type: 'test'
+  ...
+# Subtest: F7a 因果卷积：T·C·w MACs + SiLU
+ok 411 - F7a 因果卷积：T·C·w MACs + SiLU
+  ---
+  duration_ms: 1.25125
+  type: 'test'
+  ...
+# Subtest: F7b 递推状态：plain 2T·dk·dv，delta 3T·dk·dv（delta matvec 是矩阵 MACs）；多头 state 流量显式
+ok 412 - F7b 递推状态：plain 2T·dk·dv，delta 3T·dk·dv（delta matvec 是矩阵 MACs）；多头 state 流量显式
+  ---
+  duration_ms: 0.27025
+  type: 'test'
+  ...
+# Subtest: F8 MoE：topk 选择 + dispatch/combine 搬运 + combine 加权求和计 vector
+ok 413 - F8 MoE：topk 选择 + dispatch/combine 搬运 + combine 加权求和计 vector
+  ---
+  duration_ms: 0.21525
+  type: 'test'
+  ...
+# Subtest: F8 hash 路由：tid2eid 是 buffer（零权重字节），gather 读=写=tokens·topk
+ok 414 - F8 hash 路由：tid2eid 是 buffer（零权重字节），gather 读=写=tokens·topk
+  ---
+  duration_ms: 0.180041
+  type: 'test'
+  ...
+# Subtest: F9 重排：split 是视图零流量（A1）；vision_merge 真拷贝
+ok 415 - F9 重排：split 是视图零流量（A1）；vision_merge 真拷贝
+  ---
+  duration_ms: 3.1865
+  type: 'test'
+  ...
+# Subtest: 独立 softmax：3E 向量 + 2E SFU（exp+div），A2 单遍
+ok 416 - 独立 softmax：3E 向量 + 2E SFU（exp+div），A2 单遍
+  ---
+  duration_ms: 6.262166
+  type: 'test'
+  ...
+# Subtest: 复合节点：mla_query_compress 只计 q_a 投影（norm 与 q_b 都是独立叶）
+ok 417 - 复合节点：mla_query_compress 只计 q_a 投影（norm 与 q_b 都是独立叶）
+  ---
+  duration_ms: 0.209583
+  type: 'test'
+  ...
+# Subtest: 因果对数解析检查：scoredPairs 与逐 token 暴力求和一致（破同义重复）
+ok 418 - 因果对数解析检查：scoredPairs 与逐 token 暴力求和一致（破同义重复）
+  ---
+  duration_ms: 0.2315
+  type: 'test'
+  ...
+# Subtest: DSV4 可见 key：SWA 夹窗、C4 压缩+窗、C128 只压缩
+ok 419 - DSV4 可见 key：SWA 夹窗、C4 压缩+窗、C128 只压缩
+  ---
+  duration_ms: 2.473375
+  type: 'test'
+  ...
+# Subtest: F2 分相位：prefill 因果三角、decode 全长
+ok 420 - F2 分相位：prefill 因果三角、decode 全长
+  ---
+  duration_ms: 0.342
+  type: 'test'
+  ...
+# Subtest: fused_moe_mlp：触达专家数 min(k·T, E) 的相位语义
+ok 421 - fused_moe_mlp：触达专家数 min(k·T, E) 的相位语义
+  ---
+  duration_ms: 0.627667
+  type: 'test'
+  ...
+# Subtest: 注册表完整性：52 个条目全部终止于 counts（无白名单，§3.1）
+ok 422 - 注册表完整性：52 个条目全部终止于 counts（无白名单，§3.1）
+  ---
+  duration_ms: 44.438083
+  type: 'test'
+  ...
+# Subtest: counts ↔ atoms 逐位一致护栏：addCounts/softmaxCounts/hashRouteCounts ≡ add/softmax/gather
+ok 423 - counts ↔ atoms 逐位一致护栏：addCounts/softmaxCounts/hashRouteCounts ≡ add/softmax/gather
+  ---
+  duration_ms: 67.509584
+  type: 'test'
+  ...
+# MiniMaxAI/MiniMax-M2.7                 ratio=1.0000 matrix=1.339e+12 unknown=0
+# MiniMaxAI/MiniMax-M3                   ratio=1.0000 matrix=7.581e+12 unknown=0
+# MiniMaxAI/MiniMax-M3-MXFP8             ratio=1.0000 matrix=7.581e+12 unknown=0
+# Qwen/Qwen3.5-0.8B                      ratio=0.9999 matrix=1.582e+11 unknown=0
+# Qwen/Qwen3.5-0.8B-Base                 ratio=0.9999 matrix=1.582e+11 unknown=0
+# Qwen/Qwen3.5-122B-A10B                 ratio=1.0000 matrix=1.438e+12 unknown=0
+# Qwen/Qwen3.5-122B-A10B-FP8             ratio=1.0000 matrix=1.438e+12 unknown=0
+# Qwen/Qwen3.5-122B-A10B-GPTQ-Int4       ratio=1.0000 matrix=1.438e+12 unknown=0
+# Qwen/Qwen3.5-27B                       ratio=1.0000 matrix=3.570e+12 unknown=0
+# Qwen/Qwen3.5-27B-FP8                   ratio=1.0000 matrix=3.570e+12 unknown=0
+# Qwen/Qwen3.5-27B-GPTQ-Int4             ratio=1.0000 matrix=3.570e+12 unknown=0
+# Qwen/Qwen3.5-2B                        ratio=0.9999 matrix=4.404e+11 unknown=0
+# Qwen/Qwen3.5-2B-Base                   ratio=0.9999 matrix=4.404e+11 unknown=0
+# Qwen/Qwen3.5-35B-A3B                   ratio=0.9999 matrix=6.496e+11 unknown=0
+# Qwen/Qwen3.5-35B-A3B-Base              ratio=0.9999 matrix=6.496e+11 unknown=0
+# Qwen/Qwen3.5-35B-A3B-FP8               ratio=0.9999 matrix=6.496e+11 unknown=0
+# Qwen/Qwen3.5-35B-A3B-GPTQ-Int4         ratio=0.9999 matrix=6.496e+11 unknown=0
+# Qwen/Qwen3.5-397B-A17B                 ratio=1.0000 matrix=2.382e+12 unknown=0
+# Qwen/Qwen3.5-397B-A17B-FP8             ratio=1.0000 matrix=2.382e+12 unknown=0
+# Qwen/Qwen3.5-397B-A17B-GPTQ-Int4       ratio=1.0000 matrix=2.382e+12 unknown=0
+# Qwen/Qwen3.5-4B                        ratio=1.0000 matrix=7.424e+11 unknown=0
+# Qwen/Qwen3.5-4B-Base                   ratio=1.0000 matrix=7.424e+11 unknown=0
+# Qwen/Qwen3.5-9B                        ratio=1.0000 matrix=1.292e+12 unknown=0
+# Qwen/Qwen3.5-9B-Base                   ratio=1.0000 matrix=1.292e+12 unknown=0
+# Qwen/Qwen3.6-27B                       ratio=1.0000 matrix=3.570e+12 unknown=0
+# Qwen/Qwen3.6-27B-FP8                   ratio=1.0000 matrix=3.570e+12 unknown=0
+# Qwen/Qwen3.6-35B-A3B                   ratio=0.9999 matrix=6.496e+11 unknown=0
+# Qwen/Qwen3.6-35B-A3B-FP8               ratio=0.9999 matrix=6.496e+11 unknown=0
+# Qwen/Qwen3.8-2.4T-A95B                 ratio=1.0000 matrix=1.200e+13 unknown=0
+# Qwen/Qwen3.8-2.4T-A95B-FP8             ratio=1.0000 matrix=1.200e+13 unknown=0
+# Qwen/Qwen3.8-27B                       ratio=1.0000 matrix=3.570e+12 unknown=0
+# Qwen/Qwen3.8-27B-FP8                   ratio=1.0000 matrix=3.570e+12 unknown=0
+# Qwen/Qwen3.8-Flash-Next                ratio=0.9998 matrix=1.106e+12 unknown=0
+# Qwen/Qwen3.8-Flash-Next-FP8            ratio=0.9998 matrix=1.106e+12 unknown=0
+# deepseek-ai/DeepSeek-R1                ratio=1.0000 matrix=4.709e+12 unknown=0
+# deepseek-ai/DeepSeek-V3.1              ratio=1.0000 matrix=4.709e+12 unknown=0
+# deepseek-ai/DeepSeek-V3.2              ratio=1.0009 matrix=4.822e+12 unknown=0
+# deepseek-ai/DeepSeek-V4-Flash          ratio=1.0007 matrix=1.712e+12 unknown=0
+# deepseek-ai/DeepSeek-V4-Flash-0731     ratio=1.0007 matrix=1.712e+12 unknown=0
+# deepseek-ai/DeepSeek-V4-Flash-Vision-Exp ratio=1.0007 matrix=1.841e+12 unknown=0
+# deepseek-ai/DeepSeek-V4-Pro            ratio=1.0003 matrix=6.287e+12 unknown=0
+# deepseek-ai/DeepSeek-V4-Pro-0813       ratio=1.0003 matrix=6.287e+12 unknown=0
+# deepseek-ai/DeepSeek-V4.1-Flash        ratio=1.0038 matrix=2.089e+12 unknown=0
+# moonshotai/Kimi-K2-Base                ratio=1.0000 matrix=4.066e+12 unknown=0
+# moonshotai/Kimi-K2-Instruct            ratio=1.0000 matrix=4.066e+12 unknown=0
+# moonshotai/Kimi-K2-Instruct-0905       ratio=1.0000 matrix=4.066e+12 unknown=0
+# moonshotai/Kimi-K2-Thinking            ratio=1.0000 matrix=4.066e+12 unknown=0
+# moonshotai/Kimi-K2.5                   ratio=1.0000 matrix=4.576e+12 unknown=0
+# moonshotai/Kimi-K2.6                   ratio=1.0000 matrix=4.576e+12 unknown=0
+# moonshotai/Kimi-K2.7-Code              ratio=1.0000 matrix=4.576e+12 unknown=0
+# moonshotai/Kimi-K3                     ratio=1.0000 matrix=1.402e+13 unknown=0
+# zai-org/GLM-4.7                        ratio=1.0000 matrix=4.224e+12 unknown=0
+# zai-org/GLM-5                          ratio=1.0005 matrix=5.242e+12 unknown=0
+# zai-org/GLM-5.1                        ratio=1.0005 matrix=5.242e+12 unknown=0
+# zai-org/GLM-5.2                        ratio=1.0005 matrix=5.248e+12 unknown=0
+# zai-org/GLM-5.2-FP8                    ratio=1.0005 matrix=5.248e+12 unknown=0
+# zai-org/GLM-5.3                        ratio=1.0005 matrix=5.248e+12 unknown=0
+# zai-org/GLM-5.3-BF16                   ratio=1.0005 matrix=5.248e+12 unknown=0
+# zai-org/GLM-5.3-Flash                  ratio=1.0000 matrix=2.300e+12 unknown=0
+# zai-org/GLM-5.3-Flash-BF16             ratio=1.0000 matrix=2.300e+12 unknown=0
+# unknown 叶子总数: 0
+# Subtest: T4 整模型恒等式：全模型容差断言（超差仅限已登记建模边界）
+ok 424 - T4 整模型恒等式：全模型容差断言（超差仅限已登记建模边界）
+  ---
+  duration_ms: 63314.568583
+  type: 'test'
+  ...
+# MiniMaxAI/MiniMax-M2.7                 quant stem logical=2.287e+11 packing=2.287e+11 graph=2.287e+11 ratio=0.9999
+# MiniMaxAI/MiniMax-M3                   bf16  stem logical=4.270e+11 packing=4.270e+11 graph=4.268e+11 ratio=0.9995
+# MiniMaxAI/MiniMax-M3-MXFP8             quant stem logical=4.270e+11 packing=4.403e+11 graph=4.268e+11 ratio=0.9995
+# Qwen/Qwen3.5-0.8B                      bf16  mtp  logical=8.734e+8 packing=8.734e+8 graph=8.716e+8 ratio=0.9979
+# Qwen/Qwen3.5-0.8B-Base                 bf16  mtp  logical=8.734e+8 packing=8.734e+8 graph=8.716e+8 ratio=0.9979
+# Qwen/Qwen3.5-122B-A10B                 bf16  mtp  logical=1.251e+11 packing=1.251e+11 graph=1.251e+11 ratio=1.0000
+# Qwen/Qwen3.5-122B-A10B-FP8             quant mtp  logical=1.251e+11 packing=1.251e+11 graph=1.251e+11 ratio=0.9999
+# Qwen/Qwen3.5-122B-A10B-GPTQ-Int4       quant mtp  logical=1.258e+11 packing=2.473e+10 graph=1.251e+11 ratio=0.9944
+# Qwen/Qwen3.5-27B                       bf16  mtp  logical=2.778e+10 packing=2.778e+10 graph=2.778e+10 ratio=0.9999
+# Qwen/Qwen3.5-27B-FP8                   quant mtp  logical=2.778e+10 packing=2.778e+10 graph=2.778e+10 ratio=0.9998
+# Qwen/Qwen3.5-27B-GPTQ-Int4             quant mtp  logical=2.780e+10 packing=1.296e+10 graph=2.778e+10 ratio=0.9994
+# Qwen/Qwen3.5-2B                        bf16  mtp  logical=2.274e+9 packing=2.274e+9 graph=2.271e+9 ratio=0.9988
+# Qwen/Qwen3.5-2B-Base                   bf16  mtp  logical=2.274e+9 packing=2.274e+9 graph=2.271e+9 ratio=0.9988
+# Qwen/Qwen3.5-35B-A3B                   bf16  mtp  logical=3.595e+10 packing=3.595e+10 graph=3.595e+10 ratio=0.9999
+# Qwen/Qwen3.5-35B-A3B-Base              bf16  mtp  logical=3.595e+10 packing=3.595e+10 graph=3.595e+10 ratio=0.9999
+# Qwen/Qwen3.5-35B-A3B-FP8               quant mtp  logical=3.595e+10 packing=3.595e+10 graph=3.595e+10 ratio=0.9999
+# Qwen/Qwen3.5-35B-A3B-GPTQ-Int4         quant mtp  logical=3.633e+10 packing=8.096e+9 graph=3.595e+10 ratio=0.9895
+# Qwen/Qwen3.5-397B-A17B                 bf16  mtp  logical=4.034e+11 packing=4.034e+11 graph=4.034e+11 ratio=1.0000
+# Qwen/Qwen3.5-397B-A17B-FP8             quant mtp  logical=4.034e+11 packing=4.034e+11 graph=4.034e+11 ratio=0.9999
+# Qwen/Qwen3.5-397B-A17B-GPTQ-Int4       quant mtp  logical=4.057e+11 packing=6.885e+10 graph=4.034e+11 ratio=0.9944
+# Qwen/Qwen3.5-4B                        bf16  mtp  logical=4.660e+9 packing=4.660e+9 graph=4.657e+9 ratio=0.9994
+# Qwen/Qwen3.5-4B-Base                   bf16  mtp  logical=4.660e+9 packing=4.660e+9 graph=4.657e+9 ratio=0.9994
+# Qwen/Qwen3.5-9B                        bf16  mtp  logical=9.653e+9 packing=9.653e+9 graph=9.650e+9 ratio=0.9997
+# Qwen/Qwen3.5-9B-Base                   bf16  mtp  logical=9.653e+9 packing=9.653e+9 graph=9.650e+9 ratio=0.9997
+# Qwen/Qwen3.6-27B                       bf16  mtp  logical=2.778e+10 packing=2.778e+10 graph=2.778e+10 ratio=0.9999
+# Qwen/Qwen3.6-27B-FP8                   quant mtp  logical=2.778e+10 packing=2.778e+10 graph=2.778e+10 ratio=0.9998
+# Qwen/Qwen3.6-35B-A3B                   bf16  mtp  logical=3.595e+10 packing=3.595e+10 graph=3.595e+10 ratio=0.9999
+# Qwen/Qwen3.6-35B-A3B-FP8               quant mtp  logical=3.595e+10 packing=3.595e+10 graph=3.595e+10 ratio=0.9999
+# Qwen/Qwen3.8-2.4T-A95B                 bf16  mtp  logical=2.446e+12 packing=2.446e+12 graph=2.446e+12 ratio=1.0000
+# Qwen/Qwen3.8-2.4T-A95B-FP8             quant mtp  logical=2.446e+12 packing=2.446e+12 graph=2.446e+12 ratio=0.9999
+# Qwen/Qwen3.8-27B                       bf16  mtp  logical=2.778e+10 packing=2.778e+10 graph=2.778e+10 ratio=0.9999
+# Qwen/Qwen3.8-27B-FP8                   quant mtp  logical=2.778e+10 packing=2.778e+10 graph=2.778e+10 ratio=0.9998
+# Qwen/Qwen3.8-Flash-Next                bf16  mtp  logical=1.800e+11 packing=1.800e+11 graph=1.798e+11 ratio=0.9987
+# Qwen/Qwen3.8-Flash-Next-FP8            quant mtp  logical=1.800e+11 packing=1.800e+11 graph=1.798e+11 ratio=0.9987
+# deepseek-ai/DeepSeek-R1                quant mtp  logical=6.845e+11 packing=6.845e+11 graph=6.836e+11 ratio=0.9986
+# deepseek-ai/DeepSeek-V3.1              quant mtp  logical=6.845e+11 packing=6.845e+11 graph=6.836e+11 ratio=0.9986
+# deepseek-ai/DeepSeek-V3.2              quant mtp  logical=6.854e+11 packing=6.854e+11 graph=6.844e+11 ratio=0.9986
+# deepseek-ai/DeepSeek-V4-Flash          quant mtp  logical=2.909e+11 packing=1.581e+11 graph=2.915e+11 ratio=1.0018
+# deepseek-ai/DeepSeek-V4-Flash-0731     quant mtp  logical=3.042e+11 packing=1.653e+11 graph=3.042e+11 ratio=1.0000
+# deepseek-ai/DeepSeek-V4-Flash-Vision-Exp quant mtp  logical=3.046e+11 packing=1.657e+11 graph=3.045e+11 ratio=0.9995
+# deepseek-ai/DeepSeek-V4-Pro            quant mtp  logical=1.599e+12 packing=8.616e+11 graph=1.600e+12 ratio=1.0006
+# deepseek-ai/DeepSeek-V4-Pro-0813       quant mtp  logical=1.650e+12 packing=8.895e+11 graph=1.650e+12 ratio=1.0000
+# deepseek-ai/DeepSeek-V4.1-Flash        quant mtp  logical=7.632e+11 packing=5.082e+11 graph=7.631e+11 ratio=0.9998
+# moonshotai/Kimi-K2-Base                quant stem logical=1.026e+12 packing=1.026e+12 graph=1.026e+12 ratio=0.9999
+# moonshotai/Kimi-K2-Instruct            quant stem logical=1.026e+12 packing=1.026e+12 graph=1.026e+12 ratio=0.9999
+# moonshotai/Kimi-K2-Instruct-0905       quant stem logical=1.026e+12 packing=1.026e+12 graph=1.026e+12 ratio=0.9999
+# moonshotai/Kimi-K2-Thinking            quant stem logical=1.026e+12 packing=1.703e+11 graph=1.026e+12 ratio=1.0000
+# moonshotai/Kimi-K2.5                   quant stem logical=1.027e+12 packing=1.707e+11 graph=1.027e+12 ratio=1.0000
+# moonshotai/Kimi-K2.6                   quant stem logical=1.027e+12 packing=1.707e+11 graph=1.027e+12 ratio=1.0000
+# moonshotai/Kimi-K2.7-Code              quant stem logical=1.027e+12 packing=1.707e+11 graph=1.027e+12 ratio=1.0000
+# zai-org/GLM-4.7                        bf16  mtp  logical=3.583e+11 packing=3.583e+11 graph=3.576e+11 ratio=0.9978
+# zai-org/GLM-5                          bf16  mtp  logical=7.539e+11 packing=7.539e+11 graph=7.548e+11 ratio=1.0013
+# zai-org/GLM-5.1                        bf16  mtp  logical=7.539e+11 packing=7.539e+11 graph=7.548e+11 ratio=1.0013
+# zai-org/GLM-5.2                        bf16  mtp  logical=7.533e+11 packing=7.533e+11 graph=7.548e+11 ratio=1.0020
+# zai-org/GLM-5.2-FP8                    quant mtp  logical=7.534e+11 packing=7.534e+11 graph=7.548e+11 ratio=1.0019
+# zai-org/GLM-5.3                        quant mtp  logical=7.534e+11 packing=7.534e+11 graph=7.548e+11 ratio=1.0019
+# zai-org/GLM-5.3-BF16                   bf16  mtp  logical=7.533e+11 packing=7.533e+11 graph=7.548e+11 ratio=1.0020
+# zai-org/GLM-5.3-Flash                  quant mtp  logical=3.213e+11 packing=3.213e+11 graph=3.219e+11 ratio=1.0018
+# zai-org/GLM-5.3-Flash-BF16             bf16  mtp  logical=3.213e+11 packing=3.213e+11 graph=3.219e+11 ratio=1.0019
+# synthetic-dense-gqa: counts=171638784 expected=171638784 ratio=1.0000 unknown=0
+# synthetic-dense-tied: counts=171638784 expected=171638784 ratio=1.0000 unknown=0
+# synthetic-dense-derived-dim: counts=163250176 expected=163250176 ratio=1.0000 unknown=0
+# synthetic-moe-shared-tied: counts=21020672 expected=21020672 ratio=1.0000 unknown=0
+# Subtest: S3 图声明对 header（有 sidecar 才断言）
+ok 425 - S3 图声明对 header（有 sidecar 才断言）
+  ---
+  duration_ms: 30099.312041
+  type: 'test'
+  ...
+# Subtest: T4b 合成 dense 恒等式：GQA untied 基线
+ok 426 - T4b 合成 dense 恒等式：GQA untied 基线
+  ---
+  duration_ms: 101.986084
+  type: 'test'
+  ...
+# Subtest: T4b 合成 dense 恒等式：tied embeddings
+ok 427 - T4b 合成 dense 恒等式：tied embeddings
+  ---
+  duration_ms: 12.468208
+  type: 'test'
+  ...
+# Subtest: T4b 合成 dense 恒等式：headDim 由 hidden/heads 推导
+ok 428 - T4b 合成 dense 恒等式：headDim 由 hidden/heads 推导
+  ---
+  duration_ms: 1.293208
+  type: 'test'
+  ...
+# Subtest: bytes+SFU 身份：embedding gather 行拷贝、RMSNorm 有 sfu 与 weight bytes、matrix 均为 0
+ok 429 - bytes+SFU 身份：embedding gather 行拷贝、RMSNorm 有 sfu 与 weight bytes、matrix 均为 0
+  ---
+  duration_ms: 107.948166
+  type: 'test'
+  ...
+# Subtest: T4b 合成 MoE 恒等式：routed k/E 缩放 + shared expert
+ok 430 - T4b 合成 MoE 恒等式：routed k/E 缩放 + shared expert
+  ---
+  duration_ms: 8.197708
+  type: 'test'
+  ...
+# === W1 融合分解恒等式报表：检查 382 组 (模块 x 结构类 x 相位)，不闭合 0 类 ===
+# === 未声明分解的已登记模块 0 条 ===
+# Subtest: 融合分解恒等式报表（W1 warn 模式）
+ok 431 - 融合分解恒等式报表（W1 warn 模式）
+  ---
+  duration_ms: 217.576458
+  type: 'test'
+  ...
+# === W1 bound 期望违反（逐算子逐相位，prefill 工作点 T=S=2048）===
+#   （无）
+# === N2-4 锚 1：weightMatrices 声明叶 19908 个，违例 0 个 ===
+# === P2 声明覆盖：带权叶 19506，已声明 19506，缺声明 0（基线 0）===
+# === W5 KV 读量对账（decode S=4096，单位字节）===
+#   S01 Qwen/Qwen3.5-0.8B                          全读层 5.033e+7/5.033e+7 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S02 Qwen/Qwen3.5-35B-A3B                       全读层 8.389e+7/8.389e+7 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S03 zai-org/GLM-5                              全读层 0.000e+0/0.000e+0 · 选择性层 1.840e+8/3.681e+8 · indexer 8.179e+7/8.179e+7
+#   S04 moonshotai/Kimi-K2-Instruct                全读层 2.878e+8/2.878e+8 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S05 deepseek-ai/DeepSeek-V4-Pro                全读层 0.000e+0/0.000e+0 · 选择性层 7.294e+7/3.837e+8 · indexer 3.146e+7/3.146e+7
+#   S06 moonshotai/Kimi-K2.5                       全读层 2.878e+8/2.878e+8 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S07 deepseek-ai/DeepSeek-V3.1                  全读层 2.878e+8/2.878e+8 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S08 zai-org/GLM-5.3-Flash                      全读层 0.000e+0/0.000e+0 · 选择性层 2.307e+7/4.614e+7 · indexer 2.884e+6/1.153e+7
+#   S09 MiniMaxAI/MiniMax-M3                       全读层 2.517e+7/2.517e+7 · 选择性层 2.540e+8/4.782e+8 · indexer 5.977e+7/5.977e+7
+#   S10 Qwen/Qwen3.8-2.4T-A95B                     全读层 3.859e+8/3.859e+8 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S11 Qwen/Qwen3.8-Flash-Next                    全读层 0.000e+0/0.000e+0 · 选择性层 5.033e+7/1.007e+8 · indexer 3.146e+6/1.258e+7
+#   S12 deepseek-ai/DeepSeek-V3.2                  全读层 0.000e+0/0.000e+0 · 选择性层 1.439e+8/2.878e+8 · indexer 6.396e+7/6.396e+7
+#   S13 deepseek-ai/DeepSeek-V4-Flash-Vision-Exp   全读层 0.000e+0/0.000e+0 · 选择性层 2.897e+7/2.697e+8 · indexer 2.202e+7/2.202e+7
+#   S14 zai-org/GLM-4.7                            全读层 1.544e+9/1.544e+9 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S15 moonshotai/Kimi-K3                         全读层 1.132e+8/1.132e+8 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+#   S16 MiniMaxAI/MiniMax-M2.7                     全读层 1.040e+9/1.040e+9 · 选择性层 0.000e+0/0.000e+0 · indexer 0.000e+0/0.000e+0
+# === W5 激活流形状连续性：总边=37068 末维匹配=32684 无形状=0 语义边=4384（39 类）===
+#     980  topk -> dispatch                               8 vs 3072  [control]  45 模型
+#     384  qkv_gate_split -> q_norm                       2048 vs 256  [slice]  29 模型
+#     384  qkv_gate_split -> k_norm                       2048 vs 256  [slice]  29 模型
+#     383  beta_projection -> state_update                16 vs 6144  [control]  31 模型
+#     383  decay_projection -> state_update               16 vs 6144  [control]  31 模型
+#     279  qkv_split -> kv_norm                           1024 vs 512  [slice]  6 模型
+#     232  kv_b_proj -> rope                              256 vs 192  [slice]  19 模型
+#     219  indexer -> sparse_attention                    16 vs 128  [control]  13 模型
+#     189  q_proj -> indexer                              128 vs 7168  [fused-in]  9 模型
+#     189  wk_weights_proj -> k_norm                      192 vs 128  [slice]  9 模型
+#     189  k_norm -> indexer                              128 vs 7168  [fused-in]  9 模型
+#     120  compressor -> attention                        1024 vs 512  [slice]  2 模型
+#      48  qkv_projection -> short_conv                   49376 vs 36864  [slice]  3 模型
+#      48  qkv_projection -> f_b_proj                     49376 vs 128  [slice]  3 模型
+#      48  f_b_proj -> state_update                       12288 vs 36864  [control]  3 模型
+#      31  visual -> embed_tokens                         1024 vs -1  [entry]  31 模型
+#      29  pre_fc_norm_embedding -> fc                    1024 vs 2048  [concat]  29 模型
+#      29  pre_fc_norm_hidden -> fc                       1024 vs 2048  [concat]  29 模型
+#      26  qkv_proj -> q_norm                             7168 vs 256  [slice]  2 模型
+#      26  qkv_proj -> k_norm                             7168 vs 256  [slice]  2 模型
+#      24  qkv_projection -> output_gate_norm             49376 vs 128  [slice]  1 模型
+#      24  qkv_projection -> g_b_proj                     24896 vs 128  [slice]  2 模型
+#      24  g_b_proj -> output_gate_norm                   8192 vs 128  [regroup]  2 模型
+#      15  enorm -> eh_proj                               3072 vs 6144  [concat]  15 模型
+#      15  hnorm -> eh_proj                               3072 vs 6144  [concat]  15 模型
+#      10  hash_router -> dispatch                        6 vs 4096  [control]  5 模型
+#       8  projector -> embed_tokens                      6144 vs -1  [entry]  8 模型
+#       6  qkv_index_split -> q_norm                      8192 vs 128  [slice]  2 模型
+#       6  qkv_index_split -> k_norm                      8192 vs 128  [slice]  2 模型
+#       5  qkv_split -> q_norm                            6144 vs 128  [slice]  2 模型
+#       5  qkv_split -> k_norm                            6144 vs 128  [slice]  2 模型
+#       4  qkv_index_split -> index_q_norm                8192 vs 128  [slice]  2 模型
+#       4  qkv_index_split -> index_k_norm                8192 vs 128  [slice]  2 模型
+#       4  hc_head -> confidence_head                     4096 vs 4352  [concat]  4 模型
+#       4  markov_head -> confidence_head                 129280 vs 4352  [concat]  4 模型
+#       4  pre_norm -> fc1                                1152 vs 4608  [regroup]  4 模型
+#       2  pre_fc_norm_hidden -> fc_hidden                10240 vs 2560  [concat]  2 模型
+#       2  embed -> wkv                                   256 vs 6144  [regroup]  1 模型
+#       2  wkv -> engram_gate                             25600 vs 5120  [fused-in]  1 模型
+# Subtest: W1 报表：模块级 bound 期望
+ok 432 - W1 报表：模块级 bound 期望
+  ---
+  duration_ms: 21910.728
+  type: 'test'
+  ...
+# Subtest: N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容差 0）
+ok 433 - N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容差 0）
+  ---
+  duration_ms: 47579.882834
+  type: 'test'
+  ...
+# Subtest: P2 护栏：带权重叶的 weightMatrices 声明覆盖（棘轮，只许下降）
+ok 434 - P2 护栏：带权重叶的 weightMatrices 声明覆盖（棘轮，只许下降）
+  ---
+  duration_ms: 34851.706958
+  type: 'test'
+  ...
+# Subtest: W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）
+ok 435 - W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）
+  ---
+  duration_ms: 6853.159292
+  type: 'test'
+  ...
+# Subtest: W5 恒等式：激活流形状连续性（全 59 模型声明边）
+ok 436 - W5 恒等式：激活流形状连续性（全 59 模型声明边）
+  ---
+  duration_ms: 20142.441167
+  type: 'test'
+  ...
+# Subtest: MSV architecture keys align with SGLang EntryClass registry
+ok 437 - MSV architecture keys align with SGLang EntryClass registry
+  ---
+  duration_ms: 6.083166
+  type: 'test'
+  ...
+# Subtest: shared-builder reuse is justified by SGLang inheritance/reuse
+ok 438 - shared-builder reuse is justified by SGLang inheritance/reuse
+  ---
+  duration_ms: 0.577459
+  type: 'test'
+  ...
+# Subtest: canonicalSourceRefPath 与后端对账路径同折叠
+ok 439 - canonicalSourceRefPath 与后端对账路径同折叠
+  ---
+  duration_ms: 149.187458
+  type: 'test'
+  ...
+# Subtest: displaySourceRef 版本不一致时去掉 \#L 锚点，不编造 url
+ok 440 - displaySourceRef 版本不一致时去掉 \#L 锚点，不编造 url
+  ---
+  duration_ms: 14.386166
+  type: 'test'
+  ...
+# Subtest: bindSourceRefToGraph 按路径绑定，聚合节点保持 null
+ok 441 - bindSourceRefToGraph 按路径绑定，聚合节点保持 null
+  ---
+  duration_ms: 10.060083
+  type: 'test'
+  ...
+# Subtest: bindSourceRefToGraph 按 HF 属性名绑定 linear_attn 与 self_attn，同 class 多实例共享定义
+ok 442 - bindSourceRefToGraph 按 HF 属性名绑定 linear_attn 与 self_attn，同 class 多实例共享定义
+  ---
+  duration_ms: 0.3365
+  type: 'test'
+  ...
+# Subtest: bindTruthToGraph binds checkpoint facts by canonical graph id
+ok 443 - bindTruthToGraph binds checkpoint facts by canonical graph id
+  ---
+  duration_ms: 98.337292
+  type: 'test'
+  ...
+# Subtest: canonicalModulePath 只剥 HF 根包装，不改 layers/visual
+ok 444 - canonicalModulePath 只剥 HF 根包装，不改 layers/visual
+  ---
+  duration_ms: 17.995709
+  type: 'test'
+  ...
+# Subtest: 路径绑定：layers 图 id 与 checkpoint layers 剥包装后相等
+ok 445 - 路径绑定：layers 图 id 与 checkpoint layers 剥包装后相等
+  ---
+  duration_ms: 31.448042
+  type: 'test'
+  ...
+# Subtest: 路径绑定：shared_experts 与 routed experts 靠路径区分
+ok 446 - 路径绑定：shared_experts 与 routed experts 靠路径区分
+  ---
+  duration_ms: 30.569958
+  type: 'test'
+  ...
+# Subtest: 路径绑定：非候选的不同名不绑
+ok 447 - 路径绑定：非候选的不同名不绑
+  ---
+  duration_ms: 0.331208
+  type: 'test'
+  ...
+# Subtest: 数字路径段折叠为 repeat 节点（ModuleList）
+ok 448 - 数字路径段折叠为 repeat 节点（ModuleList）
+  ---
+  duration_ms: 14.714
+  type: 'test'
+  ...
+# Subtest: 量化三张量聚合到同一模块节点
+ok 449 - 量化三张量聚合到同一模块节点
+  ---
+  duration_ms: 0.622459
+  type: 'test'
+  ...
+# Subtest: MoE 专家编号折叠为 repeat
+ok 450 - MoE 专家编号折叠为 repeat
+  ---
+  duration_ms: 0.614625
+  type: 'test'
+  ...
+# Subtest: params：叶节点为自有元素计数，非叶节点为 0
+ok 451 - params：叶节点为自有元素计数，非叶节点为 0
+  ---
+  duration_ms: 0.195208
+  type: 'test'
+  ...
+# Subtest: 数字段子树异构时不折叠，保留展开
+ok 452 - 数字段子树异构时不折叠，保留展开
+  ---
+  duration_ms: 0.202917
+  type: 'test'
+  ...
+# Subtest: 非连续数字段不折叠
+ok 453 - 非连续数字段不折叠
+  ---
+  duration_ms: 0.357709
+  type: 'test'
+  ...
+# Subtest: 空输入返回空树
+ok 454 - 空输入返回空树
+  ---
+  duration_ms: 35.108625
+  type: 'test'
+  ...
+# Subtest: truth.skeleton（离线文件形态）与 truth.tensors 产出等价 truth graph
+ok 455 - truth.skeleton（离线文件形态）与 truth.tensors 产出等价 truth graph
+  ---
+  duration_ms: 100.698958
+  type: 'test'
+  ...
+# Subtest: 只有 parameterTotal 时不改图，策略为 template+header-truth
+ok 456 - 只有 parameterTotal 时不改图，策略为 template+header-truth
+  ---
+  duration_ms: 74.84275
+  type: 'test'
+  ...
+# Subtest: hasBuilder 时 skeleton 形态同样走绑定链（strategy: template+truth-file）
+ok 457 - hasBuilder 时 skeleton 形态同样走绑定链（strategy: template+truth-file）
+  ---
+  duration_ms: 81.220542
+  type: 'test'
+  ...
+# Subtest: 接缝：template+truth 生产出口的键被 diagnosticsModel 完整消费
+ok 458 - 接缝：template+truth 生产出口的键被 diagnosticsModel 完整消费
+  ---
+  duration_ms: 18.709666
+  type: 'test'
+  ...
+# Subtest: 接缝：skeleton-truth 策略走 banner 通路
+ok 459 - 接缝：skeleton-truth 策略走 banner 通路
+  ---
+  duration_ms: 9.518209
+  type: 'test'
+  ...
+# Subtest: static model assets stay inside the configured root
+ok 460 - static model assets stay inside the configured root
+  ---
+  duration_ms: 9.986959
+  type: 'test'
+  ...
+1..460
+# tests 460
+# suites 0
+# pass 460
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 403483.332416

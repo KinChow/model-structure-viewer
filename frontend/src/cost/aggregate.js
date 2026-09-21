@@ -49,7 +49,8 @@ function quantizedMatrixBytes(graph, quant) {
   return { elements, bytes };
 }
 
-export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
+/** 仅供部署默认策略使用的内存入口；与 Cost 复用同一份驻留账本。 */
+export function aggregateModelMemory({ graph, config, parameterCount, batch = 1, sequence = 1,
   kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral" } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;
   const shapedWeights = graphShapedWeightBytes(graph);
@@ -64,6 +65,18 @@ export function aggregateCost({ graph, config, parameterCount, batch = 1, sequen
   const hasWeightOverride = typeof weightBytesPerParameter === "number" && weightBytesPerParameter > 0;
   const weightBytes = hasWeightOverride ? parameterTotal * weightBytesPerParameter : naturalWeightBytes;
   const memory = memoryBreakdown({ weightBytes, graph, batch, tokens: sequence, kvBytes, frameworkProfile, config });
+  const graphSource = quant ? "derived-quantized" : "node";
+  return {
+    memory,
+    weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : (shapedWeights > 0 || declared.bytes > 0) ? graphSource : "empty",
+  };
+}
+
+export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
+  kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral" } = {}) {
+  const { memory, weightSource } = aggregateModelMemory({
+    graph, config, parameterCount, batch, sequence, kvBytes, weightBytesPerParameter, frameworkProfile,
+  });
   const nodes = computeNodeCosts(graph, config, { batch, sequence, phase, visionTokens: visionTokens ?? undefined, frameworkProfile });
   const unknownComputePaths = nodes
     .filter((row) => row.compute_macs == null)
@@ -72,9 +85,8 @@ export function aggregateCost({ graph, config, parameterCount, batch = 1, sequen
   const computeComplete = unknownComputePaths.length === 0;
   const totalMacs = computeComplete ? knownMacs : null;
   const forwardTokens = batch * (phase === "decode" ? 1 : sequence);
-  const graphSource = quant ? "derived-quantized" : "node";
   const actions = summarizeActions(nodes, computeComplete);
-  return { phase, batch, sequence, memory, weightSource: hasWeightOverride ? "what-if" : hasParameterCount ? "checkpoint" : (shapedWeights > 0 || declared.bytes > 0) ? graphSource : "empty", nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
+  return { phase, batch, sequence, memory, weightSource, nodes, totalMacs, totalFlops: totalMacs == null ? null : totalMacs * 2,
     actions,
     knownMacs, computeComplete, unknownComputePaths,
     macsPerToken: totalMacs != null && forwardTokens > 0 ? totalMacs / forwardTokens : null,

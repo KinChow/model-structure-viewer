@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
-import { aggregateCost } from "../aggregate.js";
+import { aggregateCost, aggregateModelMemory } from "../aggregate.js";
 
 // P7（步骤 7）：夹具 tree root 经 materializeStructureGraph 转 Graph IR。
 const toGraph = (root) => materializeStructureGraph(root);
@@ -42,4 +42,18 @@ test("量化配置进入图声明容量并明确标记来源", () => {
   assert.equal(result.memory.weightBytes, 8 * 4 * 0.5 + 8 * 1 * (2 + 0.5));
   assert.equal(result.weightSource, "derived-quantized");
   assert.equal(result.assumptions.weightBytesPerParameter, 0.5);
+});
+
+test("deployment recommendation memory shares the Cost accounting entry point", () => {
+  const graph = toGraph({
+    id: "linear",
+    type: "operator",
+    attributes: { operator_id: "linear", weightMatrices: [{ class: "tp", out: 8, in: 4, count: 1, matrices: 1 }] },
+    children: [],
+  });
+  const options = { graph, config: {}, parameterCount: { BF16: 32 }, sequence: 128, frameworkProfile: "neutral" };
+  const cost = aggregateCost(options);
+  const memory = aggregateModelMemory(options);
+  assert.deepEqual(memory.memory, cost.memory);
+  assert.equal(memory.weightSource, cost.weightSource);
 });

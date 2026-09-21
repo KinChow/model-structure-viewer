@@ -37,6 +37,39 @@ communication plan  —— 由结构 + plan 推导，非用户输入
 - framework execution profile（vLLM/SGLang/TRT-LLM 各自如何落实逻辑计划）
   是**独立第三层概念，本轮不实现**，只在本文登记边界。
 
+### 默认部署策略（人因约定）
+
+UI 的默认部署不是自动并行方案搜索，而是固定的单机卡数档位推荐：
+
+```text
+physical topology: 1 node × 8 GPUs
+logical TP candidates: 1 → 2 → 4 → 8
+selection: smallest tier whose theoretical per-card projection fits
+fallback: TP8; if it still does not fit, keep no-fit and ask for manual expansion
+```
+
+因此小模型默认使用 TP1/TP2/TP4，但仍按单机 8 卡拓扑展示；较大模型优先落在
+单机 TP8。推荐只消费现有 framework accounting、Graph IR 和 Fit 投影，不引入
+实测常数、经验系数或 runtime simulator。用户一旦修改 TP/PP/EP/DP、节点数或
+GPU/节点，状态转为手动配置；切换硬件或后台 checkpoint 真值更新不会覆盖手动值，
+可以通过“恢复默认部署”重新采用该推荐。
+
+- 基准负载固定为 batch=1、2048 tokens；使用模型权重精度、KV 显式 dtype 和所选
+  framework profile。修改工作负载或 what-if 时不会偷偷扩卡，实际 Fit 继续按当前负载计算。
+- 拓扑容量与策略用卡数分开展示，避免把“TP1 使用 1 卡”误读为使用了整机 8 卡。
+- 集中式默认一台机器；用户主动选择 PD 后，Prefill/Decode **各一台独立机器**，
+  不是将两份模型同时塞进同一台机器。两侧手动策略独立保存。
+- 未知显存信息返回 unknown；超过单机上限保留 no-fit，不注入系数，不自动扩多机。
+  本功能不判断 backend/量化 kernel 支持、TP shape 约束、runtime workspace 或吞吐最优性。
+- 设计参考 vLLM 官方 `docs/serving/parallelism_scaling.md`（联网核查 revision
+  `382970ee6ca490aeaaaf4e32c53695b581ff61ba`）：能装单卡时无需分布式，单机内采用 TP，
+  超单机后再考虑 TP+PP。其无 NVLink/不均匀切分建议、MoE 专用 EP 优化仍由用户
+  明确配置，本次不扩展成硬件性能优化器。
+
+```text
+https://github.com/vllm-project/vllm/blob/382970ee6ca490aeaaaf4e32c53695b581ff61ba/docs/serving/parallelism_scaling.md
+```
+
 ## 二、逻辑轴定义与约束
 
 | 轴 | 语义 | 缺省 |

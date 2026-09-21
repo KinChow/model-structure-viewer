@@ -1,0 +1,19 @@
+
+> model-structure-viewer-frontend@0.2.0 test:e2e
+> playwright test --project=desktop-chrome framework-accounting.spec.js -g 模型和硬件|切换硬件后|手动修改|P/D 默认 --retries=0
+
+[WebServer] (node:40872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 4 tests using 1 worker
+
+(node:40899) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/4] [desktop-chrome] › e2e/framework-accounting.spec.js:53:1 › 模型和硬件选择后按单机 1/2/4/8 卡档位给出默认并行策略
+[2/4] [desktop-chrome] › e2e/framework-accounting.spec.js:68:1 › 切换硬件后自动推荐重新按显存档位计算
+[3/4] [desktop-chrome] › e2e/framework-accounting.spec.js:86:1 › 手动修改并行后切换硬件不会覆盖，并可恢复默认
+[4/4] [desktop-chrome] › e2e/framework-accounting.spec.js:99:1 › P/D 默认各单节点，手动策略独立保存，切换模型恢复推荐
+  4 passed (2.2m)

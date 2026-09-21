@@ -41,6 +41,10 @@ for (const org of await listDirectories(modelsRoot)) {
 
     const config = await readJson(configPath);
     const previous = previousById.get(`${org}/${model}`) || {};
+    if (!/^\d{4}-\d{2}-\d{2}T.*Z$/.test(previous.release_time || "")
+      || !Number.isFinite(Date.parse(previous.release_time))) {
+      throw new Error(`${org}/${model}: missing/invalid release_time; add a build-time metadata snapshot before generating the catalog`);
+    }
     models.push({
       model_id: `${org}/${model}`,
       ...(previous.display_name ? { display_name: previous.display_name } : {}),

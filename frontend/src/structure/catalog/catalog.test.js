@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { catalogPath, headerTruthPath, modelConfigPath, normalizeCatalog, staticAssetPath } from "./manifest.js";
+import { sortModelsByReleaseTime } from "./modelOrdering.js";
+
+test("all 60 built-in models have an ISO UTC release snapshot; V4.1 is newest DeepSeek", () => {
+  const raw = JSON.parse(readFileSync(new URL("../../../../models/catalog.json", import.meta.url)));
+  assert.equal(raw.models.length, 60);
+  for (const model of raw.models) {
+    assert.match(model.release_time || "", /^\d{4}-\d{2}-\d{2}T.*Z$/, model.model_id);
+    assert.ok(Number.isFinite(Date.parse(model.release_time)), model.model_id);
+  }
+  const deepseek = normalizeCatalog(raw).models.filter((model) => model.modelId.startsWith("deepseek-ai/"));
+  assert.equal(sortModelsByReleaseTime(deepseek)[0].modelId, "deepseek-ai/DeepSeek-V4.1-Flash");
+});
 
 test("normalizes catalog entries for verified built-in models", () => {
   const catalog = normalizeCatalog({

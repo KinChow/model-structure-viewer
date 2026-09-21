@@ -380,6 +380,7 @@
     },
     {
       "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "release_time": "2026-09-10T02:17:58.000Z",
       "config_path": "deepseek-ai/DeepSeek-V4.1-Flash/config.json",
       "model_type": "deepseek_v41",
       "architectures": [

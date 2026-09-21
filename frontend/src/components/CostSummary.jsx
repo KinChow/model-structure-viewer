@@ -136,7 +136,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const cost = phaseCosts[phase];
   const available = machine?.memory_bytes || 0;
   const projected = useMemo(() => cost && machine ? projectPlan({ graph: structure.graph, weightBytes: cost.memory.weightBytes, kvBytes: cost.memory.kvBytes, stateBytes: cost.memory.stateBytes, config, plan }) : null, [cost, machine, structure, config, plan]);
-  const communication = useMemo(() => cost ? planCommunicationBytes({ graph: structure.graph, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence) }) : null, [cost, structure, config, plan, load, phase]);
+  const communication = useMemo(() => cost ? planCommunicationBytes({ graph: structure.graph, config, plan, batch: load.batch, tokens: phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence), frameworkProfile }) : null, [cost, structure, config, plan, load, phase, frameworkProfile]);
   const roofline = useMemo(() => cost && machine ? classifyRoofline({
     // M11-P0-5：访存侧切到 counts.bytes 通道（逐算子一阶流量：actIn/actOut
     // 为聚合 actions 的扁平字段）。weights 仍以 memory 侧为权威（what-if

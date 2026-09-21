@@ -39,6 +39,10 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
   const bytesPerElement = options.bytesPerElement ?? 2;
   const batch = options.batch ?? 1;
   const tokens = options.tokens ?? options.sequence ?? 1;
+  // C3c：SGLang(DeepEP) 把 shared expert 折叠成额外 routed 专家 → dispatch 的 expertsPerToken = topk + n_shared，
+  // 走 all-to-all；vLLM/neutral 下 shared expert 是独立 MLP、不进 all-to-all（保持 topk）。
+  const sharedFused = options.frameworkProfile === "sglang" && (config.sharedExperts ?? 0) > 0;
+  const dispatchExpertsPerToken = (config.expertsPerToken ?? 0) + (sharedFused ? config.sharedExperts : 0);
   if (role === "tp_attention_output") {
     if (attnMode === "dp") return 0;
     return ringAllReduceBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, tp, operations: 1 });
@@ -48,7 +52,7 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
   }
   if (role === "ep_dispatch" || role === "ep_combine") {
     if (ep <= 1) return 0;
-    return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: config.expertsPerToken, bytesPerElement, operations: 1 });
+    return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: dispatchExpertsPerToken, bytesPerElement, operations: 1 });
   }
   const routedExpert = /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(path);
   if (/(o_proj|output projection|down_proj)/.test(path) && !routedExpert) {
@@ -62,7 +66,7 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
     // DP 复制、专家域含 dp——同样触发。口径标注近似（Q3：无 moe_dp 轴，用 dp 近似）。
     const dp = plan.dp ?? plan.DP ?? 1;
     if (ep <= 1 && !(dp > 1)) return 0;
-    return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: config.expertsPerToken, bytesPerElement, operations: 1 });
+    return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: dispatchExpertsPerToken, bytesPerElement, operations: 1 });
   }
   return 0;
 }
@@ -110,10 +114,10 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
 
 /** 汇总给定计划的节点级通信和 PP 边界通信，供摘要或对比视图使用。
  *  P7（步骤 7）：tree root 入参退役——Graph IR 是唯一遍历路径。 */
-export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2 } = {}) {
+export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2, frameworkProfile } = {}) {
   let nodeBytes = 0;
   walkStructure(graph, ({ node, multiplier }) => {
-    nodeBytes += nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement }) * multiplier;
+    nodeBytes += nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement, frameworkProfile }) * multiplier;
   });
   const ppBytes = pipelineP2PBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, pp: plan.pp ?? plan.PP ?? 1 });
   return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes };

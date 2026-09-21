@@ -156,3 +156,18 @@ test("P10：PD 传输时间 = per-rank bytes / 链路带宽（Q7②）", () => {
   assert.equal(result.ok, true);
   assert.equal(result.transferSeconds, result.perDecodeRankBytes / 500);
 });
+
+// C3c：SGLang(DeepEP) shared-expert 折叠进 all-to-all（topk+n_shared）；vLLM/neutral 不折叠。
+test("shared-expert fusion 仅 SGLang 预设改 all-to-all 字节", () => {
+  const node = { id: "decoder.0.mlp.dispatch" };
+  const cfg = { hiddenSize: 4, expertsPerToken: 2, sharedExperts: 1 };
+  const plan = { ep: 2 };
+  const base = { batch: 1, tokens: 1, bytesPerElement: 2 };
+  // neutral / vLLM：expertsPerToken=2 → 2·4·2 = 16
+  assert.equal(nodeCommunicationBytes(node, cfg, plan, base), 16);
+  assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "vllm" }), 16);
+  // SGLang：topk+shared=3 → 3·4·2 = 24
+  assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "sglang" }), 24);
+  // 无 shared expert 时 SGLang 也不变
+  assert.equal(nodeCommunicationBytes(node, { ...cfg, sharedExperts: 0 }, plan, { ...base, frameworkProfile: "sglang" }), 16);
+});

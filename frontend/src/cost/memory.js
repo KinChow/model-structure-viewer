@@ -227,7 +227,22 @@ export function draftKvBytesPerToken(graph, config = {}, kvBytes = 2, { draftTok
   // 逐 dtype/边际口径累加 —— 对 MLA/GQA/压缩(dsv4) 一律正确，无需 config 公式或家族门控。
   // 用 resident 倍率（草稿常驻，repeat=0 但 residentRepeat=mtpModules），叠加 verify 窗口 draftTokens（默认 0）。
   if (!graph?.nodes?.length) return 0;
-  const inDraft = (id) => String(id || "").split(".").some((seg) => seg === "mtp" || seg === "dspark");
+  // 草稿子树 = type 为 mtp/dspark 的汇总节点及其所有后代（按 parent_id 祖先关系判定，不依赖 id 命名）。
+  // 注意：raw graph 节点 id 与 walkStructure 投影用的 canonical_id 不同一空间，故在 raw 空间判祖先、
+  // 收集其 canonical_id 成集合，再在 walk 里按 canonical id 匹配。
+  const rawById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const canonOf = (n) => n.canonical_id || n.module_id || n.id;
+  const draftCanon = new Set();
+  for (const n of graph.nodes) {
+    let cur = n; let isDraft = false;
+    while (cur) {
+      if (cur.type === "mtp" || cur.type === "dspark") { isDraft = true; break; }
+      cur = cur.parent_id != null ? rawById.get(cur.parent_id) : null;
+    }
+    if (isDraft) draftCanon.add(canonOf(n));
+  }
+  if (draftCanon.size === 0) return 0;
+  const inDraft = (id) => draftCanon.has(id);
   let perToken = 0;
   walkStructure(graph, ({ node, resident }) => {
     if (!inDraft(node?.id)) return;
@@ -235,7 +250,10 @@ export function draftKvBytesPerToken(graph, config = {}, kvBytes = 2, { draftTok
     if (a.cache_kv_dtype != null) {
       const kvB = bytesPerDtype(a.cache_kv_dtype, kvBytes);
       const idxB = bytesPerDtype(a.cache_index_dtype || a.cache_kv_dtype, kvBytes);
-      perToken += ((a.cache_kv_growth_elements || 0) * kvB + (a.cache_index_growth_elements || 0) * idxB) * resident;
+      // 优先边际 growth；草稿层若 growth=0（如 dsv4 draft 的全量压缩 latent），回退到全量 elements。
+      const kvE = a.cache_kv_growth_elements > 0 ? a.cache_kv_growth_elements : (a.cache_kv_elements || 0);
+      const idxE = a.cache_index_growth_elements > 0 ? a.cache_index_growth_elements : (a.cache_index_elements || 0);
+      perToken += (kvE * kvB + idxE * idxB) * resident;
     } else if (a.cache_kv_elements != null || a.cache_index_elements != null) {
       perToken += ((a.cache_kv_elements || 0) + (a.cache_index_elements || 0)) * kvBytes * resident;
     }

@@ -31,3 +31,11 @@ test("config 显式声明恒胜（预设不覆盖）", () => {
 test("FRAMEWORK_PROFILES 取值集合", () => {
   assert.deepEqual(FRAMEWORK_PROFILES, ["neutral", "sglang", "vllm"]);
 });
+
+test("vLLM KDA 默认 FP32，架构分类由 recipe registry 提供", () => {
+  for (const architecture of ["KimiK3ForConditionalGeneration", "Glm5NextForConditionalGeneration"]) {
+    const config = { architecture };
+    applyFrameworkProfile(config, "vllm");
+    assert.equal(config.mambaSsmDtype, "float32", architecture);
+  }
+});

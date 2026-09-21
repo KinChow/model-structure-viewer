@@ -498,3 +498,11 @@
 - 纯前端 / 文档项（不需 GPU，另行处理，不在本清单）：Cost Lens 按 `FORMULAS.group` 分栏、
   算子 `explanation` / 芯片 `notes` / `collectDiagnostics` 双语、`cost_counts.md` 42 条 bytes 明细、
   前端公式数学式化。
+
+## 2026-09-21：指定 H20/A100 runtime validation
+
+- **已完成**：在 H20 `10.98.95.16` 的 `vllm-0920`、`sglang-dev-20260918-20518d85`、`dsv41_zzj_deploy`，以及 A100 `10.55.87.81` 的 `vllm-0920`、`sglang-20260918-20518d85` 中完成真实请求 / reduced-dummy 功能验证。
+- **已确认**：vLLM TP-only/EP MoE placement、Qwen3.5 GDN BF16 conv + FP32 temporal、GLM5-Next DSA uint8 index + KDA FP32 state、vLLM MTP 与 SGLang generic MTP draft pool、H20 DSV4.1 DSpark 独立 target/draft SWA storage。
+- **边界**：H20 验证使用 FP8 代理量化 build，不能替代 V4.1 原生 FP4；runtime page rounding、reserve slots、scratch/workspace 与逐张量 draft attribution 仍为 evidence gap。完整记录见 `evidence/memory/framework_runtime_validation_20260921.md`。
+- **清理**：本轮启动的 vLLM/SGLang probe 进程已停止，GPU 显存回到 0；H20 `dsv41_zzj_deploy` 容器本身按原状态保留，A100 原有 `vllm-0920` 容器未停止。
+- **验收不等于全绿**：10 个最终配置/20 请求通过，但发现 vLLM DSA `index_kpool=4` 时 index 增长 33 B/层/token，而 MSV 当前仍为 132；MTP scratch 和 DSpark physical pool reserve 也未进入精确总量。本轮未修改产品公式，状态为“功能通过、成本分项部分通过”，不得把总量标成已完全对齐。

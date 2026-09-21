@@ -1,5 +1,11 @@
 # DSpark 草稿 KV 池 —— H20 在机对账 MSV draftKvBytesPerToken（R2/R3 draft 侧，2026-09-21 现跑）
 
+> **2026-09-21 更正**：下文“草稿复用目标池 SWA / 草稿显存只有权重”的推断不成立。
+> 本轮逐张量取证确认 target/draft SWA storage 指针不同，draft 独占
+> `34,594,560 B/rank`；`c4_size=0` 只证明没有独立压缩 KV，不证明没有独立 SWA。
+> 原始日志事实保留，当前归属结论见
+> [framework runtime validation](framework_runtime_validation_20260921.md)。
+
 > 复现（2026-09-21，本人现跑非复用旧服务；GPU 从 0 起、跑后清零）：H20 `10.98.95.16`
 > （8×H20-3e SM90）容器 `dsv41_zzj_deploy`（`lmsysorg/sglang:dev-dsv41`，`deep_ep 2.1.0`、torch 2.13+cu130、CUDA 13.0）。
 > V4.1：`/ssd1/models/DeepSeek-V4.1-Flash-Attn-W8A8-MoE-W4A8-INT8-Dynamic`（int8-dynamic 代理 ckpt、`kv_cache_dtype=fp8_e4m3`）。

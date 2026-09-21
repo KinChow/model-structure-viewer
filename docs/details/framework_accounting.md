@@ -1,5 +1,12 @@
 # Framework-conditioned cost accounting
 
+> 2026-09-21 UTC runtime validation update:
+> [H20/A100 report](evidence/memory/framework_runtime_validation_20260921.md)
+> confirms state dtype/shape, private MTP KV and DSpark storage ownership.
+> It also identifies **unresolved formula/allocation differences**: vLLM DSA
+> k-pool index growth, speculative state scratch, and DSpark physical reserve.
+> The profiles are not yet a fully reconciled runtime allocation predictor.
+
 MSV keeps one Graph IR and one theoretical accounting path. A framework
 profile selects implementation semantics; it does not emulate a serving
 runtime and never contains measured GPU constants, throughput, latency, or
@@ -115,3 +122,11 @@ state allocation, CUDA/workspace/scratch, or per-tensor draft weight attribution
 They must be reconciled against the exact runtime version/config. Existing H20
 reports are historical evidence, not a new GPU validation of these profiles.
 No measured value or empirical correction factor is shipped to the frontend.
+
+The subsequent H20/A100 validation establishes why “uncompressed row bound”
+above is only a per-logical-window bound, **not an upper bound on the physical
+preallocated pool**: the tested DSpark draft uses 34,594,560 bytes/rank versus
+393,216 bytes of logical window. Do not silently mark Fit as runtime-certified.
+The new report also distinguishes SGLang's uncompressed DSA capacity reserve
+from vLLM's `tokens_per_state=4` index growth; the latter still needs a profile
+formula correction, not an empirical multiplier.

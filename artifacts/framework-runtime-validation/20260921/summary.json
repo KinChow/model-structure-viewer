@@ -1,0 +1,140 @@
+{
+  "msv_commit": "681f4c7",
+  "timezone": "UTC",
+  "successful_scenarios": 10,
+  "successful_requests": 20,
+  "scenarios": [
+    {
+      "scenario": "a100-vllm-v2lite-tp4",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    },
+    {
+      "scenario": "a100-vllm-v2lite-tp4-ep4",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    },
+    {
+      "scenario": "a100-sglang-qwen35",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": [
+        "MHATokenToKVPool.__init__: TypeError: vars() argument must have __dict__ attribute\n"
+      ]
+    },
+    {
+      "scenario": "a100-vllm-qwen35-mtp",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    },
+    {
+      "scenario": "a100-sglang-qwen35-mtp",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    },
+    {
+      "scenario": "h20-sglang-qwen35-gdn",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": [
+        "MHATokenToKVPool.__init__: TypeError: vars() argument must have __dict__ attribute\n"
+      ]
+    },
+    {
+      "scenario": "h20-vllm-qwen35-gdn",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    },
+    {
+      "scenario": "h20-vllm-glm5-dsa-kda",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    },
+    {
+      "scenario": "h20-sglang-glm5-dsa-kda-auto",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    },
+    {
+      "scenario": "h20-sglang-dsv41-dspark",
+      "ok": true,
+      "request_count": 2,
+      "capture_errors": []
+    }
+  ],
+  "vllm_tp4_ep4_output_exact_match": true,
+  "dspark_private_storage_per_rank": [
+    {
+      "worker_pid": 31440,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    },
+    {
+      "worker_pid": 31505,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    },
+    {
+      "worker_pid": 31571,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    },
+    {
+      "worker_pid": 31637,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    },
+    {
+      "worker_pid": 31702,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    },
+    {
+      "worker_pid": 31768,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    },
+    {
+      "worker_pid": 31834,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    },
+    {
+      "worker_pid": 31901,
+      "target_swa_layers": 40,
+      "draft_swa_layers": 3,
+      "storage_aliases": 0,
+      "draft_storage_bytes": 34594560
+    }
+  ],
+  "accounting_status": "partially_validated",
+  "open_differences": [
+    "vllm_dsa_kpool4_index_growth_33_vs_132_bytes_per_layer_token",
+    "speculative_state_scratch_not_in_base_state",
+    "dspark_physical_reserve_not_logical_window",
+    "runtime_weight_binding_timing_and_backend_packing",
+    "vllm_mtp_prefix_cache_group_warning"
+  ],
+  "date_utc": "2026-09-21"
+}

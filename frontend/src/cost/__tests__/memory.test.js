@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activationTensorBytes, bytesPerDtype, declaredElementsForHeader, draftKvBytesPerToken, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
+import { activationTensorBytes, bytesPerDtype, declaredElementsForHeader, draftKvBytesPerToken, draftWeightBytes, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 import { aggregateCost } from "../aggregate.js";
 
@@ -172,4 +172,36 @@ test("draftKvBytesPerToken：压缩(dsv4) draft 叶按逐 dtype 边际口径", (
   const g = draftGraph({ cache_kv_dtype: "F4_E4M3S16", cache_kv_growth_elements: 32, cache_index_dtype: "F4_E8M0S32", cache_index_growth_elements: 32 });
   const expect = 32 * bytesPerDtype("F4_E4M3S16", 2) + 32 * bytesPerDtype("F4_E8M0S32", 2);
   assert.equal(draftKvBytesPerToken(g, {}, 2), expect);
+});
+
+const weightSplitGraph = () => ({
+  root_id: "root",
+  nodes: [
+    { id: "root", parent_id: null, type: "model" },
+    { id: "backbone.mlp", parent_id: "root", type: "operator", attributes: { weightMatrices: [{ out: 100, in: 100 }] } },
+    { id: "mtp", parent_id: "root", type: "mtp", repeat: 0, attributes: { modules: 1 } },
+    { id: "mtp.proj", parent_id: "mtp", type: "operator", attributes: { weightMatrices: [{ out: 10, in: 10 }] } },
+  ],
+});
+
+test("draftWeightBytes：草稿子树权重按图占比拆分（含 total 摊分）", () => {
+  const g = weightSplitGraph();
+  // 图绝对：草稿 10×10×2=200；主干 100×100×2=20000；图总 20200
+  assert.equal(draftWeightBytes(g), 200);
+  // 传实际总量=图总量 → 等于图绝对
+  assert.equal(draftWeightBytes(g, 20200), 200);
+  // 按草稿占比 200/20200 摊到给定 checkpoint 总量
+  assert.equal(draftWeightBytes(g, 40400), 400);
+});
+
+test("draftWeightBytes：无 mtp/dspark 子树返回 0（主干逐字节不变）", () => {
+  const g = {
+    root_id: "root",
+    nodes: [
+      { id: "root", parent_id: null, type: "model" },
+      { id: "backbone.mlp", parent_id: "root", type: "operator", attributes: { weightMatrices: [{ out: 100, in: 100 }] } },
+    ],
+  };
+  assert.equal(draftWeightBytes(g), 0);
+  assert.equal(draftWeightBytes(g, 20000), 0);
 });

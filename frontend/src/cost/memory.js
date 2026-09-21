@@ -261,6 +261,40 @@ export function draftKvBytesPerToken(graph, config = {}, kvBytes = 2, { draftTok
   return perToken * (1 + Math.max(0, draftTokens));
 }
 
+/**
+ * 草稿模型（MTP/DSpark 子树）的常驻**权重**字节。与 `draftKvBytesPerToken` 同源——按 parent
+ * 祖先链判定草稿子树，`nodeWeightCapacityBytes` 逐叶累加。给了实际 `weightBytesTotal`
+ * （checkpoint/override 口径的总权重）时，按草稿子树在**图权重**里的占比摊到该总量，避免
+ * 「图声明字节」与「checkpoint 总量」两种口径直接相减产生的双计；不给则回退图绝对字节。
+ * 无 mtp/dspark 子树时返回 0（主干模型逐字节不变）。
+ */
+export function draftWeightBytes(graph, weightBytesTotal = null) {
+  if (!graph?.nodes?.length) return 0;
+  const rawById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const canonOf = (n) => n.canonical_id || n.module_id || n.id;
+  const draftCanon = new Set();
+  for (const n of graph.nodes) {
+    let cur = n; let isDraft = false;
+    while (cur) {
+      if (cur.type === "mtp" || cur.type === "dspark") { isDraft = true; break; }
+      cur = cur.parent_id != null ? rawById.get(cur.parent_id) : null;
+    }
+    if (isDraft) draftCanon.add(canonOf(n));
+  }
+  if (draftCanon.size === 0) return 0;
+  let draftGraphBytes = 0; let totalGraphBytes = 0;
+  walkStructure(graph, ({ node, resident }) => {
+    const b = nodeWeightCapacityBytes(node) * resident;
+    totalGraphBytes += b;
+    if (draftCanon.has(node?.id)) draftGraphBytes += b;
+  });
+  if (!(totalGraphBytes > 0)) return 0;
+  if (typeof weightBytesTotal === "number" && weightBytesTotal > 0) {
+    return weightBytesTotal * (draftGraphBytes / totalGraphBytes);
+  }
+  return draftGraphBytes;
+}
+
 /** 图能证明的驻留合计。activation workspace / CUDA runtime / comm scratch
  *  无法从 config 得到，不计（runtime-unknown，原则 §3.8 / protocol §四）。 */
 export function memoryBreakdown({ weightBytes = 0, bufferBytes, graph, batch = 1, tokens = 1, kvBytes = 2 } = {}) {

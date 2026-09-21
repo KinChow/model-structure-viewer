@@ -4,6 +4,8 @@
 >
 > 本文记录各验证项的「计划 vs 已完成」状态；证据工件索引见 [`evidence/README.md`](evidence/README.md) 的覆盖矩阵。
 >
+> **换环境只看 [「换环境自助台账」](#换环境自助台账single-source-of-truth换环境无需另写交接)**：它是环境切换的唯一交接来源（状态登记表 + 环境→可解项索引 + 未闭合项自助卡片），不再另写交接文档。
+>
 > **本文件收口触发池里“需 NVIDIA GPU 运行时才能验证”的项** —— 它们无法在当前纯前端 /
 > CPU 的 MSV 仓库里闭合（MSV 只做“config → 结构图 → 理论估算”，是静态工具）。出处见
 > [`../implementation_plan.md`](../implementation_plan.md) 触发池与
@@ -26,7 +28,7 @@
 | parallelism/memory | framework execution profile（vLLM vs SGLang 有效宽度） | 第一次要对比同模型在两框架的有效 attention/MoE 宽度 | 需在 GPU 上起两套 serving 栈实测 | **已验证（SGLang + vLLM 双框架，2026-09-17→09-21，A100）**：SGLang TP=1/2/4/8、EP=4/8、ETP、all-reduce/all-to-all/RS-AG 字节级；**vLLM 跨框架已补齐**——GQA KV/TP（Qwen3-0.6B 每卡 KV 114,712 B=MSV 0.02%、权重÷tp、池×tp）、MoE EP（V2-Lite `E=32/64,N=1408/704`==`expertShardDivisor`）、MLA KV（31,101 B=0.008%）、roofline 地板、qwen3_moe TP2 每卡 KV **8,192 B=MSV 0.0%**（2026-09-21）——**vLLM==SGLang==MSV**。剩：vLLM all-to-all 字节直测 / DP-attention / 真·多机。证据 `evidence/parallelism/vllm_width_tp.md`·`vllm_moe_ep.md`·`cost/vllm_bench_vs_roofline.md` |
 | cost | per-stage roofline / evidence I/O shape | UI 或对账需要 stage 级动作向量 | 需真实 profiler（nsys/ncu 或框架计数器） | **部分已验证（2026-09-17，A100/SGLang/Qwen3-0.6B）：① 聚合实测落 MSV roofline 地板之上（时长 1.99×、TPOT 1.65×）；② 逐算子对真值——线性 MSV MACs×2 == FlopCounterMode FLOPs 逐位相等、GEMM compulsory 读侧 == ncu DRAM 读(<0.4%)、bound 分类逐项一致。证据 evidence/cost/** |
 | cost | A2 kernel 口径对齐（flash-attention scores/probs） | 需 kernel 级口径而非理论上限 | 需 GPU 上跑 flash-attention kernel 取实测 | **已验证（2026-09-17）：ncu flash_fwd_kernel 实测 scores/probs 不落 HBM，A2 物化口径确认为保守上界；证据 evidence/cost/flash_kernel_caliber.md** |
-| structure/memory | DeepSeek-V4.1-Flash 运行时/权重实证 | 拿到实际 checkpoint / safetensors index，或要跑推理 | 需真实权重 + GPU 推理（fp4/fp8、engram、DSpark 投机） | 待验证 |
+| structure/memory | DeepSeek-V4.1-Flash 运行时/权重实证 | 拿到实际 checkpoint / safetensors index，或要跑推理 | 需真实权重 + GPU 推理（fp4/fp8、engram、DSpark 投机） | **拆分登记在「换环境自助台账」R1s/R1f/R2/R3**：结构对账(R1s)+fp8 前向+草稿池(R2) 已闭合；原生 fp4 数值(R1f/R2/R3) 待 Blackwell |
 | backend | 后端生产化（部署硬化） | 真正对外部署 | 运行时/部署环境（非 GPU 计算，独立登记） | **已审计（2026-09-17）：路径/remote code/鉴权 3 项缺失(P0)+限流/脱敏 2 项部分，与本地工具定位一致；硬化待部署触发，见 backend_audit.md** |
 
 ---
@@ -413,27 +415,78 @@
 
 ---
 
-## 换环境待办清单（按所需环境分组，供未来切机器直接照做）
+## 换环境自助台账（single source of truth，换环境无需另写交接）
 
-> 目的：把"哪些验证已闭合、哪些还没做、没做的卡在什么环境"一次讲清。当前机器（A100 `10.55.87.81` /
-> H20 `10.98.95.16`）能做的**静态 / A100 / H20-fp8 / 双框架**项已基本收满；下表只列**仍未闭合**的项，
-> 换到对应环境后按"跑什么 → 对哪个前端函数 → 判定"直接执行。已闭合项的证据见上文各节与 `evidence/`。
+> 本节即"交接文档本身"：换到新机不再另写交接，只在这里读、跑、就地回填。
 >
-> 已闭合快照（截至 2026-09-21）：结构对账 59/60 零残留；成本 FLOPs/HBM/roofline/kernel 口径（SGLang+vLLM 双框架）；
-> 并行 TP/EP/ETP/all-reduce/all-to-all/RS-AG（A100 SGLang 字节级 + vLLM 跨框架 GQA/MoE/MLA）；V4.1 静态（config/index/
-> 逐张量/CSA2 KV 890 B/token）；PD 分离机制 + KV 传输字节 + 跨-TP 重排；H20-3e roofline 标定。
+> **换环境用法**：① 在「环境 → 可解项」查当前环境能解锁的 ID；② 对每个 ID 读其自助卡片
+> （所需环境 / 复现命令 / 对账目标 / 判定阈值 / 当前卡点 / 证据），照命令跑、按判定回填；
+> ③ 跑完**就地**更新卡片状态与「状态登记表」，不新开交接文件。
+>
+> **维护约定（防台账漂移）**：
+> - 每个 GPU 运行时验证项有唯一 ID（R#）、字段固定；结论只落在「卡片 + `evidence/` 文档」，不散写他处。
+> - 状态只用三档：`✅ 已闭合` / `🟡 部分`（写清已闭合子项 + 剩余项） / `🔴 阻塞`（写清卡点 + 所需环境）。
+> - 详细发现放 `evidence/`，卡片只留一句话结论 + 证据链接 + **可直接粘贴运行**的命令。
+> - 已闭合项收进「状态登记表」一行（带证据链接），不在卡片区展开；卡片区只留未闭合项。
+> - 每次更新在对应行/卡片标注日期与 host，不改动「纪律」与口径假设。
 
-| # | 仍未闭合项 | 需要的环境（关键前提） | 跑什么 → 对账前端函数 → 判定 | 现状 |
-|---|---|---|---|---|
-| R1 | **V4.1/V3 fp8·fp4 完整前向**（结构对账第 60 模型运行时闭合） | **fp8 前向：H20/Hopper SM90（已达成）；fp4 KV/indexer：Blackwell SM100/SM120/gfx95**（H20 SM90 无 fp4 indexer 支持） | H20 `dsv41_zzj_deploy` 起 dsv41 前向，dump `named_modules` 逐层 shape/dtype → `compare_structure.py` 三桶零残留 + 前端 `deepseek_v41` 组网 | 🟡 部分（2026-09-21 现跑）：fp8 前向+DSpark 已跑通（HB1/HB6，`/generate` 正确）；**fp4 完整前向 hard-blocked on H20** —— `--enable-deepseek-v4-fp4-indexer requires SM100, SM120, or gfx95 GPUs`，H20=SM90 被直接拒 → 原生 fp4 须 Blackwell(SM100)。`named_modules`→`compare_structure.py` 结构 dump 本会话未做，留后续 |
-| R2 | **engram/DSpark 运行时**（接受率/显存/吞吐）与前端建模正式对账 | **H20/Hopper + 完整权重**（减层随机 ckpt 不产 mtp/engram 权重） | H20 dsv41 开 DSpark 复跑，抓 accept len/rate + 逐层 KV footprint → 对前端 V4.1 KV(890 B/token) + DSpark 建模 | 🟡 部分（2026-09-21 已对账，见 `evidence/memory/deepseek_v41_dspark_runtime_h20.md`）：H20 运行时 `bytes_per_full_token=1670.75 B`(fp8 KV)、DSpark `block_size=5/num_draft_tokens=6`。**1670.75/890=1.877 ≈ fp4→fp8 字节翻倍** → MSV 逐 token 主干 KV 结构在 fp8 下定性坐实。**2026-09-21 现跑补（草稿池）**：DSpark 草稿 `DeepSeekV4TokenToKVPool` 分配 `c4_size=0`（无独立压缩 KV，草稿并入目标池；`markov_head=DSparkV4MarkovHead`、草稿权重 1.94 GB/卡）→ MSV `draftKvBytesPerToken`(V4.1 768 / V4-Flash 512) 对 **DSpark** 属**上界式建模、不对应独立运行时池**（`evidence/memory/deepseek_dspark_draft_kv_pool_h20.md`）。**V4-Flash 用 0731 版现跑闭合**（`DeepSeek-V4-Flash-0731-fp8` bundle DSpark、`bytes_per_full_token=3939.79`、草稿池同 `c4_size=0`、`/generate` 正确）→ 与 V4.1 同结论。**未闭合**：int8-dynamic 代理 ckpt + KV=fp8≠MSV fp4；精确逐字节需 Blackwell + 原始 fp8/fp4 ckpt |
-| R3 | **V4.1 KV +18.7% / V4-Flash −2.1% 残差** 二次校准 | R2 同环境（H20 + 完整权重 + 参考推理栈；V4-Flash 参考栈本地缺，仅 V4.1 有） | 真实逐层 KV footprint → 校准 dsv4 家族 `emitCompressor/emitIndexer` KV 边际口径 | 🟡 静态已收口（V4.1 精确 890、V4-Flash 据实留 −2.1%），运行时精校待 Hopper |
-| R4 | **DeepEP all-to-all 字节直测**（含 SGLang shared-expert 折叠 C3c） | **可跑 A2A 的 shared-expert MoE 模型 + 可运行 DeepEP 构建** | 可运行 DeepEP 构建下抓 dispatch/combine 字节 → 对前端 all-to-all `B·T·(topk+sharedExperts)·H·b` | 🔴 阻塞（2026-09-21 现跑：`deep_ep 2.1.0`+`Buffer` 在 H20 dsv41 容器 import 通过，**A100 的 ABI import 障碍在 H20 解除**；但 DeepSeek-V4.1 拒绝 `--moe-a2a-backend deepep`（`V4.1 vision currently supports TP/EP without ... MoE A2A`）→ shared-expert 折叠字节仍无法在 dsv41 抓，留可跑 A2A 的 shared-expert MoE 模型/镜像；口径已由 NCCL `alltoall_bench.py` 直测收口，此项为增量） |
-| R5 | **真·多机**（跨节点 NCCL / PD 分离 inter-node RDMA 带宽 / inter-node roofline 通信费率） | **≥2 节点**（A100 81↔41） | 跨节点起 NCCL + SGLang PD disaggregation（mooncake RDMA），抓 inter-node 带宽 + KV 传输 → 对 `comm.js pdKvTransferBytes` / roofline 通信费率 | **🟢 已闭合（2026-09-21，A100 81↔41）**：先修驱动层（构建 Mellanox `nv_peer_mem` 1.0-9 解 GPUDirect，因 575 自带 peermem 与 MOFED5.8 API 不兼容）。① **inter-node 通信字节公式**：跨节点 NCCL all-reduce `2(N-1)/N·D`、all-to-all `B·T·topk·H·b`、RS+AG 逐 N(2/4/8) 比值全 **1.000**；inter-node 有效 busbw 单 rail ≈ **79.6 Gb/s**（`internode_comm.md`，仅记录不落芯片常量）。② **跨-TP 跨节点 PD**：prefill_tp2@81→decode_tp1@41 RDMA 跑通、输出正确、0 传输错误、触发 KV head 重排 → `layoutRepackRequired=(2≠1)=true` 真机一致（`pd_disaggregation.md`）。③ **多 rail KV**：mooncake TE 峰值 1→4 rail ~9.5→18.3 GB/s、4 rail 饱和（`pd_multirail_kv.md`）。**未闭合**：PD vs colocated 完整 serving 矩阵（bench_serving `--pd-separated` 需专调，方法学见 `pd_multirail_kv.md`） |
-| R6 | **vLLM 小尾巴**：all-to-all 字节直测、DP-attention(attnMode=dp) 跨框架 | **任意 GPU（可现做）** | vLLM MoE all-to-all 抓字节 + DP-attn 起服务对有效宽度 → 对前端 all-to-all / attnMode | **🟢 已闭合（2026-09-21，A100 vllm-0920）**：**DP-attention** V2-Lite DP2 `ep_size=tp×dp=2`、`E=32/64` per rank、每 DP rank 独立满宽 KV → 前端 `attnMode=dp` + `ep==tp×dp` 一致；**all-to-all 字节直测** vLLM 运行时 NCCL `all_to_all_single` dispatch=B·T·topk·H·b（topk6·H2048）比值 **1.0000** 且与 ep(2/4) 无关。KV 口径扩展（GQA 114,688 B、MLA 31,104 B）见 `cost/vllm_bench_vs_roofline.md`。剩：exotic hybrid(Qwen3_5/Qwen4Exp) vLLM 支持性 + per-model throughput 留干净 GPU |
-| R7 | **后端生产化硬化**（路径约束 / remote-code 沙箱 / 鉴权 / 限流 / 脱敏） | **部署环境（非 GPU）**，且做成 opt-in 默认关（否则破坏本地 verify） | 上线前逐项过 `backend_audit.md` 清单 | 🟡 已审计，硬化待"真正对外部署"触发 |
+### 状态登记表（全部 GPU 运行时项，一行一项）
 
-**一句话**：H20(SM90) 已收 fp8 前向+DSpark（R1 fp8 段、R2 定性 + 草稿池机制）；**R1 fp4 / R2 精确 fp4 逐字节须 Blackwell(SM100)**（H20 的 fp4 indexer 被硬拒）；R4 的 DeepEP import 障碍在 H20 解除，但 shared-expert 折叠字节需可跑 A2A 的 shared-expert MoE 模型/镜像；R3 静态已收口、运行时精校随 R2 留 Blackwell；**R5 已闭合（A100 81↔41 真·多机：inter-node 通信公式 + 跨-TP RDMA PD + 多 rail KV，仅 PD serving 矩阵留专调）**；**R6 已闭合（vLLM DP-attention + all-to-all 字节直测）**；R7 等部署。其余维度（结构/成本/并行/静态 KV/PD）在 A100+H20 上已闭合。
+| ID | 维度 | 项 | 状态 | 所需环境 | 证据 |
+|---|---|---|---|---|---|
+| R1s | structure | V4.1 第 60 模型运行时结构对账 | ✅ 已闭合（2026-09-21 H20 meta 构造，三桶 unclassified=0） | H20 SM90（已达成） | `evidence/structure/deepseek_v41_runtime_module_tree_h20.md`；复现 `scripts/evidence/structure/deepseek_v41_r1_reconcile.py` |
+| R1f | structure | V4.1/V3 **fp4** 完整前向（原生 fp4 数值） | 🔴 阻塞 | **Blackwell SM100/SM120/gfx95** | 卡片 R1f |
+| R2 | memory | engram/DSpark 运行时（accept/显存/吞吐）对账 | 🟡 部分（fp8 定性 + 草稿池机制已闭合；精确 fp4 逐字节剩余） | H20 已做 fp8 段；精确 fp4 需 Blackwell + 原始 ckpt | `evidence/memory/deepseek_v41_dspark_runtime_h20.md`、`evidence/memory/deepseek_dspark_draft_kv_pool_h20.md`；卡片 R2 |
+| R3 | memory | V4.1/V4-Flash KV 残差运行时精校 | 🟡 静态已收口（V4.1 精确 890 / V4-Flash −2.1%），运行时精校剩余 | 随 R2（Blackwell + 完整权重 + 参考栈） | `evidence/memory/deepseek_v41_csa2_kv_bytes.md`；卡片 R3 |
+| R4 | parallelism | DeepEP all-to-all 字节直测（含 C3c shared-expert 折叠） | ✅ 已闭合（2026-09-21 H20：DeepEP dispatch 跑通 + shared-fold 实证；前端 comm.js C3c 已修：默认不折叠、显式 opt-in） | H20（已达成） | `evidence/parallelism/deepep_shared_expert_h20.md`、`etp_deepep.md`；卡片 R4 |
+| R5 | parallelism | 真·多机（inter-node 通信 / 跨-TP PD / 多 rail KV） | ✅ 已闭合（2026-09-21 A100 81↔41；PD serving 矩阵为专调增量） | ≥2 节点（已达成） | `evidence/parallelism/internode_comm.md`、`pd_disaggregation.md`、`pd_multirail_kv.md` |
+| R6 | parallelism | vLLM 小尾巴（all-to-all 字节 + DP-attention） | ✅ 已闭合（2026-09-21 A100 vllm-0920） | 任意 GPU（已达成） | `evidence/cost/vllm_bench_vs_roofline.md`、`evidence/parallelism/vllm_moe_ep.md` |
+| R7 | backend | 后端生产化硬化 | 🟡 已审计，硬化待部署触发 | 部署环境（非 GPU，opt-in 默认关） | `evidence/../backend_audit.md`；卡片 R7 |
+
+### 环境 → 可解项 索引
+
+- **当前机**（A100 `10.55.87.81` SM80 / H20 `10.98.95.16` SM90）：可做 R6 收尾（现机即可）；R1s/R2-fp8/R5/R6 已在此闭合。
+- **Blackwell（SM100/SM120/gfx95）**：R1f、R2 精确 fp4 逐字节、R3 运行时精校。
+- **前端（无需 GPU）**：R4 衍生的 `comm.js` C3c fold 修复（DeepEP/EP 默认不折叠 shared expert，见卡片 R4）。
+- **≥2 节点**：R5（已闭合；仅 PD vs colocated serving 矩阵为专调增量）。
+- **部署环境（非 GPU）**：R7。
+
+### 未闭合项自助卡片
+
+#### R1f — V4.1/V3 fp4 完整前向（原生 fp4 数值）  🔴 阻塞
+- **所需环境**：Blackwell（SM100/SM120/gfx95）；H20=SM90 被 `--enable-deepseek-v4-fp4-indexer` 直接拒。
+- **复现**（Blackwell 上）：SGLang 起原始 fp8/fp4 ckpt `/ssd4/models/DeepSeek-V4.1-Flash`（非量化代理），加 `--enable-deepseek-v4-fp4-indexer`；再按 R1s 的 `deepseek_v41_runtime_module_tree.py` 用**真实 fp4 dtype**重取模块树 → `deepseek_v41_r1_reconcile.py`。
+- **对账目标**：前端 `deepseek_v41` 组网 + fp4 dtype/shape（`compare_structure` 三桶 unclassified=0，且 fp4 叶 dtype 命中）。
+- **判定**：三桶 unclassified=0 且 fp4 KV/index 逐 dtype 命中（不再走 fp8 代理口径）。
+- **当前卡点**：`ValueError: --enable-deepseek-v4-fp4-indexer requires SM100, SM120, or gfx95 GPUs`（fp4 张量核属 Blackwell）。
+- **证据**：`evidence/structure/deepseek_v41_runtime_module_tree_h20.md`（结构侧已闭合，仅 dtype 走 fp8 代理）。
+
+#### R2 — engram/DSpark 运行时（精确 fp4 逐字节）  🟡 部分
+- **已闭合**：H20 fp8 现跑——主干 `bytes_per_full_token=1670.75`(fp8)≈890(fp4)×1.877；DSpark 草稿池 `c4_size=0`（草稿并入目标池，`draftKvBytesPerToken` 512/768 对 DSpark 属上界式建模）；V4.1 + V4-Flash(0731) 同结论。
+- **剩余（所需环境=Blackwell + 原始 fp8/fp4 ckpt）**：用原始 ckpt + fp4-indexer 复跑，抓逐层 KV footprint + accept len/rate/吞吐 → 与 MSV 890(fp4) 逐字节对拍（现用 int8-dynamic 代理 + KV=fp8，非 MSV fp4 口径）。
+- **复现**：`scripts/evidence/memory/deepseek_dspark_draft_kv.mjs`（MSV 基线）+ Blackwell 上 DSpark serve（`--speculative-algorithm DSPARK --speculative-dspark-block-size 5 --kv-cache-dtype fp8_e4m3` 或 fp4）抓 `DSV4 memory calculation` / `DeepSeekV4TokenToKVPool` 行。
+- **判定**：真机逐层 KV 字节 == MSV 890(fp4) 容差内；accept rate 仅登记（运行时属性、MSV 不预测）。
+- **证据**：`evidence/memory/deepseek_v41_dspark_runtime_h20.md`、`deepseek_dspark_draft_kv_pool_h20.md`。
+
+#### R3 — KV 残差运行时精校  🟡 静态已收口
+- **已闭合**：V4.1 静态精确命中 890、V4-Flash 据实留 −2.1%。
+- **剩余（随 R2 同环境）**：真实逐层 KV footprint → 校准 dsv4 家族 `emitCompressor/emitIndexer` KV 边际口径，定夺 V4-Flash −2.1% 残差。
+- **证据**：`evidence/memory/deepseek_v41_csa2_kv_bytes.md`。
+
+#### R4 — DeepEP all-to-all 字节直测（含 C3c shared-expert 折叠）  ✅ 已闭合
+- **GPU 侧已完成（2026-09-21 H20）**：减层 dummy DeepSeek-V3（256 routed/1 shared）`--moe-a2a-backend deepep`，
+  DeepEP dispatch 在 H20 跑通（进入 `forward_deepep→dispatch→run_moe_core`；A100 的 `named symbol not found` ABI 障碍解除）。
+- **关键发现**：运行时 + 源码双证——`DeepEP: fusion off by default`、`shared_experts_fusion_disable_reason`（DeepEP/EP>1@NV 均默认关）
+  → shared expert 不进 a2a dispatch，真机 dispatch = `B·T·topk·H·b`（routed only）。**前端 `comm.js` C3c 无条件 `+sharedExperts` 高估**。
+- **前端修复已落地（方案 A）**：`comm.js` 默认不折叠、仅 `enforceSharedExpertsFusion=true`（options/plan，对应 `--enforce-shared-experts-fusion`）+ sglang + sharedExperts>0 才折；`comm.test.js` 更新；`node --test` 438/438、`verify:models` 60/60、`docs:check` 绿、无 golden 变更。
+- **判定**：GPU 侧——DeepEP dispatch 执行 + fusion-off 实证（已达成）；基础字节口径由 A100 NCCL `alltoall_bench.py` 收口（比值 1.000）。
+- **证据**：`evidence/parallelism/deepep_shared_expert_h20.md`、`etp_deepep.md`、`deepep_source_build_attempt.md`。
+
+#### R7 — 后端生产化硬化  🟡 已审计
+- **所需环境**：部署环境（非 GPU），做成 opt-in 默认关（否则破坏本地 verify）。
+- **复现/判定**：上线前逐项过 `backend_audit.md` 清单（路径约束 / remote-code 沙箱 / 鉴权 / 限流 / 脱敏）。
+- **当前状态**：3 项缺失(P0)+2 项部分；硬化待"真正对外部署"触发。
+- **证据**：`backend_audit.md`。
 
 ## 关联
 

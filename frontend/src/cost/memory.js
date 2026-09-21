@@ -223,22 +223,24 @@ export function kvBytesPerToken(graph, kvBytes = 2) {
  * config 为 normalizeConfig 输出。返回每 token 字节；不并进主干 KV/total（调用方单列展示）。
  */
 export function draftKvBytesPerToken(graph, config = {}, kvBytes = 2, { draftTokens = 0 } = {}) {
-  const hasDraft = (graph?.nodes || []).some((node) => node?.type === "mtp" || node?.type === "dspark");
-  if (!hasDraft) return 0;
-  // dsv4/V4.1 压缩 KV 家族：per-token KV 是压缩边际口径（cache_kv_growth_elements / 亚字节 dtype），
-  // 且其 MLA latent（kv_lora_rank）未在 normalized 暴露 → 简单公式会错误回退 GQA(kvHeads=1)、失真 25–276×。
-  // 这类草稿 KV 需按压缩边际口径专门建模 → 暂不建模（返回 0），避免给错数。V3.2/GLM-5 有 kvLoraRank 走 MLA 正常。
-  const usesCompressedKv = (graph?.nodes || []).some((node) => {
+  // 直接读图里已实装的草稿层（MTP/DSpark 子树）的 cache 叶，用与 residentMemoryFromGraph 完全相同的
+  // 逐 dtype/边际口径累加 —— 对 MLA/GQA/压缩(dsv4) 一律正确，无需 config 公式或家族门控。
+  // 用 resident 倍率（草稿常驻，repeat=0 但 residentRepeat=mtpModules），叠加 verify 窗口 draftTokens（默认 0）。
+  if (!graph?.nodes?.length) return 0;
+  const inDraft = (id) => String(id || "").split(".").some((seg) => seg === "mtp" || seg === "dspark");
+  let perToken = 0;
+  walkStructure(graph, ({ node, resident }) => {
+    if (!inDraft(node?.id)) return;
     const a = node?.attributes || {};
-    return a.cache_kv_growth_elements != null || (a.cache_kv_dtype && bytesPerDtype(a.cache_kv_dtype, 2) < 1);
+    if (a.cache_kv_dtype != null) {
+      const kvB = bytesPerDtype(a.cache_kv_dtype, kvBytes);
+      const idxB = bytesPerDtype(a.cache_index_dtype || a.cache_kv_dtype, kvBytes);
+      perToken += ((a.cache_kv_growth_elements || 0) * kvB + (a.cache_index_growth_elements || 0) * idxB) * resident;
+    } else if (a.cache_kv_elements != null || a.cache_index_elements != null) {
+      perToken += ((a.cache_kv_elements || 0) + (a.cache_index_elements || 0)) * kvBytes * resident;
+    }
   });
-  if (usesCompressedKv && config.kvLoraRank == null) return 0;
-  const draftLayers = config.mtpModules || 1;
-  const perLayerElements = config.kvLoraRank
-    ? (config.kvLoraRank + (config.qkRopeHeadDim || 0)) // MLA latent（kv_lora_rank + qk_rope）
-    : 2 * (config.kvHeads || 0) * (config.headDim || 0); // GQA（K+V）
-  if (!(perLayerElements > 0)) return 0;
-  return perLayerElements * kvBytes * draftLayers * (1 + Math.max(0, draftTokens));
+  return perToken * (1 + Math.max(0, draftTokens));
 }
 
 /** 图能证明的驻留合计。activation workspace / CUDA runtime / comm scratch

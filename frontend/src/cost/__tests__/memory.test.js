@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activationTensorBytes, declaredElementsForHeader, draftKvBytesPerToken, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
+import { activationTensorBytes, bytesPerDtype, declaredElementsForHeader, draftKvBytesPerToken, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 import { aggregateCost } from "../aggregate.js";
 
@@ -147,26 +147,29 @@ test("未知视觉输入尺寸不被当作文本 sequence", () => {
   assert.equal(tensorElements([-1, -1, -1, -1, -1], { batch: 1, sequence: 2048 }), 0);
 });
 
-// C6：MTP/投机草稿常驻 KV/token。无 MTP 节点→0；MLA/GQA 按草稿层数计；draftTokens 叠加 verify 窗口。
-test("draftKvBytesPerToken：无 MTP 节点返回 0", () => {
-  assert.equal(draftKvBytesPerToken({ nodes: [{ id: "root", type: "model" }] }, { kvLoraRank: 512 }, 2), 0);
+// C6：MTP/投机草稿常驻 KV/token —— 直接读图里草稿层(mtp/dspark 子树)的 cache 叶，逐 dtype 累加。
+// 用 root_id + parent_id 的真实图形状，让 walkStructure 能下降到草稿注意力叶。
+const draftGraph = (attn) => ({
+  root_id: "root",
+  nodes: [
+    { id: "root", parent_id: null, type: "model" },
+    { id: "mtp", parent_id: "root", type: "mtp", repeat: 0, attributes: { modules: 1 } },
+    { id: "mtp.layer.self_attn", parent_id: "mtp", type: "operator", attributes: attn },
+  ],
 });
-test("draftKvBytesPerToken：MLA 草稿层，draftTokens 默认 0", () => {
-  const g = { nodes: [{ id: "root.4", type: "mtp" }] };
-  assert.equal(draftKvBytesPerToken(g, { kvLoraRank: 512, qkRopeHeadDim: 64, mtpModules: 1 }, 2), (512 + 64) * 2); // 1152
-  assert.equal(draftKvBytesPerToken(g, { kvLoraRank: 512, qkRopeHeadDim: 64, mtpModules: 1 }, 2, { draftTokens: 6 }), (512 + 64) * 2 * 7);
+test("draftKvBytesPerToken：无草稿 cache 叶返回 0（含 dsv4 未实装 draft attn）", () => {
+  assert.equal(draftKvBytesPerToken({ root_id: "root", nodes: [{ id: "root", parent_id: null, type: "model" }] }, {}, 2), 0);
+  // 只有 mtp 汇总节点、无展开的 draft 注意力 cache 叶（dsv4/V4.1 情形）→ 0
+  assert.equal(draftKvBytesPerToken({ root_id: "root", nodes: [{ id: "root", parent_id: null }, { id: "mtp", parent_id: "root", type: "mtp" }] }, {}, 2), 0);
 });
-test("draftKvBytesPerToken：GQA 草稿层", () => {
-  const g = { nodes: [{ id: "root.3", type: "dspark" }] };
-  assert.equal(draftKvBytesPerToken(g, { kvHeads: 8, headDim: 128, mtpModules: 1 }, 2), 2 * 8 * 128 * 2); // 4096
+test("draftKvBytesPerToken：MLA 草稿层从图读取，draftTokens 叠加 verify 窗口", () => {
+  const g = draftGraph({ cache_kv_elements: 576 }); // MLA latent 512+64
+  assert.equal(draftKvBytesPerToken(g, {}, 2), 576 * 2); // 1152
+  assert.equal(draftKvBytesPerToken(g, {}, 2, { draftTokens: 6 }), 576 * 2 * 7);
 });
-test("draftKvBytesPerToken：压缩 KV 家族且 latent 未暴露(kvLoraRank 缺)→暂不建模 0", () => {
-  const g = { nodes: [
-    { id: "root.4", type: "mtp" },
-    { id: "decoder.0.attn", type: "operator", attributes: { cache_kv_growth_elements: 22, cache_kv_dtype: "F8_E4M3" } },
-  ] };
-  // dsv4/V4-Flash 情形：kvLoraRank 未暴露 + 压缩 KV → 门控为 0（避免 GQA 回退失真）
-  assert.equal(draftKvBytesPerToken(g, { kvHeads: 1, headDim: 512, mtpModules: 1 }, 2), 0);
-  // V3.2/GLM-5 情形：压缩 KV 但 kvLoraRank 已暴露 → 走 MLA 正常计
-  assert.equal(draftKvBytesPerToken(g, { kvLoraRank: 512, qkRopeHeadDim: 64, mtpModules: 1 }, 2), (512 + 64) * 2);
+test("draftKvBytesPerToken：压缩(dsv4) draft 叶按逐 dtype 边际口径", () => {
+  // 已实装的压缩 draft 叶（growth + 亚字节 dtype）→ 按 F4 字节算，不再失真
+  const g = draftGraph({ cache_kv_dtype: "F4_E4M3S16", cache_kv_growth_elements: 32, cache_index_dtype: "F4_E8M0S32", cache_index_growth_elements: 32 });
+  const expect = 32 * bytesPerDtype("F4_E4M3S16", 2) + 32 * bytesPerDtype("F4_E8M0S32", 2);
+  assert.equal(draftKvBytesPerToken(g, {}, 2), expect);
 });

@@ -4,6 +4,7 @@ import { activationTensorBytes } from "../cost/memory.js";
 import { nodeCostPerCard, validatePlan } from "../cost/parallel.js";
 import { classifyRoofline } from "../cost/roofline.js";
 import { normalizeConfig } from "../structure/config/normalize.js";
+import { resolveFrameworkPlan } from "../cost/sharding.js";
 
 /** 构建一组给定芯片和并行计划下的逐节点理论 roofline 结果。 */
 export function buildNodeLens(structure, chip, {
@@ -14,18 +15,19 @@ export function buildNodeLens(structure, chip, {
   plan = {},
   efficiency,
   dtype = "bf16",
+  frameworkProfile = "neutral",
 } = {}) {
   if (!structure?.graph || !structure.extra_config || !chip) {
     return { ok: false, errors: [{ code: "lens.missingInputs" }], nodes: {} };
   }
   const config = normalizeConfig(structure.extra_config);
-  const checked = validatePlan(plan, config);
+  const checked = validatePlan(resolveFrameworkPlan(plan, frameworkProfile, config), config);
   if (!checked.ok) return { ok: false, errors: checked.errors, nodes: {} };
 
   // 切分是叶的事：对本行 own 权重 nodeCostPerCard 一次，再 aggregate。
   // 禁止把已切的 aggregate_weightBytes 再送进 nodeCostPerCard（会 /TP²）。
   const shapeOptions = { batch, sequence, phase, attentionHeads: config.attentionHeads };
-  const ownPerCard = computeNodeCosts(structure.graph, config, { batch, sequence, phase }).map((row) => {
+  const ownPerCard = computeNodeCosts(structure.graph, config, { batch, sequence, phase, frameworkProfile }).map((row) => {
     const nodeShapeOptions = {
       ...shapeOptions,
       vision: row.node.attributes?.modality === "vision",
@@ -66,7 +68,7 @@ export function buildNodeLens(structure, chip, {
       row.node,
       config,
       checked.plan,
-      { batch, tokens, bytesPerElement },
+      { batch, tokens, bytesPerElement, frameworkProfile },
     ) * row.multiplier;
     if (perCardCost.actions) perCardCost.actions.commBytes = perCardCost.commBytes;
     const roofline = classifyRoofline(perCardCost, chip, { dtype, efficiency });

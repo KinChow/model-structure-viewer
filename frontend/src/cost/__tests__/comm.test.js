@@ -179,3 +179,17 @@ test("shared-expert fusion 默认关，仅显式 enforce 时改 all-to-all 字�
   // enforce 但非 SGLang：不折叠 = 16
   assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "vllm", enforceSharedExpertsFusion: true }), 16);
 });
+
+test("planCommunicationBytes preserves option > camel plan > snake plan > off precedence", () => {
+  const graph = toGraph({ id: "model", children: [{ id: "dispatch", attributes: { communication_role: "ep_dispatch" } }] });
+  const config = { hiddenSize: 4, expertsPerToken: 2, sharedExperts: 1 };
+  const bytes = (plan, option, frameworkProfile = "sglang") => planCommunicationBytes({
+    graph, config, plan: { ep: 2, ...plan }, frameworkProfile, enforceSharedExpertsFusion: option,
+  }).totalBytes;
+  assert.equal(bytes({}, undefined), 16);
+  assert.equal(bytes({ enforce_shared_experts_fusion: true }), 24);
+  assert.equal(bytes({ enforceSharedExpertsFusion: true }), 24);
+  assert.equal(bytes({ enforceSharedExpertsFusion: true }, false), 16);
+  assert.equal(bytes({ enforceSharedExpertsFusion: false, enforce_shared_experts_fusion: true }), 16);
+  assert.equal(bytes({ enforceSharedExpertsFusion: true }, undefined, "vllm"), 16);
+});

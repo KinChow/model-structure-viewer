@@ -20,7 +20,6 @@ function resolvePlan(plan, config, framework) {
   if (!epEnabled) return plan; // TP-only experts inherit TP; do not inject moeTp=1.
   // vLLM EP group spans TP x DP, not the generic hybrid ETP domain.
   const ep = (plan.tp ?? plan.TP ?? 1) * (plan.dp ?? plan.DP ?? 1);
-  if (ep <= 1) return plan; // Invalid one-rank EP stays visible to validation.
   return { ...plan, ep, moeEp: undefined, moe_ep: undefined, moeTp: 1, moe_tp: 1 };
 }
 

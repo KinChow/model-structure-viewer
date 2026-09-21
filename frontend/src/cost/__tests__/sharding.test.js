@@ -273,26 +273,45 @@ test("P6 接缝：UI 输入的 snake_case 计划贯通 validatePlan 与声明分
   assert.equal(bad.ok, false);
 });
 
-// C3b：框架预设 → MoE plan 默认。仅 vLLM 变换，neutral/sglang 恒等（向后兼容）。
-test("resolveFrameworkPlan：neutral/sglang 恒等，vLLM 令 EP=TP×DP 且 moeTp=1", () => {
-  const plan = { tp: 8, dp: 1, ep: 4, moeTp: 2 };
+// C3b：vLLM profile 不把普通 TP-only MoE 误判为非法 EP 计划。
+test("resolveFrameworkPlan：vLLM 保留 TP-only，显式 EP 才采用整专家语义", () => {
+  const plan = { tp: 8, dp: 1, ep: 1, moeTp: 2 };
   assert.equal(resolveFrameworkPlan(plan, "neutral"), plan); // 引用相等 = 恒等
   assert.equal(resolveFrameworkPlan(plan, "sglang"), plan);
   assert.equal(resolveFrameworkPlan(plan, undefined), plan);
-  // vLLM：无 moe_tp 轴 → moeTp 强制 1；用户显式 ep 仍胜出。
-  const v = resolveFrameworkPlan(plan, "vllm");
+  const tpOnly = resolveFrameworkPlan(plan, "vllm", { experts: 64 });
+  assert.equal(tpOnly.ep, 1);
+  assert.equal(tpOnly.moeTp, 2);
+  const v = resolveFrameworkPlan({ tp: 8, dp: 1, ep: 4, moeTp: 2 }, "vllm", { experts: 64 });
   assert.equal(v.moeTp, 1);
-  assert.equal(v.ep, 4);
-  // vLLM 未显式 ep → EP=TP×DP。
-  const v2 = resolveFrameworkPlan({ tp: 4, dp: 2 }, "vllm");
-  assert.equal(v2.ep, 8);
-  assert.equal(v2.moeTp, 1);
+  assert.equal(v.ep, 8);
+  const dense = resolveFrameworkPlan({ tp: 4, dp: 2 }, "vllm", {});
+  assert.equal(dense.ep, undefined);
+  assert.equal(dense.moeTp, undefined);
 });
 
-test("resolveFrameworkPlan(vLLM) 与 expertShardDivisor 组合：整专家÷ep、intermediate 不切", () => {
-  const v = resolveFrameworkPlan({ tp: 8, dp: 1 }, "vllm");
+test("resolveFrameworkPlan(vLLM) 不为 dense 或普通 TP4 注入 MoE 规则", () => {
+  const v2 = resolveFrameworkPlan({ tp: 4, dp: 1, ep: 1 }, "vllm", { experts: 64 });
+  assert.equal(v2.ep, 1);
+  assert.equal(v2.moeTp, undefined);
+  const checked = validatePlan(v2, { experts: 64 });
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+});
+
+test("resolveFrameworkPlan(vLLM) 显式 EP 与 expertShardDivisor 组合", () => {
+  const v = resolveFrameworkPlan({ tp: 8, dp: 1, ep: 8 }, "vllm", { experts: 64 });
+  assert.equal(v.moeTp, 1);
+  assert.equal(v.ep, 8);
   const d = expertShardDivisor(v);
   assert.equal(d.epOn, true);
-  assert.equal(d.moeTp, 1);
-  assert.equal(d.divisor, 8); // ep(8) × moeTp(1)
+  assert.equal(d.divisor, 8);
+});
+
+test("resolveFrameworkPlan(vLLM) 显式 EP 启用后使用 TP×DP group", () => {
+  const v2 = resolveFrameworkPlan({ tp: 4, dp: 2, ep: 8 }, "vllm", { experts: 64 });
+  assert.equal(v2.ep, 8);
+  assert.equal(v2.moeTp, 1);
+  const single = resolveFrameworkPlan({ tp: 1, dp: 1, ep: 4 }, "vllm", { experts: 64 });
+  assert.equal(single.ep, 1, "one-rank vLLM cannot divide expert bytes by four");
+  assert.equal(expertShardDivisor(single).divisor, 1);
 });

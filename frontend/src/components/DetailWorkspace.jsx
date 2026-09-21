@@ -135,8 +135,8 @@ export default function DetailWorkspace({
   const lensPlan = activePlans?.[lensPhase] || DEFAULT_PLAN;
   const lensLoad = activeLoads?.[lensPhase] || { batch: 1, sequence: 2048 };
   const nodeLensResult = useMemo(
-    () => buildNodeLens(structure, lensChip, { phase: lensPhase, batch: lensLoad.batch, sequence: lensLoad.sequence, plan: lensPlan, efficiency: efficiency || DEFAULT_EFFICIENCY }),
-    [structure, lensChip, lensPhase, lensLoad, lensPlan, efficiency],
+    () => buildNodeLens(structure, lensChip, { phase: lensPhase, batch: lensLoad.batch, sequence: lensLoad.sequence, plan: lensPlan, efficiency: efficiency || DEFAULT_EFFICIENCY, frameworkProfile }),
+    [structure, lensChip, lensPhase, lensLoad, lensPlan, efficiency, frameworkProfile],
   );
   const nodeLens = nodeLensResult.nodes;
   const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement", fit: "fit", notFit: "not fit", unknown: "unknown", centralized: "Centralized" } : { export: "导出", raw: "原始配置", cost: "成本与部署", fit: "已适配", notFit: "不适配", unknown: "未知", centralized: "集中式" };
@@ -176,6 +176,7 @@ export default function DetailWorkspace({
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} language={language} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
           <ArchitectureTab
             structure={structure}
+            frameworkProfile={frameworkProfile}
             language={language}
             chips={chips}
             onAddChip={onAddChip}

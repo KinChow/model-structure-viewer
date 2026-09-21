@@ -34,6 +34,7 @@ export function normalizeParallelPlan(plan = {}, config = {}) {
     worldSize: plan.worldSize ?? plan.world_size,
     attnMode: plan.attnMode ?? plan.attn_mode ?? "tp",
     vocabParallel: plan.vocabParallel ?? plan.vocab_parallel ?? true,
+    enforceSharedExpertsFusion: plan.enforceSharedExpertsFusion ?? plan.enforce_shared_experts_fusion ?? false,
     // P10（协议 Q7③）：KV keep-ratio —— decode 侧实际驻留的 KV 比例
     // （streaming/滑窗/逐出）。1 = 全保留（缺省）；<1 时 fit 估算按比例折减，
     // 输出标注"估算口径，非运行时行为"。

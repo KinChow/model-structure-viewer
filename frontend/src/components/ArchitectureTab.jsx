@@ -80,6 +80,7 @@ function DiagramPane({ label, syncId, ...diagramProps }) {
 
 function ArchitectureTab({
   structure,
+  frameworkProfile = "neutral",
   language = "zh",
   chips = PUBLIC_CHIPS,
   onAddChip,
@@ -189,9 +190,10 @@ function ArchitectureTab({
         sequence: load.sequence,
         plan: compareScenario.plan,
         efficiency,
+        frameworkProfile,
       })
       : null,
-    [structure, compareScenario, phase, load.batch, load.sequence, efficiency],
+    [structure, compareScenario, phase, load.batch, load.sequence, efficiency, frameworkProfile],
   );
   // M10-E：基准 lens 派生上移至 DetailWorkspace（与其输入 state 同址），经 cost.nodeLensResult 传入，
   // 消除原先「useMemo 计算 → effect 回写父组件 state」的双份状态。

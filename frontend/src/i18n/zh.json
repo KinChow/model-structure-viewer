@@ -137,6 +137,8 @@
     "parallelism": "并行策略",
     "assumptions": "成本假设",
     "kvBytesPerElement": "KV bytes / element",
+    "defaultKvBytesPerElement": "默认 KV bytes / element",
+    "kvBytesPerElementHelp": "仅作为 fallback：节点或 cache 显式 dtype（例如 DSA index dtype）优先，不受此设置覆盖。",
     "interNodeLink": "跨节点链路（roofline 通信）",
     "weightWhatIf": "权重 what-if",
     "weights": "权重",

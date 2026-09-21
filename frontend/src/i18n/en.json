@@ -137,6 +137,8 @@
     "parallelism": "Parallelism",
     "assumptions": "Cost assumptions",
     "kvBytesPerElement": "KV bytes / element",
+    "defaultKvBytesPerElement": "Default KV bytes / element",
+    "kvBytesPerElementHelp": "Fallback only: explicit node/cache dtype declarations (for example DSA index dtype) take precedence.",
     "interNodeLink": "Inter-node link (roofline comm)",
     "weightWhatIf": "Weight what-if",
     "weights": "Weights",

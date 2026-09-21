@@ -18,6 +18,8 @@
 //   weights(vocab 组) → vocabParallel ? ÷tp : 复制；weights(replicated) → 复制。
 //   KV / KDA state / activations 的响应见 parallel.js 与 §七范围外登记。
 
+import { getFrameworkRuntimeProfile } from "../frameworkProfiles.js";
+
 /** 声明组的全部元素数（驻留容量口径；与叶 counts.bytes.weights 的触达口径区分——
  *  触达 = min(k·T, E)，容量 = E，两者在 prefill 大 T 工作点相等，见锚 1）。 */
 export function declaredWeightElements(groups) {
@@ -56,16 +58,15 @@ export function expertShardDivisor(plan = {}) {
 }
 
 /**
- * 框架预设 → MoE 分片 plan 默认。业界口径：
- *   vLLM：EP = TP×DP（无独立 ep 旋钮），且无 moe_tp 轴（每 rank 持整专家、intermediate 不再 TP 切）→ moeTp 恒 1；
- *   SGLang / TRT-LLM：ep 与 moe_tp 独立（EP×moe_tp 混合），保持 plan 原样。
- * neutral / sglang / 未知 → 恒等（现状，向后兼容）。仅 vllm 变换，且用户显式 ep 仍胜出（plan.ep ??）。
+ * 框架预设 → MoE 分片 plan 默认。
+ *
+ * vLLM 的 TP-only MoE 是合法计划，不能因为选择 vLLM 就注入
+ * `moeTp=1`/`ep=TP×DP`。只有用户明确启用 EP（ep/moe_ep > 1）时，
+ * 才采用 vLLM 的整专家语义（moeTp=1）。这样 dense 模型和普通 MoE TP4
+ * 都继续交给通用 validator/expertShardDivisor 处理。
  */
-export function resolveFrameworkPlan(plan = {}, frameworkProfile) {
-  if (frameworkProfile !== "vllm") return plan;
-  const tp = plan.tp ?? plan.TP ?? 1;
-  const dp = plan.dp ?? plan.DP ?? 1;
-  return { ...plan, ep: plan.ep ?? plan.EP ?? (tp * dp), moeTp: 1, moe_tp: 1 };
+export function resolveFrameworkPlan(plan = {}, frameworkProfile, normalizedConfig = {}) {
+  return getFrameworkRuntimeProfile(frameworkProfile).resolvePlan(plan, normalizedConfig);
 }
 
 /**

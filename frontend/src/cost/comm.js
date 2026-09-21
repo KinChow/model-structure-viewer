@@ -3,6 +3,7 @@
 
 import { kvBytesPerCard, stateBytesPerCard, validatePdPlan } from "./parallel.js";
 import { walkStructure } from "./traverse.js";
+import { getFrameworkRuntimeProfile } from "../frameworkProfiles.js";
 
 
 /**
@@ -43,11 +44,9 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
   // 才把 shared expert 折成额外 routed 专家进 all-to-all；**默认关**（DeepEP/EP>1@NV 均默认 fusion off，
   // 见 evidence/parallelism/deepep_shared_expert_h20.md）。故默认 shared expert 是独立本地 MLP、不进 all-to-all
   // （dispatch 保持 topk）；仅 enforceSharedExpertsFusion=true 时 +n_shared。vLLM/neutral 恒不折叠。
-  const enforceFusion = options.enforceSharedExpertsFusion
-    ?? plan.enforceSharedExpertsFusion
-    ?? plan.enforce_shared_experts_fusion
-    ?? false;
-  const sharedFused = options.frameworkProfile === "sglang" && enforceFusion === true && (config.sharedExperts ?? 0) > 0;
+  const profile = getFrameworkRuntimeProfile(options.frameworkProfile);
+  const sharedFused = profile.resolveCommunication(plan, options.enforceSharedExpertsFusion).sharedExpertsFusion
+    && (config.sharedExperts ?? 0) > 0;
   const dispatchExpertsPerToken = (config.expertsPerToken ?? 0) + (sharedFused ? config.sharedExperts : 0);
   if (role === "tp_attention_output") {
     if (attnMode === "dp") return 0;
@@ -57,7 +56,7 @@ export function nodeCommunicationBytes(node, config = {}, plan = {}, options = {
     return ringAllReduceBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, tp, operations: 1 });
   }
   if (role === "ep_dispatch" || role === "ep_combine") {
-    if (ep <= 1) return 0;
+    if (ep <= 1 && (plan.dp ?? plan.DP ?? 1) <= 1) return 0;
     return expertAllToAllBytes({ batch, tokens, hidden: config.hiddenSize, expertsPerToken: dispatchExpertsPerToken, bytesPerElement, operations: 1 });
   }
   const routedExpert = /(?:^|\.)(?:experts|expert_mlp)(?:\.|$)/.test(path);
@@ -120,7 +119,8 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
 
 /** 汇总给定计划的节点级通信和 PP 边界通信，供摘要或对比视图使用。
  *  P7（步骤 7）：tree root 入参退役——Graph IR 是唯一遍历路径。 */
-export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2, frameworkProfile, enforceSharedExpertsFusion = false } = {}) {
+export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2, frameworkProfile, enforceSharedExpertsFusion } = {}) {
+  plan = getFrameworkRuntimeProfile(frameworkProfile).resolvePlan(plan, config);
   let nodeBytes = 0;
   walkStructure(graph, ({ node, multiplier }) => {
     nodeBytes += nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement, frameworkProfile, enforceSharedExpertsFusion }) * multiplier;

@@ -1,0 +1,934 @@
+{
+ "model_args": {
+  "n_layers": 40,
+  "n_mtp_layers": 3,
+  "engram_layer_ids": [
+   1,
+   14
+  ],
+  "dspark_target_layer_ids": [
+   37,
+   38,
+   39
+  ],
+  "vision_n_layers": 32
+ },
+ "modules": [
+  {
+   "path": "engram_hash",
+   "class": "NgramHashState",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "embed",
+   "class": "ParallelEmbedding",
+   "weight_shapes": {
+    "weight": [
+     129280,
+     5120
+    ]
+   },
+   "params": 661913600
+  },
+  {
+   "path": "layers",
+   "class": "ModuleList",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "layers.0.attn",
+   "class": "Attention",
+   "weight_shapes": {
+    "attn_sink": [
+     64
+    ]
+   },
+   "params": 64
+  },
+  {
+   "path": "layers.0.attn.wq_a",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     1280,
+     5120
+    ],
+    "scale": [
+     40,
+     160
+    ]
+   },
+   "params": 6560000
+  },
+  {
+   "path": "layers.0.attn.q_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     1280
+    ]
+   },
+   "params": 1280
+  },
+  {
+   "path": "layers.0.attn.wq_b",
+   "class": "ColumnParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     32768,
+     1280
+    ],
+    "scale": [
+     1024,
+     40
+    ]
+   },
+   "params": 41984000
+  },
+  {
+   "path": "layers.0.attn.wkv",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     512,
+     5120
+    ],
+    "scale": [
+     16,
+     160
+    ]
+   },
+   "params": 2624000
+  },
+  {
+   "path": "layers.0.attn.kv_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     512
+    ]
+   },
+   "params": 512
+  },
+  {
+   "path": "layers.0.attn.wo_a",
+   "class": "ColumnParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     8192,
+     4096
+    ]
+   },
+   "params": 33554432
+  },
+  {
+   "path": "layers.0.attn.wo_b",
+   "class": "RowParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     8192
+    ],
+    "scale": [
+     160,
+     256
+    ]
+   },
+   "params": 41984000
+  },
+  {
+   "path": "layers.0.ffn",
+   "class": "MoE",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "layers.0.ffn.gate",
+   "class": "Gate",
+   "weight_shapes": {
+    "weight": [
+     384,
+     5120
+    ],
+    "bias": [
+     384
+    ],
+    "bias_vl": [
+     384
+    ]
+   },
+   "params": 1966848
+  },
+  {
+   "path": "layers.0.ffn.experts",
+   "class": "ModuleList",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "layers.0.ffn.experts.0.w1",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     2560
+    ],
+    "scale": [
+     2304,
+     160
+    ]
+   },
+   "params": 6266880
+  },
+  {
+   "path": "layers.0.ffn.experts.0.w2",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     1152
+    ],
+    "scale": [
+     5120,
+     72
+    ]
+   },
+   "params": 6266880
+  },
+  {
+   "path": "layers.0.ffn.experts.0.w3",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     2560
+    ],
+    "scale": [
+     2304,
+     160
+    ]
+   },
+   "params": 6266880
+  },
+  {
+   "path": "layers.0.ffn.shared_experts",
+   "class": "Expert",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "layers.0.ffn.shared_experts.w1",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     5120
+    ],
+    "scale": [
+     72,
+     160
+    ]
+   },
+   "params": 11808000
+  },
+  {
+   "path": "layers.0.ffn.shared_experts.w2",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     2304
+    ],
+    "scale": [
+     160,
+     72
+    ]
+   },
+   "params": 11808000
+  },
+  {
+   "path": "layers.0.ffn.shared_experts.w3",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     5120
+    ],
+    "scale": [
+     72,
+     160
+    ]
+   },
+   "params": 11808000
+  },
+  {
+   "path": "layers.0.attn_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     5120
+    ]
+   },
+   "params": 5120
+  },
+  {
+   "path": "layers.0.ffn_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     5120
+    ]
+   },
+   "params": 5120
+  },
+  {
+   "path": "layers.1.engram",
+   "class": "Engram",
+   "weight_shapes": {
+    "q_weight": [
+     4,
+     5120
+    ],
+    "k_weight": [
+     4,
+     5120
+    ]
+   },
+   "params": 40960
+  },
+  {
+   "path": "layers.1.engram.embed",
+   "class": "ParallelEngramEmbedding",
+   "weight_shapes": {
+    "weight": [
+     384006168,
+     256
+    ],
+    "scale": [
+     384006168,
+     8
+    ]
+   },
+   "params": 101377628352
+  },
+  {
+   "path": "layers.1.engram.wkv",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     25600,
+     6144
+    ],
+    "scale": [
+     800,
+     192
+    ]
+   },
+   "params": 157440000
+  },
+  {
+   "path": "layers.2.attn.compressor",
+   "class": "Compressor",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "layers.2.attn.compressor.norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     512
+    ]
+   },
+   "params": 512
+  },
+  {
+   "path": "layers.2.attn.compressor.wkv",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     512,
+     5120
+    ]
+   },
+   "params": 2621440
+  },
+  {
+   "path": "layers.2.attn.compressor.wgate",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     512,
+     5120
+    ]
+   },
+   "params": 2621440
+  },
+  {
+   "path": "layers.2.attn.indexer",
+   "class": "Indexer",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "layers.2.attn.indexer.wq_b",
+   "class": "ColumnParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     4096,
+     1280
+    ],
+    "scale": [
+     128,
+     40
+    ]
+   },
+   "params": 5248000
+  },
+  {
+   "path": "layers.2.attn.indexer.weights_proj",
+   "class": "ColumnParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     32,
+     5120
+    ]
+   },
+   "params": 163840
+  },
+  {
+   "path": "layers.2.attn.indexer.wk",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     128,
+     512
+    ]
+   },
+   "params": 65536
+  },
+  {
+   "path": "layers.2.attn.indexer.k_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     128
+    ]
+   },
+   "params": 128
+  },
+  {
+   "path": "norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     5120
+    ]
+   },
+   "params": 5120
+  },
+  {
+   "path": "head",
+   "class": "ParallelHead",
+   "weight_shapes": {
+    "weight": [
+     129280,
+     5120
+    ]
+   },
+   "params": 661913600
+  },
+  {
+   "path": "mtp",
+   "class": "ModuleList",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "mtp.0.attn",
+   "class": "DSparkAttention",
+   "weight_shapes": {
+    "attn_sink": [
+     64
+    ]
+   },
+   "params": 64
+  },
+  {
+   "path": "mtp.0.attn.wq_a",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     1280,
+     5120
+    ],
+    "scale": [
+     40,
+     160
+    ]
+   },
+   "params": 6560000
+  },
+  {
+   "path": "mtp.0.attn.q_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     1280
+    ]
+   },
+   "params": 1280
+  },
+  {
+   "path": "mtp.0.attn.wq_b",
+   "class": "ColumnParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     32768,
+     1280
+    ],
+    "scale": [
+     1024,
+     40
+    ]
+   },
+   "params": 41984000
+  },
+  {
+   "path": "mtp.0.attn.wkv",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     512,
+     5120
+    ],
+    "scale": [
+     16,
+     160
+    ]
+   },
+   "params": 2624000
+  },
+  {
+   "path": "mtp.0.attn.kv_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     512
+    ]
+   },
+   "params": 512
+  },
+  {
+   "path": "mtp.0.attn.wo_a",
+   "class": "ColumnParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     8192,
+     4096
+    ]
+   },
+   "params": 33554432
+  },
+  {
+   "path": "mtp.0.attn.wo_b",
+   "class": "RowParallelLinear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     8192
+    ],
+    "scale": [
+     160,
+     256
+    ]
+   },
+   "params": 41984000
+  },
+  {
+   "path": "mtp.0.ffn",
+   "class": "MoE",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "mtp.0.ffn.gate",
+   "class": "Gate",
+   "weight_shapes": {
+    "weight": [
+     128,
+     5120
+    ],
+    "bias": [
+     128
+    ],
+    "bias_vl": [
+     128
+    ]
+   },
+   "params": 655616
+  },
+  {
+   "path": "mtp.0.ffn.experts",
+   "class": "ModuleList",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "mtp.0.ffn.experts.0.w1",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     2560
+    ],
+    "scale": [
+     2304,
+     160
+    ]
+   },
+   "params": 6266880
+  },
+  {
+   "path": "mtp.0.ffn.experts.0.w2",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     1152
+    ],
+    "scale": [
+     5120,
+     72
+    ]
+   },
+   "params": 6266880
+  },
+  {
+   "path": "mtp.0.ffn.experts.0.w3",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     2560
+    ],
+    "scale": [
+     2304,
+     160
+    ]
+   },
+   "params": 6266880
+  },
+  {
+   "path": "mtp.0.ffn.shared_experts",
+   "class": "Expert",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "mtp.0.ffn.shared_experts.w1",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     5120
+    ],
+    "scale": [
+     72,
+     160
+    ]
+   },
+   "params": 11808000
+  },
+  {
+   "path": "mtp.0.ffn.shared_experts.w2",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     2304
+    ],
+    "scale": [
+     160,
+     72
+    ]
+   },
+   "params": 11808000
+  },
+  {
+   "path": "mtp.0.ffn.shared_experts.w3",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     2304,
+     5120
+    ],
+    "scale": [
+     72,
+     160
+    ]
+   },
+   "params": 11808000
+  },
+  {
+   "path": "mtp.0.attn_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     5120
+    ]
+   },
+   "params": 5120
+  },
+  {
+   "path": "mtp.0.ffn_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     5120
+    ]
+   },
+   "params": 5120
+  },
+  {
+   "path": "mtp.0.main_proj",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     15360
+    ],
+    "scale": [
+     160,
+     480
+    ]
+   },
+   "params": 78720000
+  },
+  {
+   "path": "mtp.0.main_norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     5120
+    ]
+   },
+   "params": 5120
+  },
+  {
+   "path": "mtp.2.norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     5120
+    ]
+   },
+   "params": 5120
+  },
+  {
+   "path": "mtp.2.markov_head",
+   "class": "DSparkMarkovHead",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "mtp.2.markov_head.embed",
+   "class": "ParallelEmbedding",
+   "weight_shapes": {
+    "weight": [
+     129280,
+     256
+    ]
+   },
+   "params": 33095680
+  },
+  {
+   "path": "mtp.2.markov_head.head",
+   "class": "ParallelHead",
+   "weight_shapes": {
+    "weight": [
+     129280,
+     256
+    ]
+   },
+   "params": 33095680
+  },
+  {
+   "path": "mtp.2.confidence_head",
+   "class": "DSparkConfidenceHead",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "mtp.2.confidence_head.proj",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     1,
+     5376
+    ]
+   },
+   "params": 5376
+  },
+  {
+   "path": "vision",
+   "class": "ViT",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "vision.patch_embed",
+   "class": "PatchEmbed",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "vision.patch_embed.proj",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     1024,
+     588
+    ],
+    "bias": [
+     1024
+    ]
+   },
+   "params": 603136
+  },
+  {
+   "path": "vision.blocks",
+   "class": "ModuleList",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "vision.blocks.0.norm1",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     1024
+    ]
+   },
+   "params": 1024
+  },
+  {
+   "path": "vision.blocks.0.attn",
+   "class": "Attention",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "vision.blocks.0.attn.wqkv",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     3072,
+     1024
+    ],
+    "bias": [
+     3072
+    ]
+   },
+   "params": 3148800
+  },
+  {
+   "path": "vision.blocks.0.attn.wo",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     1024,
+     1024
+    ],
+    "bias": [
+     1024
+    ]
+   },
+   "params": 1049600
+  },
+  {
+   "path": "vision.blocks.0.norm2",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     1024
+    ]
+   },
+   "params": 1024
+  },
+  {
+   "path": "vision.blocks.0.mlp",
+   "class": "MLP",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "vision.blocks.0.mlp.w1",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5632,
+     1024
+    ]
+   },
+   "params": 5767168
+  },
+  {
+   "path": "vision.blocks.0.mlp.w2",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     1024,
+     2816
+    ]
+   },
+   "params": 2883584
+  },
+  {
+   "path": "vision.norm",
+   "class": "RMSNorm",
+   "weight_shapes": {
+    "weight": [
+     1024
+    ]
+   },
+   "params": 1024
+  },
+  {
+   "path": "aligner",
+   "class": "Aligner",
+   "weight_shapes": {},
+   "params": 0
+  },
+  {
+   "path": "aligner.w1",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     9216
+    ],
+    "bias": [
+     5120
+    ]
+   },
+   "params": 47191040
+  },
+  {
+   "path": "aligner.w2",
+   "class": "Linear",
+   "weight_shapes": {
+    "weight": [
+     5120,
+     5120
+    ],
+    "bias": [
+     5120
+    ]
+   },
+   "params": 26219520
+  }
+ ]
+}

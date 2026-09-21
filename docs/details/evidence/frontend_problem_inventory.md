@@ -44,3 +44,16 @@
 - **降级**：W8A8C8 int8 KV —— vLLM/SGLang 的 kv_cache_scheme 都只认 fp8(float/8bit)、拒 int8，前端 bf16 大概率无碍（真机 serve 量化 ckpt 可最终确认）。
 
 **证据来源**：SGLang 本地 `mem_cache/*`、`configs/mamba_utils.py`、`index_key_cache.py` + H20 真机（`sglang_glm5next.md`/`cache_dtype_audit.md`）；vLLM 主干 `model_executor/models/deepseek_v2.py`(Indexer uint8+fp32尺度)、`layers/mamba/mamba_utils.py`(`_mamba_state_dtype` auto→model dtype、`kda_state_dtype` auto→fp32)、`layers/attention/{attention,mla_attention}.py`、`fused_moe/config.py`、`deepseek_mtp.py`。vLLM 侧为 web 读源（无行号，逐段 verbatim 核对）。
+
+## 复核（2026-09-21）：shared-expert 权重复制（[B] #2 权重侧结论）
+
+针对上表 [B]「shared expert 融合」项，把**权重侧**核到底（此前只确认了 all-to-all 字节侧）。
+
+- **前端现状（纯代码核）**：shared expert 复用 `structure/operators/ops/index.js: mlpOperatorSpecs`（dense MLP），三投影权重全部 `weightMatrixDecl("tp", …)` → class `tp` → `cost/sharding.js: declaredClassDivisor("tp")` = **÷tp**（`attnMode=dp` 的 attention 叶除外，shared_expert 路径不在其中）。即**前端 shared-expert 每卡权重恒按 ÷tp**，无框架分叉门控。
+- **对两框架**：
+  - **vLLM**：shared expert = 独立 dense MLP、随 TP 切 → ÷tp。**前端 == vLLM**。
+  - **SGLang 非 DeepEP**：shared expert 随 attention TP 切 → ÷tp。**前端 == SGLang(非 DeepEP)**。
+  - **SGLang + DeepEP**：shared expert **复制成每 EP rank 一份额外 routed 专家**（每 rank 持整份 shared 权重、组内再 ÷moe_tp）。此时每卡 shared 权重 ≈ full/moe_tp，而前端给 ÷tp（tp 含 ep 因子）→ **前端在 SGLang-DeepEP 下低估 shared-expert 每卡权重约 ×(tp/moe_tp)=×ep**（如 `--tp8 --ep8` 低估 ~8×）。
+- **结论**：这是 **[B] 框架分叉（SGLang-DeepEP 专属），非通用 bug**——对 vLLM 与 SGLang-非DeepEP 都正确。comm 侧的 DeepEP shared 融合（`comm.js sharedFused`，topk+n_shared 的 all-to-all 字节）已建模，**唯独权重侧的 EP 复制未建模**。
+- **量级/影响**：shared expert 通常 1–2 个、intermediate 与单个 routed 专家同量级，占模型总权重很小；但在高 ep + 多 shared 时，每卡权重会被低估该分量的 ~ep 倍，影响显存 fit 的边界判断。
+- **是否修 / 环境**：属真但窄的口径缺口。修法 = 框架门控（`frameworkProfile==="sglang"` 且走 DeepEP 且 ep>1 时，shared-expert 权重按 EP-rank 复制：除数取 `moe_tp` 而非 `tp`）。**运行时坐实需 Hopper + 可跑 DeepEP**（A100 CUDA-13/Ampere 编不出 DeepEP），本轮**只摸排、不改代码、不伪造运行时**，与仓库既有纪律一致。

@@ -30,3 +30,18 @@
 
 **MSV roofline 是 vLLM 与 SGLang 共同的物理下界**：两框架实测延迟均落在 MSV 地板之上、bound 分类一致（cost 维跨框架一致，非拟合值）。
 至此 **cost（算力/访存/roofline）维在 vLLM + SGLang 双框架均已验证**。边界：nightly `vllm bench serve` 不再强制 temperature=0（不影响 token-count roofline）；跨节点通信费率仍留多机。
+
+## vLLM KV 口径覆盖扩展（2026-09-21，A100 vllm-0920）
+
+补 vLLM 侧每卡 KV 池对账（前端 `kvBytesPerCard` / per-token KV），覆盖两大架构族：
+
+| 模型 | 架构族 | vLLM 启动 KV 池 | per-token KV（前端口径） | 判定 |
+|---|---|---|---|---|
+| Qwen3-0.6B | GQA | 282,224 tokens（tp1, gmu 0.4） | 28·8·128·2·2 = 114,688 B | == MSV |
+| DeepSeek-V2-Lite | MLA+MoE | 656,112 tokens/rank（DP2+EP，见 R6 节） | 27·(512+64)·2 = 31,104 B（MLA latent） | == MSV |
+
+- GQA（Qwen3-0.6B）：vLLM per-token KV = 114,688 B，与前端 GQA `kvBytesPerToken`（= SGLang 侧 112 KiB/token）逐位一致。
+- MLA+MoE（V2-Lite）：vLLM DP2+EP 每 DP rank 独立满宽 MLA latent KV = 31,104 B/token（见 R6 DP-attention），EP `E=32/64` == `expertShardDivisor`。
+- **诚实边界**：Qwen3.5-4B / Qwen3.8-Flash-Next（线性 hybrid, `Qwen3_5`/`Qwen4Exp`）本轮 vLLM 启动因空闲 GPU 显存竞争失败，
+  **未确认 vLLM 对该 exotic arch 的支持**（非架构判定，属环境）；这两族的运行时 KV 已在 SGLang 侧验证（`structure/runtime_profiles/sglang_qwen4exp_linear.md`
+  等，双通道 Mamba+KV cache），不在 vLLM 侧强凑。full serving throughput/roofline per-model 亦留干净 GPU 专跑。

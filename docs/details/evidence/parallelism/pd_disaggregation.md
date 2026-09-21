@@ -67,3 +67,21 @@ prefill server `--tp 2`（GPU0,1）+ decode server `--tp 1`（GPU2）+ mini-lb r
   每 prefill(tp2) rank `K 28,672 B/tok = 28·4·128·2`（各持 4/8 kv_heads）→ decode(8) 由 prefill(4+4) 聚合 = 重排本身。
 - **结论**：**MSV `layoutRepackRequired=(prefill_tp≠decode_tp)` 与 SGLang 真机一致**——等 TP 无重排（0.0% 已验）、hetero-TP 触发跨-TP KV head 布局重排（真机跑通、非硬失败）。
   至此 PD 分离的机制 + KV 字节 + 跨-TP 重排判据单机全验；仅 inter-node RDMA 实测带宽（`transferSeconds` 的带宽项）留 ≥2 节点。
+
+## 真·多机 RDMA PD + 跨-TP 跨节点补验（2026-09-21，A100 81↔41）
+
+补上文"留 ≥2 节点"的跨节点项。两台 A100（prefill=10.55.87.81 / decode=10.55.87.41），驱动层先修 GPUDirect：
+驱动 575 自带 `nvidia_peermem` 与 MOFED 5.8 peer-memory API 不兼容（`modprobe` EINVAL），改从源码构建 Mellanox
+`nv_peer_mem`（tag 1.0-9，非 `_ex` API，对 `mlnx-ofa_kernel-5.3` 头 + nvidia-575 nv-p2p.h）并 `insmod`，两端 `lsmod`
+显示挂进 `nvidia` + `ib_core`（GPUDirect RDMA 就绪）。mooncake 需设 `SGLANG_HOST_IP=<管理网IP>`（否则 KV manager 的
+ZMQ 绑到 RoCE 网卡 IPv6 link-local → `ZMQError: Invalid argument`）。
+
+- **等-TP 跨节点（tp1→tp1，RDMA）**：`--disaggregation-transfer-backend mooncake --disaggregation-ib-device mlx5_0`，
+  router 200 + 输出正确（"…Paris…"），日志 `Using RDMA transport (RoCE/iWARP)`、`transfer failed` 计数 **0**；
+  KV 逐层经 RDMA 传输。单次 3001-token 请求搬运 KV = 3000·114,688 B ≈ 344 MB；持续压测 25s 跨节点搬运 248 GB、0 错误。
+  `layoutRepackRequired=(prefill_tp==decode_tp)=false` 与真机一致（无重排）。
+- **跨-TP 跨节点（prefill_tp=2@81 → decode_tp=1@41，RDMA）**：两 server `fired up`、router 200、输出正确、错误扫描空；
+  decode 日志 `Performance is NOT guaranteed when using different TP sizes for non-MLA models` → **确实触发跨-TP KV head 布局重排**；
+  `transfer failed` 两端均 **0**、`Using RDMA transport (RoCE/iWARP)`。**MSV `layoutRepackRequired=(2≠1)=true` 与真机一致**。
+- 结论：**PD 分离机制 + KV 传输字节 + 跨-TP 重排判据在真·多机 RDMA(GPUDirect) 路径全验**；inter-node RDMA 带宽见
+  `internode_comm.md`（单 rail ~79.6 Gb/s）、KV 多 rail 见 `pd_multirail_kv.md`（TE 峰值 ~18.3 GB/s，4 rail 饱和）。

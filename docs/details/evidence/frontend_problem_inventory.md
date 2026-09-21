@@ -45,15 +45,12 @@
 
 **证据来源**：SGLang 本地 `mem_cache/*`、`configs/mamba_utils.py`、`index_key_cache.py` + H20 真机（`sglang_glm5next.md`/`cache_dtype_audit.md`）；vLLM 主干 `model_executor/models/deepseek_v2.py`(Indexer uint8+fp32尺度)、`layers/mamba/mamba_utils.py`(`_mamba_state_dtype` auto→model dtype、`kda_state_dtype` auto→fp32)、`layers/attention/{attention,mla_attention}.py`、`fused_moe/config.py`、`deepseek_mtp.py`。vLLM 侧为 web 读源（无行号，逐段 verbatim 核对）。
 
-## 复核（2026-09-21）：shared-expert 权重复制（[B] #2 权重侧结论）
+## 复核（2026-09-21）：shared-expert 权重（[B] #2 结论——已被 H20 实测更正）
 
-针对上表 [B]「shared expert 融合」项，把**权重侧**核到底（此前只确认了 all-to-all 字节侧）。
+针对上表 [B]「shared expert 融合」项把**权重侧**核到底。**先前（基于本摸排稿）曾推测「SGLang-DeepEP 复制 shared 到每 EP rank → 前端 ÷tp 低估 ~×ep」，此推测已被 H20 真机推翻**——见 `parallelism/deepep_shared_expert_h20.md`。
 
-- **前端现状（纯代码核）**：shared expert 复用 `structure/operators/ops/index.js: mlpOperatorSpecs`（dense MLP），三投影权重全部 `weightMatrixDecl("tp", …)` → class `tp` → `cost/sharding.js: declaredClassDivisor("tp")` = **÷tp**（`attnMode=dp` 的 attention 叶除外，shared_expert 路径不在其中）。即**前端 shared-expert 每卡权重恒按 ÷tp**，无框架分叉门控。
-- **对两框架**：
-  - **vLLM**：shared expert = 独立 dense MLP、随 TP 切 → ÷tp。**前端 == vLLM**。
-  - **SGLang 非 DeepEP**：shared expert 随 attention TP 切 → ÷tp。**前端 == SGLang(非 DeepEP)**。
-  - **SGLang + DeepEP**：shared expert **复制成每 EP rank 一份额外 routed 专家**（每 rank 持整份 shared 权重、组内再 ÷moe_tp）。此时每卡 shared 权重 ≈ full/moe_tp，而前端给 ÷tp（tp 含 ep 因子）→ **前端在 SGLang-DeepEP 下低估 shared-expert 每卡权重约 ×(tp/moe_tp)=×ep**（如 `--tp8 --ep8` 低估 ~8×）。
-- **结论**：这是 **[B] 框架分叉（SGLang-DeepEP 专属），非通用 bug**——对 vLLM 与 SGLang-非DeepEP 都正确。comm 侧的 DeepEP shared 融合（`comm.js sharedFused`，topk+n_shared 的 all-to-all 字节）已建模，**唯独权重侧的 EP 复制未建模**。
-- **量级/影响**：shared expert 通常 1–2 个、intermediate 与单个 routed 专家同量级，占模型总权重很小；但在高 ep + 多 shared 时，每卡权重会被低估该分量的 ~ep 倍，影响显存 fit 的边界判断。
-- **是否修 / 环境**：属真但窄的口径缺口。修法 = 框架门控（`frameworkProfile==="sglang"` 且走 DeepEP 且 ep>1 时，shared-expert 权重按 EP-rank 复制：除数取 `moe_tp` 而非 `tp`）。**运行时坐实需 Hopper + 可跑 DeepEP**（A100 CUDA-13/Ampere 编不出 DeepEP），本轮**只摸排、不改代码、不伪造运行时**，与仓库既有纪律一致。
+- **H20 真机（关键）**：DeepEP 的 shared-expert **fusion 默认关**，且 **`moe_ep_size>1` 时在 NV 上强制关**（日志 `DeepEP: fusion off by default`；源码 `deepseek_v2.py: shared_experts_fusion_disable_reason`）。故默认 DeepEP/EP 场景 shared expert 是**独立本地 MLP、不复制成 routed 专家、不进 all-to-all**。
+- **前端权重口径（纯代码核）**：shared expert 复用 `structure/operators/ops/index.js: mlpOperatorSpecs`（dense MLP），三投影权重全 `weightMatrixDecl("tp", …)` → `cost/sharding.js: declaredClassDivisor("tp")` = **÷tp**。
+- **对账结论（权重侧）**：shared=本地 TP-MLP → 前端 `÷tp` **正确**，对 **vLLM / SGLang-非DeepEP / SGLang-DeepEP 默认**三者都对，**无低估**（先前的 ×ep 低估推测作废）。
+- **真正的口径问题在 all-to-all 字节侧（且已修）**：前端 C3c 曾**默认**把 shared 折进 dispatch（`+n_shared`）→ 在默认 DeepEP/EP 场景**高估** a2a 字节。已改为默认不折叠、仅 `enforceSharedExpertsFusion===true`（对应 SGLang `--enforce-shared-experts-fusion`）+ sglang + `sharedExperts>0` 才 `+n_shared`；vLLM/neutral 恒不折叠。详见 `deepep_shared_expert_h20.md`（含单测 16/24 与 438/438、60/60、docs:check 全绿）。
+- **[B] shared-expert 判定**：**已闭合**——权重 ÷tp 正确、a2a 字节高估已修（默认关 + opt-in）。DeepEP 前向本身也在 H20 跑通（ABI/构建障碍相对 A100 解除），完整出 token 受减层 dummy 的 MLA 维度/量化 kernel 约束、非通信问题。

@@ -28,3 +28,14 @@ num_hidden_layers=28、num_key_value_heads=8、num_attention_heads=16、head_dim
 
 - 本项为 TP=1/2 稠密 GQA；vLLM 的 MoE `EP=TP×DP`（无 moe_tp 轴，与 SGLang 分叉，frontend_problem_inventory [B]）仍待 vLLM MoE 真机（VL3）。
 - vLLM build 不打印字面 `# GPU blocks`；权威池口径取 `GPU KV cache size: N tokens`（block size 16 → 17,639 blocks @TP1）。
+
+## 追加确认：qwen3_moe TP2+EP2 KV 折叠（A100, 2026-09-21）
+
+复现：容器 `vllm-0920`，减层 `/ssd2/models/_reduced/qwen3_moe_tiny`（`Qwen3MoeForCausalLM`，4 层、hidden 1024、
+16 头 / 8 KV 头 GQA、head_dim 128、8 专家 topk2、bf16），`vllm serve --tensor-parallel-size 2 --enable-expert-parallel
+--max-model-len 2048 --gpu-memory-utilization 0.35`。日志 `/ssd2/models/_reduced/vllm_qwen3moe_tp2ep2.log`。
+
+- 真机：`GPU KV cache size: 3,531,328 tokens`、`kv cache memory in use 26.94 GiB/卡`；worker `Worker_TP0_EP0 / TP1_EP1`（TP2+EP2 确认）；`/v1/completions` 正常出 token（随机权重减层，功能路径 OK）。
+- 每卡 KV/token = 26.94 GiB ÷ 3,531,328 = **8,192 B** = 4 KV 头(8÷tp2)×128×4 层×2(K,V)×2B。
+- 前端 `kvBytesPerCard`（GQA `min(tp=2,kv_heads=8)=2` 分片）= 16,384÷2 = **8,192 B** → **0.0% 一致**。
+- 结论：GQA MoE 模型在 vLLM 的 KV/TP 折叠再次 == MSV，跑完已 `pkill` vLLM、8×A100 复位 0 MiB。

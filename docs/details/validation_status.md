@@ -23,7 +23,7 @@
 | 维度 | 项 | 触发判据 | 为何需 GPU 运行时 | 状态 |
 |---|---|---|---|---|
 | structure | 结构对账真值化（`compare_structure.py` 真实模型） | 对账出现未落入 `canonical_path_contract.json` 四桶的 diff | 需真实框架实例化 nn.Module 树（含自定义 kernel/量化） | **已验证（2026-09-17，A100/transformers 5.17.0）：59/60 零残留；DeepSeek-V4.1-Flash 构造受阻边界见 V4.1 结构/KV 实证节。证据 `evidence/structure/`** |
-| parallelism/memory | framework execution profile（vLLM vs SGLang 有效宽度） | 第一次要对比同模型在两框架的有效 attention/MoE 宽度 | 需在 GPU 上起两套 serving 栈实测 | **部分已验证（2026-09-17/18，A100/SGLang/Qwen3-0.6B）：TP=1 宽度/GQA/KV(112KiB) 与 MSV 一致；TP=2/4 权重÷tp（每卡 0.58/0.30GB，误差~3%）+ KV 池 ×2.002/×4.008 验证前端 TP 折叠。EP/vLLM 未做。证据 evidence/parallelism/** |
+| parallelism/memory | framework execution profile（vLLM vs SGLang 有效宽度） | 第一次要对比同模型在两框架的有效 attention/MoE 宽度 | 需在 GPU 上起两套 serving 栈实测 | **已验证（SGLang + vLLM 双框架，2026-09-17→09-21，A100）**：SGLang TP=1/2/4/8、EP=4/8、ETP、all-reduce/all-to-all/RS-AG 字节级；**vLLM 跨框架已补齐**——GQA KV/TP（Qwen3-0.6B 每卡 KV 114,712 B=MSV 0.02%、权重÷tp、池×tp）、MoE EP（V2-Lite `E=32/64,N=1408/704`==`expertShardDivisor`）、MLA KV（31,101 B=0.008%）、roofline 地板、qwen3_moe TP2 每卡 KV **8,192 B=MSV 0.0%**（2026-09-21）——**vLLM==SGLang==MSV**。剩：vLLM all-to-all 字节直测 / DP-attention / 真·多机。证据 `evidence/parallelism/vllm_width_tp.md`·`vllm_moe_ep.md`·`cost/vllm_bench_vs_roofline.md` |
 | cost | per-stage roofline / evidence I/O shape | UI 或对账需要 stage 级动作向量 | 需真实 profiler（nsys/ncu 或框架计数器） | **部分已验证（2026-09-17，A100/SGLang/Qwen3-0.6B）：① 聚合实测落 MSV roofline 地板之上（时长 1.99×、TPOT 1.65×）；② 逐算子对真值——线性 MSV MACs×2 == FlopCounterMode FLOPs 逐位相等、GEMM compulsory 读侧 == ncu DRAM 读(<0.4%)、bound 分类逐项一致。证据 evidence/cost/** |
 | cost | A2 kernel 口径对齐（flash-attention scores/probs） | 需 kernel 级口径而非理论上限 | 需 GPU 上跑 flash-attention kernel 取实测 | **已验证（2026-09-17）：ncu flash_fwd_kernel 实测 scores/probs 不落 HBM，A2 物化口径确认为保守上界；证据 evidence/cost/flash_kernel_caliber.md** |
 | structure/memory | DeepSeek-V4.1-Flash 运行时/权重实证 | 拿到实际 checkpoint / safetensors index，或要跑推理 | 需真实权重 + GPU 推理（fp4/fp8、engram、DSpark 投机） | 待验证 |
@@ -412,6 +412,28 @@
   header 收敛（0.999）。**结构/张量口径已验**；运行时投机接受率循环须真实 MTP 权重（随机 reduced 不产出 mtp.*）。
 
 ---
+
+## 换环境待办清单（按所需环境分组，供未来切机器直接照做）
+
+> 目的：把"哪些验证已闭合、哪些还没做、没做的卡在什么环境"一次讲清。当前机器（A100 `10.55.87.81` /
+> H20 `10.98.95.16`）能做的**静态 / A100 / H20-fp8 / 双框架**项已基本收满；下表只列**仍未闭合**的项，
+> 换到对应环境后按"跑什么 → 对哪个前端函数 → 判定"直接执行。已闭合项的证据见上文各节与 `evidence/`。
+>
+> 已闭合快照（截至 2026-09-21）：结构对账 59/60 零残留；成本 FLOPs/HBM/roofline/kernel 口径（SGLang+vLLM 双框架）；
+> 并行 TP/EP/ETP/all-reduce/all-to-all/RS-AG（A100 SGLang 字节级 + vLLM 跨框架 GQA/MoE/MLA）；V4.1 静态（config/index/
+> 逐张量/CSA2 KV 890 B/token）；PD 分离机制 + KV 传输字节 + 跨-TP 重排；H20-3e roofline 标定。
+
+| # | 仍未闭合项 | 需要的环境（关键前提） | 跑什么 → 对账前端函数 → 判定 | 现状 |
+|---|---|---|---|---|
+| R1 | **V4.1/V3 fp8·fp4 完整前向**（结构对账第 60 模型运行时闭合） | **H20/Hopper SM90**（A100 SM80 无 fp8/fp4 张量核 → device-assert，减层不可绕）；fp4 expert 属 Blackwell，需回退或 B300 | H20 `dsv41_zzj_deploy` 起 dsv41 前向，dump `named_modules` 逐层 shape/dtype → `compare_structure.py` 三桶零残留 + 前端 `deepseek_v41` 组网 | 🔴 阻塞（等 Hopper；H20 路径本会话已跑通 Path A–D，前置解除） |
+| R2 | **engram/DSpark 运行时**（接受率/显存/吞吐）与前端建模正式对账 | **H20/Hopper + 完整权重**（减层随机 ckpt 不产 mtp/engram 权重） | H20 dsv41 开 DSpark 复跑，抓 accept len/rate + 逐层 KV footprint → 对前端 V4.1 KV(890 B/token) + DSpark 建模 | 🟡 部分（2026-09-21 已对账，见 `evidence/memory/deepseek_v41_dspark_runtime_h20.md`）：H20 运行时 `bytes_per_full_token=1670.75 B`(fp8 KV)、`swa_tokens=707840`、DSpark `block_size=5/num_draft_tokens=6`、`accept len≈2.0/rate≈0.2/tput≈65`。**1670.75/890=1.877 ≈ fp4→fp8 字节翻倍** → MSV 逐 token KV 结构在 fp8 下定性坐实；block_size/draft 与前端一致（accept rate 属运行时、MSV 不预测）。**未闭合**：用 int8-dynamic 代理 ckpt + KV=fp8≠MSV fp4 口径，精确逐字节需原始 fp8/fp4 ckpt 复跑 + MSV 按 fp8 重算 |
+| R3 | **V4.1 KV +18.7% / V4-Flash −2.1% 残差** 二次校准 | R2 同环境（H20 + 完整权重 + 参考推理栈；V4-Flash 参考栈本地缺，仅 V4.1 有） | 真实逐层 KV footprint → 校准 dsv4 家族 `emitCompressor/emitIndexer` KV 边际口径 | 🟡 静态已收口（V4.1 精确 890、V4-Flash 据实留 −2.1%），运行时精校待 Hopper |
+| R4 | **DeepEP all-to-all 字节直测** | **Hopper 匹配镜像**（DeepEP+NVSHMEM 是 CUDA-12/Hopper 栈；A100 CUDA-13/Ampere 无官方适配，源码重编卡 NVSHMEM cu13 依赖链） | 可运行 DeepEP 构建下抓 dispatch/combine 字节 → 对前端 all-to-all `B·T·topk·H·b` | 🔴 阻塞（等 Hopper 镜像；口径已由 NCCL `alltoall_bench.py` 直测收口，此项为增量） |
+| R5 | **真·多机**（跨节点 NCCL / PD 分离 inter-node RDMA 带宽 / inter-node roofline 通信费率） | **≥2 节点**（本地仅单机多卡；PD 跨-TP 重排已单机验，缺跨节点 RDMA 实测带宽） | 跨节点起 NCCL + SGLang PD disaggregation（mooncake RDMA），抓 inter-node 带宽 + KV 传输 → 对 `comm.js pdKvTransferBytes` / roofline 通信费率 | 🔴 阻塞（等多节点） |
+| R6 | **vLLM 小尾巴**：all-to-all 字节直测、DP-attention(attnMode=dp) 跨框架 | **任意 GPU（可现做）** | vLLM MoE all-to-all 抓字节 + DP-attn 起服务对有效宽度 → 对前端 all-to-all / attnMode | 🟡 待做（非阻塞，A100 即可，SGLang 侧已验） |
+| R7 | **后端生产化硬化**（路径约束 / remote-code 沙箱 / 鉴权 / 限流 / 脱敏） | **部署环境（非 GPU）**，且做成 opt-in 默认关（否则破坏本地 verify） | 上线前逐项过 `backend_audit.md` 清单 | 🟡 已审计，硬化待"真正对外部署"触发 |
+
+**一句话**：换到 **Hopper(H20/Blackwell)** 能解 R1/R2/R3/R4，换到 **≥2 节点**能解 R5，**vLLM 小尾巴 R6 现机即可补**，R7 等部署。其余维度（结构/成本/并行/静态 KV/PD 单机）在 A100+H20 上已闭合。
 
 ## 关联
 

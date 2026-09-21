@@ -157,8 +157,11 @@ test("P10：PD 传输时间 = per-rank bytes / 链路带宽（Q7②）", () => {
   assert.equal(result.transferSeconds, result.perDecodeRankBytes / 500);
 });
 
-// C3c：SGLang(DeepEP) shared-expert 折叠进 all-to-all（topk+n_shared）；vLLM/neutral 不折叠。
-test("shared-expert fusion 仅 SGLang 预设改 all-to-all 字节", () => {
+// C3c（2026-09-21 H20 实证修正）：shared-expert 折叠进 all-to-all 是**显式 opt-in**
+// （--enforce-shared-experts-fusion）。DeepEP/EP>1@NV 默认 fusion off →
+// SGLang 默认**不**折叠（dispatch 保持 topk）；vLLM/neutral 恒不折叠。
+// 证据：evidence/parallelism/deepep_shared_expert_h20.md。
+test("shared-expert fusion 默认关，仅显式 enforce 时改 all-to-all 字节", () => {
   const node = { id: "decoder.0.mlp.dispatch" };
   const cfg = { hiddenSize: 4, expertsPerToken: 2, sharedExperts: 1 };
   const plan = { ep: 2 };
@@ -166,8 +169,13 @@ test("shared-expert fusion 仅 SGLang 预设改 all-to-all 字节", () => {
   // neutral / vLLM：expertsPerToken=2 → 2·4·2 = 16
   assert.equal(nodeCommunicationBytes(node, cfg, plan, base), 16);
   assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "vllm" }), 16);
-  // SGLang：topk+shared=3 → 3·4·2 = 24
-  assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "sglang" }), 24);
-  // 无 shared expert 时 SGLang 也不变
-  assert.equal(nodeCommunicationBytes(node, { ...cfg, sharedExperts: 0 }, plan, { ...base, frameworkProfile: "sglang" }), 16);
+  // SGLang 默认（未 enforce）：DeepEP/EP 默认 fusion off → 不折叠 = 16
+  assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "sglang" }), 16);
+  // SGLang + 显式 enforce（options 或 plan 任一）：topk+shared=3 → 3·4·2 = 24
+  assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "sglang", enforceSharedExpertsFusion: true }), 24);
+  assert.equal(nodeCommunicationBytes(node, cfg, { ...plan, enforceSharedExpertsFusion: true }, { ...base, frameworkProfile: "sglang" }), 24);
+  // enforce 但无 shared expert：仍 16
+  assert.equal(nodeCommunicationBytes(node, { ...cfg, sharedExperts: 0 }, plan, { ...base, frameworkProfile: "sglang", enforceSharedExpertsFusion: true }), 16);
+  // enforce 但非 SGLang：不折叠 = 16
+  assert.equal(nodeCommunicationBytes(node, cfg, plan, { ...base, frameworkProfile: "vllm", enforceSharedExpertsFusion: true }), 16);
 });

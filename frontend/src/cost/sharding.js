@@ -56,6 +56,19 @@ export function expertShardDivisor(plan = {}) {
 }
 
 /**
+ * 框架预设 → MoE 分片 plan 默认。业界口径：
+ *   vLLM：EP = TP×DP（无独立 ep 旋钮），且无 moe_tp 轴（每 rank 持整专家、intermediate 不再 TP 切）→ moeTp 恒 1；
+ *   SGLang / TRT-LLM：ep 与 moe_tp 独立（EP×moe_tp 混合），保持 plan 原样。
+ * neutral / sglang / 未知 → 恒等（现状，向后兼容）。仅 vllm 变换，且用户显式 ep 仍胜出（plan.ep ??）。
+ */
+export function resolveFrameworkPlan(plan = {}, frameworkProfile) {
+  if (frameworkProfile !== "vllm") return plan;
+  const tp = plan.tp ?? plan.TP ?? 1;
+  const dp = plan.dp ?? plan.DP ?? 1;
+  return { ...plan, ep: plan.ep ?? plan.EP ?? (tp * dp), moeTp: 1, moe_tp: 1 };
+}
+
+/**
  * 声明组 class → 单卡除数。
  *   ep → expertShardDivisor；tp → ÷tp（attnMode=dp 的 attention 叶除外，复制）；
  *   vocab → vocabParallel ? ÷tp : 复制；replicated → 复制。

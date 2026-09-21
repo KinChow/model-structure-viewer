@@ -3,6 +3,7 @@ import { normalizeConfig } from "../structure/config/normalize.js";
 import { aggregateCost } from "../cost/aggregate.js";
 import { walkStructure } from "../cost/traverse.js";
 import { bytesPerDtype } from "../cost/memory.js";
+import { resolveFrameworkPlan } from "../cost/sharding.js";
 import { maxContextForStages, planFitsCard, projectPdFit, projectPlan } from "../cost/parallel.js";
 import { pdKvTransferBytes, planCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
@@ -49,7 +50,7 @@ function PlanFields({ plan, onChange, english, config }) {
   </div>;
 }
 
-export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", onFitStatusChange, lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange, comparisonMode = "off", onComparisonModeChange, compareChipId = "", onCompareChipIdChange, comparePlan = DEFAULT_COMPARE_PLAN, onComparePlanChange, efficiency = DEFAULT_EFFICIENCY, onEfficiencyChange }) {
+export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip, language = "zh", onFitStatusChange, lenses: controlledLenses, onLensesChange, phase: controlledPhase, onPhaseChange, mode: controlledMode, onModeChange, plans: controlledPlans, onPlansChange, nodes: controlledNodes, onNodesChange, gpusPerNode: controlledGpusPerNode, onGpusPerNodeChange, machineId: controlledMachineId, onMachineIdChange, loads: controlledLoads, onLoadsChange, comparisonMode = "off", onComparisonModeChange, compareChipId = "", onCompareChipIdChange, comparePlan = DEFAULT_COMPARE_PLAN, onComparePlanChange, efficiency = DEFAULT_EFFICIENCY, onEfficiencyChange, frameworkProfile = "neutral" }) {
   const english = language === "en";
   const text = {
     estimate: t(language, "cost.estimate"),
@@ -124,7 +125,8 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   }, [structure]);
   const machine = chips.find((chip) => chip.id === machineId) || chips[0];
   const load = loads[phase];
-  const plan = plans[phase];
+  // C3b：框架预设 → MoE plan 默认（neutral/sglang 恒等；vLLM 令 EP=TP×DP、moeTp=1）。用户显式仍胜出。
+  const plan = resolveFrameworkPlan(plans[phase], frameworkProfile);
   const costFor = (targetPhase) => {
     const targetLoad = loads[targetPhase] || DEFAULT_LOADS[targetPhase];
     if (!structure?.graph || !config) return null;
@@ -156,8 +158,8 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   // 无逐 stage 动作向量 → 只输出 HBM 时间并保持口径标注；计算路 per-stage 待
   // stage 级 actions 落地后再扩展（登记于 protocol §二点五）。
   const stageRates = useMemo(() => machine ? chipRates(machine, { dtype: "bf16", efficiency }) : null, [machine, efficiency]);
-  const pd = useMemo(() => mode === "pd" && phaseCosts.prefill && machine ? pdKvTransferBytes({ totalKvBytes: phaseCosts.prefill.memory.kvBytes, totalStateBytes: phaseCosts.prefill.memory.stateBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine }) : null, [mode, phaseCosts, machine, config, plans]);
-  const pdFit = useMemo(() => mode === "pd" && phaseCosts.prefill && phaseCosts.decode && machine ? projectPdFit({ graph: structure.graph, weightBytes: phaseCosts.prefill.memory.weightBytes, prefillKvBytes: phaseCosts.prefill.memory.kvBytes, decodeKvBytes: phaseCosts.decode.memory.kvBytes, prefillStateBytes: phaseCosts.prefill.memory.stateBytes, decodeStateBytes: phaseCosts.decode.memory.stateBytes, config, pdPlan: { prefill_plan: plans.prefill, decode_plan: plans.decode }, prefillChip: machine, decodeChip: machine }) : null, [mode, phaseCosts, machine, structure, config, plans]);
+  const pd = useMemo(() => mode === "pd" && phaseCosts.prefill && machine ? pdKvTransferBytes({ totalKvBytes: phaseCosts.prefill.memory.kvBytes, totalStateBytes: phaseCosts.prefill.memory.stateBytes, config, pdPlan: { prefill_plan: resolveFrameworkPlan(plans.prefill, frameworkProfile), decode_plan: resolveFrameworkPlan(plans.decode, frameworkProfile) }, prefillChip: machine, decodeChip: machine }) : null, [mode, phaseCosts, machine, config, plans, frameworkProfile]);
+  const pdFit = useMemo(() => mode === "pd" && phaseCosts.prefill && phaseCosts.decode && machine ? projectPdFit({ graph: structure.graph, weightBytes: phaseCosts.prefill.memory.weightBytes, prefillKvBytes: phaseCosts.prefill.memory.kvBytes, decodeKvBytes: phaseCosts.decode.memory.kvBytes, prefillStateBytes: phaseCosts.prefill.memory.stateBytes, decodeStateBytes: phaseCosts.decode.memory.stateBytes, config, pdPlan: { prefill_plan: resolveFrameworkPlan(plans.prefill, frameworkProfile), decode_plan: resolveFrameworkPlan(plans.decode, frameworkProfile) }, prefillChip: machine, decodeChip: machine }) : null, [mode, phaseCosts, machine, structure, config, plans, frameworkProfile]);
   const summary = useMemo(() => costSummaryModel(cost, roofline, { english }), [cost, roofline, english]);
   // Cost Lens 按 FORMULAS.group 分栏：成本花在哪类算子（gemm/attention/moe/…）。
   const domainBreakdown = useMemo(() => costByFormulaGroup(cost), [cost]);

@@ -9,7 +9,7 @@ import fs from "node:fs";
 import test from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expertShardDivisor, declaredWeightBytesPerCard, declaredWeightElements, declaredClassDivisor } from "../sharding.js";
+import { expertShardDivisor, declaredWeightBytesPerCard, declaredWeightElements, declaredClassDivisor, resolveFrameworkPlan } from "../sharding.js";
 import { expertWeightRange, projectNodePlan, validatePlan, weightBytesPerCard } from "../parallel.js";
 import { normalizeConfig } from "../../structure/config/normalize.js";
 import { resolveArchitecture } from "../../structure/registry/resolveArchitecture.js";
@@ -271,4 +271,28 @@ test("P6 接缝：UI 输入的 snake_case 计划贯通 validatePlan 与声明分
   // 校验失败的计划（专家域不闭合）被拒：UI 显示方案无效而不是静默算错
   const bad = validatePlan({ ...plan, moe_tp: 2 }, { experts: 8 });
   assert.equal(bad.ok, false);
+});
+
+// C3b：框架预设 → MoE plan 默认。仅 vLLM 变换，neutral/sglang 恒等（向后兼容）。
+test("resolveFrameworkPlan：neutral/sglang 恒等，vLLM 令 EP=TP×DP 且 moeTp=1", () => {
+  const plan = { tp: 8, dp: 1, ep: 4, moeTp: 2 };
+  assert.equal(resolveFrameworkPlan(plan, "neutral"), plan); // 引用相等 = 恒等
+  assert.equal(resolveFrameworkPlan(plan, "sglang"), plan);
+  assert.equal(resolveFrameworkPlan(plan, undefined), plan);
+  // vLLM：无 moe_tp 轴 → moeTp 强制 1；用户显式 ep 仍胜出。
+  const v = resolveFrameworkPlan(plan, "vllm");
+  assert.equal(v.moeTp, 1);
+  assert.equal(v.ep, 4);
+  // vLLM 未显式 ep → EP=TP×DP。
+  const v2 = resolveFrameworkPlan({ tp: 4, dp: 2 }, "vllm");
+  assert.equal(v2.ep, 8);
+  assert.equal(v2.moeTp, 1);
+});
+
+test("resolveFrameworkPlan(vLLM) 与 expertShardDivisor 组合：整专家÷ep、intermediate 不切", () => {
+  const v = resolveFrameworkPlan({ tp: 8, dp: 1 }, "vllm");
+  const d = expertShardDivisor(v);
+  assert.equal(d.epOn, true);
+  assert.equal(d.moeTp, 1);
+  assert.equal(d.divisor, 8); // ep(8) × moeTp(1)
 });

@@ -286,6 +286,7 @@ function App() {
         <Suspense fallback={<DetailWorkspaceFallback theme={theme} language={language} />}>
           <DetailWorkspace
             structure={structure}
+            frameworkProfile={frameworkProfile}
             sourceLabel={sourceLabel}
             language={language}
             theme={theme}

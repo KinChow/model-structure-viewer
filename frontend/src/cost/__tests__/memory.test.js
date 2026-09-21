@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activationTensorBytes, declaredElementsForHeader, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
+import { activationTensorBytes, declaredElementsForHeader, draftKvBytesPerToken, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 import { aggregateCost } from "../aggregate.js";
 
@@ -145,4 +145,18 @@ test("动态数值 shape 分别解析普通张量和 attention 矩阵", () => {
 
 test("未知视觉输入尺寸不被当作文本 sequence", () => {
   assert.equal(tensorElements([-1, -1, -1, -1, -1], { batch: 1, sequence: 2048 }), 0);
+});
+
+// C6：MTP/投机草稿常驻 KV/token。无 MTP 节点→0；MLA/GQA 按草稿层数计；draftTokens 叠加 verify 窗口。
+test("draftKvBytesPerToken：无 MTP 节点返回 0", () => {
+  assert.equal(draftKvBytesPerToken({ nodes: [{ id: "root", type: "model" }] }, { kvLoraRank: 512 }, 2), 0);
+});
+test("draftKvBytesPerToken：MLA 草稿层，draftTokens 默认 0", () => {
+  const g = { nodes: [{ id: "root.4", type: "mtp" }] };
+  assert.equal(draftKvBytesPerToken(g, { kvLoraRank: 512, qkRopeHeadDim: 64, mtpModules: 1 }, 2), (512 + 64) * 2); // 1152
+  assert.equal(draftKvBytesPerToken(g, { kvLoraRank: 512, qkRopeHeadDim: 64, mtpModules: 1 }, 2, { draftTokens: 6 }), (512 + 64) * 2 * 7);
+});
+test("draftKvBytesPerToken：GQA 草稿层", () => {
+  const g = { nodes: [{ id: "root.3", type: "dspark" }] };
+  assert.equal(draftKvBytesPerToken(g, { kvHeads: 8, headDim: 128, mtpModules: 1 }, 2), 2 * 8 * 128 * 2); // 4096
 });

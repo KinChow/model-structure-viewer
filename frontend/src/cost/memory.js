@@ -214,6 +214,25 @@ export function kvBytesPerToken(graph, kvBytes = 2) {
   return residentMemoryFromGraph(graph, { kvBytes }).kvBytesPerToken;
 }
 
+/**
+ * C6：MTP/投机草稿的**每 token 常驻 KV**（独立于主干 kvBytesPerToken）。
+ * 业界口径（EAGLE/MTP/DSpark，vLLM & SGLang）：草稿模型有自己的解码层 → 独立 KV 池，
+ * 每草稿层每 token KV 与主干同注意力口径（MLA latent / GQA），随上下文长度线性增长。
+ * 仅当图里存在已实装的 MTP/DSpark 节点时计（该节点已受 mtpModuleCount 的 checkpoint 真值门控）。
+ * draftTokens>0 时叠加 verify 窗口（固定 draftTokens 个位置），默认 0=只算稳态草稿常驻。
+ * config 为 normalizeConfig 输出。返回每 token 字节；不并进主干 KV/total（调用方单列展示）。
+ */
+export function draftKvBytesPerToken(graph, config = {}, kvBytes = 2, { draftTokens = 0 } = {}) {
+  const hasDraft = (graph?.nodes || []).some((node) => node?.type === "mtp" || node?.type === "dspark");
+  if (!hasDraft) return 0;
+  const draftLayers = config.mtpModules || 1;
+  const perLayerElements = config.kvLoraRank
+    ? (config.kvLoraRank + (config.qkRopeHeadDim || 0)) // MLA latent（kv_lora_rank + qk_rope）
+    : 2 * (config.kvHeads || 0) * (config.headDim || 0); // GQA（K+V）
+  if (!(perLayerElements > 0)) return 0;
+  return perLayerElements * kvBytes * draftLayers * (1 + Math.max(0, draftTokens));
+}
+
 /** 图能证明的驻留合计。activation workspace / CUDA runtime / comm scratch
  *  无法从 config 得到，不计（runtime-unknown，原则 §3.8 / protocol §四）。 */
 export function memoryBreakdown({ weightBytes = 0, bufferBytes, graph, batch = 1, tokens = 1, kvBytes = 2 } = {}) {

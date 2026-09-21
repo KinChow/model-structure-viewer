@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeConfig } from "../structure/config/normalize.js";
 import { aggregateCost } from "../cost/aggregate.js";
+import { walkStructure } from "../cost/traverse.js";
+import { bytesPerDtype } from "../cost/memory.js";
 import { maxContextForStages, planFitsCard, projectPdFit, projectPlan } from "../cost/parallel.js";
 import { pdKvTransferBytes, planCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
@@ -109,6 +111,17 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const [weightMode, setWeightMode] = useState("actual");
   const [expanded, setExpanded] = useState(false);
   const config = useMemo(() => structure?.extra_config ? normalizeConfig(structure.extra_config) : null, [structure]);
+  // 数据驱动检测：图里存在亚字节(FP4)KV dtype 的叶 → 该模型 KV 走设计 fp4 口径。
+  // 不硬编码家族名（§8.1）：只看 cache_kv_dtype 的字节宽度。
+  const hasSubByteKv = useMemo(() => {
+    if (!structure?.graph) return false;
+    let found = false;
+    walkStructure(structure.graph, ({ node }) => {
+      const d = node?.attributes?.cache_kv_dtype;
+      if (d && bytesPerDtype(d, 2) < 1) found = true;
+    });
+    return found;
+  }, [structure]);
   const machine = chips.find((chip) => chip.id === machineId) || chips[0];
   const load = loads[phase];
   const plan = plans[phase];
@@ -195,6 +208,11 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const missingNote = t(language, "cost.missingNote", { fields: summary.missingLabels.join(missingSep) });
   const unknownComputeNote = ` ${t(language, "cost.unknownCompute", { count: summary.unknownComputeCount })}`;
   return <section className="cost-summary cost-summary-modern" aria-label={text.estimate}>
+    {hasSubByteKv && (
+      <div className="cost-note" role="note">{language === "en"
+        ? "KV shown is the designed sub-byte (FP4) footprint; Hopper (non-Blackwell) serving keeps KV in FP8 (~1.9×)."
+        : "KV 为设计的亚字节(FP4)口径；Hopper(非 Blackwell) 实服 KV 走 FP8(~1.9×)。"}</div>
+    )}
     <div className="cost-summary-header"><div><b>{text.estimate}</b><span className="cost-disclaimer">{text.disclaimer}</span></div><button className="cost-expand-button" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? text.collapse : text.expand}</button></div>
     <div className="cost-lens-row"><span>Cost Lens</span>{[["none", "None"], ["vram", "VRAM"], ["compute", "Compute"], ["memory", "Memory"], ["kv", "KV Cache"]].map(([id, label]) => <button type="button" key={id} className={(id === "none" ? lenses.size === 0 : lenses.has(id)) ? "active" : ""} aria-pressed={id === "none" ? lenses.size === 0 : lenses.has(id)} onClick={() => toggleLens(id)}>{label}</button>)}</div>
     <div className="cost-machine-summary"><span><b>{machine.name}</b> · {currentNodes} {currentNodes === 1 ? text.node : text.nodes} · {totalGpus} GPU</span><span>{formatBytes(machine.memory_bytes)} / card</span><span className={planFitsTopology && !planInvalid && planFitsMemory !== false ? "fit" : "no-fit"}>{planStatus}</span></div>

@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo, useCallback, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useCallback, useRef, useState } from "react";
 import Drawer from "./components/Drawer";
 import ModelEntry from "./components/ModelEntry";
 import { useBuiltinModels } from "./hooks/useBuiltinModels";
 import { useHfSearch } from "./hooks/useHfSearch";
 import { useStructure } from "./hooks/useStructure";
+import { FRAMEWORK_PROFILES } from "./structure/buildStructure.js";
 import { useExport } from "./hooks/useExport";
 import { computeMatches } from "./diagram/match";
 import { PUBLIC_CHIPS } from "./cost/chips/public.js";
@@ -72,6 +73,12 @@ function App() {
   const [chipError, setChipError] = useState("");
   const [language, setLanguage] = useState(() => localStorage.getItem("msv-language") || (navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en"));
   const [theme, setTheme] = useState(() => localStorage.getItem("msv-theme") || "dark");
+  // 框架预设：切换 vLLM≠SGLang 的建模分叉（当前作用于线性 ssm state dtype）。默认 neutral=现状。
+  const [frameworkProfile, setFrameworkProfile] = useState(() => {
+    const fw = new URLSearchParams(window.location.search).get("fw");
+    return FRAMEWORK_PROFILES.includes(fw) ? fw : "neutral";
+  });
+  const lastPayloadRef = useRef(null);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("source") === "local") {
       setParseError({ code: "model.localDirectoryRequired" });
@@ -187,7 +194,8 @@ function App() {
       revision,
       detail_level: "compressed",
     };
-    const data = await build(payload);
+    lastPayloadRef.current = payload;
+    const data = await build(payload, { frameworkProfile });
     if (data) {
       exporter.reset();
       setZoom(1);
@@ -198,10 +206,22 @@ function App() {
       if (activeModelId && activeModelId.trim() && activeSource !== "config") {
         const params = new URLSearchParams({ model: activeModelId.trim(), source: activeSource });
         if (activeSource === "hf" && activeEndpoint) params.set("endpoint", activeEndpoint);
+        if (frameworkProfile && frameworkProfile !== "neutral") params.set("fw", frameworkProfile);
         window.history.replaceState(null, "", `?${params.toString()}`);
       }
     }
   }
+
+  // 切换框架预设：更新 URL 的 fw 参数并用同一 payload 重建结构（ssm dtype 在构建期解析）。
+  const handleFrameworkProfileChange = useCallback((next) => {
+    if (!FRAMEWORK_PROFILES.includes(next)) return;
+    setFrameworkProfile(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next && next !== "neutral") params.set("fw", next); else params.delete("fw");
+    const qs = params.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+    if (lastPayloadRef.current) void build(lastPayloadRef.current, { frameworkProfile: next });
+  }, [build]);
 
   async function handleOpenLocalFiles(files) {
     if (files.length === 0) return;
@@ -302,6 +322,8 @@ function App() {
           revision={revision}
           onRevisionChange={setRevision}
           language={language}
+          frameworkProfile={frameworkProfile}
+          onFrameworkProfileChange={handleFrameworkProfileChange}
           builtinModels={builtinModels}
           onRefreshBuiltinModels={refreshBuiltinModels}
           onPickBuiltinModel={(entry) => { void handleGenerate({ source: "builtin", modelId: entry.modelId }); setDrawerOpen(false); }}

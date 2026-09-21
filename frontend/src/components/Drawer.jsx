@@ -7,6 +7,8 @@ function Drawer({
   language = "zh",
   revision,
   onRevisionChange,
+  frameworkProfile = "neutral",
+  onFrameworkProfileChange,
   builtinModels,
   onRefreshBuiltinModels,
   onPickBuiltinModel,
@@ -22,8 +24,13 @@ function Drawer({
   const panelRef = useRef(null);
   useDialog({ open, onClose, panelRef });
   const t = english
-    ? { inputs: "Model options", revision: "Revision", builtin: "Built-in models", refresh: "Refresh", search: "Hugging Face search", searchAction: "Search", unknown: "unknown", close: "Close" }
-    : { inputs: "模型选项", revision: "Revision", builtin: "内置模型", refresh: "刷新", search: "Hugging Face 搜索", searchAction: "搜索", unknown: "未知", close: "关闭" };
+    ? { inputs: "Model options", revision: "Revision", framework: "Framework profile", frameworkHint: "Switches vLLM/SGLang runtime divergences (e.g. recurrent state dtype). Neutral = config-faithful.", builtin: "Built-in models", refresh: "Refresh", search: "Hugging Face search", searchAction: "Search", unknown: "unknown", close: "Close" }
+    : { inputs: "模型选项", revision: "Revision", framework: "框架预设", frameworkHint: "切换 vLLM/SGLang 运行时分叉（如线性 state dtype）。Neutral=按 config 如实建模。", builtin: "内置模型", refresh: "刷新", search: "Hugging Face 搜索", searchAction: "搜索", unknown: "未知", close: "关闭" };
+  const frameworkOptions = [
+    { value: "neutral", label: "Neutral" },
+    { value: "vllm", label: "vLLM" },
+    { value: "sglang", label: "SGLang" },
+  ];
   return (
     <>
       {open && <div className="drawer-backdrop" aria-hidden="true" onClick={onClose} />}
@@ -35,6 +42,17 @@ function Drawer({
           {t.revision}
           <input value={revision} onChange={(event) => onRevisionChange(event.target.value)} />
         </label>
+        {onFrameworkProfileChange && (
+          <label>
+            {t.framework}
+            <select value={frameworkProfile} onChange={(event) => onFrameworkProfileChange(event.target.value)}>
+              {frameworkOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <small className="field-hint">{t.frameworkHint}</small>
+          </label>
+        )}
       </section>
       <section>
         <h2>{t.builtin}</h2>

@@ -17,8 +17,22 @@ function checkpointMtpTensorCountFromTruth(truth, hiddenLayers) {
   return undefined;
 }
 
+// 框架预设（frameworkProfile）：把 vLLM≠SGLang 的运行时分叉做成可切换默认。
+// 目前控制线性 recurrent(ssm/temporal) state dtype——vLLM 缺省 bf16(模型 dtype)、
+// SGLang 缺省 fp32；neutral 保持"按 config、缺省 fp32"的既有行为。
+// 优先级铁律：config 显式声明恒胜（仅在 config 未声明时才套预设默认）。
+export const FRAMEWORK_PROFILES = ["neutral", "sglang", "vllm"];
+const FRAMEWORK_SSM_DTYPE = { vllm: "bfloat16", sglang: "float32" };
+export function applyFrameworkProfile(normalized, frameworkProfile) {
+  if (!frameworkProfile || frameworkProfile === "neutral") return;
+  const ssm = FRAMEWORK_SSM_DTYPE[frameworkProfile];
+  // config 未显式声明 ssm dtype 时，才采用框架预设默认（config 显式恒胜）。
+  if (ssm && normalized.mambaSsmDtype == null) normalized.mambaSsmDtype = ssm;
+}
+
 export function buildStructureFromConfig(config, options = {}) {
   const normalized = normalizeConfig(config);
+  applyFrameworkProfile(normalized, options.frameworkProfile);
   const checkpointMtpTensorCount = checkpointMtpTensorCountFromTruth(options.truth, normalized.layers);
   if (checkpointMtpTensorCount !== undefined) {
     normalized.checkpointMtpTensorCount = checkpointMtpTensorCount;
@@ -29,7 +43,7 @@ export function buildStructureFromConfig(config, options = {}) {
   return materializeModelStructure(ir);
 }
 
-export function buildStructureFromArtifacts(artifacts) {
+export function buildStructureFromArtifacts(artifacts, options = {}) {
   return buildStructureFromConfig(artifacts.config, {
     modelId: artifacts.modelId,
     revision: artifacts.revision,
@@ -41,5 +55,6 @@ export function buildStructureFromArtifacts(artifacts) {
     configEndpoint: artifacts.configEndpoint,
     checkpointTruthEndpoint: artifacts.checkpointTruthEndpoint,
     sourceRef: artifacts.sourceRef || null,
+    frameworkProfile: options.frameworkProfile,
   });
 }

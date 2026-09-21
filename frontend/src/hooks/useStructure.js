@@ -9,6 +9,7 @@ export async function buildStructureForPayload(payload, {
   onBackgroundUpdate,
   onProgress,
   fetchBuiltinSkeletonTruth,
+  frameworkProfile,
 } = {}) {
   const artifacts = await loadModelArtifacts(payload, {
     fetchHfConfig,
@@ -19,10 +20,10 @@ export async function buildStructureForPayload(payload, {
     onProgress,
   });
   onProgress?.("building");
-  const structure = buildStructureFromArtifacts(artifacts);
+  const structure = buildStructureFromArtifacts(artifacts, { frameworkProfile });
   if (artifacts.deferredTruth) {
     void resolveDeferredCheckpointTruth(artifacts, { fetchTruth }).then((updatedArtifacts) => {
-      onBackgroundUpdate?.(buildStructureFromArtifacts(updatedArtifacts));
+      onBackgroundUpdate?.(buildStructureFromArtifacts(updatedArtifacts, { frameworkProfile }));
     });
   }
   return structure;
@@ -35,7 +36,7 @@ export function useStructure() {
   const [error, setError] = useState("");
   const requestRef = useRef(0);
 
-  const build = useCallback(async (payload) => {
+  const build = useCallback(async (payload, buildOptions = {}) => {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     setError("");
@@ -43,6 +44,7 @@ export function useStructure() {
     setLoading(true);
     try {
       const data = await buildStructureForPayload(payload, {
+        frameworkProfile: buildOptions.frameworkProfile,
         onBackgroundUpdate: (updated) => {
           if (requestId === requestRef.current) setStructure(updated);
         },

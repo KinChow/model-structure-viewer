@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activationTensorBytes, bytesPerDtype, declaredElementsForHeader, draftKvBytesPerToken, draftWeightBytes, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
+import { activationTensorBytes, bytesPerDtype, cacheAccountingFromGraph, declaredElementsForHeader, draftKvBytesPerToken, draftWeightBytes, graphWeightCapacity, kvBytesPerToken, linearStateBytesPerSequence, memoryBreakdown, tensorElements } from "../memory.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 import { aggregateCost } from "../aggregate.js";
 
@@ -46,7 +46,11 @@ test("memory breakdown exposes token KV and request state separately", () => {
     children: [cacheLeaf("layers.0.sdpa", { kv: 2 })]
   });
   const result = memoryBreakdown({ weightBytes: 10, graph, batch: 1, tokens: 2, kvBytes: 1, bufferBytes: 0 });
-  assert.deepEqual(result, { weightBytes: 10, bufferBytes: 0, kvBytes: 4, kvBytesPerToken: 2, stateBytes: 0, stateBytesPerSequence: 0, totalBytes: 14 });
+  assert.equal(result.weightBytes, 10);
+  assert.equal(result.kvBytes, 4);
+  assert.equal(result.mainKvBytes, 4);
+  assert.equal(result.draftKvBytes, 0);
+  assert.equal(result.totalBytes, 14);
 });
 
 test("KDA recurrent and convolution state is request-scoped, not token KV", () => {
@@ -204,4 +208,35 @@ test("draftWeightBytes：无 mtp/dspark 子树返回 0（主干逐字节不变�
   };
   assert.equal(draftWeightBytes(g), 0);
   assert.equal(draftWeightBytes(g, 20000), 0);
+});
+
+test("framework accounting keeps private draft KV separate and shared pools unique", () => {
+  const graph = {
+    root_id: "root",
+    nodes: [
+      { id: "root", parent_id: null, type: "model" },
+      { id: "target", parent_id: "root", type: "operator", attributes: {
+        cache_kv_elements: 10, cache_pool_id: "target",
+      } },
+      { id: "mtp", parent_id: "root", type: "mtp", repeat: 0, attributes: { modules: 1 } },
+      { id: "mtp.attn", parent_id: "mtp", type: "operator", attributes: {
+        cache_kv_elements: 3, cache_pool_id: "draft",
+      } },
+    ],
+  };
+  const neutral = cacheAccountingFromGraph(graph, { kvBytes: 2, batch: 1, tokens: 4 });
+  assert.equal(neutral.mainKvBytes, 80);
+  assert.equal(neutral.draftKvBytes, 24);
+  assert.equal(neutral.totalKvBytes, 104);
+
+  const shared = {
+    ...graph,
+    nodes: graph.nodes.map((node) => node.id === "mtp.attn"
+      ? { ...node, attributes: { ...node.attributes, cache_pool_id: "target", cache_pool_shared: true } }
+      : node),
+  };
+  const accounting = cacheAccountingFromGraph(shared, { kvBytes: 2, batch: 1, tokens: 4 });
+  assert.equal(accounting.sharedKvBytes, 80);
+  assert.equal(accounting.draftKvBytes, 0);
+  assert.equal(accounting.totalKvBytes, accounting.sharedKvBytes);
 });

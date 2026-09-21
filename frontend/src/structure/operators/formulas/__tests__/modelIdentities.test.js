@@ -19,7 +19,7 @@ import { materializeModelStructure } from "../../../materializers/modelStructure
 import { graphRoot } from "../../../graph/selectors.js";
 import { countsForNode, isVisionPath } from "../extractor.js";
 import { childRepeatMultiplier, walkStructure } from "../../../../cost/traverse.js";
-import { kvBytesPerToken, bytesPerDtype } from "../../../../cost/memory.js";
+import { kvBytesPerToken, draftKvBytesPerToken, bytesPerDtype } from "../../../../cost/memory.js";
 import { paramBytes } from "../paramDtypes.js";
 import { classifyRoofline } from "../../../../cost/roofline.js";
 import { attentionScheduleOf } from "../../../layers/schedule.js";
@@ -358,7 +358,10 @@ test("W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）", () =>
         expectedMetric += ((attrs.cache_kv_elements || 0) + (attrs.cache_index_elements || 0)) * B * multiplier;
       }
     });
-    assert.equal(kvBytesPerToken(structure.graph, B), expectedMetric);
+    // The resident ledger now includes allocated draft caches (repeat=0
+    // disables execution, not residency). The active forward oracle below
+    // deliberately keeps execution multipliers.
+    assert.equal(kvBytesPerToken(structure.graph, B), expectedMetric + draftKvBytesPerToken(structure.graph, normalized, B));
 
     // 期望侧：逐层 cache 容量 × 全长 S，按「读全 cache / 只读一部分」分两桶。
     let fullCapacity = 0;

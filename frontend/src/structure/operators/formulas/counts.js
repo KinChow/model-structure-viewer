@@ -592,12 +592,12 @@ export const LINEAR_ATTENTION_CHUNK = 64;
 export function gatedDeltaStateCounts({
   batch = 1, sequence = 1, phase = "prefill", bytesPerElement,
   keyHeads = 0, valueHeads = 0, keyDim = 0, valueDim = 0,
-  convKernelSize = 0, generic = false, gdnScalars,
+  convKernelSize = 0, generic = false, gdnScalars, stateBytesPerSequence,
 }) {
   const kernel = Math.max(0, (convKernelSize || 1) - 1);
   const convElements = keyHeads * keyDim * 2 + valueHeads * valueDim;
   const recurrentElements = valueHeads * valueDim * keyDim;
-  const stateBytes = (convElements * kernel + recurrentElements) * bytesPerElement;
+  const stateBytes = stateBytesPerSequence ?? (convElements * kernel + recurrentElements) * bytesPerElement;
   const steps = phase === "decode"
     ? Math.max(batch, 1)
     : Math.ceil(Math.max(sequence, 1) / LINEAR_ATTENTION_CHUNK);

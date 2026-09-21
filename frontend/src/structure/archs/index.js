@@ -188,6 +188,13 @@ export function recipeLinearAttentionMode(config) {
   return recipeOf(config).linearAttentionMode || "generic";
 }
 
+// Runtime state dtype defaults differ between KDA and GDN even though both use
+// the gated_delta_attention operator. Keep this architecture knowledge in the
+// existing recipe registry, not in cost/profile consumers.
+export function recipeStateKind(config, modelKind = recipeLinearAttentionMode(config)) {
+  return ["kimi_k3", "glm5_next"].includes(modelKind) ? "kda" : "gdn";
+}
+
 export function recipeNormMode(config) {
   const raw = config?.raw ?? config;
   if (typeof raw?.normMode === "string") return raw.normMode;

@@ -50,7 +50,7 @@ function quantizedMatrixBytes(graph, quant) {
 }
 
 export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
-  kvBytes = 2, weightBytesPerParameter } = {}) {
+  kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral" } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;
   const shapedWeights = graphShapedWeightBytes(graph);
   const declared = graphWeightCapacity(graph);
@@ -63,8 +63,8 @@ export function aggregateCost({ graph, config, parameterCount, batch = 1, sequen
     : declared.elements;
   const hasWeightOverride = typeof weightBytesPerParameter === "number" && weightBytesPerParameter > 0;
   const weightBytes = hasWeightOverride ? parameterTotal * weightBytesPerParameter : naturalWeightBytes;
-  const memory = memoryBreakdown({ weightBytes, graph, batch, tokens: sequence, kvBytes });
-  const nodes = computeNodeCosts(graph, config, { batch, sequence, phase, visionTokens: visionTokens ?? undefined });
+  const memory = memoryBreakdown({ weightBytes, graph, batch, tokens: sequence, kvBytes, frameworkProfile, config });
+  const nodes = computeNodeCosts(graph, config, { batch, sequence, phase, visionTokens: visionTokens ?? undefined, frameworkProfile });
   const unknownComputePaths = nodes
     .filter((row) => row.compute_macs == null)
     .map((row) => row.path);
@@ -80,7 +80,7 @@ export function aggregateCost({ graph, config, parameterCount, batch = 1, sequen
     macsPerToken: totalMacs != null && forwardTokens > 0 ? totalMacs / forwardTokens : null,
     flopsPerToken: totalMacs != null && forwardTokens > 0 ? (totalMacs * 2) / forwardTokens : null,
     macsSources: summarizeMacsSources(nodes),
-    assumptions: { theoretical: true, kvBytes, quantization: config?.quantizationMethod || null,
+    assumptions: { theoretical: true, kvBytes, frameworkProfile, quantization: config?.quantizationMethod || null,
       weightBytesPerParameter: config?.quantizationBytesPerParameter || null } };
 }
 

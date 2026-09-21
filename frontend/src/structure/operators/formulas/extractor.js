@@ -143,6 +143,7 @@ function gatedDeltaStateCtx(config, options, bytesPerElement, modelKind = "", ge
     batch: options.batch ?? 1,
     sequence: options.sequence ?? 1,
     phase: options.phase ?? "prefill",
+    stateBytesPerSequence: options.stateBytesPerSequence,
     bytesPerElement,
     keyHeads,
     valueHeads,
@@ -361,7 +362,7 @@ const FROM_NODE = {
               variant: "state",
               ...gatedDeltaStateCtx(
                 config,
-                { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase },
+                { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase, stateBytesPerSequence: options.stateBytesPerSequence },
                 bytesPerElement,
                 String(node?.attributes?.model_kind || ""),
                 recipeLinearAttentionMode(config) === "generic",
@@ -372,7 +373,7 @@ const FROM_NODE = {
   },
   gated_delta_attention: ({ node, config, options, bytesPerElement, phase }) => gatedDeltaStateCtx(
     config,
-    { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase },
+    { batch: options.batch ?? 1, sequence: options.sequence ?? 1, phase, stateBytesPerSequence: options.stateBytesPerSequence },
     bytesPerElement,
     String(node?.attributes?.model_kind || ""),
     recipeLinearAttentionMode(config) === "generic",

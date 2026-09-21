@@ -4,7 +4,7 @@
 import { nodeWeightCapacityBytes } from "./memory.js";
 import { childResidentRepeat, graphNodeToNode, walkStructure } from "./traverse.js";
 import { LAYER_INDEX_RE } from "../structure/operators/formulas/extractor.js";
-import { declaredWeightBytesPerCard, expertShardDivisor } from "./sharding.js";
+import { declaredWeightBytesPerCard, expertShardDivisor, resolveFrameworkPlan } from "./sharding.js";
 import { normalizeParallelPlan } from "./parallelPlan.js";
 
 function positiveInteger(value) {
@@ -176,7 +176,35 @@ function layerSpanForNode(node) {
 
 /** 逐 stage 返回已投影的权重与 KV，供后续 fit UI 使用。 */
 // P7（步骤 7）：root 兜底取点退役——图缺位时才走平坦摊薄的兜底投影。
-export function projectPlan({ graph, weightBytes = 0, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
+export function projectPlan({ graph, accounting, weightBytes = 0, kvBytes = 0, stateBytes = 0, config = {}, plan = {} } = {}) {
+  if (accounting) {
+    const effective = resolveFrameworkPlan(plan, accounting.framework, config);
+    const projection = projectPlan({ graph, weightBytes: accounting.total.weightBytes, config, plan: effective });
+    if (!projection.ok) return projection;
+    const pp = projection.plan.pp;
+    const fraction = (scope, stage) => {
+      if (scope?.placement === "last") return stage === pp - 1 ? 1 : 0;
+      if (!scope || scope.placement === "first") return stage === 0 ? 1 : 0;
+      const bounds = stageLayerBounds(stage, config.layers || scope.end + 1, pp);
+      return Math.max(0, Math.min(scope.end, bounds.end) - Math.max(scope.start, bounds.start) + 1)
+        / (scope.end - scope.start + 1);
+    };
+    for (const stage of projection.stages) {
+      stage.kvBytes = 0;
+      stage.boundedKvBytes = 0;
+      stage.stateBytes = 0;
+      stage.bufferBytes = 0;
+      for (const pool of accounting.pools) {
+        const share = fraction(pool.scope, stage.stage);
+        stage.kvBytes += kvBytesPerCard(pool.kvBytes * share, config, projection.plan).bytes;
+        stage.boundedKvBytes += kvBytesPerCard(pool.boundedKvBytes * share, config, projection.plan).bytes;
+        stage.stateBytes += stateBytesPerCard(pool.stateBytes * share, config, projection.plan).bytes;
+      }
+      for (const buffer of accounting.buffers) stage.bufferBytes += buffer.bytes * fraction(buffer.scope, stage.stage);
+      stage.totalBytes = stage.weightBytes + stage.kvBytes + stage.stateBytes + stage.bufferBytes;
+    }
+    return { ...projection, accounting };
+  }
   const checked = validatePlan(plan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
@@ -228,7 +256,8 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
   if (!checked.ok) return { ok: false, errors: checked.errors, stages: [] };
   const { pp, dp } = checked.plan;
   const naturalWeightBytes = graphWeightBytes(graph);
-  const weightScale = positiveNumber(targetWeightBytes) && naturalWeightBytes > 0 ? targetWeightBytes / naturalWeightBytes : 1;
+  const weightScale = Number.isFinite(targetWeightBytes) && targetWeightBytes >= 0 && naturalWeightBytes > 0
+    ? targetWeightBytes / naturalWeightBytes : 1;
   const stages = Array.from({ length: pp }, (_, stage) => ({ stage, ranks: checked.plan.tp * dp, weightBytes: 0, kvBytes: 0, stateBytes: 0, dpRanks: dp, expertWeightBytes: 0, expertCount: null }));
   function accountNode(node, inheritedRepeat, inheritedLayerSpan, children, visitChild) {
     const nodeForScope = children.length ? { ...node, children } : node;
@@ -260,7 +289,7 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
       }
     } else {
       let stage = 0;
-      if (/(lm_head|output_head|language_model_head)/.test(path)) stage = pp - 1;
+      if (/(lm_head|output_head|language_model_head|(?:^|\.)mtp(?:\.|$))/.test(path)) stage = pp - 1;
       else if (/(final_norm|norm$)/.test(path) && pp > 1) stage = pp - 1;
       stages[stage].weightBytes += projected;
       if (isExpert) {
@@ -323,15 +352,19 @@ export function projectNodePlan({ graph, targetWeightBytes, kvBytes = 0, stateBy
 
 /** PD 两侧逐 stage fit；只计算显存容纳性，不预测吞吐或服务延迟。
  *  P7（步骤 7）：root 入参退役，projectPlan 与本函数一致只收 Graph IR。 */
-export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, stateBytes = 0, prefillStateBytes, decodeStateBytes, config = {}, pdPlan = {}, prefillChip, decodeChip } = {}) {
+export function projectPdFit({ graph, prefillAccounting, decodeAccounting, weightBytes = 0, kvBytes = 0, prefillKvBytes, decodeKvBytes, stateBytes = 0, prefillStateBytes, decodeStateBytes, config = {}, pdPlan = {}, prefillChip, decodeChip } = {}) {
+  if (prefillAccounting || decodeAccounting) pdPlan = {
+    prefill_plan: resolveFrameworkPlan(pdPlan.prefill_plan || pdPlan.prefillPlan, prefillAccounting?.framework, config),
+    decode_plan: resolveFrameworkPlan(pdPlan.decode_plan || pdPlan.decodePlan, decodeAccounting?.framework, config),
+  };
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, prefill: null, decode: null };
-  function side(plan, chip, sideKvBytes, sideStateBytes) {
-    const projection = projectPlan({ graph, weightBytes, kvBytes: sideKvBytes, stateBytes: sideStateBytes, config, plan });
+  function side(plan, chip, sideKvBytes, sideStateBytes, accounting) {
+    const projection = projectPlan({ graph, accounting, weightBytes, kvBytes: sideKvBytes, stateBytes: sideStateBytes, config, plan });
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
       const totalBytes = stage.totalBytes;
-      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + (stage.stateBytes || 0);
+      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + (stage.stateBytes || 0) + (stage.bufferBytes || 0);
       return { ...stage, totalBytes, worstTotalBytes,
         fit: positiveNumber(capacity) ? totalBytes <= capacity : null,
         worstFit: positiveNumber(capacity) ? worstTotalBytes <= capacity : null };
@@ -342,8 +375,8 @@ export function projectPdFit({ graph, weightBytes = 0, kvBytes = 0, prefillKvByt
   return {
     ok: true,
     errors: [],
-    prefill: side(checked.prefillPlan, prefillChip, prefillKvBytes ?? kvBytes, prefillStateBytes ?? stateBytes),
-    decode: side(checked.decodePlan, decodeChip, decodeKvBytes ?? kvBytes, decodeStateBytes ?? stateBytes),
+    prefill: side(checked.prefillPlan, prefillChip, prefillKvBytes ?? kvBytes, prefillStateBytes ?? stateBytes, prefillAccounting),
+    decode: side(checked.decodePlan, decodeChip, decodeKvBytes ?? kvBytes, decodeStateBytes ?? stateBytes, decodeAccounting),
   };
 }
 
@@ -359,9 +392,11 @@ export function planFitsCard(projection, capacityBytes) {
 export function maxContextForStages(stages = [], { capacityBytes, sequence = 1 } = {}) {
   if (!positiveNumber(capacityBytes) || !positiveNumber(sequence) || stages.length === 0) return null;
   const limits = stages.map((stage) => {
-    const kvPerContextToken = stage.kvBytes / sequence;
+    const fixedBytes = stage.weightBytes + (stage.stateBytes || 0) + (stage.bufferBytes || 0) + (stage.boundedKvBytes || 0);
+    if (fixedBytes > capacityBytes) return 0;
+    const kvPerContextToken = (stage.kvBytes - (stage.boundedKvBytes || 0)) / sequence;
     if (!positiveNumber(kvPerContextToken)) return null;
-    return Math.max(0, Math.floor((capacityBytes - stage.weightBytes - (stage.stateBytes || 0)) / kvPerContextToken));
+    return Math.max(0, Math.floor((capacityBytes - fixedBytes) / kvPerContextToken));
   }).filter((value) => value != null);
   return limits.length ? Math.min(...limits) : null;
 }

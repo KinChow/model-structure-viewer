@@ -2,7 +2,7 @@
 // 旧 nodeMacs 分派链已删除；公式唯一来源是 structure/operators/formulas/（含 20 处
 // legacy 镜像同步删除）。芯片参数不得进入本文件（§3.4，ERT 分离见 W5-2）。
 import { countsForNode } from "../structure/operators/formulas/extractor.js";
-import { nodeWeightCapacityBytes } from "./memory.js";
+import { nodeWeightCapacityBytes, stateBytesForNode } from "./memory.js";
 import { walkStructure } from "./traverse.js";
 function countsFor(node, config, options = {}) {
   const vision = node?.attributes?.modality === "vision";
@@ -18,7 +18,12 @@ function countsFor(node, config, options = {}) {
     : config;
   return countsForNode(node, {
     config: effectiveConfig,
-    options: executionOptions,
+    options: {
+      ...executionOptions,
+      ...(node.attributes?.state_elements != null ? {
+        stateBytesPerSequence: stateBytesForNode(node.attributes, 2, { config, frameworkProfile: options.frameworkProfile }),
+      } : {}),
+    },
     path: node?.id || "",
     bytesPerElement: 2,
   });

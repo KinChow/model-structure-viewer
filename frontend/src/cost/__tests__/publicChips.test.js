@@ -45,6 +45,37 @@ test("L40S 使用官方未启用稀疏性的 BF16 与双向 PCIe 数据", () => 
   assert.ok(l40s.notes.some((note) => note.includes("双向带宽")));
 });
 
+test("NVIDIA 目录补充常用 PCIe/新一代卡，并保留 TechPowerUp 交叉核对来源", () => {
+  const a100Pcie = PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-a100-80gb-pcie");
+  assert.equal(a100Pcie.memory_bandwidth, 1935e9);
+  assert.equal(a100Pcie.interconnect.intra_node.bandwidth, 64e9);
+
+  const h200 = PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-h200-141gb-sxm");
+  assert.equal(h200.memory_bytes, 141e9);
+  assert.equal(h200.memory_bandwidth, 4.8e12);
+  assert.equal(h200.hardware.sm_count, 132);
+  assert.equal(h200.peak_flops.bf16, 989.5e12);
+  assert.equal(h200.peak_flops.fp8, 1979e12);
+
+  const l40 = PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-l40-48gb");
+  assert.equal(l40.peak_flops.fp32, 90.5e12);
+  assert.equal(l40.peak_flops.tf32, 90.5e12);
+  assert.equal(l40.hardware.sm_count, 142);
+  assert.equal(l40.hardware.cuda_cores, 18176);
+
+  const l4 = PUBLIC_CHIPS.find((chip) => chip.id === "nvidia-l4-24gb");
+  assert.equal(l4.memory_bytes, 24e9);
+  assert.equal(l4.memory_bandwidth, 300e9);
+  assert.equal(l4.hardware.sm_count, 58);
+  assert.equal(l4.peak_flops.fp32, 30.3e12);
+  assert.equal(l4.peak_flops.bf16, 121e12);
+
+  for (const chip of PUBLIC_CHIPS.filter((entry) => entry.vendor === "NVIDIA")) {
+    assert.ok(chip.hardware, `${chip.id}: hardware metadata`);
+    assert.ok(chip.cross_check_sources?.some((source) => source.includes("techpowerup.com/gpu-specs")));
+  }
+});
+
 test("昇腾 910B4 按保守口径入库，无独立 SFU 时声明 sfu→vector 语义映射", () => {
   const chip = PUBLIC_CHIPS.find((entry) => entry.id === "huawei-ascend-910b4");
   assert.ok(chip, "910B4 条目存在");

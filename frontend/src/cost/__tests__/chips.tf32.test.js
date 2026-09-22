@@ -8,12 +8,14 @@ import { PUBLIC_CHIPS } from "../chips/public.js";
 import { chipRates } from "../chips/rates.js";
 import { createManualChip } from "../chips/manual.js";
 
-test("NVIDIA 公开芯片带 TF32 dense 行，且 fp32 < tf32 < bf16（防单位错）", () => {
+test("NVIDIA 公开芯片带 TF32 dense 行，且 fp32 <= tf32 < bf16（防单位错）", () => {
   const nvidia = PUBLIC_CHIPS.filter((chip) => chip.vendor === "NVIDIA" && chip.peak_flops?.tf32);
   assert.ok(nvidia.length >= 3, "A100/H100/L40S 都应有 tf32");
   for (const chip of nvidia) {
     const { fp32, tf32, bf16 } = chip.peak_flops;
-    assert.ok(tf32 > fp32, `${chip.id}: tf32 > fp32`);
+    // L40 的官方 datasheet 将 dense TF32 标为 90.5 TFLOPS，与 FP32 相同；
+    // 因此这里不能假设所有 Ada 卡都严格高于 FP32。
+    assert.ok(tf32 >= fp32, `${chip.id}: tf32 >= fp32`);
     assert.ok(tf32 < bf16, `${chip.id}: tf32 < bf16`);
     assert.ok(chip.field_sources?.peak_flops, `${chip.id}: 逐字段来源`);
   }

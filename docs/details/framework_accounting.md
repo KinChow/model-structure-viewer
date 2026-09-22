@@ -1,5 +1,7 @@
 # Framework-conditioned cost accounting
 
+> 显存分类总规范见 [`memory_estimation_theory.md`](memory_estimation_theory.md)；实现边界见 [`memory_estimation_implementation.md`](memory_estimation_implementation.md)，设计见 [`memory_estimation_design.md`](memory_estimation_design.md)。本文继续作为 framework profile 语义的唯一来源。
+
 > 2026-09-21 UTC runtime validation update:
 > [H20/A100 report](evidence/memory/framework_runtime_validation_20260921.md)
 > confirms state dtype/shape, private MTP KV and DSpark storage ownership.

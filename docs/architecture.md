@@ -2,7 +2,7 @@
 
 ## 定位
 
-Model Structure Viewer（MSV）是一个轻量的模型结构查看和理论成本分析工具。它读取模型配置、公开元数据和 safetensors header，生成可解释的结构、公式、显存和瓶颈信息；不下载权重数据，不运行推理，也不承担在线 serving、调度或 TTFT/TPOT/吞吐等服务指标预测。Roofline 瓶颈与理论时间下界属于估计，必须标明"下界"，不得当成服务指标。
+Model Structure Viewer（MSV）是一个轻量的模型结构查看和理论成本分析工具。它读取模型配置、公开元数据和 safetensors header，生成可解释的结构、公式、理论显存和瓶颈信息；不下载权重数据，不运行推理，也不承担在线 serving、调度或 TTFT/TPOT/吞吐等服务指标预测。可选的 runtime evidence 只作为带 fingerprint 的离线证据导入，不改变 MSV 的静态产品边界。Roofline 瓶颈与理论时间下界属于估计，必须标明"下界"，不得当成服务指标。
 
 ## 总体数据流
 

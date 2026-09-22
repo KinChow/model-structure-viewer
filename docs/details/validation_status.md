@@ -22,6 +22,18 @@
 
 ## 汇总
 
+## 2026-09-22：CUDA Graph / MTP prefix-cache 运行时证据
+
+本轮使用真实 `Qwen/Qwen3.5-4B`，在 H20 `10.98.95.16` 和 A100 `10.55.87.81` 的 `vllm-0920` 容器中运行；两端均未使用 `--enforce-eager`。完整摘要和归档见 [`artifacts/framework-runtime-validation/20260922-cudagraph-prefix/README.md`](../../artifacts/framework-runtime-validation/20260922-cudagraph-prefix/README.md)。
+
+| 主机 | vLLM | workload | graph actual / estimate | prefix-cache 结果 | 边界 |
+|---|---|---|---:|---|---|
+| H20 | `0.29.1rc1.dev397+ga8d1aa9c9` | `max_model_len=4096`, `max_num_seqs=2`, `max_num_batched_tokens=2048`, MTP=2 | cap=8: 150,994,944 / 193,986,560 B；cap=32: 155,189,248 / 214,958,080 B | warm hit 1088 tokens | 容器版本与 A100 不同 |
+| A100 | `0.28.1rc1.dev278+g73029d424` | `max_model_len=4096`, `max_num_seqs=4`, `max_num_batched_tokens=2048`, MTP=2 | 0.11 / 0.16 GiB | 后续 warm hit 1088 tokens；MTP-off 1584 tokens | 非硬件纯 A/B |
+
+结论：`max_num_seqs`、`max_num_batched_tokens`、MTP draft tokens 和 capture sizes 都是 CUDA Graph workload 的输入；vLLM 的 graph estimate 与实际 graph pool 必须分开记录。MTP unannotated KV-group warning 不能单独证明 prefix-cache 失效，本轮两个环境都观察到后续命中。该证据属于 T3 runtime observed，不把实测值写入理论 CostAccounting。
+
+
 | 维度 | 项 | 触发判据 | 为何需 GPU 运行时 | 状态 |
 |---|---|---|---|---|
 | structure | 结构对账真值化（`compare_structure.py` 真实模型） | 对账出现未落入 `canonical_path_contract.json` 四桶的 diff | 需真实框架实例化 nn.Module 树（含自定义 kernel/量化） | **已验证（2026-09-17，A100/transformers 5.17.0）：59/60 零残留；DeepSeek-V4.1-Flash 构造受阻边界见 V4.1 结构/KV 实证节。证据 `evidence/structure/`** |

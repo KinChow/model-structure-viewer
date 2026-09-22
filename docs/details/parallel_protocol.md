@@ -1,9 +1,10 @@
 # 并行与权重分片协议（定稿）
 
-> 2026-09-22（Asia/Shanghai）增量：[framework accounting](framework_accounting.md) 实装 neutral /
-> vLLM / SGLang 的公式适配边界。下文“本轮不实现 framework execution profile”
-> 是 2026-09-10 的历史范围；现已实现 plan、cache ownership、state dtype、fusion
-> 和统一驻留账本，但仍不实现 runtime/backend 仿真、自动方案搜索或实测校准系数。
+> 2026-09-22 增量：[framework accounting](framework_accounting.md) 实装 neutral /
+> vLLM / SGLang 的公式适配边界。下文 2026-09-10 的
+> “本轮不实现 framework execution profile”是历史范围；现在已实现 plan、
+> cache ownership、state dtype、fusion、vLLM DSA k-pool growth 和统一驻留账本，
+> 但仍不实现 runtime/backend 仿真、自动方案搜索或实测校准系数。
 
 2026-09-10 定稿。本文是 MSV **逻辑并行与权重归属协议的唯一住址**：
 `validatePlan`、`sharding`、逐卡投影、容量分桶、通信估算和 UI 输入契约都以本文为准。
@@ -34,8 +35,9 @@ communication plan  —— 由结构 + plan 推导，非用户输入
 - 上层不得反向决定下层输入（例如通信估算不得改写 plan）；
 - `weightMatrices` 是权重归属唯一入口，分片与量化消费者不得从路径、
   operator 名或 shape 反推归属（终态见 §三 Q 记录与 sharding_matrix §三）；
-- framework execution profile（vLLM/SGLang/TRT-LLM 各自如何落实逻辑计划）
-  是**独立第三层概念，本轮不实现**，只在本文登记边界。
+- framework runtime profile（vLLM/SGLang 各自如何落实逻辑计划）是独立第三层
+  概念，由 `frameworkProfiles.js` 选择公式语义；它不创建 serving backend，
+  不模拟 runtime，也不把实测值写回理论账本。
 
 ### 默认部署策略（人因约定）
 

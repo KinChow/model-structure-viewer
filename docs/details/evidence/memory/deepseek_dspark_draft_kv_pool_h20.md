@@ -54,7 +54,12 @@
 > 注：marlin MoE runner 对 0731（`Fp8MoEMethod`）的 DSpark 路径会 `AttributeError: 'NoneType' ... runner_backend`；
 > 去掉 `--moe-runner-backend marlin`（用 auto）即跑通。V4.1（W4A8）需 marlin，V4-Flash-0731（fp8 MoE）用默认。
 
-## 对账结论（据实登记）
+## 历史推断（存储共享结论已撤销，保留审计轨迹）
+
+以下段落是仅根据初始化日志所得的旧推断，不是当前产品公式。2026-09-21
+后续逐张量取证已确认 target/draft SWA 不共享 storage：草稿 `c4_size=0`
+不代表草稿 KV 为 0。当前公式与实测边界以本文开头的更正及
+`framework_runtime_validation_20260921.md` 为准。
 
 - 关键发现：DSpark 草稿 KV 池 `c4_size=0`（无独立压缩 KV）。真机第二个 `DeepSeekV4TokenToKVPool`（草稿池）
   的所有压缩/满 token 分量为 0，草稿只复用目标池的 SWA（同一 `swa=19456`）。DSpark 是 Markov 头 + block 验证

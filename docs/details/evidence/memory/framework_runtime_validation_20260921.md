@@ -5,8 +5,10 @@
 日期归档，远端目录名称保留实际创建的 `msv-validation-20260922`，不改写取证路径。
 
 **结论：10 个最终配置的功能 smoke、20 次请求通过；不是 60 模型 GPU 全覆盖，
-也不是总驻留显存估算全面准出。** 分项中 state dtype/shape、MTP KV、TP/EP 语义通过；
-vLLM DSA k-pool 压缩增长、投机 state scratch、DSpark backend 分配仍有明确差异。
+也不是总驻留显存估算全面准出。** 分项中 state dtype/shape、MTP KV、TP/EP 语义通过。
+历史运行暴露出的 vLLM DSA k-pool 线性增长已按 profile 规则修复；SGLang 投机
+state 已支持显式 workload 的理论公式，但不同版本的物理预分配、页保留和 backend
+workspace 仍不属于 Graph IR 可证明范围。
 
 > 本轮是功能与 cache/accounting 取证，不是吞吐 benchmark。最终矩阵中的 10 个配置均监听 loopback，使用短请求或 dummy/reduced 权重，
 > 只停止本轮启动的进程；A100 上用户确认的旧 `sglang-20260918-20518d85` 服务已获授权停止。
@@ -139,8 +141,8 @@ DSA index: uint8 / FP8 index storage，不是通用 BF16 fallback
 | A100 Qwen3.5-4B target GQA KV/token | 8 full layers × K/V × 4 heads × 256 × BF16 = `32,768 B` | 完全一致 |
 | A100 Qwen3.5-4B MTP KV/token | 1 full layer × K/V × 4 heads × 256 × BF16 = `4,096 B` | 两框架一致；SGLang target/draft 张量 storage 无交集 |
 | A100 Qwen3.5-4B 基础 state/slot | `875,692,032 / 17 = 51,511,296 B` | 完全一致，不含 speculative scratch |
-| SGLang MTP speculative state 实际额外 storage | `408,944,640 B` | 当前基础 state 公式未覆盖，不准出总量 |
-| vLLM GLM k-pool=4 index 增长 | 每层 `132/4 = 33 B/token` | MSV 当前仍按每层 132 B/token；减层全模型 `2114` vs `2312 B/token`，需 framework-conditioned compression rule |
+| SGLang MTP speculative state 实际额外 storage | `408,944,640 B` | 验证时基础 state 公式未覆盖；2026-09-22 已以有效 3 请求槽、2 draft tokens 回放精确命中该分项，不准出完整 resident total |
+| vLLM GLM k-pool=4 index 增长 | 每层 `132/4 = 33 B/token` | 验证时旧版 MSV 仍按 132 B/token；减层全模型 `2114` vs `2312 B/token`，后续已加 framework-conditioned compression rule |
 | SGLang GLM index 预分配容量 | 每层 `129×8448 B`（8192+64 slots） | 此版本仍按完整 slot 预留，主 KV+index 容量为 `2312 B/token`；不能套用 vLLM 的压缩增长 |
 | H20 V4.1 draft SWA 实际 storage/rank | 3 × 77 pages × 149760 = `34,594,560 B` | 当前逻辑窗口 `393,216 B` 不是实际 pool allocation 上界；缺保留槽/packing |
 
@@ -157,7 +159,7 @@ DSpark target 和 draft 的 SWA 指针在同一 worker 内逐个比较，无交�
 |---|---|
 | weight bytes | Qwen3.5 / V2-Lite / V4.1 runtime 可取到；MSV 对内置模型按图和 checkpoint 口径，未把 runtime workspace 或量化 packing 写成经验系数 |
 | KV bytes/token | GDN、DSA、V2-Lite MLA、V4.1 FP8 runtime 均取到；V4.1 FP8 与 MSV FP4 设计值不是同一 dtype regime |
-| state bytes/request | GDN/KDA 的 BF16 conv + FP32 temporal 与 profile 一致；SGLang speculative scratch 是额外 runtime allocation，MSV 当前列为 evidence gap |
+| state bytes/request | GDN/KDA 的 BF16 conv + FP32 temporal 与 profile 一致；SGLang speculative scratch 已支持显式 workload 公式，缺 workload 参数时仍列为 unknown |
 | draft bytes/token | MTP/EAGLE 有独立 draft KV；DSpark 真实 build 的 draft compressed KV 为 0、SWA 独立，不能统一套 MTP 线性增长公式 |
 | shared pool | 只有明确同一 storage/pool alias 才去重；本轮 DSpark capture 不支持 target/draft 存储去重 |
 | total resident | 框架还包括 page rounding、pool reserve、CUDA graph/workspace、scratch；不与理论 ledger 总数直接相等 |
@@ -169,18 +171,47 @@ DSpark target 和 draft 的 SWA 指针在同一 worker 内逐个比较，无交�
 2. V4.1 原生 FP4 indexer；H20 只验证了 FP8 代理 build，原生 FP4 需要相应硬件/镜像。
 3. 每个真实 checkpoint 的逐张量 draft weight attribution；runtime 能证明 draft weight 独立存在，
    但不能把总 checkpoint 权重简单当作精确 draft 分量。
-4. SGLang/VLLM 不同版本的 speculative scratch 与 cache-group 预留差异。
-5. vLLM 的 DSA k-pool 压缩增长规则。这里不是单纯 allocator padding，
-   而是 `tokens_per_state=4` 与当前 MSV `growthIndexElements` 公式的真实差异。
-6. A100 vLLM MTP 出现 cache-group warning：未能识别独立 draft group，
+4. SGLang/vLLM 不同版本的 speculative scratch 与 cache-group 预留差异。
+   当前 MSV 对 SGLang 已支持显式 `draftTokens` / 有效 `stateSlots` 的理论
+   scratch 公式，但不猜物理页保留、CUDA graph 或 workspace；vLLM MTP 的
+   cache-group scratch 尚未实现；本次没有把无法证明的预留量伪装为 0 或已对齐。
+5. A100 vLLM MTP 出现 cache-group warning：未能识别独立 draft group，
    因而禁用跨请求 prefix-cache reuse。生成通过不意味着该 runtime 的 prefix-cache 功能通过。
 
 这些项继续作为 `unknown/evidence gap`，没有把实测显存、吞吐、延迟或一次运行的比例硬编码进 MSV。
 **因此本次验证不能把 framework accounting 标成“全部正确/完全对齐”。**
 
+### 产品修复跟进（2026-09-22）
+
+- vLLM DSA `index_kpool` 已进入 framework profile：index 的线性增长按
+  `base_growth / index_kpool` 计算；SGLang 保留 token-granular capacity。
+  该修复使用上游 cache layout 语义，不使用 H20/A100 实测倍率。
+- SGLang speculative state scratch 已增加显式 workload 入口：给出
+  `draftTokens`、每个 attention worker 的有效 `stateSlots`（以及可选
+  attention-DP/top-k）时，按上游 `SpeculativeState` 的 SSM 与 conv-window allocation shape 计入
+  `speculativeStateBytes`，并接入 stage Fit/Max Context；不提供这些运行时参数时
+  仍保持 unknown，不把本次 408,944,640 B 预分配实测写成默认常数。
+- PD prefill profile 按 SGLang 的 disaggregation 语义不分配 target-verify
+  scratch；PD decode 才按有效 `stateSlots` 计入。该 worker-local scratch
+  不进入 prefix-cache 的 PD 传输字节。
+- 归档回放结果：SGLang SSM `402,653,184 B` + conv unique storage
+  `6,291,456 B` = `408,944,640 B`，当前公式精确命中。命令行请求上限为 4，
+  但 capture 的有效请求槽为 3（加 1 sentinel）；不以原始 CLI 值代替实际
+  约束后的 workload。vLLM reduced GLM 主 KV+index 增长回放为
+  `2114 B/token`，当前 profile 同值。该回放不是新增 GPU 请求结果。
+- `CostSummary` 现在逐项显示 `runtimeWorkspace`、DSpark page packing/reserve、
+  compressed-state/window allocation 等 unknown 字段，避免把理论账本误读为
+  runtime resident total。
+- MTP speculative scratch、DSpark physical page reserve、backend packing/workspace
+  仍属于缺少完整 runtime 配置的 unknown；本次未把一次容器的预分配字节写入
+  Graph IR 或默认公式。可由源码和显式 workload 推导的 SGLang state scratch
+  已不再是“未实现”，而是“无 workload 时 unknown”。
+
 ## 复现材料
 
 - runtime probe：`scripts/evidence/runtime/sitecustomize.py`、`run_smoke.py`、`summarize.py`、`accounting.mjs`。
+- 公式回放：`scripts/evidence/runtime/reconcile-accounting.mjs`（只读归档
+  shape/dtype/storage metadata，不重新起 GPU 服务）。
 - H20 归档：`artifacts/framework-runtime-validation/20260921/h20-evidence-final.tar.gz`，SHA-256
   `f40417616cd2255b79ada64969fa9bd1cca9b657de226b375ff560083c8c83dd`。
 - A100 归档：`artifacts/framework-runtime-validation/20260921/a100-evidence-final2.tar.gz`，SHA-256

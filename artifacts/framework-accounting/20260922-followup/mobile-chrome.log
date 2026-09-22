@@ -1,0 +1,55 @@
+
+> model-structure-viewer-frontend@0.2.0 test:e2e
+> playwright test --project=mobile-chrome
+
+[WebServer] (node:85329) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 37 tests using 1 worker
+
+(node:85331) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/37] [mobile-chrome] › e2e/framework-accounting.spec.js:33:1 › V4.1 Provider 日期快照与最新排序
+[2/37] [mobile-chrome] › e2e/framework-accounting.spec.js:41:1 › vLLM TP4 dense 和 MoE 不产生 invalid；显式 EP 可用
+[3/37] [mobile-chrome] › e2e/framework-accounting.spec.js:57:1 › 模型和硬件选择后按单机 1/2/4/8 卡档位给出默认并行策略
+[4/37] [mobile-chrome] › e2e/framework-accounting.spec.js:72:1 › 切换硬件后自动推荐重新按显存档位计算
+[5/37] [mobile-chrome] › e2e/framework-accounting.spec.js:90:1 › 手动修改并行后切换硬件不会覆盖，并可恢复默认
+[6/37] [mobile-chrome] › e2e/framework-accounting.spec.js:103:1 › P/D 默认各单节点，手动策略独立保存，切换模型恢复推荐
+[7/37] [mobile-chrome] › e2e/framework-accounting.spec.js:128:1 › Qwen draft allocation 与 Total VRAM / Fit / Max Context 同源
+[8/37] [mobile-chrome] › e2e/framework-accounting.spec.js:144:1 › SGLang fusion opt-in 增加通信量，取消恢复默认
+[9/37] [mobile-chrome] › e2e/framework-accounting.spec.js:158:1 › SGLang 显式 speculative workload 进入 scratch、Fit、Max Context，PD 仅传输持久 state
+[10/37] [mobile-chrome] › e2e/framework-accounting.spec.js:188:1 › DSpark 三种 profile 的主/草稿/共享/总 KV 对账
+[11/37] [mobile-chrome] › e2e/framework-accounting.spec.js:203:1 › DSA 默认 KV fallback 控件不覆盖显式 dtype
+[12/37] [mobile-chrome] › e2e/framework-accounting.spec.js:215:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 1-10
+[13/37] [mobile-chrome] › e2e/framework-accounting.spec.js:215:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 11-20
+[14/37] [mobile-chrome] › e2e/framework-accounting.spec.js:215:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 21-30
+[15/37] [mobile-chrome] › e2e/framework-accounting.spec.js:215:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 31-40
+[16/37] [mobile-chrome] › e2e/framework-accounting.spec.js:215:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 41-50
+[17/37] [mobile-chrome] › e2e/framework-accounting.spec.js:215:1 › Chrome 全量 60 模型成本与图扫描（桌面和移动） 51-60
+[18/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:8:3 › 纯前端入口与模型选项 (zh)
+[19/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:8:3 › 纯前端入口与模型选项 (en)
+[20/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:40:3 › 远程读取与搜索直连，失败不回退 (zh)
+[21/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:83:3 › 旧本地路径链接提示重新选择目录 (zh)
+[22/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:40:3 › 远程读取与搜索直连，失败不回退 (en)
+[23/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:83:3 › 旧本地路径链接提示重新选择目录 (en)
+[24/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:93:3 › 浏览器目录读取、取消、错误及导出 (zh)
+[25/37] [mobile-chrome] › e2e/frontend-boundary.spec.js:93:3 › 浏览器目录读取、取消、错误及导出 (en)
+[26/37] [mobile-chrome] › e2e/viewer.spec.js:8:1 › 首页只提供明确的模型来源
+[27/37] [mobile-chrome] › e2e/viewer.spec.js:15:1 › 内置模型以 React Flow 图打开并保留成本交互
+[28/37] [mobile-chrome] › e2e/viewer.spec.js:49:1 › 多模态模型图包含视觉塔和视觉投影路径
+[29/37] [mobile-chrome] › e2e/viewer.spec.js:61:1 › 每个内置模型都能展开父节点并保持可计算图
+[30/37] [mobile-chrome] › e2e/viewer.spec.js:117:1 › 父节点详情提供子模块和 Shape
+[31/37] [mobile-chrome] › e2e/viewer.spec.js:149:1 › 桌面对比模式保留两张可见 React Flow 画布
+[32/37] [mobile-chrome] › e2e/viewer.spec.js:167:1 › 短桌面窗口展开公式索引时保留完整控件高度
+[33/37] [mobile-chrome] › e2e/viewer.spec.js:178:1 › 短桌面视口保留画布最小高度且不产生横向溢出
+[34/37] [mobile-chrome] › e2e/viewer.spec.js:197:1 › Cost 展开后 Formula 仍可点击，桌面移动端都不覆盖内容
+[35/37] [mobile-chrome] › e2e/viewer.spec.js:210:1 › 成本并行度 TP 输入可整段清空，失焦回退到 1 且合法输入即时生效
+[36/37] [mobile-chrome] › e2e/viewer.spec.js:243:1 › 宽屏桌面按视口比例撑开画布且只有单一滚动区域
+[37/37] [mobile-chrome] › e2e/viewer.spec.js:278:1 › 高视口下 Inspector 详情不被裁到视口外且可内部滚动查看全部属性
+  Slow test file: [mobile-chrome] › e2e/framework-accounting.spec.js (6.0m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  5 skipped
+  32 passed (8.0m)

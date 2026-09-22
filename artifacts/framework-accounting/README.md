@@ -1,15 +1,17 @@
 # Framework accounting 本地验收
 
-验收时间：2026-09-22 Asia/Shanghai（2026-09-21 UTC）。
+验收时间：2026-09-22 Asia/Shanghai。GPU 历史工件按 2026-09-21 UTC 归档；
+本文后续本地回归与公式回放在 2026-09-22 完成，不是同一批 GPU 请求。
 
 ## 范围与版本
 
 - 仓库：`/Users/zhouzijian01/Desktop/workspace/code/kinchow/model-structure-viewer`。
-- 分支：`main`；本轮起点 `d63720f`；受测代码 `9e757d2`。
+- 分支：`main`；本轮受测代码提交 `afd9e7f`；文档归档随后单独提交。
 - 本地 remote-tracking `origin/main` 为
   `5043e9815a259f883b40202e908873ed9bfa856b`；本轮没有 fetch，
   此 SHA 不代表重新核验过的远端最新状态。
-- 本轮只创建本地提交，没有 push、PR、服务部署或远端 GPU 操作。
+- 本轮只创建本地提交，没有 push、PR 或服务部署；远端 H20/A100 未重新启动服务，
+  使用既有归档和源码回放验证，未修改两个远端 checkout。
 - 原有前端摸排记录保留，新增修复闭环记录，未覆写历史实测结论。
 
 | 本地提交 | 内容 |
@@ -18,6 +20,7 @@
 | `143ac21` | framework profile、唯一 cache pool 账本与 Fit/PD 接线 |
 | `a625758` | vLLM effective plan、fusion 优先级、state dtype 一致性 |
 | `9e757d2` | 框架/容量/发布日期定向场景和全量 Chrome 扫描 |
+| `afd9e7f` | vLLM DSA k-pool、SGLang speculative scratch、Fit/Max Context/PD 口径 |
 
 最后的文档提交仅归档本文、日志、截图及公式边界，不改变受测代码。
 
@@ -27,22 +30,23 @@
 
 | 命令 | 结果 | 原始记录 |
 |---|---|---|
-| `node --test` | **452 passed，0 failed，0 skipped** | [node-test.log](node-test.log) |
-| `.venv/bin/pytest -q`（仓库根目录） | **183 passed** | [pytest.log](pytest.log) |
-| `npm run verify:models` | **60/60** | [verify-models.log](verify-models.log) |
-| `npm run docs:check` | 通过 | [docs-check.log](docs-check.log) |
-| `npm run build` | 通过；存在 Vite 大于 500 kB 的 chunk 提示 | [build.log](build.log) |
-| `npm run test:e2e -- --project=desktop-chrome` | **27 passed**，5.9 分钟 | [desktop-chrome.log](desktop-chrome.log) |
-| `npm run test:e2e -- --project=mobile-chrome` | **22 passed，5 skipped**，2.8 分钟 | [mobile-chrome.log](mobile-chrome.log) |
-| `bash scripts/check_principles.sh`（仓库根目录） | 通过；家族名文件数 6/6，legacy root 活引用 0 | [principles.log](principles.log) |
+| `node --test` | **467 passed，0 failed，0 skipped** | [node-test.log](20260922-followup/node-test.log) |
+| `.venv/bin/pytest -q`（仓库根目录） | **183 passed** | [pytest.log](20260922-followup/pytest.log) |
+| `npm run verify:models` | **60/60** | [verify-models.log](20260922-followup/verify-models.log) |
+| `npm run docs:check` | 通过 | [docs-check.log](20260922-followup/docs-check.log) |
+| `npm run build` | 通过；存在 Vite 大于 500 kB 的 chunk 提示 | [build.log](20260922-followup/build.log) |
+| `npm run test:e2e -- --project=desktop-chrome` | **37 passed**，14.8 分钟 | [desktop-chrome.log](20260922-followup/desktop-chrome.log) |
+| `npm run test:e2e -- --project=mobile-chrome` | **32 passed，5 skipped**，8.0 分钟 | [mobile-chrome.log](20260922-followup/mobile-chrome.log) |
+| `bash scripts/check_principles.sh`（仓库根目录） | 通过；家族名文件数 6/6，legacy root 活引用 0 | [principles.log](20260922-followup/principles.log) |
 
 ### 浏览器口径
 
-- 实际浏览器为 **Google Chrome 153.0.8010.50**，Playwright `channel: chrome`，
+- 实际浏览器为 **Google Chrome 153.0.8010.53**（回归结束后本地核验），Playwright `channel: chrome`，
   headless；不是仅检查代码，也不是使用缺省 Chromium 替代 Chrome。
 - 桌面视口 1440×1000；移动端为同一 Chrome 的 Pixel 7 设备模拟，
   **不是物理 Android 手机测试**。
-- 两个项目均完整执行新增的 7 个测试，包括各自的 **60/60 模型扫描**。
+- 两个项目均完整执行 framework accounting 文件的 17 个测试，包括各自的
+  **60/60 模型扫描**；该文件没有 skip。
 - 移动端的 5 个 skip 是原有桌面专属测试：逐模型展开、桌面对比画布、
   TP 输入交互、宽屏布局、Inspector 高视口裁剪。新增移动全量扫描没有跳过。
 - 测试 fixture 检查未捕获页面异常和对 MSV 后端的意外依赖。
@@ -52,10 +56,9 @@
   这不等于所有模型的所有可选并行计划和所有硬件后端都已验收。
 - 测试结束后 4173 端口没有遗留监听服务。
 
-逐模型结果：
-[桌面 60 模型](desktop-all-models.json) /
-[移动 60 模型](mobile-all-models.json)。
-其中 KV 四项顺序为 `main / draft / shared / total`，单位为 bytes；
+逐模型结果：[本轮桌面 60 模型](20260922-followup/desktop-all-models.json) /
+[本轮移动 60 模型](20260922-followup/mobile-chrome-all-models.json)。
+KV 四项顺序为 `main / draft / shared / total`，单位为 bytes；
 全部是软件公式的计算结果，不是 GPU 实测值。
 
 ### 定向场景
@@ -70,12 +73,17 @@
 5. DSpark 三个 profile 的 main/draft/shared/total KV 关系一致；
    runtime profile 的独立草稿窗口有界，neutral 保留完整上下文上界。
 6. DSA 的显式 dtype 不受默认 KV bytes/element fallback 控件覆盖。
+7. SGLang 显式 scratch 改变 VRAM、Max Context 和 decode Fit；PD prefill
+   不分配 target-verify scratch，PD 传输字节不因 worker-local scratch 改变。
+   将有效请求容量增大到超卡时，decode 为 no-fit；恢复配置后恢复 fit。
+8. 默认单机 1/2/4/8 卡档位、切换硬件重新推荐、手动覆盖和恢复默认、
+   P/D 独立策略、切换模型恢复推荐均通过。
 
 截图：
-[桌面日期](desktop-release-metadata.png) /
-[移动日期](mobile-release-metadata.png) /
-[桌面 no-fit](desktop-draft-no-fit.png) /
-[移动 no-fit](mobile-draft-no-fit.png)。
+[桌面日期](20260922-followup/desktop-release-metadata.png) /
+[移动日期](20260922-followup/mobile-chrome-release-metadata.png) /
+[桌面 no-fit](20260922-followup/desktop-draft-no-fit.png) /
+[桌面单机默认](20260922-followup/desktop-single-node-defaults.png)。
 
 ## 公式结论与未完成的实测验收
 
@@ -87,8 +95,11 @@ SGLang DSpark 分配独立草稿 SWA/ring，因此不能无条件设 `draftKv=0`
 只有明确的同一 `cache_pool_id` 才去重。当前 runtime 公式是 BF16 逻辑窗口上界，
 不是对具体 backend 的分页、打包、reserve slots 的精确预测。
 
-本轮**没有新增 GPU 实测**，不能宣称全部 profile 已与真机逐字节对齐。
-页对齐/保留槽、speculative verification headroom、backend packing、
-压缩器状态、CUDA/workspace/scratch 和逐张量草稿权重归属仍是 evidence gap。
+本轮**没有新增 GPU 实测**；使用归档 shape/dtype/storage metadata 做了只读公式回放：
+`artifacts/framework-accounting/20260922-followup/runtime-replay.json`。回放精确命中
+SGLang MTP scratch `408,944,640 B` 和 vLLM reduced GLM
+`2114 B/token`，但不能宣称全部 profile 已与真机逐字节对齐。
+页对齐/保留槽、vLLM cache-group reserve、ReplaySSM、backend packing、
+压缩器状态、CUDA graph/workspace 和逐张量草稿权重归属仍是 evidence gap。
 这些差异必须按精确 runtime 版本及配置逐项核对，不能用经验系数消除。
-历史 H20 记录只是已有证据；未将其实测显存、吞吐或延迟写入 UI/公式。
+历史 H20/A100 记录未将实测吞吐、延迟或物理 pool 预分配常数写入 UI/公式。

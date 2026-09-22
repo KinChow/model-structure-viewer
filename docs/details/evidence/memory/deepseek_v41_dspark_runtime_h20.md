@@ -1,5 +1,11 @@
 # DeepSeek-V4.1-Flash DSpark 运行时 KV/接受率 —— H20 在机记账（R2 增量）
 
+> **2026-09-22 当前结论**：以下保留历史日志与当时推断。后续逐张量 capture
+> 已否定“同样的 swa 数量表示共享目标存储”：target/draft SWA storage 独立。
+> 当前 runtime profile 计入私有草稿逻辑窗口，不把 draft KV 置 0，也不以
+> FP8/FP4 总数的近似比例代替逐分项对账。完整更正见
+> [framework runtime validation](framework_runtime_validation_20260921.md)。
+
 > 复现：H20 `10.98.95.16` 容器 `dsv41_zzj_deploy`（lmsysorg/sglang:dev-dsv41），SGLang serve
 > `--speculative-algorithm DSPARK --speculative-dspark-block-size 5 --tp 8 --ep-size 8`，
 > ckpt `/ssd1/models/DeepSeek-V4.1-Flash-Attn-W8A8-MoE-W4A8-INT8-Dynamic`（int8-dynamic **代理** ckpt，

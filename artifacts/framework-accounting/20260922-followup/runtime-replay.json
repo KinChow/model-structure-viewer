@@ -1,0 +1,17 @@
+{
+  "validation": "replay of archived runtime tensor metadata, not a new GPU run",
+  "sglang": {
+    "draftTokens": 2,
+    "effectiveStateSlots": 3,
+    "runtimeSsmBytes": 402653184,
+    "runtimeConvUniqueBytes": 6291456,
+    "runtimeScratchBytes": 408944640,
+    "estimatedScratchBytes": 408944640,
+    "match": true
+  },
+  "vllm": {
+    "runtimeDsaAndMlaBytesPerToken": 2114,
+    "estimatedBytesPerToken": 2114,
+    "match": true
+  }
+}

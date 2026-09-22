@@ -445,9 +445,9 @@
 
 ### 环境 → 可解项 索引
 
-- **当前机**（A100 `10.55.87.81` SM80 / H20 `10.98.95.16` SM90）：可做 R6 收尾（现机即可）；R1s/R2-fp8/R5/R6 已在此闭合。
+- **当前机**（A100 `10.55.87.81` SM80 / H20 `10.98.95.16` SM90）：R1s/R2-fp8/R5/R6 已在此闭合；不可代替 R1f 原生 FP4 环境。
 - **Blackwell（SM100/SM120/gfx95）**：R1f、R2 精确 fp4 逐字节、R3 运行时精校。
-- **前端（无需 GPU）**：R4 衍生的 `comm.js` C3c fold 修复（DeepEP/EP 默认不折叠 shared expert，见卡片 R4）。
+- **前端（无需 GPU）**：R4 衍生的 `comm.js` C3c fold 修复已完成；framework 分项回放见文末记录。
 - **≥2 节点**：R5（已闭合；仅 PD vs colocated serving 矩阵为专调增量）。
 - **部署环境（非 GPU）**：R7。
 
@@ -462,7 +462,7 @@
 - **证据**：`evidence/structure/deepseek_v41_runtime_module_tree_h20.md`（结构侧已闭合，仅 dtype 走 fp8 代理）。
 
 #### R2 — engram/DSpark 运行时（精确 fp4 逐字节）  🟡 部分
-- **已闭合**：H20 fp8 现跑——主干 `bytes_per_full_token=1670.75`(fp8)≈890(fp4)×1.877；DSpark 草稿池 `c4_size=0`（草稿并入目标池，`draftKvBytesPerToken` 512/768 对 DSpark 属上界式建模）；V4.1 + V4-Flash(0731) 同结论。
+- **已闭合**：H20 fp8 功能通过；DSpark `c4_size=0` 只证明草稿没有独立压缩 KV。后续 storage capture 已否定“草稿并入目标池”的旧推断：target/draft SWA 存储独立。runtime profile 按私有有界窗口建模，不能据此认定物理 pool 总量精确对齐。
 - **剩余（所需环境=Blackwell + 原始 fp8/fp4 ckpt）**：用原始 ckpt + fp4-indexer 复跑，抓逐层 KV footprint + accept len/rate/吞吐 → 与 MSV 890(fp4) 逐字节对拍（现用 int8-dynamic 代理 + KV=fp8，非 MSV fp4 口径）。
 - **复现**：`scripts/evidence/memory/deepseek_dspark_draft_kv.mjs`（MSV 基线）+ Blackwell 上 DSpark serve（`--speculative-algorithm DSPARK --speculative-dspark-block-size 5 --kv-cache-dtype fp8_e4m3` 或 fp4）抓 `DSV4 memory calculation` / `DeepSeekV4TokenToKVPool` 行。
 - **判定**：真机逐层 KV 字节 == MSV 890(fp4) 容差内；accept rate 仅登记（运行时属性、MSV 不预测）。
@@ -505,4 +505,10 @@
 - **已确认**：vLLM TP-only/EP MoE placement、Qwen3.5 GDN BF16 conv + FP32 temporal、GLM5-Next DSA uint8 index + KDA FP32 state、vLLM MTP 与 SGLang generic MTP draft pool、H20 DSV4.1 DSpark 独立 target/draft SWA storage。
 - **边界**：H20 验证使用 FP8 代理量化 build，不能替代 V4.1 原生 FP4；runtime page rounding、reserve slots、scratch/workspace 与逐张量 draft attribution 仍为 evidence gap。完整记录见 `evidence/memory/framework_runtime_validation_20260921.md`。
 - **清理**：本轮启动的 vLLM/SGLang probe 进程已停止，GPU 显存回到 0；H20 `dsv41_zzj_deploy` 容器本身按原状态保留，A100 原有 `vllm-0920` 容器未停止。
-- **验收不等于全绿**：10 个最终配置/20 请求通过，但发现 vLLM DSA `index_kpool=4` 时 index 增长 33 B/层/token，而 MSV 当前仍为 132；MTP scratch 和 DSpark physical pool reserve 也未进入精确总量。本轮未修改产品公式，状态为“功能通过、成本分项部分通过”，不得把总量标成已完全对齐。
+- **验收不等于全绿**：10 个最终配置/20 请求通过。后续产品修复已把 vLLM DSA
+  `index_kpool=4` 的 index 增长从 132 B/层/token 条件化为 `132/4=33`
+  B/层/token；SGLang 显式有效 workload 的 scratch 已按 SSM/conv shape
+  实现并以归档 unique storage 精确对账，且接入 Fit/Max Context/PD decode Fit。
+  UI 逐项披露 runtime unknown。vLLM MTP cache-group reserve、
+  SGLang page reserve、backend packing/workspace 和真实 checkpoint
+  draft attribution 仍不能从 Graph IR/config 证明，不能把总量标成运行时完全对齐。

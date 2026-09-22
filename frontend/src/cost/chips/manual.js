@@ -9,11 +9,13 @@ function normalizeFieldSource(sourceUrl) {
   return trimmed || USER_INPUT_SOURCE;
 }
 
-export function createManualChip({ id, name, memoryGb, memoryBandwidthTb, fp32Tflops, tf32Tflops, fp16Tflops, bf16Tflops, fp8Tflops, int8Tops, interconnectGb, intraNodeGb, interNodeGb, sourceUrl } = {}) {
+export function createManualChip({ id, name, memoryGb, memoryBandwidthTb, fp32Tflops, tf32Tflops, fp16Tflops, bf16Tflops, fp8Tflops, int8Tops, smTflops, sfuTops, interconnectGb, intraNodeGb, interNodeGb, sourceUrl } = {}) {
   const safeId = String(id || name || "manual-chip").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const peakFlops = Object.fromEntries([
     ["fp32", fp32Tflops], ["tf32", tf32Tflops], ["fp16", fp16Tflops], ["bf16", bf16Tflops], ["fp8", fp8Tflops], ["int8", int8Tops],
   ].filter(([, value]) => Number(value) > 0).map(([dtype, value]) => [dtype, Number(value) * 1e12]));
+  const vectorFlops = Number(smTflops);
+  const sfuOps = Number(sfuTops);
   const intraNodeBandwidth = Number(intraNodeGb ?? interconnectGb);
   const interNodeBandwidth = Number(interNodeGb);
   const fieldSource = normalizeFieldSource(sourceUrl);
@@ -22,6 +24,8 @@ export function createManualChip({ id, name, memoryGb, memoryBandwidthTb, fp32Tf
   if (Number(memoryGb) > 0) fieldSources.memory_bytes = fieldSource;
   if (Number(memoryBandwidthTb) > 0) fieldSources.memory_bandwidth = fieldSource;
   if (Object.keys(peakFlops).length > 0) fieldSources.peak_flops = fieldSource;
+  if (vectorFlops > 0) fieldSources.vector_flops = fieldSource;
+  if (sfuOps > 0) fieldSources.sfu_ops = fieldSource;
   if (intraNodeBandwidth > 0 || interNodeBandwidth > 0) fieldSources.interconnect = fieldSource;
   return {
     id: safeId || "manual-chip",
@@ -30,6 +34,8 @@ export function createManualChip({ id, name, memoryGb, memoryBandwidthTb, fp32Tf
     memory_bytes: Number(memoryGb) * 1e9,
     memory_bandwidth: Number(memoryBandwidthTb) * 1e12,
     peak_flops: peakFlops,
+    ...(vectorFlops > 0 ? { vector_flops: vectorFlops * 1e12 } : {}),
+    ...(sfuOps > 0 ? { sfu_ops: sfuOps * 1e12 } : {}),
     interconnect: {
       intra_node: { kind: "custom", bandwidth: intraNodeBandwidth * 1e9 },
       inter_node: interNodeBandwidth > 0 ? { kind: "custom", bandwidth: interNodeBandwidth * 1e9 } : undefined,

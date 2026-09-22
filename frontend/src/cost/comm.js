@@ -84,6 +84,8 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
   const checked = validatePdPlan(pdPlan, config);
   if (!checked.ok) return { ok: false, errors: checked.errors, perDecodeRankBytes: null, aggregateBytes: null };
   const perRank = kvBytesPerCard(totalKvBytes, config, checked.decodePlan);
+  // 投机 scratch 是每个 prefill/decode worker 的临时工作区，不是请求持久化
+  // KV/state；它进入 resident Fit/Max Context，但不随 PD prefix-cache 传输。
   const perStateRank = stateBytesPerCard(totalStateBytes, config, checked.decodePlan);
   const decodeRanks = checked.decodePlan.tp * checked.decodePlan.dp;
   const layoutRepackRequired = checked.prefillPlan.tp !== checked.decodePlan.tp

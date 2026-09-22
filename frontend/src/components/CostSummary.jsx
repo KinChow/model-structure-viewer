@@ -30,6 +30,22 @@ function fitText(value, language = "zh") {
   return value == null ? t(language, "cost.unknown") : value ? t(language, "cost.yes") : t(language, "cost.no");
 }
 
+const UNKNOWN_FIELD_LABELS = {
+  runtimeWorkspace: ["runtime workspace", "运行时 workspace"],
+  allocatorPadding: ["allocator alignment", "分配器对齐"],
+  backendCacheLayout: ["backend cache layout", "backend cache layout"],
+  dsparkBackendPackingAndPageHeadroom: ["DSpark page packing/reserve", "DSpark 页打包/保留槽"],
+  compressedStateAndBackendWindowAllocation: ["compressed-state/window allocation", "压缩状态/窗口分配"],
+  speculativeStateScratch: ["speculative state scratch", "投机状态 scratch"],
+};
+
+function unknownFieldLabel(field, english) {
+  const labels = UNKNOWN_FIELD_LABELS[field];
+  if (labels) return labels[english ? 0 : 1];
+  if (field.startsWith("pool:")) return english ? `${field} allocation` : `${field} 分配`;
+  return field;
+}
+
 function PlanFields({ plan, onChange, english, config }) {
   const setField = (key, value) => onChange({ ...plan, [key]: value });
   // P6（协议 Q9）：moe_tp/moe_ep/vocab_parallel 进 UI —— 协议层早已支持并有
@@ -110,6 +126,8 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   // 开启后 roofline 的通信时间按 chips/rates.js 的 inter_node 行计。
   const [interNode, setInterNode] = useState(false);
   const [weightMode, setWeightMode] = useState("actual");
+  const [speculativeDraftTokens, setSpeculativeDraftTokens] = useState(0);
+  const [speculativeMaxRequests, setSpeculativeMaxRequests] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const config = useMemo(() => structure?.extra_config ? normalizeConfig(structure.extra_config) : null, [structure]);
   // 数据驱动检测：图里存在亚字节(FP4)KV dtype 的叶 → 该模型 KV 走设计 fp4 口径。
@@ -130,9 +148,17 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const costFor = (targetPhase) => {
     const targetLoad = loads[targetPhase] || DEFAULT_LOADS[targetPhase];
     if (!structure?.graph || !config) return null;
-    return aggregateCost({ graph: structure.graph, config, parameterCount: structure.summary?.parameters_by_dtype, phase: targetPhase, batch: targetLoad.batch, sequence: targetLoad.sequence, kvBytes: kvElementBytes, visionTokens: targetLoad.visionTokens ?? 1024, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode), frameworkProfile });
+    const speculative = frameworkProfile === "sglang"
+      ? {
+        enabled: speculativeDraftTokens > 0 || speculativeMaxRequests > 0,
+        draftTokens: speculativeDraftTokens,
+        stateSlots: speculativeMaxRequests,
+        disaggregationMode: mode === "pd" ? targetPhase : "null",
+      }
+      : {};
+    return aggregateCost({ graph: structure.graph, config, parameterCount: structure.summary?.parameters_by_dtype, phase: targetPhase, batch: targetLoad.batch, sequence: targetLoad.sequence, kvBytes: kvElementBytes, visionTokens: targetLoad.visionTokens ?? 1024, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode), frameworkProfile, speculative });
   };
-  const phaseCosts = useMemo(() => ({ prefill: costFor("prefill"), decode: costFor("decode") }), [structure, config, loads, kvElementBytes, weightMode, frameworkProfile]);
+  const phaseCosts = useMemo(() => ({ prefill: costFor("prefill"), decode: costFor("decode") }), [structure, config, loads, mode, kvElementBytes, weightMode, frameworkProfile, speculativeDraftTokens, speculativeMaxRequests]);
   const cost = phaseCosts[phase];
   // 草稿 KV 已由 framework profile 选择 cache pool ownership 后进入同一份
   // accounting；这里不再把 UI 展示值额外加回总显存。
@@ -214,6 +240,9 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   const missingSep = english ? ", " : "、";
   const missingNote = t(language, "cost.missingNote", { fields: summary.missingLabels.join(missingSep) });
   const unknownComputeNote = ` ${t(language, "cost.unknownCompute", { count: summary.unknownComputeCount })}`;
+  const unknownFields = accounting.evidence.unknownFields
+    .map((field) => unknownFieldLabel(field, english));
+  const unknownFieldsText = unknownFields.join(missingSep);
   return <section className="cost-summary cost-summary-modern" aria-label={text.estimate} data-framework={accounting.framework}>
     {hasSubByteKv && (
       <div className="cost-note" role="note">{language === "en"
@@ -234,20 +263,22 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
         {deploymentManual && onResetDeployment && <button type="button" onClick={onResetDeployment}>{t(language, "cost.restoreDefault")}</button>}
       </div>}<PlanFields plan={plans[phase]} english={english} onChange={(next) => updatePlan({ ...plans, [phase]: next })} />{frameworkProfile === "sglang" && config.sharedExperts > 0 && <label className="cost-check"><input type="checkbox" checked={(plans[phase].enforceSharedExpertsFusion ?? plans[phase].enforce_shared_experts_fusion ?? false) === true} onChange={(event) => updatePlan({ ...plans, [phase]: { ...plans[phase], enforceSharedExpertsFusion: event.target.checked } })} />{english ? "Shared-expert fusion (opt-in)" : "共享专家融合（显式启用）"}</label>}</div>
       <div className="cost-config-section"><h4>{text.analysis}</h4><div className="cost-section-heading"><span className="cost-config-label">{text.compare}</span><div className="cost-segmented"><button type="button" className={comparisonMode === "off" ? "active" : ""} aria-pressed={comparisonMode === "off"} onClick={() => onComparisonModeChange?.("off")}>{text.off}</button><button type="button" className={comparisonMode === "chip" ? "active" : ""} aria-pressed={comparisonMode === "chip"} onClick={() => onComparisonModeChange?.("chip")}>{text.chipCompare}</button><button type="button" className={comparisonMode === "plan" ? "active" : ""} aria-pressed={comparisonMode === "plan"} onClick={() => onComparisonModeChange?.("plan")}>{text.planCompare}</button></div></div>{comparisonMode === "chip" && <label className="cost-config-control">{text.compareGpu}<select value={compareChipId} onChange={(event) => onCompareChipIdChange?.(event.target.value)}>{chips.map((chip) => <option key={chip.id} value={chip.id}>{chip.name}</option>)}</select></label>}{comparisonMode === "plan" && <div className="cost-plan-fields"><label>{text.compareTp}<NumberInput min={1} fallback={1} value={comparePlan.tp} onCommit={(value) => onComparePlanChange?.({ ...comparePlan, tp: value })} /></label><label>{text.compareEp}<NumberInput min={1} fallback={1} value={comparePlan.ep} onCommit={(value) => onComparePlanChange?.({ ...comparePlan, ep: value })} /></label><label>{text.compareAttention}<select value={comparePlan.attnMode} onChange={(event) => onComparePlanChange?.({ ...comparePlan, attnMode: event.target.value })}><option value="tp">TP</option><option value="dp">DP</option></select></label></div>}<div className="cost-plan-fields"><label>{text.etaFlops}<NumberInput min={0.1} max={1} step="0.05" fallback={0.7} value={efficiency.flops} onCommit={(value) => onEfficiencyChange?.({ ...efficiency, flops: value })} /></label><label>{text.etaHbm}<NumberInput min={0.1} max={1} step="0.05" fallback={0.9} value={efficiency.hbm} onCommit={(value) => onEfficiencyChange?.({ ...efficiency, hbm: value })} /></label><label>{text.etaComm}<NumberInput min={0.1} max={1} step="0.05" fallback={0.8} value={efficiency.intra_node_comm} onCommit={(value) => onEfficiencyChange?.({ ...efficiency, intra_node_comm: value })} /></label><span className="cost-eta-note" title={etaNote.detail}>{etaNote.short}</span></div></div>
-      <div className="cost-config-section"><h4>{t(language, "cost.assumptions")}</h4><div className="cost-config-grid"><label title={t(language, "cost.kvBytesPerElementHelp")}>{t(language, "cost.defaultKvBytesPerElement")}<select value={kvElementBytes} onChange={(event) => setKvElementBytes(Number(event.target.value))}><option value="2">2</option><option value="1">1</option><option value="0.5">0.5</option></select></label><label className="cost-check"><input type="checkbox" checked={interNode} onChange={(event) => setInterNode(event.target.checked)} /> {t(language, "cost.interNodeLink")}</label><label>{t(language, "cost.weightWhatIf")}<select value={weightMode} onChange={(event) => setWeightMode(event.target.value)}><option value="actual">actual / derived</option><option value="2">BF16 / FP16</option><option value="1">FP8 / INT8</option><option value="0.5">INT4</option></select></label></div><p className="cost-config-note">{t(language, "cost.kvBytesPerElementHelp")}</p></div>
+      <div className="cost-config-section"><h4>{t(language, "cost.assumptions")}</h4><div className="cost-config-grid"><label title={t(language, "cost.kvBytesPerElementHelp")}>{t(language, "cost.defaultKvBytesPerElement")}<select value={kvElementBytes} onChange={(event) => setKvElementBytes(Number(event.target.value))}><option value="2">2</option><option value="1">1</option><option value="0.5">0.5</option></select></label><label className="cost-check"><input type="checkbox" checked={interNode} onChange={(event) => setInterNode(event.target.checked)} /> {t(language, "cost.interNodeLink")}</label><label>{t(language, "cost.weightWhatIf")}<select value={weightMode} onChange={(event) => setWeightMode(event.target.value)}><option value="actual">actual / derived</option><option value="2">BF16 / FP16</option><option value="1">FP8 / INT8</option><option value="0.5">INT4</option></select></label>{frameworkProfile === "sglang" && <><label title={t(language, "cost.speculativeHelp")}>{t(language, "cost.speculativeDraftTokens")}<NumberInput min={0} fallback={0} value={speculativeDraftTokens} onCommit={setSpeculativeDraftTokens} /></label><label title={t(language, "cost.speculativeHelp")}>{t(language, "cost.speculativeMaxRequests")}<NumberInput min={0} fallback={0} value={speculativeMaxRequests} onCommit={setSpeculativeMaxRequests} /></label></>}</div><p className="cost-config-note">{t(language, "cost.kvBytesPerElementHelp")}</p>{frameworkProfile === "sglang" && <p className="cost-config-note">{t(language, "cost.speculativeHelp")}</p>}</div>
     </div>}
     {(draftWeight > 0 || draftKvBytes > 0) && <div className="cost-breakdown cost-rollup">{[[t(language, "cost.mainModel"), accounting.main.vramBytes], [t(language, "cost.draftModel"), accounting.draft.vramBytes], [english ? "Shared pools" : "共享池", accounting.shared.vramBytes], [t(language, "cost.grandTotal"), accounting.total.vramBytes]].map(([label, value]) => <span key={label} data-bytes={value}><b>{label}</b>{formatBytes(value)}</span>)}</div>}
-    <div className="cost-breakdown">{[[t(language, "cost.weights"), cost.memory.weightBytes], [t(language, "cost.buffers"), cost.memory.bufferBytes || 0], [t(language, "cost.kv"), cost.memory.kvBytes], [t(language, "cost.kdaState"), cost.memory.stateBytes]].map(([label, value]) => <span key={label} data-bytes={value}><b>{label}</b>{formatBytes(value)}</span>)}</div>
+    <div className="cost-breakdown">{[[t(language, "cost.weights"), cost.memory.weightBytes], [t(language, "cost.buffers"), cost.memory.bufferBytes || 0], [t(language, "cost.kv"), cost.memory.kvBytes], [t(language, "cost.kdaState"), cost.memory.stateBytes], ...(cost.memory.speculativeStateBytes > 0 ? [[t(language, "cost.speculativeScratch"), cost.memory.speculativeStateBytes]] : [])].map(([label, value]) => <span key={label} data-bytes={value}><b>{label}</b>{formatBytes(value)}</span>)}</div>
     <div className="cost-breakdown cost-kv-ownership">{[["main", english ? "Main KV" : "主模型 KV"], ["draft", english ? "Draft KV" : "草稿 KV"], ["shared", english ? "Shared KV" : "共享 KV"], ["total", english ? "Total KV" : "总 KV"]].map(([owner, label]) => <span key={owner} data-owner={owner} data-bytes={accounting[owner].kvBytes}><b>{label}</b>{formatBytes(accounting[owner].kvBytes)}</span>)}</div>
     <div className="cost-metrics"><span>{t(language, "cost.totalVram")} <b>{formatBytes(cost.memory.totalBytes)}</b></span><span>{text.fitCard} <b className={planFitsMemory === true ? "fit" : "no-fit"}>{fitText(planFitsMemory, language)}</b></span><span>{t(language, "cost.maxContext")} <b>{planMaxContext == null ? "-" : planMaxContext.toLocaleString()}</b></span><span>{t(language, "cost.macsPerToken")} <b>{formatMacs(cost.macsPerToken)}</b></span><span>{t(language, "cost.macsPerForward")} <b>{formatMacs(cost.totalMacs)}</b></span>{summary.macsSources.length > 0 && <span className="cost-macs-sources" title={t(language, "cost.macsOriginTitle")}>{t(language, "cost.macsOrigin")} <b>{summary.macsSources.map((entry) => `${entry.label} ${entry.count}`).join(" · ")}</b></span>}{summary.valueSourceCounts && <span className="cost-value-source" title={summary.valueSourceCounts.title}>{t(language, "cost.weightOrigin")} <b>{summary.valueSourceCounts.text}</b></span>}<span>{t(language, "cost.flopsPerForward")} <b>{formatMacs(cost.totalFlops)}</b></span><span data-bound={roofline?.bound || "unknown"}>Roofline <b>{summary.boundLabel}</b></span><span>{t(language, "cost.communication")} <b>{formatBytes(communication?.totalBytes)}</b></span>{summary.unknownComputeCount > 0 && <span className="cost-coverage-warn">{t(language, "cost.costNotCovered")} <b>{summary.unknownComputeCount}</b></span>}<span className="cost-weight-source"><b className={cost.weightSource === "checkpoint" ? "fit" : ""}>{summary.weightSourceLabel}</b></span></div>
-    {projected?.ok && <div className="cost-stages">{stageRates && projected.stages.map((stage) => <span key={stage.stage}>{t(language, "cost.stageLine", { stage: stage.stage, weights: formatBytes(stage.weightBytes), kv: formatBytes(stage.kvBytes), state: formatBytes(stage.stateBytes || 0), hbm: formatSeconds(stage.totalBytes / stageRates.bytesPerSecond) })}</span>)}</div>}
+    {projected?.ok && <div className="cost-stages">{stageRates && projected.stages.map((stage) => <span key={stage.stage}>{t(language, "cost.stageLine", { stage: stage.stage, weights: formatBytes(stage.weightBytes), kv: formatBytes(stage.kvBytes), state: formatBytes(stage.stateBytes || 0), scratch: stage.speculativeStateBytes > 0 ? ` · ${t(language, "cost.speculativeScratch")} ${formatBytes(stage.speculativeStateBytes)}` : "", hbm: formatSeconds(stage.totalBytes / stageRates.bytesPerSecond) })}</span>)}</div>}
     {domainBreakdown.length > 0 && <div className="cost-domain-breakdown" aria-label={t(language, "cost.byDomain")}><span className="cost-domain-label">{t(language, "cost.byDomain")}</span>{domainBreakdown.map((entry) => <span key={entry.group} className="cost-domain-item" data-group={entry.group}>{t(language, `cost.domain.${entry.group}`)} <b>{(entry.pct * 100).toFixed(entry.pct >= 0.1 ? 0 : 1)}%</b></span>)}</div>}
     {projected && !projected.ok && <div className="cost-plan-error">{t(language, "cost.planInvalidProjection", { errors: formatIssues(language, projected.errors) })}</div>}
     {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>{t(language, "cost.pdTransfer")}</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes + (pd.perDecodeRankStateBytes || 0))} / Decode rank</span><span>{t(language, pd.linkSourceCode)}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}{pd.transferSeconds != null ? ` · ≈${pd.transferSeconds >= 1 ? pd.transferSeconds.toFixed(2) + " s" : (pd.transferSeconds * 1000).toFixed(1) + " ms"}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, language)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, language)}</span></div>}
     {mode === "pd" && pd && !pd.ok && <div className="cost-plan-error">{t(language, "cost.pdPlanInvalid", { errors: formatIssues(language, pd.errors) })}</div>}
     <div className="cost-assumptions">
         <span>{accounting.framework === "neutral" ? "neutral · config-faithful" : `${accounting.framework} · runtime profile`}. </span>
-        <span title={accounting.evidence.unknownFields.join(", ")}>{english ? "Unknown: runtime workspace, allocator padding and backend cache layout. " : "未知项：运行时 workspace、分配器对齐和 backend cache layout。 "}</span>
+        <span title={accounting.evidence.unknownFields.join(", ")}>{unknownFieldsText
+          ? `${english ? "Unknown: " : "未知项："}${unknownFieldsText}。 `
+          : ""}</span>
         {chunkedNote}
         {weightNote}
         {text.theoretical}

@@ -155,6 +155,36 @@ test("SGLang fusion opt-in 增加通信量，取消恢复默认", async ({ page 
   await expect(metric).toHaveText(baseline);
 });
 
+test("SGLang 显式 speculative workload 进入 scratch、Fit、Max Context，PD 仅传输持久 state", async ({ page }) => {
+  const cost = await openCost(page, "Qwen/Qwen3.5-4B", "sglang");
+  const state = cost.locator(".cost-breakdown > span").filter({ hasText: "KDA 状态" }).locator("b");
+  const maxContext = cost.locator(".cost-metrics > span").filter({ hasText: "Max context" }).locator("b");
+  const initialMaxContext = Number((await maxContext.innerText()).replaceAll(",", ""));
+  await expect(cost.getByText("投机 scratch", { exact: true })).toHaveCount(0);
+  await number(cost, "投机 draft tokens", 2);
+  await expect(cost.locator(".cost-assumptions")).toContainText("投机状态 scratch");
+  await number(cost, "投机有效请求容量", 4);
+  await expect(cost.getByText("投机 scratch", { exact: true })).toBeVisible();
+  expect(Number((await maxContext.innerText()).replaceAll(",", ""))).toBeLessThan(initialMaxContext);
+  await expect(cost.locator(".cost-assumptions")).toContainText("sglang");
+  await expect(state).toBeVisible();
+  await cost.getByRole("button", { name: "PD 分离", exact: true }).click();
+  const pd = cost.locator(".pd-summary-modern");
+  await expect(pd).toBeVisible();
+  await expect(cost.getByText("投机 scratch", { exact: true })).toHaveCount(0);
+  await cost.getByRole("button", { name: "Decode", exact: true }).click();
+  await expect(cost.getByText("投机 scratch", { exact: true })).toBeVisible();
+  const transferWithScratch = await pd.locator("span").first().innerText();
+  await number(cost, "投机有效请求容量", 1000);
+  await expect(pd).toContainText("Prefill 适配 是 · Decode 适配 否");
+  await expect(maxContext).toHaveText("0");
+  await expect(pd.locator("span").first()).toHaveText(transferWithScratch);
+  await number(cost, "投机 draft tokens", 0);
+  await number(cost, "投机有效请求容量", 0);
+  await expect(pd.locator("span").first()).toHaveText(transferWithScratch);
+  await expect(pd).toContainText("Prefill 适配 是 · Decode 适配 是");
+});
+
 test("DSpark 三种 profile 的主/草稿/共享/总 KV 对账", async ({ page }) => {
   test.setTimeout(90_000);
   for (const profile of ["neutral", "vllm", "sglang"]) {

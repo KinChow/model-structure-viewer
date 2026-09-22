@@ -51,7 +51,7 @@ function quantizedMatrixBytes(graph, quant) {
 
 /** 仅供部署默认策略使用的内存入口；与 Cost 复用同一份驻留账本。 */
 export function aggregateModelMemory({ graph, config, parameterCount, batch = 1, sequence = 1,
-  kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral" } = {}) {
+  kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral", speculative = {} } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;
   const shapedWeights = graphShapedWeightBytes(graph);
   const declared = graphWeightCapacity(graph);
@@ -64,7 +64,9 @@ export function aggregateModelMemory({ graph, config, parameterCount, batch = 1,
     : declared.elements;
   const hasWeightOverride = typeof weightBytesPerParameter === "number" && weightBytesPerParameter > 0;
   const weightBytes = hasWeightOverride ? parameterTotal * weightBytesPerParameter : naturalWeightBytes;
-  const memory = memoryBreakdown({ weightBytes, graph, batch, tokens: sequence, kvBytes, frameworkProfile, config });
+  const memory = memoryBreakdown({
+    weightBytes, graph, batch, tokens: sequence, kvBytes, frameworkProfile, config, speculative,
+  });
   const graphSource = quant ? "derived-quantized" : "node";
   return {
     memory,
@@ -73,9 +75,9 @@ export function aggregateModelMemory({ graph, config, parameterCount, batch = 1,
 }
 
 export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
-  kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral" } = {}) {
+  kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral", speculative = {} } = {}) {
   const { memory, weightSource } = aggregateModelMemory({
-    graph, config, parameterCount, batch, sequence, kvBytes, weightBytesPerParameter, frameworkProfile,
+    graph, config, parameterCount, batch, sequence, kvBytes, weightBytesPerParameter, frameworkProfile, speculative,
   });
   const nodes = computeNodeCosts(graph, config, { batch, sequence, phase, visionTokens: visionTokens ?? undefined, frameworkProfile });
   const unknownComputePaths = nodes

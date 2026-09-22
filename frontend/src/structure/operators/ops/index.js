@@ -1160,6 +1160,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       selected_tokens: budget,
       attention_kind: "dsa_sparse_mla",
       indexer_mode: indexerMode,
+      index_kpool: kpool > 1 ? kpool : undefined,
       ...cacheResidentDecl({
         // 全驻留（W5 capacity↔kvRead 不变）：MLA latent + index 键。
         kvElements: kvRank + ropeDim,

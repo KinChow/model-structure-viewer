@@ -193,15 +193,18 @@ export function projectPlan({ graph, accounting, weightBytes = 0, kvBytes = 0, s
       stage.kvBytes = 0;
       stage.boundedKvBytes = 0;
       stage.stateBytes = 0;
+      stage.speculativeStateBytes = 0;
       stage.bufferBytes = 0;
       for (const pool of accounting.pools) {
         const share = fraction(pool.scope, stage.stage);
         stage.kvBytes += kvBytesPerCard(pool.kvBytes * share, config, projection.plan).bytes;
         stage.boundedKvBytes += kvBytesPerCard(pool.boundedKvBytes * share, config, projection.plan).bytes;
         stage.stateBytes += stateBytesPerCard(pool.stateBytes * share, config, projection.plan).bytes;
+        stage.speculativeStateBytes += stateBytesPerCard(pool.speculativeStateBytes * share, config, projection.plan).bytes;
       }
       for (const buffer of accounting.buffers) stage.bufferBytes += buffer.bytes * fraction(buffer.scope, stage.stage);
-      stage.totalBytes = stage.weightBytes + stage.kvBytes + stage.stateBytes + stage.bufferBytes;
+      stage.totalBytes = stage.weightBytes + stage.kvBytes + stage.stateBytes
+        + stage.speculativeStateBytes + stage.bufferBytes;
     }
     return { ...projection, accounting };
   }
@@ -364,7 +367,8 @@ export function projectPdFit({ graph, prefillAccounting, decodeAccounting, weigh
     const capacity = chip?.memory_bytes;
     const stages = projection.stages.map((stage) => {
       const totalBytes = stage.totalBytes;
-      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes + (stage.stateBytes || 0) + (stage.bufferBytes || 0);
+      const worstTotalBytes = (stage.weightWorstBytes ?? stage.weightBytes) + stage.kvBytes
+        + (stage.stateBytes || 0) + (stage.speculativeStateBytes || 0) + (stage.bufferBytes || 0);
       return { ...stage, totalBytes, worstTotalBytes,
         fit: positiveNumber(capacity) ? totalBytes <= capacity : null,
         worstFit: positiveNumber(capacity) ? worstTotalBytes <= capacity : null };
@@ -392,7 +396,9 @@ export function planFitsCard(projection, capacityBytes) {
 export function maxContextForStages(stages = [], { capacityBytes, sequence = 1 } = {}) {
   if (!positiveNumber(capacityBytes) || !positiveNumber(sequence) || stages.length === 0) return null;
   const limits = stages.map((stage) => {
-    const fixedBytes = stage.weightBytes + (stage.stateBytes || 0) + (stage.bufferBytes || 0) + (stage.boundedKvBytes || 0);
+    const fixedBytes = stage.weightBytes + (stage.stateBytes || 0)
+      + (stage.speculativeStateBytes || 0) + (stage.bufferBytes || 0)
+      + (stage.boundedKvBytes || 0);
     if (fixedBytes > capacityBytes) return 0;
     const kvPerContextToken = (stage.kvBytes - (stage.boundedKvBytes || 0)) / sequence;
     if (!positiveNumber(kvPerContextToken)) return null;

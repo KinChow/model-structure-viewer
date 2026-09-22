@@ -8,7 +8,7 @@ import { getFrameworkRuntimeProfile } from "../frameworkProfiles.js";
 const BYTES_PER_DTYPE = {
   BF16: 2, F16: 2, FP16: 2, F32: 4, FP32: 4, F8_E4M3: 1, F8_E5M2: 1, F8_E8M0: 1, I8: 1,
   BFLOAT16: 2, FLOAT16: 2, FLOAT32: 4,
-  U8: 1, I16: 2, I32: 4, I64: 8,
+  U8: 1, UINT8: 1, INT8: 1, I16: 2, INT16: 2, I32: 4, INT32: 4, I64: 8, INT64: 8,
   // fp4 (float4_e2m1fn_x2)：2 值/字节 = 0.5 B/elem。含 scale 摊销的有效字节：
   //   F4_E4M3S16 = 压缩 KV（E4M3 scale/16）= 0.5+1/16 = 0.5625；F4_E8M0S32 = index（E8M0 scale/32）= 0.53125。
   F4: 0.5, FP4: 0.5, F4_E2M1: 0.5, F4_E4M3S16: 0.5625, F4_E8M0S32: 0.53125,
@@ -111,7 +111,10 @@ function cachePathSets(graph) {
   return { draft, dspark };
 }
 
-function cacheBytesForNode(a = {}, fallback = 2, { fallbackToCapacity = false } = {}) {
+function cacheBytesForNode(a = {}, fallback = 2, {
+  fallbackToCapacity = false,
+  indexGrowthDivisor = 1,
+} = {}) {
   // An explicit zero growth is meaningful (bounded SWA), not "missing".
   if (a.cache_kv_dtype != null) {
     const kv = fallbackToCapacity
@@ -121,11 +124,14 @@ function cacheBytesForNode(a = {}, fallback = 2, { fallbackToCapacity = false } 
       ? (a.cache_index_growth_elements > 0 ? a.cache_index_growth_elements : (a.cache_index_elements || 0))
       : (a.cache_index_growth_elements ?? a.cache_index_elements ?? 0);
     return kv * bytesPerDtype(a.cache_kv_dtype, fallback)
-      + index * bytesPerDtype(a.cache_index_dtype || a.cache_kv_dtype, fallback);
+      + (index / Math.max(1, indexGrowthDivisor))
+        * bytesPerDtype(a.cache_index_dtype || a.cache_kv_dtype, fallback);
   }
   const kv = a.cache_kv_growth_elements ?? a.cache_kv_elements ?? 0;
   const index = a.cache_index_growth_elements ?? a.cache_index_elements ?? 0;
-  return kv * fallback + index * bytesPerDtype(a.cache_index_dtype, fallback);
+  return kv * fallback
+    + (index / Math.max(1, indexGrowthDivisor))
+      * bytesPerDtype(a.cache_index_dtype, fallback);
 }
 
 export function stateBytesForNode(attributes = {}, kvBytes = 2, { frameworkProfile = "neutral", config = {} } = {}) {
@@ -152,6 +158,7 @@ export function cacheAccountingFromGraph(graph, {
   tokens = 1,
   frameworkProfile = "neutral",
   config = {},
+  speculative = {},
 } = {}) {
   const profile = getFrameworkRuntimeProfile(frameworkProfile);
   const { draft: draftPaths, dspark: dsparkPaths } = cachePathSets(graph);
@@ -189,8 +196,15 @@ export function cacheAccountingFromGraph(graph, {
       const scope = layerScope(path, isDraft);
       if (attrs.buffer_elements) buffers.push({ bytes: attrs.buffer_elements * 4 * resident, scope, owner: descriptor.owner });
       const growth = descriptor.boundedDraft ? 0
-        : cacheBytesForNode(attrs, kvBytes, { fallbackToCapacity: isDraft }) * resident;
+        : cacheBytesForNode(attrs, kvBytes, {
+          fallbackToCapacity: isDraft,
+          indexGrowthDivisor: descriptor.indexGrowthDivisor,
+        }) * resident;
       const state = stateBytesForNode(attrs, kvBytes, { frameworkProfile, config }) * resident;
+      const speculativeState = profile.resolveSpeculativeState(attrs, { config, speculative, draft: isDraft });
+      const speculativeStateBytes = speculativeState
+        ? (speculativeState.intermediateSsmBytes + speculativeState.intermediateConvBytes) * resident
+        : 0;
       const window = descriptor.windowElements > 0 && descriptor.windowSize > 0
         ? descriptor.windowElements * descriptor.windowSize * bytesPerDtype(descriptor.windowDtype) * resident
         : (attrs.cache_window_elements || 0) * (attrs.cache_window_size || 0)
@@ -199,14 +213,22 @@ export function cacheAccountingFromGraph(graph, {
       if (String(attrs.attention_kind || "").startsWith("dsv4_")) {
         unknownFields.add("compressedStateAndBackendWindowAllocation");
       }
+      if (speculative?.enabled && frameworkProfile === "sglang" && state > 0 && !speculativeState) {
+        unknownFields.add("speculativeStateScratch");
+      }
+      if (speculativeState) rules.add(speculativeState.rule);
+      if (descriptor.indexGrowthDivisor > 1) {
+        rules.add(`vllm-dsa-kpool-index-growth=base/${descriptor.indexKpool}`);
+      }
       if (!growth && !state && !window && attrs.cache_pool_id == null) return;
       rules.add(descriptor.rule);
       const pool = { ...descriptor, kvBytesPerToken: growth, stateBytesPerSequence: state,
+        speculativeStateBytes,
         boundedKvBytesPerSequence: window, scope };
       const previous = pools.get(descriptor.id);
       if (previous) {
         const shared = previous.shared || pool.shared || previous.owner !== pool.owner;
-        for (const key of ["kvBytesPerToken", "stateBytesPerSequence", "boundedKvBytesPerSequence"]) {
+        for (const key of ["kvBytesPerToken", "stateBytesPerSequence", "speculativeStateBytes", "boundedKvBytesPerSequence"]) {
           if (previous[key] !== pool[key]) unknownFields.add(`pool:${descriptor.id}:inconsistent-${key}`);
           previous[key] = Math.max(previous[key], pool[key]);
         }
@@ -220,7 +242,14 @@ export function cacheAccountingFromGraph(graph, {
     });
   }
 
-  const bucket = () => ({ kvBytes: 0, kvBytesPerToken: 0, boundedKvBytes: 0, stateBytes: 0, stateBytesPerSequence: 0 });
+  const bucket = () => ({
+    kvBytes: 0,
+    kvBytesPerToken: 0,
+    boundedKvBytes: 0,
+    stateBytes: 0,
+    stateBytesPerSequence: 0,
+    speculativeStateBytes: 0,
+  });
   const buckets = { main: bucket(), draft: bucket(), shared: bucket() };
   for (const pool of pools.values()) {
     pool.boundedKvBytes = pool.boundedKvBytesPerSequence * batch;
@@ -243,6 +272,7 @@ export function cacheAccountingFromGraph(graph, {
     mainStateBytes: main.stateBytes, draftStateBytes: draft.stateBytes, sharedStateBytes: shared.stateBytes,
     totalStateBytes: main.stateBytes + draft.stateBytes + shared.stateBytes,
     totalStateBytesPerSequence: main.stateBytesPerSequence + draft.stateBytesPerSequence + shared.stateBytesPerSequence,
+    totalSpeculativeStateBytes: main.speculativeStateBytes + draft.speculativeStateBytes + shared.speculativeStateBytes,
     pools: [...pools.values()],
     buffers,
     evidence: {
@@ -250,7 +280,7 @@ export function cacheAccountingFromGraph(graph, {
       profileRules: [
         ...rules,
         "totalKv=unique cache pools",
-        "totalVram=weights+buffers+kv+state",
+        "totalVram=weights+buffers+kv+state+speculativeState",
       ],
       unknownFields: [...unknownFields],
     },
@@ -411,8 +441,11 @@ export function buildCostAccounting({
   kvBytes = 2,
   frameworkProfile = "neutral",
   config = {},
+  speculative = {},
 } = {}) {
-  const allocation = cacheAccountingFromGraph(graph, { kvBytes, batch, tokens, frameworkProfile, config });
+  const allocation = cacheAccountingFromGraph(graph, {
+    kvBytes, batch, tokens, frameworkProfile, config, speculative,
+  });
   const buffers = bufferBytes ?? bufferBytesFromGraph(graph);
   const draftWeight = weightBytes === 0 ? 0 : draftWeightBytes(graph, weightBytes);
   const graphBuffers = allocation.buffers.reduce((sum, entry) => sum + entry.bytes, 0);
@@ -423,7 +456,8 @@ export function buildCostAccounting({
   const draft = { ...allocation.draft, weightBytes: draftWeight, bufferBytes: draftBuffers };
   const shared = { ...allocation.shared, weightBytes: 0, bufferBytes: 0 };
   for (const bucket of [main, draft, shared]) {
-    bucket.vramBytes = bucket.weightBytes + bucket.bufferBytes + bucket.kvBytes + bucket.stateBytes;
+    bucket.vramBytes = bucket.weightBytes + bucket.bufferBytes + bucket.kvBytes
+      + bucket.stateBytes + bucket.speculativeStateBytes;
   }
   return {
     ...allocation, main, draft, shared,
@@ -436,7 +470,9 @@ export function buildCostAccounting({
       boundedKvBytes: allocation.boundedKvBytes,
       stateBytes: allocation.totalStateBytes,
       stateBytesPerSequence: allocation.totalStateBytesPerSequence,
-      vramBytes: weightBytes + buffers + allocation.totalKvBytes + allocation.totalStateBytes,
+      speculativeStateBytes: allocation.totalSpeculativeStateBytes,
+      vramBytes: weightBytes + buffers + allocation.totalKvBytes
+        + allocation.totalStateBytes + allocation.totalSpeculativeStateBytes,
     },
   };
 }
@@ -449,6 +485,9 @@ export function memoryBreakdown(options = {}) {
     ...total,
     mainKvBytes: main.kvBytes, draftKvBytes: draft.kvBytes, sharedKvBytes: shared.kvBytes,
     mainStateBytes: main.stateBytes, draftStateBytes: draft.stateBytes, sharedStateBytes: shared.stateBytes,
+    mainSpeculativeStateBytes: main.speculativeStateBytes,
+    draftSpeculativeStateBytes: draft.speculativeStateBytes,
+    sharedSpeculativeStateBytes: shared.speculativeStateBytes,
     accounting,
     totalBytes: total.vramBytes,
   };

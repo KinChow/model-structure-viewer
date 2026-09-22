@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
-import { buildCostAccounting, cacheAccountingFromGraph } from "../memory.js";
+import { buildCostAccounting, cacheAccountingFromGraph, bytesPerDtype } from "../memory.js";
 import { aggregateCost } from "../aggregate.js";
 import { maxContextForStages, planFitsCard, projectPlan, projectPdFit } from "../parallel.js";
 import { getFrameworkRuntimeProfile } from "../../frameworkProfiles.js";
@@ -44,6 +44,28 @@ test("DSA explicit index and FP4 dtype are unaffected by fallback; plain cache c
   assert.equal(cacheAccountingFromGraph(graphOf({ cache_kv_elements: 10 }), { kvBytes: 0.5 }).totalKvBytes, 5);
   const indexOnly = graphOf({ cache_kv_elements: 10, cache_index_elements: 128, cache_index_dtype: "F8_E8M0S128" });
   assert.equal(cacheAccountingFromGraph(indexOnly, { kvBytes: 0.5 }).mainKvBytes, 5 + 132);
+  assert.equal(bytesPerDtype("torch.uint8"), 1);
+  assert.equal(bytesPerDtype("torch.int8"), 1);
+  assert.equal(bytesPerDtype("torch.int32"), 4);
+  assert.equal(bytesPerDtype("torch.int64"), 8);
+});
+
+test("vLLM k-pool divides DSA index growth; SGLang keeps token-granular growth", () => {
+  const graph = graphOf({
+    attention_kind: "dsa_sparse_mla",
+    index_kpool: 4,
+    cache_kv_dtype: "BF16",
+    cache_kv_growth_elements: 512,
+    cache_index_dtype: "F8_E8M0S128",
+    cache_index_growth_elements: 128,
+  });
+  const neutral = cacheAccountingFromGraph(graph, { frameworkProfile: "neutral" });
+  const vllm = cacheAccountingFromGraph(graph, { frameworkProfile: "vllm" });
+  const sglang = cacheAccountingFromGraph(graph, { frameworkProfile: "sglang" });
+  assert.equal(neutral.mainKvBytes, 512 * 2 + 128 * 1.03125);
+  assert.equal(vllm.mainKvBytes, 512 * 2 + 32 * 1.03125);
+  assert.equal(sglang.mainKvBytes, neutral.mainKvBytes);
+  assert.ok(vllm.evidence.profileRules.includes("vllm-dsa-kpool-index-growth=base/4"));
 });
 
 test("roofline state traffic uses the same profile dtype formula as residency", () => {
@@ -111,6 +133,121 @@ test("runtime DSpark retains private bounded storage, not a fake shared zero or 
   assert.equal(runtime(1000).draft.kvBytesPerToken, 0);
   assert.equal(runtime(1000).shared.kvBytes, 0);
   assert.ok(runtime(1000).evidence.unknownFields.includes("dsparkBackendPackingAndPageHeadroom"));
+});
+
+test("SGLang speculative state scratch follows source allocation shape and is included in Fit", () => {
+  const graph = graphOf({
+    model_kind: "qwen3_5",
+    state_conv_elements: 12,
+    state_recurrent_elements: 8,
+    state_recurrent_dtype: "F32",
+  });
+  const accounting = buildCostAccounting({
+    graph,
+    frameworkProfile: "sglang",
+    config: { linearConvKernelSize: 4 },
+    speculative: { enabled: true, draftTokens: 2, maxRunningRequests: 3 },
+    weightBytes: 100,
+  });
+  // SGLang: (3 requests + padding row) × 2 draft tokens:
+  // intermediate_ssm = 4×2×8×FP32 = 256 B;
+  // deduplicated conv window = 4 channels × (3+2-1) × 4 rows × BF16 = 128 B.
+  assert.equal(accounting.totalSpeculativeStateBytes, 384);
+  assert.equal(accounting.total.vramBytes, 100 + 56 + 384);
+  const projection = projectPlan({
+    graph,
+    accounting,
+    config: { linearConvKernelSize: 4 },
+  });
+  assert.equal(projection.stages[0].speculativeStateBytes, 384);
+  assert.equal(planFitsCard(projection, 539), false);
+  const bf16 = buildCostAccounting({
+    graph,
+    frameworkProfile: "sglang",
+    config: { linearConvKernelSize: 4, mambaSsmDtype: "bfloat16" },
+    speculative: { enabled: true, draftTokens: 2, maxRunningRequests: 3 },
+  });
+  assert.equal(bf16.totalSpeculativeStateBytes, 256);
+});
+
+test("SGLang PD prefill skips target-verify scratch while decode uses effective state slots", () => {
+  const graph = graphOf({
+    model_kind: "qwen3_5",
+    state_conv_elements: 12,
+    state_recurrent_elements: 8,
+  });
+  const base = {
+    graph,
+    frameworkProfile: "sglang",
+    config: { linearConvKernelSize: 4 },
+    speculative: { enabled: true, draftTokens: 2, stateSlots: 3 },
+  };
+  const prefill = buildCostAccounting({ ...base, speculative: { ...base.speculative, disaggregationMode: "prefill" } });
+  const decode = buildCostAccounting({ ...base, speculative: { ...base.speculative, disaggregationMode: "decode" } });
+  assert.equal(prefill.totalSpeculativeStateBytes, 0);
+  assert.equal(decode.totalSpeculativeStateBytes, 384);
+});
+
+test("SGLang KDA, tree and CPU/NPU use dense conv; GDN uses unique physical storage", () => {
+  const attrs = { model_kind: "qwen3_5", state_conv_elements: 12, state_recurrent_elements: 8 };
+  const profile = getFrameworkRuntimeProfile("sglang");
+  const context = { config: { linearConvKernelSize: 4 }, speculative: { enabled: true, draftTokens: 2, stateSlots: 3 } };
+  assert.equal(profile.resolveSpeculativeState(attrs, context).intermediateConvBytes, 128);
+  for (const change of [{ eagleTopk: 2 }, { platform: "cpu" }, { platform: "npu" }, { disableConvWindowDedup: true }]) {
+    assert.equal(profile.resolveSpeculativeState(attrs, {
+      ...context, speculative: { ...context.speculative, ...change },
+    }).intermediateConvBytes, 192);
+  }
+  assert.equal(profile.resolveSpeculativeState({ ...attrs, model_kind: "glm5_next" }, context).intermediateConvBytes, 192);
+  const draft = profile.resolveSpeculativeState(attrs, { ...context, draft: true });
+  assert.equal(draft.intermediateSsmBytes + draft.intermediateConvBytes, 0);
+});
+
+test("SGLang speculative workload rejects incomplete/invalid inputs and applies explicit capacity caps", () => {
+  const attrs = { state_conv_elements: 12, state_recurrent_elements: 8 };
+  const profile = getFrameworkRuntimeProfile("sglang");
+  const base = { enabled: true, draftTokens: 2, stateSlots: 3 };
+  const resolve = (speculative, config = { linearConvKernelSize: 4 }) =>
+    profile.resolveSpeculativeState(attrs, { config, speculative });
+  for (const change of [
+    { stateSlots: 0 }, { stateSlots: Infinity }, { draftTokens: 1.5 },
+    { attentionDpSize: NaN }, { eagleTopk: -1 }, { enableLinearReplaySsmSpec: true },
+  ]) {
+    assert.equal(resolve({ ...base, ...change }), null);
+  }
+  assert.equal(resolve(base, {}), null, "missing conv shape must not silently omit conv storage");
+  assert.equal(resolve(base, { linearConvKernelSize: 4, mambaSsmDtype: "unknown-dtype" }), null);
+  const capped = resolve({ enabled: true, draftTokens: 2, maxRunningRequests: 16,
+    attentionDpSize: 2, maxMambaCacheSize: 16, mambaSlotsPerRequest: 5 });
+  assert.equal(capped.intermediateSsmBytes + capped.intermediateConvBytes, 384);
+  assert.equal(resolve({ ...base, attentionDpSize: 4 }).intermediateSsmBytes, 256,
+    "already resolved worker slots must not be divided by DP twice");
+  const accounting = buildCostAccounting({ graph: graphOf(attrs), frameworkProfile: "sglang",
+    config: { linearConvKernelSize: 4 }, speculative: { enabled: true, draftTokens: 2 } });
+  assert.ok(accounting.evidence.unknownFields.includes("speculativeStateScratch"));
+  assert.equal(accounting.totalSpeculativeStateBytes, 0);
+});
+
+test("scratch is fixed per worker, sharded by TP/PP, drives Max Context and separate PD Fit", () => {
+  const attrs = { cache_kv_elements: 5, state_conv_elements: 12, state_recurrent_elements: 8 };
+  const graph = graphOf(attrs, attrs);
+  const config = { layers: 2, kvHeads: 1, linearConvKernelSize: 4 };
+  const make = (disaggregationMode, batch = 1) => buildCostAccounting({
+    graph, config, frameworkProfile: "sglang", batch, tokens: 10,
+    speculative: { enabled: true, draftTokens: 2, stateSlots: 3, disaggregationMode },
+  });
+  const decode = make("decode");
+  assert.equal(decode.draft.speculativeStateBytes, 0, "draft worker never runs target verify");
+  assert.equal(decode.main.speculativeStateBytes, 384);
+  assert.equal(make("decode", 4).totalSpeculativeStateBytes, 384, "capacity is not multiplied by active batch");
+  const p = projectPlan({ graph, config, accounting: decode, plan: { tp: 2, pp: 2 } });
+  assert.deepEqual(p.stages.map((s) => s.speculativeStateBytes), [192, 0]);
+  const single = projectPlan({ graph, config, accounting: decode });
+  assert.equal(maxContextForStages(single.stages, { capacityBytes: 500, sequence: 10 }), 0);
+  const pd = projectPdFit({ graph, config, prefillAccounting: make("prefill"), decodeAccounting: decode,
+    prefillChip: { memory_bytes: 500 }, decodeChip: { memory_bytes: 500 } });
+  assert.equal(pd.prefill.fit, true);
+  assert.equal(pd.decode.fit, false);
 });
 
 test("all catalog models x profiles reconcile resident roll-up and single-card projection", () => {

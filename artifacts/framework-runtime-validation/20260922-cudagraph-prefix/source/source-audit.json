@@ -1,0 +1,198 @@
+{
+  "collected_at": "2026-09-22T02:24:28.249118+00:00",
+  "provenance": "Local upstream git objects; runtime installed source hashes must be compared separately. Not a GPU result.",
+  "revisions": [
+    {
+      "sha": "73029d42441321b631779db3475031f5ec26dd6c",
+      "anchors": [
+        {
+          "file": "vllm/config/vllm.py",
+          "sha256": "06b918459d5ab7694bd32fbf4e2b16a576757502d737db7197e8b0d2a1076c6e",
+          "anchors": [
+            {
+              "pattern": "def _set_cudagraph_sizes",
+              "lines": [
+                1944
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/cudagraph_dispatcher.py",
+          "sha256": "51f632753af729aeee6ce4a802d9d74b64f22eef02a524f36e2a24b07ef0cf63",
+          "anchors": [
+            {
+              "pattern": "def initialize_cudagraph_keys",
+              "lines": [
+                166
+              ]
+            },
+            {
+              "pattern": "def get_capture_descs",
+              "lines": [
+                326
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/worker/gpu_model_runner.py",
+          "sha256": "d620deb484fee968aeefefcf8cc901cf2665118e1a2415ee1bb906fd697b3054",
+          "anchors": [
+            {
+              "pattern": "def profile_cudagraph_memory",
+              "lines": [
+                6714
+              ]
+            },
+            {
+              "pattern": "def capture_model",
+              "lines": [
+                6883
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/worker/gpu_worker.py",
+          "sha256": "8fc6f20b99474d05e92958df9cb1a5458f21d6ca4ea0902a03a72d33a52f5291",
+          "anchors": [
+            {
+              "pattern": "self.available_kv_cache_memory_bytes = (",
+              "lines": [
+                610
+              ]
+            },
+            {
+              "pattern": "CUDA graph pool memory:",
+              "lines": [
+                802
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/core/kv_cache_utils.py",
+          "sha256": "6611d45ed5dd0477dacd42011888ba3c8da3886b048805afeb2c14933261ba6d",
+          "anchors": [
+            {
+              "pattern": "def _warn_if_unannotated_eagle_mamba",
+              "lines": [
+                1863
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/core/kv_cache_coordinator.py",
+          "sha256": "43883199a6230b4d9efd98b9702007862e2cfa5466a2dc0326bfd1e69b3e7617",
+          "anchors": [
+            {
+              "pattern": "if drop_eagle_block and not isinstance(spec, MambaSpec):",
+              "lines": [
+                840
+              ]
+            }
+          ]
+        }
+      ],
+      "trim_warning_commit_is_ancestor": false
+    },
+    {
+      "sha": "a8d1aa9c99b8698a2a78b611b7a10c30e6b3995b",
+      "anchors": [
+        {
+          "file": "vllm/config/vllm.py",
+          "sha256": "8b5c97141715700b6a2c11eca30bec9d56c3da0e8314553fc1114cc90d74a994",
+          "anchors": [
+            {
+              "pattern": "def _set_cudagraph_sizes",
+              "lines": [
+                2217
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/cudagraph_dispatcher.py",
+          "sha256": "4129d3852bedaafa48c346ccc9646e818fc8bc62197ecbba0cbb1be455fcdc35",
+          "anchors": [
+            {
+              "pattern": "def initialize_cudagraph_keys",
+              "lines": [
+                164
+              ]
+            },
+            {
+              "pattern": "def get_capture_descs",
+              "lines": [
+                324
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/worker/gpu_model_runner.py",
+          "sha256": "4576e091d9db8a02f83287d3aff057254fb392591209a85ae7c46072e331515f",
+          "anchors": [
+            {
+              "pattern": "def profile_cudagraph_memory",
+              "lines": [
+                6683
+              ]
+            },
+            {
+              "pattern": "def capture_model",
+              "lines": [
+                6832
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/worker/gpu_worker.py",
+          "sha256": "eb76abdc49a4477fe9eab67c3d3bd6e535ebaba4a0e7c3f3c36e34464f9054cc",
+          "anchors": [
+            {
+              "pattern": "self.available_kv_cache_memory_bytes = (",
+              "lines": [
+                626
+              ]
+            },
+            {
+              "pattern": "CUDA graph pool memory:",
+              "lines": [
+                832
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/core/kv_cache_utils.py",
+          "sha256": "2b3d29bffd425ad65c0ce4e6f3fce6c6562642f0f8f18880adaa14c4cb3c0862",
+          "anchors": [
+            {
+              "pattern": "def _warn_if_unannotated_eagle_mamba",
+              "lines": [
+                2193
+              ]
+            }
+          ]
+        },
+        {
+          "file": "vllm/v1/core/kv_cache_coordinator.py",
+          "sha256": "7fa4065d19021e77b3424d24e1b088c530ed70b90c5ed9bc52cf4b7581d5fc48",
+          "anchors": [
+            {
+              "pattern": "if drop_eagle_block and not isinstance(spec, MambaSpec):",
+              "lines": [
+                902
+              ]
+            }
+          ]
+        }
+      ],
+      "trim_warning_commit_is_ancestor": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://github.com/vllm-project/vllm/commit/47fbd36e6dc908277e386424beeb8647355c1c8b.patch",
+    "fetched_at": "2026-09-22T02:24:00Z",
+    "sha256": "c54fa490bc659245d16396192b0531748f54c5e1d17d5d2074e4f30bdaa231cf",
+    "bytes": 3885
+  },
+  {
+    "url": "https://docs.vllm.ai/en/latest/configuration/conserving_memory/",
+    "fetched_at": "2026-09-22T02:24:00Z",
+    "sha256": "977cefe836f05e8148b9fc39cb6d29849e7887cd4371078cd43514550c080def",
+    "bytes": 689800
+  },
+  {
+    "url": "https://docs.pytorch.org/docs/2.14/notes/cuda.html",
+    "fetched_at": "2026-09-22T02:24:00Z",
+    "sha256": "06648770fb0505b2c47a3c8b1999b36ef4e8820b43df4e559824aeee49ec668f",
+    "bytes": 464672
+  }
+]

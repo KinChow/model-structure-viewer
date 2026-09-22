@@ -1,0 +1,83 @@
+From 47fbd36e6dc908277e386424beeb8647355c1c8b Mon Sep 17 00:00:00 2001
+From: Jiangyun Zhu <riverclouds.zhu@qq.com>
+Date: Mon, 14 Sep 2026 21:06:26 +0800
+Subject: [PATCH] [Bugfix] Trim stale consequence claims from unannotated-eagle
+ warning (#56791)
+
+Signed-off-by: zjy0516 <riverclouds.zhu@qq.com>
+Co-authored-by: Kimi Code <noreply@moonshot.cn>
+---
+ tests/v1/core/test_kv_cache_utils.py | 21 +++++++++++++++++----
+ vllm/v1/core/kv_cache_utils.py       | 14 ++------------
+ 2 files changed, 19 insertions(+), 16 deletions(-)
+
+diff --git a/tests/v1/core/test_kv_cache_utils.py b/tests/v1/core/test_kv_cache_utils.py
+index dbddc556c9ba..365338ad4f3f 100644
+--- a/tests/v1/core/test_kv_cache_utils.py
++++ b/tests/v1/core/test_kv_cache_utils.py
+@@ -4135,9 +4135,9 @@ def test_draft_group_not_annotated_without_spec_decode():
+
+
+ def test_unidentifiable_draft_with_mamba_warns(caplog_vllm):
+-    # No group carries the draft marker, so every consumer falls back to
+-    # flagging all groups -- including Mamba ones, which then can never report
+-    # a hit. That is silent today; it must at least be visible.
++    # No group carries the draft marker, so consumers fall back to
++    # conservative behavior that silently breaks reuse for Mamba groups.
++    # That must at least be visible.
+     groups = get_kv_cache_groups(
+         _spec_decode_grouping_config(), _hybrid_specs_with_draft(draft=False)
+     )
+@@ -4146,7 +4146,20 @@ def test_unidentifiable_draft_with_mamba_warns(caplog_vllm):
+     assert "no KV cache group could be identified as the draft model's" in (
+         caplog_vllm.text
+     )
+-    assert "Mamba groups" in caplog_vllm.text
++
++
++def test_unidentifiable_draft_without_mamba_does_not_warn(caplog_vllm):
++    # Pure-attention models degrade gracefully under the consumers'
++    # conservative fallback (a one-block hit drop at most), so the warning
++    # stays silent to avoid noise on every unannotated EAGLE deployment.
++    specs = {
++        "target.attn.0": new_mla_spec(block_size=64),
++        "target.attn.1": new_mla_spec(block_size=64),
++    }
++    groups = get_kv_cache_groups(_spec_decode_grouping_config(), specs)
++
++    assert not any(g.is_eagle_group for g in groups)
++    assert "could be identified as the draft model's" not in caplog_vllm.text
+
+
+ def test_no_warning_when_draft_group_is_identified(caplog_vllm):
+diff --git a/vllm/v1/core/kv_cache_utils.py b/vllm/v1/core/kv_cache_utils.py
+index 996cce8c43f5..4e4f34bd52ad 100644
+--- a/vllm/v1/core/kv_cache_utils.py
++++ b/vllm/v1/core/kv_cache_utils.py
+@@ -2182,12 +2182,7 @@ def _warn_if_unannotated_eagle_mamba(
+     vllm_config: VllmConfig,
+     kv_cache_groups: list[KVCacheGroupSpec],
+ ) -> None:
+-    """Warn when the flag-all eagle fallback will silently disable reuse.
+-
+-    With no group annotated, consumers flag every group as a draft group. That
+-    widens a Mamba group's required lookup window to two consecutive chunks,
+-    which align-mode checkpointing never produces, so reuse drops to zero with
+-    no error and no metric to show it.
++    """Warn when no KV cache group could be identified as the draft model's.
+
+     Args:
+         vllm_config: Config supplying the speculative method, if any.
+@@ -2210,13 +2205,8 @@ def _warn_if_unannotated_eagle_mamba(
+         return
+     logger.warning(
+         "Speculative decoding (method=%s) is enabled but no KV cache group "
+-        "could be identified as the draft model's, so every group -- "
+-        "including Mamba groups %s -- will be treated as a draft group. A "
+-        "Mamba group cannot satisfy the widened lookup window that implies, "
+-        "so prefix-cache reuse across requests will be disabled and any "
+-        "external KV offload tier will store without ever serving a hit.",
++        "could be identified as the draft model's.",
+         spec_config.method,
+-        mamba_groups,
+     )

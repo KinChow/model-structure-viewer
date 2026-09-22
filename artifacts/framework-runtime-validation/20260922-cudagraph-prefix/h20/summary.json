@@ -1,0 +1,1013 @@
+{
+  "report_date": "2026-09-22",
+  "scope": "H20 only; A100 untouched",
+  "host": {
+    "ip": "10.98.95.16",
+    "hostname": "gajl-bcc-onlinec-com-1577862.gajl.baidu.com",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_index": 1,
+    "gpu_uuid": "GPU-ac19fc4c-e112-e799-4c48-1e0a76bf91a4"
+  },
+  "container": {
+    "name": "vllm-0920",
+    "status_at_completion": "running",
+    "image": "iregistry.baidu-int.com/hub-official/vllm-openai:nightly",
+    "image_id": "sha256:38e8c0e60293aefc23edee5c074107e44b89d64f26d5399cd2f5956801b6ef24",
+    "repo_digest": "iregistry.baidu-int.com/hub-official/vllm-openai@sha256:4cbfd34aac145fd1870381c030131c7f868fcad45448f401ecdb5fd4ed020b42",
+    "vllm_version": "0.29.1rc1.dev397+ga8d1aa9c9",
+    "vllm_commit": "a8d1aa9c99b8698a2a78b611b7a10c30e6b3995b"
+  },
+  "model": {
+    "id": "Qwen/Qwen3.5-4B",
+    "path": "/ssd2/zhouzijian01/msv-models-20260922/Qwen3.5-4B",
+    "source": "bos:/aihc-private-hcd/LLM/Qwen/Qwen3.5-4B/",
+    "real_weights": true
+  },
+  "common_controls": {
+    "gpu_memory_utilization": 0.3,
+    "max_model_len": 4096,
+    "max_num_seqs": 2,
+    "max_num_batched_tokens": 2048,
+    "prefix_caching": true,
+    "output_tokens": 24,
+    "temperature": 0,
+    "seed": 42,
+    "cuda_graph": "enabled; no --enforce-eager",
+    "device_uuid": "GPU-ac19fc4c-e112-e799-4c48-1e0a76bf91a4"
+  },
+  "runs": [
+    {
+      "name": "mtp-on-cap8",
+      "ok": true,
+      "server_returncode": 0,
+      "port_closed": true,
+      "block_size": 544,
+      "prefix_tokens": 1632,
+      "requests": [
+        {
+          "label": "cold_alpha",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 0,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 0.0,
+          "output_sha256": "748fd3c92a438dd375ac9dfdf99cedeeb33dceeb9e3e0dada75c7d6e931ad522"
+        },
+        {
+          "label": "identical_alpha",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "748fd3c92a438dd375ac9dfdf99cedeeb33dceeb9e3e0dada75c7d6e931ad522"
+        },
+        {
+          "label": "shared_prefix_beta",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "identical_beta",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "shared_prefix_gamma",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        }
+      ],
+      "available_kv_cache_memory_bytes": 33225339597,
+      "cudagraph_memory_estimate_bytes": 193986560,
+      "captured_graph_return_bytes": [
+        171966464,
+        150994944
+      ],
+      "cache_config": "CacheConfig(block_size=544, user_specified_block_size=False, user_specified_mamba_block_size=False, kv_cache_layout='LBNHC', prefix_match_unit=None, gpu_memory_utilization=0.3, cache_dtype='auto', is_attention_free=False, num_gpu_blocks_override=None, sliding_window=None, enable_prefix_caching=True, prefix_caching_hash_algo='sha256', prefix_cache_retention_interval=0, kv_cache_dtype_skip_layers=[], mamba_page_size_padded=2228224, skip_page_size_padded=None, mamba_block_size=544, mamba_cache_dtype='auto', mamba_ssm_cache_dtype='float32', mamba_cache_mode='align', enable_mamba_fine_grained_prefix_cache=False, replayssm_buffer_len=16, use_replayssm=False, use_kda_recoverssm=False, num_gpu_blocks=1656, num_cpu_blocks=None, effective_attention_block_size=None, kv_cache_size_tokens=339148, kv_cache_max_concurrency=82.8, kv_sharing_fast_prefill=False, swa_bounded_replay=True, kv_cache_memory_bytes=None, kv_offloading_size=None, kv_offloading_backend='native', _block_size_resolved=True)",
+      "cache_groups": [
+        {
+          "layer_names": [
+            "language_model.model.layers.0.linear_attn",
+            "language_model.model.layers.4.linear_attn",
+            "language_model.model.layers.8.linear_attn",
+            "language_model.model.layers.12.linear_attn",
+            "language_model.model.layers.16.linear_attn",
+            "language_model.model.layers.20.linear_attn",
+            "language_model.model.layers.24.linear_attn",
+            "language_model.model.layers.28.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "shapes": [
+              [
+                5,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2228224,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 2,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.1.linear_attn",
+            "language_model.model.layers.5.linear_attn",
+            "language_model.model.layers.9.linear_attn",
+            "language_model.model.layers.13.linear_attn",
+            "language_model.model.layers.17.linear_attn",
+            "language_model.model.layers.21.linear_attn",
+            "language_model.model.layers.25.linear_attn",
+            "language_model.model.layers.29.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "shapes": [
+              [
+                5,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2228224,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 2,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.2.linear_attn",
+            "language_model.model.layers.6.linear_attn",
+            "language_model.model.layers.10.linear_attn",
+            "language_model.model.layers.14.linear_attn",
+            "language_model.model.layers.18.linear_attn",
+            "language_model.model.layers.22.linear_attn",
+            "language_model.model.layers.26.linear_attn",
+            "language_model.model.layers.30.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "shapes": [
+              [
+                5,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2228224,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 2,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.3.self_attn.attn",
+            "language_model.model.layers.7.self_attn.attn",
+            "language_model.model.layers.11.self_attn.attn",
+            "language_model.model.layers.15.self_attn.attn",
+            "language_model.model.layers.19.self_attn.attn",
+            "language_model.model.layers.23.self_attn.attn",
+            "language_model.model.layers.27.self_attn.attn",
+            "language_model.model.layers.31.self_attn.attn",
+            "mtp.layers.0.self_attn.attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "num_kv_heads": 4,
+            "head_size": 256,
+            "dtype": "torch.bfloat16",
+            "head_size_v": 256,
+            "kv_quant_mode": 0,
+            "page_size_padded": null,
+            "num_head_slots": null,
+            "state_content_bytes": null,
+            "tokens_per_state": 1,
+            "sliding_window": null,
+            "attention_chunk_size": null,
+            "non_causal": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        }
+      ],
+      "num_blocks": 1656,
+      "warning_count": 2,
+      "server_log_sha256": "7138defc5d47b72d912831ce3cf23db29058d758070121aa6cf1e926707757c5"
+    },
+    {
+      "name": "mtp-off-cap8",
+      "ok": true,
+      "server_returncode": 0,
+      "port_closed": true,
+      "block_size": 528,
+      "prefix_tokens": 1584,
+      "requests": [
+        {
+          "label": "cold_alpha",
+          "status": 200,
+          "prompt_tokens": 1600,
+          "completion_tokens": 24,
+          "cached_tokens": 0,
+          "prefix_cache_queries_delta": 1600.0,
+          "prefix_cache_hits_delta": 0.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "identical_alpha",
+          "status": 200,
+          "prompt_tokens": 1600,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1600.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "shared_prefix_beta",
+          "status": 200,
+          "prompt_tokens": 1600,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1600.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "identical_beta",
+          "status": 200,
+          "prompt_tokens": 1600,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1600.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "shared_prefix_gamma",
+          "status": 200,
+          "prompt_tokens": 1600,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1600.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        }
+      ],
+      "available_kv_cache_memory_bytes": 33623798477,
+      "cudagraph_memory_estimate_bytes": 57671680,
+      "captured_graph_return_bytes": [
+        56623104,
+        37748736
+      ],
+      "cache_config": "CacheConfig(block_size=528, user_specified_block_size=False, user_specified_mamba_block_size=False, kv_cache_layout='LBNHC', prefix_match_unit=None, gpu_memory_utilization=0.3, cache_dtype='auto', is_attention_free=False, num_gpu_blocks_override=None, sliding_window=None, enable_prefix_caching=True, prefix_caching_hash_algo='sha256', prefix_cache_retention_interval=0, kv_cache_dtype_skip_layers=[], mamba_page_size_padded=2162688, skip_page_size_padded=None, mamba_block_size=528, mamba_cache_dtype='auto', mamba_ssm_cache_dtype='float32', mamba_cache_mode='align', enable_mamba_fine_grained_prefix_cache=False, replayssm_buffer_len=16, use_replayssm=False, use_kda_recoverssm=False, num_gpu_blocks=1943, num_cpu_blocks=None, effective_attention_block_size=None, kv_cache_size_tokens=568466, kv_cache_max_concurrency=138.78571428571428, kv_sharing_fast_prefill=False, swa_bounded_replay=True, kv_cache_memory_bytes=None, kv_offloading_size=None, kv_offloading_backend='native', _block_size_resolved=True)",
+      "cache_groups": [
+        {
+          "layer_names": [
+            "language_model.model.layers.0.linear_attn",
+            "language_model.model.layers.4.linear_attn",
+            "language_model.model.layers.8.linear_attn",
+            "language_model.model.layers.12.linear_attn",
+            "language_model.model.layers.16.linear_attn",
+            "language_model.model.layers.20.linear_attn",
+            "language_model.model.layers.24.linear_attn",
+            "language_model.model.layers.28.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "shapes": [
+              [
+                3,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2162688,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 0,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.1.linear_attn",
+            "language_model.model.layers.5.linear_attn",
+            "language_model.model.layers.9.linear_attn",
+            "language_model.model.layers.13.linear_attn",
+            "language_model.model.layers.17.linear_attn",
+            "language_model.model.layers.21.linear_attn",
+            "language_model.model.layers.25.linear_attn",
+            "language_model.model.layers.29.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "shapes": [
+              [
+                3,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2162688,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 0,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.2.linear_attn",
+            "language_model.model.layers.6.linear_attn",
+            "language_model.model.layers.10.linear_attn",
+            "language_model.model.layers.14.linear_attn",
+            "language_model.model.layers.18.linear_attn",
+            "language_model.model.layers.22.linear_attn",
+            "language_model.model.layers.26.linear_attn",
+            "language_model.model.layers.30.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "shapes": [
+              [
+                3,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2162688,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 0,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.3.self_attn.attn",
+            "language_model.model.layers.7.self_attn.attn",
+            "language_model.model.layers.11.self_attn.attn",
+            "language_model.model.layers.15.self_attn.attn",
+            "language_model.model.layers.19.self_attn.attn",
+            "language_model.model.layers.23.self_attn.attn",
+            "language_model.model.layers.27.self_attn.attn",
+            "language_model.model.layers.31.self_attn.attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "num_kv_heads": 4,
+            "head_size": 256,
+            "dtype": "torch.bfloat16",
+            "head_size_v": 256,
+            "kv_quant_mode": 0,
+            "page_size_padded": null,
+            "num_head_slots": null,
+            "state_content_bytes": null,
+            "tokens_per_state": 1,
+            "sliding_window": null,
+            "attention_chunk_size": null,
+            "non_causal": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        }
+      ],
+      "num_blocks": 1943,
+      "warning_count": 0,
+      "server_log_sha256": "5e64b407ad4106f2639ba0679564d8feb8bde999220ec36922dc8d26a2cb5068"
+    },
+    {
+      "name": "mtp-on-cap32",
+      "ok": true,
+      "server_returncode": 0,
+      "port_closed": true,
+      "block_size": 544,
+      "prefix_tokens": 1632,
+      "requests": [
+        {
+          "label": "cold_alpha",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 0,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 0.0,
+          "output_sha256": "748fd3c92a438dd375ac9dfdf99cedeeb33dceeb9e3e0dada75c7d6e931ad522"
+        },
+        {
+          "label": "identical_alpha",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "748fd3c92a438dd375ac9dfdf99cedeeb33dceeb9e3e0dada75c7d6e931ad522"
+        },
+        {
+          "label": "shared_prefix_beta",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "identical_beta",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "shared_prefix_gamma",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1088,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1088.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        }
+      ],
+      "available_kv_cache_memory_bytes": 33204368077,
+      "cudagraph_memory_estimate_bytes": 214958080,
+      "captured_graph_return_bytes": [
+        195035136,
+        155189248
+      ],
+      "cache_config": "CacheConfig(block_size=544, user_specified_block_size=False, user_specified_mamba_block_size=False, kv_cache_layout='LBNHC', prefix_match_unit=None, gpu_memory_utilization=0.3, cache_dtype='auto', is_attention_free=False, num_gpu_blocks_override=None, sliding_window=None, enable_prefix_caching=True, prefix_caching_hash_algo='sha256', prefix_cache_retention_interval=0, kv_cache_dtype_skip_layers=[], mamba_page_size_padded=2228224, skip_page_size_padded=None, mamba_block_size=544, mamba_cache_dtype='auto', mamba_ssm_cache_dtype='float32', mamba_cache_mode='align', enable_mamba_fine_grained_prefix_cache=False, replayssm_buffer_len=16, use_replayssm=False, use_kda_recoverssm=False, num_gpu_blocks=1655, num_cpu_blocks=None, effective_attention_block_size=None, kv_cache_size_tokens=338944, kv_cache_max_concurrency=82.75, kv_sharing_fast_prefill=False, swa_bounded_replay=True, kv_cache_memory_bytes=None, kv_offloading_size=None, kv_offloading_backend='native', _block_size_resolved=True)",
+      "cache_groups": [
+        {
+          "layer_names": [
+            "language_model.model.layers.0.linear_attn",
+            "language_model.model.layers.4.linear_attn",
+            "language_model.model.layers.8.linear_attn",
+            "language_model.model.layers.12.linear_attn",
+            "language_model.model.layers.16.linear_attn",
+            "language_model.model.layers.20.linear_attn",
+            "language_model.model.layers.24.linear_attn",
+            "language_model.model.layers.28.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "shapes": [
+              [
+                5,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2228224,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 2,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.1.linear_attn",
+            "language_model.model.layers.5.linear_attn",
+            "language_model.model.layers.9.linear_attn",
+            "language_model.model.layers.13.linear_attn",
+            "language_model.model.layers.17.linear_attn",
+            "language_model.model.layers.21.linear_attn",
+            "language_model.model.layers.25.linear_attn",
+            "language_model.model.layers.29.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "shapes": [
+              [
+                5,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2228224,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 2,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.2.linear_attn",
+            "language_model.model.layers.6.linear_attn",
+            "language_model.model.layers.10.linear_attn",
+            "language_model.model.layers.14.linear_attn",
+            "language_model.model.layers.18.linear_attn",
+            "language_model.model.layers.22.linear_attn",
+            "language_model.model.layers.26.linear_attn",
+            "language_model.model.layers.30.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "shapes": [
+              [
+                5,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2228224,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 2,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.3.self_attn.attn",
+            "language_model.model.layers.7.self_attn.attn",
+            "language_model.model.layers.11.self_attn.attn",
+            "language_model.model.layers.15.self_attn.attn",
+            "language_model.model.layers.19.self_attn.attn",
+            "language_model.model.layers.23.self_attn.attn",
+            "language_model.model.layers.27.self_attn.attn",
+            "language_model.model.layers.31.self_attn.attn",
+            "mtp.layers.0.self_attn.attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 544,
+            "num_kv_heads": 4,
+            "head_size": 256,
+            "dtype": "torch.bfloat16",
+            "head_size_v": 256,
+            "kv_quant_mode": 0,
+            "page_size_padded": null,
+            "num_head_slots": null,
+            "state_content_bytes": null,
+            "tokens_per_state": 1,
+            "sliding_window": null,
+            "attention_chunk_size": null,
+            "non_causal": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        }
+      ],
+      "num_blocks": 1655,
+      "warning_count": 2,
+      "server_log_sha256": "f7dd9ce0569021ea38d290c1bb7bfdea3ebda7121ca44d0f9942f96edc2b1461"
+    },
+    {
+      "name": "mtp-off-cap8-sameprompt",
+      "ok": true,
+      "server_returncode": 0,
+      "port_closed": true,
+      "block_size": 528,
+      "prefix_tokens": 1632,
+      "requests": [
+        {
+          "label": "cold_alpha",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 0,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 0.0,
+          "output_sha256": "748fd3c92a438dd375ac9dfdf99cedeeb33dceeb9e3e0dada75c7d6e931ad522"
+        },
+        {
+          "label": "identical_alpha",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "748fd3c92a438dd375ac9dfdf99cedeeb33dceeb9e3e0dada75c7d6e931ad522"
+        },
+        {
+          "label": "shared_prefix_beta",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "identical_beta",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        },
+        {
+          "label": "shared_prefix_gamma",
+          "status": 200,
+          "prompt_tokens": 1648,
+          "completion_tokens": 24,
+          "cached_tokens": 1584,
+          "prefix_cache_queries_delta": 1648.0,
+          "prefix_cache_hits_delta": 1584.0,
+          "output_sha256": "2b86e2d6b6238eb23f1e5ce8b297c9cb3dd11e96ec8cbe8a981215753426fa6e"
+        }
+      ],
+      "available_kv_cache_memory_bytes": 33623798477,
+      "cudagraph_memory_estimate_bytes": 57671680,
+      "captured_graph_return_bytes": [
+        56623104,
+        37748736
+      ],
+      "cache_config": "CacheConfig(block_size=528, user_specified_block_size=False, user_specified_mamba_block_size=False, kv_cache_layout='LBNHC', prefix_match_unit=None, gpu_memory_utilization=0.3, cache_dtype='auto', is_attention_free=False, num_gpu_blocks_override=None, sliding_window=None, enable_prefix_caching=True, prefix_caching_hash_algo='sha256', prefix_cache_retention_interval=0, kv_cache_dtype_skip_layers=[], mamba_page_size_padded=2162688, skip_page_size_padded=None, mamba_block_size=528, mamba_cache_dtype='auto', mamba_ssm_cache_dtype='float32', mamba_cache_mode='align', enable_mamba_fine_grained_prefix_cache=False, replayssm_buffer_len=16, use_replayssm=False, use_kda_recoverssm=False, num_gpu_blocks=1943, num_cpu_blocks=None, effective_attention_block_size=None, kv_cache_size_tokens=568466, kv_cache_max_concurrency=138.78571428571428, kv_sharing_fast_prefill=False, swa_bounded_replay=True, kv_cache_memory_bytes=None, kv_offloading_size=None, kv_offloading_backend='native', _block_size_resolved=True)",
+      "cache_groups": [
+        {
+          "layer_names": [
+            "language_model.model.layers.0.linear_attn",
+            "language_model.model.layers.4.linear_attn",
+            "language_model.model.layers.8.linear_attn",
+            "language_model.model.layers.12.linear_attn",
+            "language_model.model.layers.16.linear_attn",
+            "language_model.model.layers.20.linear_attn",
+            "language_model.model.layers.24.linear_attn",
+            "language_model.model.layers.28.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "shapes": [
+              [
+                3,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2162688,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 0,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.1.linear_attn",
+            "language_model.model.layers.5.linear_attn",
+            "language_model.model.layers.9.linear_attn",
+            "language_model.model.layers.13.linear_attn",
+            "language_model.model.layers.17.linear_attn",
+            "language_model.model.layers.21.linear_attn",
+            "language_model.model.layers.25.linear_attn",
+            "language_model.model.layers.29.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "shapes": [
+              [
+                3,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2162688,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 0,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.2.linear_attn",
+            "language_model.model.layers.6.linear_attn",
+            "language_model.model.layers.10.linear_attn",
+            "language_model.model.layers.14.linear_attn",
+            "language_model.model.layers.18.linear_attn",
+            "language_model.model.layers.22.linear_attn",
+            "language_model.model.layers.26.linear_attn",
+            "language_model.model.layers.30.linear_attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "shapes": [
+              [
+                3,
+                8192
+              ],
+              [
+                32,
+                128,
+                128
+              ]
+            ],
+            "dtypes": [
+              "torch.bfloat16",
+              "torch.float32"
+            ],
+            "page_size_padded": 2162688,
+            "mamba_type": {
+              "class": "MambaAttentionBackendEnum"
+            },
+            "mamba_cache_mode": "align",
+            "num_speculative_blocks": 0,
+            "num_prefill_checkpoint_blocks": 0,
+            "prefill_checkpoint_alignment": null,
+            "num_heads": 1,
+            "tokens_per_state": -1,
+            "tp_replicated": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        },
+        {
+          "layer_names": [
+            "language_model.model.layers.3.self_attn.attn",
+            "language_model.model.layers.7.self_attn.attn",
+            "language_model.model.layers.11.self_attn.attn",
+            "language_model.model.layers.15.self_attn.attn",
+            "language_model.model.layers.19.self_attn.attn",
+            "language_model.model.layers.23.self_attn.attn",
+            "language_model.model.layers.27.self_attn.attn",
+            "language_model.model.layers.31.self_attn.attn"
+          ],
+          "kv_cache_spec": {
+            "block_size": 528,
+            "num_kv_heads": 4,
+            "head_size": 256,
+            "dtype": "torch.bfloat16",
+            "head_size_v": 256,
+            "kv_quant_mode": 0,
+            "page_size_padded": null,
+            "num_head_slots": null,
+            "state_content_bytes": null,
+            "tokens_per_state": 1,
+            "sliding_window": null,
+            "attention_chunk_size": null,
+            "non_causal": false
+          },
+          "is_eagle_group": false,
+          "host_resident": false,
+          "enable_kv_transfer": true,
+          "role": "default"
+        }
+      ],
+      "num_blocks": 1943,
+      "warning_count": 0,
+      "server_log_sha256": "c83d58c3c27eb0be404f5e779188442541629a8adb5a42d218ab006f78c32e68"
+    }
+  ],
+  "interpretation": {
+    "warning": "The MTP warning is an unannotated draft KV-group annotation warning only; it is not treated as prefix-cache failure. H20 evidence shows positive prefix hits.",
+    "mtp_on": "With 1632-token common prefix and Mamba align mode, cached_tokens and metrics hit delta were 1088 on each warm request; the retained hit is lower than the full prefix because Mamba align and scheduler/cache boundaries differ.",
+    "mtp_off_same_prompt": "Fourth run resent the identical full prompt JSONs as MTP-on, with 1632-token shared prefix; cached_tokens and metrics hit delta were 1584 on each warm request.",
+    "cudagraph": "Graph mode was FULL_AND_PIECEWISE. cap=8 and cap=32 are deliberately small controls, not production coverage. profile estimate and runtime actual are recorded separately.",
+    "accuracy": "No accuracy claim; this is runtime/cache/graph validation only."
+  },
+  "source_provenance": {
+    "actual_runner": "vllm.v1.worker.gpu.model_runner.GPUModelRunner",
+    "actual_runner_path": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py",
+    "actual_runner_sha256": "9cea4ffa0dcee28980f0515cac562d1cffeac336f544ff5465ef073c81a28a72",
+    "cudagraph_utils_path": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/cudagraph_utils.py",
+    "cudagraph_utils_sha256": "e123e808a8b6a616f69cc97f8b0d25d77f0eb35d8ebc91c4cdbc505f649927c0",
+    "source_manifest": "source/manifest.json",
+    "source_provenance_excerpt": "source-provenance.txt",
+    "framework_sources_unchanged": "framework-source-unchanged.txt",
+    "v2_model_runner": true,
+    "v2_log_evidence": "Each of the four server.log files contains \"Using V2 Model Runner\"; worker source selects vllm.v1.worker.gpu.model_runner.GPUModelRunner when use_v2_model_runner is true."
+  }
+}

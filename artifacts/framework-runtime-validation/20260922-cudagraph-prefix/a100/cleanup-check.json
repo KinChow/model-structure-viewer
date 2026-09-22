@@ -1,0 +1,30 @@
+{
+  "timestamp": 1790045026.0806327,
+  "owned_groups": [
+    {
+      "scenario": "mtp-on-cap12",
+      "pid": 101472,
+      "pgid": 101472,
+      "remaining_members": [],
+      "clean": true
+    },
+    {
+      "scenario": "mtp-on-cap12-r3",
+      "pid": 102788,
+      "pgid": 102788,
+      "remaining_members": [],
+      "clean": true
+    },
+    {
+      "scenario": "mtp-off-cap12",
+      "pid": 104118,
+      "pgid": 104118,
+      "remaining_members": [],
+      "clean": true
+    }
+  ],
+  "all_owned_groups_clean": true,
+  "port": 18122,
+  "final_inventory": "host-final.txt",
+  "note": "Final namespace-correct PID/PGID check. Historical DPCoordinator PID 91261 and resource_tracker PID 91260 predate task and were preserved."
+}

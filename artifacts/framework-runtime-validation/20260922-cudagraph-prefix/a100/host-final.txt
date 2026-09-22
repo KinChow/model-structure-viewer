@@ -1,0 +1,80 @@
+2026-09-22T10:43:45+0800
+gajl-bcc-offline-1323736.gajl.baidu.com
+===GPU===
+index, uuid, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]
+0, GPU-1c2804f0-4d1a-04f0-9686-806ffa6a599f, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+1, GPU-bd52e512-45a5-716e-14f3-67c7f03dbc82, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+2, GPU-3eefdfea-ab68-5f7a-3d6c-ca8bbc5b1490, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+3, GPU-16fc22b5-bf0e-2cfe-ab3b-b4a284957e0c, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+4, GPU-6888abb4-e232-4863-9386-32bbc9762ba0, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+5, GPU-2db915c1-2af9-0c8d-7e77-0c5f9156d865, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+6, GPU-b62ef531-348a-d79f-ec7d-88d409b4377f, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+7, GPU-07fd60c9-f9ec-331d-5fb1-8e6184f36e6e, NVIDIA A100-SXM4-80GB, 575.57.08, 81920 MiB, 0 MiB, 0 %
+===GPU_PROCESSES===
+pid, gpu_uuid, process_name, used_gpu_memory [MiB]
+===LISTENERS===
+State      Recv-Q Send-Q Local Address:Port               Peer Address:Port
+LISTEN     0      128          *:37315                    *:*                   users:(("node",pid=114905,fd=18))
+LISTEN     0      128          *:8582                     *:*                   users:(("node",pid=125242,fd=19))
+LISTEN     0      5            *:422                      *:*                   users:(("gko3",pid=27859,fd=23))
+LISTEN     0      128          *:35976                    *:*                   users:(("node",pid=85570,fd=18))
+LISTEN     0      128          *:424                      *:*                   users:(("noah-ccs-agent",pid=32253,fd=17))
+LISTEN     0      128          *:425                      *:*                   users:(("minos-agent",pid=121363,fd=8))
+LISTEN     0      128          *:426                      *:*                   users:(("minos-agent",pid=121363,fd=23))
+LISTEN     0      6      127.0.0.1:6666                     *:*                   users:(("nv-fabricmanage",pid=92636,fd=103))
+LISTEN     0      128          *:428                      *:*                   users:(("checkmce",pid=41246,fd=5),("logcheck",pid=40435,fd=5),("has_agent",pid=29397,fd=5),("checkgpu",pid=15318,fd=5),("timeout",pid=15317,fd=5),("checkgpu.sh",pid=15303,fd=5),("checkgpu",pid=15293,fd=5),("module_exec",pid=15262,fd=5),("module_exec",pid=15255,fd=5))
+LISTEN     0      128          *:430                      *:*                   users:(("minos-agent-tk",pid=121401,fd=8))
+LISTEN     0      128          *:1102                     *:*                   users:(("lilou2-agent",pid=11312,fd=11))
+LISTEN     0      128          *:431                      *:*                   users:(("minos-agent-tk",pid=121401,fd=23))
+LISTEN     0      128          *:111                      *:*                   users:(("rpcbind",pid=2586,fd=4),("systemd",pid=1,fd=43))
+LISTEN     0      128          *:432                      *:*                   users:(("bsdc_agent",pid=45458,fd=14))
+LISTEN     0      128          *:35506                    *:*                   users:(("node",pid=83794,fd=18))
+LISTEN     0      128          *:47827                    *:*                   users:(("node",pid=120958,fd=18))
+LISTEN     0      128          *:46643                    *:*                   users:(("node",pid=80665,fd=18))
+LISTEN     0      128          *:436                      *:*                   users:(("gianod",pid=34488,fd=18))
+LISTEN     0      128          *:404                      *:*                   users:(("noah",pid=16996,fd=8))
+LISTEN     0      128          *:789                      *:*                   users:(("baas_agent",pid=31883,fd=110))
+LISTEN     0      128          *:437                      *:*                   users:(("gianod",pid=34488,fd=86))
+LISTEN     0      128          *:438                      *:*                   users:(("bsdc_agent",pid=45458,fd=279))
+LISTEN     0      128          *:790                      *:*                   users:(("executor",pid=29349,fd=6))
+LISTEN     0      128          *:22                       *:*                   users:(("sshd",pid=5187,fd=3))
+LISTEN     0      128    127.0.0.1:631                      *:*                   users:(("cupsd",pid=5193,fd=11))
+LISTEN     0      128          *:792                      *:*                   users:(("baas_agent",pid=31883,fd=106))
+LISTEN     0      128          *:440                      *:*                   users:(("bns_deadhost_ag",pid=30068,fd=6),("bns_deadhost_ag",pid=30067,fd=6))
+LISTEN     0      128          *:793                      *:*                   users:(("naming-agent",pid=30105,fd=11))
+LISTEN     0      128          *:409                      *:*                   users:(("ruby",pid=26326,fd=9))
+LISTEN     0      100    127.0.0.1:25                       *:*                   users:(("master",pid=6040,fd=13))
+LISTEN     0      128          *:794                      *:*                   users:(("webfoot-agent",pid=28634,fd=15))
+LISTEN     0      10           *:797                      *:*                   users:(("drct",pid=30860,fd=10))
+LISTEN     0      128          *:798                      *:*                   users:(("drct",pid=30860,fd=7))
+LISTEN     0      128          *:446                      *:*                   users:(("gko3",pid=27859,fd=26))
+LISTEN     0      128          *:799                      *:*                   users:(("drct",pid=30860,fd=9))
+LISTEN     0      128          *:800                      *:*                   users:(("drct",pid=30860,fd=8))
+LISTEN     0      6      127.0.0.1:16000                    *:*                   users:(("nv-fabricmanage",pid=92636,fd=80))
+LISTEN     0      128          *:41473                    *:*                   users:(("node",pid=37228,fd=18))
+LISTEN     0      5           :::422                     :::*                   users:(("gko3",pid=27859,fd=24))
+LISTEN     0      128         :::456                     :::*                   users:(("dcosAgent",pid=5776,fd=9))
+LISTEN     0      128         :::811                     :::*                   users:(("naming-agent",pid=30105,fd=12))
+LISTEN     0      128         :::780                     :::*                   users:(("noah-client",pid=47145,fd=13))
+LISTEN     0      128         :::1101                    :::*                   users:(("lilou2-agent",pid=11312,fd=9))
+LISTEN     0      128         :::111                     :::*                   users:(("rpcbind",pid=2586,fd=6),("systemd",pid=1,fd=45))
+LISTEN     0      128         :::401                     :::*                   users:(("casio-agent",pid=16426,fd=7))
+LISTEN     0      128         :::402                     :::*                   users:(("scribed",pid=14193,fd=4))
+LISTEN     0      128         :::22                      :::*                   users:(("sshd",pid=5187,fd=4))
+LISTEN     0      128        ::1:631                     :::*                   users:(("cupsd",pid=5193,fd=10))
+LISTEN     0      100        ::1:25                      :::*                   users:(("master",pid=6040,fd=14))
+LISTEN     0      128         :::795                     :::*                   users:(("naming-agent",pid=30105,fd=7))
+===CONTAINER===
+/vllm-0920|running|sha256:c3b2649067a2f3d24d0b42bbc8b181fd11dd8d87b9397c4fc143c2016aca53f7|2026-09-20T12:52:30.811910812Z
+===CONTAINER_PROCESS_METADATA===
+   PID   PPID   PGID    SID COMMAND
+     1      0      1      1 bash
+     9      0      9      9 bash
+   453      1    418      9 host-agent
+   463    453    418      9 host-agent
+   530      1    418      9 sh
+   535    530    418      9 node
+   815    535    418      9 node
+ 91260      1  91053  91053 python3
+ 91261      1  91053  91053 VLLM::DPCoordin
+105562      0 105562 105562 ps

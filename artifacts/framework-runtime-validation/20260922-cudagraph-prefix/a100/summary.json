@@ -1,0 +1,986 @@
+{
+  "schema": "a100-cudagraph-prefix-v1",
+  "generated_at": "2026-09-22T11:00:37+0800",
+  "scope": "A100 only; H20 was not touched by this agent. No third graph-cap run was added.",
+  "host": {
+    "ip": "10.55.87.81",
+    "hostname": "gajl-bcc-offline-1323736.gajl.baidu.com",
+    "access": "ssh relay -> ssh root@10.55.87.81",
+    "gpu": "NVIDIA A100-SXM4-80GB",
+    "driver": "575.57.08",
+    "container": "vllm-0920",
+    "image_id": "sha256:c3b2649067a2f3d24d0b42bbc8b181fd11dd8d87b9397c4fc143c2016aca53f7",
+    "repo_digest": "iregistry.baidu-int.com/hub-official/vllm-openai@sha256:31a59e7704a9c2fcd967b84f649442c7d8bd5884805c734dcdbb7b3794a822b3",
+    "vllm_version": "0.28.1rc1.dev278+g73029d424",
+    "vllm_commit": "73029d42441321b631779db3475031f5ec26dd6c",
+    "model": "/ssd2/models/Qwen/Qwen3.5-4B"
+  },
+  "controls": {
+    "gpu_memory_utilization": 0.3,
+    "max_model_len": 4096,
+    "max_num_seqs": 4,
+    "max_num_batched_tokens": 2048,
+    "mtp_num_speculative_tokens": 2,
+    "prefix_caching": true,
+    "enforce_eager": false,
+    "capture_sizes": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      8,
+      12
+    ],
+    "prompt_protocol": "exact token-ID resend for same prefix/different suffix plus full-prompt resend",
+    "prefix_length_rule": "three runtime-derived scheduler blocks; no assumed block size"
+  },
+  "runs": {
+    "mtp_on": {
+      "run": "mtp-on-cap12-r3",
+      "job": {
+        "argv": [
+          "vllm",
+          "serve",
+          "/ssd2/models/Qwen/Qwen3.5-4B",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "18122",
+          "--served-model-name",
+          "a100-prefix-graph",
+          "--gpu-memory-utilization",
+          "0.30",
+          "--max-model-len",
+          "4096",
+          "--max-num-seqs",
+          "4",
+          "--max-num-batched-tokens",
+          "2048",
+          "--enable-prefix-caching",
+          "--cudagraph-metrics",
+          "--cudagraph-capture-sizes",
+          "1",
+          "2",
+          "3",
+          "4",
+          "6",
+          "8",
+          "12",
+          "--speculative-config",
+          "{\"method\":\"mtp\",\"num_speculative_tokens\":2}"
+        ],
+        "env": {
+          "CUDA_VISIBLE_DEVICES": "GPU-1c2804f0-4d1a-04f0-9686-806ffa6a599f",
+          "VLLM_LOGGING_LEVEL": "DEBUG",
+          "VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS": "1",
+          "MSV_RUNTIME_CAPTURE": "1",
+          "MSV_RUNTIME_OUT": "/ssd2/zhouzijian01/msv-validation-20260922-cudagraph-prefix/a100/mtp-on-cap12-r3",
+          "PYTHONPATH": "/ssd2/zhouzijian01/msv-validation-20260922-cudagraph-prefix/a100/harness",
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1"
+        },
+        "selected_gpu": [
+          "0",
+          "GPU-1c2804f0-4d1a-04f0-9686-806ffa6a599f",
+          "0"
+        ],
+        "startup_timeout": 1500,
+        "mtp": true,
+        "cap": 12
+      },
+      "ok": true,
+      "ready": true,
+      "server_returncode": 0,
+      "request_count": 7,
+      "valid_request_count": 7,
+      "prompt_plan": {
+        "block_sizes": [
+          544,
+          544,
+          544,
+          544
+        ],
+        "alignment_lcm": 544,
+        "common_prefix_tokens": 1632,
+        "common_prefix_sha256": "e84756c841ab61869abcabed03918f024bee68690dacd80f6aa69fd6f453aa37",
+        "plan": [
+          "cold-A",
+          "repeat-A",
+          "different-suffix-B",
+          "repeat-B",
+          "different-suffix-C",
+          "cold-unrelated",
+          "repeat-A-after-unrelated"
+        ]
+      },
+      "requests": [
+        {
+          "label": "cold-A",
+          "status": 200,
+          "prompt_tokens_sent": 1646,
+          "prompt_tokens_reported": 1646,
+          "completion_tokens": 5,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 0.0,
+          "prefix_cache_query_delta": 1646.0,
+          "local_cache_hit_tokens": 0.0
+        },
+        {
+          "label": "repeat-A",
+          "status": 200,
+          "prompt_tokens_sent": 1646,
+          "prompt_tokens_reported": 1646,
+          "completion_tokens": 5,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 0.0,
+          "prefix_cache_query_delta": 1646.0,
+          "local_cache_hit_tokens": 0.0
+        },
+        {
+          "label": "different-suffix-B",
+          "status": 200,
+          "prompt_tokens_sent": 1645,
+          "prompt_tokens_reported": 1645,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1088.0,
+          "prefix_cache_query_delta": 1645.0,
+          "local_cache_hit_tokens": 1088.0
+        },
+        {
+          "label": "repeat-B",
+          "status": 200,
+          "prompt_tokens_sent": 1645,
+          "prompt_tokens_reported": 1645,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1088.0,
+          "prefix_cache_query_delta": 1645.0,
+          "local_cache_hit_tokens": 1088.0
+        },
+        {
+          "label": "different-suffix-C",
+          "status": 200,
+          "prompt_tokens_sent": 1645,
+          "prompt_tokens_reported": 1645,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1088.0,
+          "prefix_cache_query_delta": 1645.0,
+          "local_cache_hit_tokens": 1088.0
+        },
+        {
+          "label": "cold-unrelated",
+          "status": 200,
+          "prompt_tokens_sent": 1641,
+          "prompt_tokens_reported": 1641,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 0.0,
+          "prefix_cache_query_delta": 1641.0,
+          "local_cache_hit_tokens": 0.0
+        },
+        {
+          "label": "repeat-A-after-unrelated",
+          "status": 200,
+          "prompt_tokens_sent": 1646,
+          "prompt_tokens_reported": 1646,
+          "completion_tokens": 5,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1088.0,
+          "prefix_cache_query_delta": 1646.0,
+          "local_cache_hit_tokens": 1088.0
+        }
+      ],
+      "metrics_total_delta": {
+        "vllm:spec_decode_num_accepted_tokens_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 103.0,
+        "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"a100-prefix-graph\",source=\"local_cache_hit\"}": 4352.0,
+        "vllm:cache_config_info{_block_size_resolved=\"True\",block_size=\"544\",cache_dtype=\"auto\",enable_prefix_caching=\"True\",engine=\"0\",gpu_memory_utilization=\"0.3\",is_attention_free=\"False\",kv_cache_dtype_skip_layers=\"[]\",kv_cache_layout=\"None\",kv_cache_max_concurrency=\"34.45\",kv_cache_memory_bytes=\"None\",kv_cache_size_tokens=\"141107\",kv_offloading_backend=\"native\",kv_offloading_size=\"None\",kv_sharing_fast_prefill=\"False\",mamba_block_size=\"544\",mamba_cache_dtype=\"auto\",mamba_cache_mode=\"align\",mamba_page_size_padded=\"None\",mamba_ssm_cache_dtype=\"float32\",num_cpu_blocks=\"None\",num_gpu_blocks=\"689\",num_gpu_blocks_override=\"None\",prefix_cache_retention_interval=\"0\",prefix_caching_hash_algo=\"sha256\",prefix_match_unit=\"None\",replayssm_buffer_len=\"16\",skip_page_size_padded=\"None\",sliding_window=\"None\",use_kda_recoverssm=\"False\",use_replayssm=\"False\",user_specified_block_size=\"False\",user_specified_mamba_block_size=\"False\"}": 0.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"length\",model_name=\"a100-prefix-graph\"}": 4.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"stop\",model_name=\"a100-prefix-graph\"}": 3.0,
+        "vllm:generation_tokens_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 207.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"error\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"a100-prefix-graph\",source=\"external_kv_transfer\"}": 0.0,
+        "vllm:spec_decode_num_accepted_tokens_per_pos_total{engine=\"0\",model_name=\"a100-prefix-graph\",position=\"1\"}": 45.0,
+        "vllm:prefix_cache_hits_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 4352.0,
+        "vllm:prompt_tokens_cached_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 4352.0,
+        "vllm:external_prefix_cache_queries_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:spec_decode_num_accepted_tokens_per_pos_total{engine=\"0\",model_name=\"a100-prefix-graph\",position=\"0\"}": 58.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"abort\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"a100-prefix-graph\",source=\"local_compute\"}": 7162.0,
+        "vllm:prompt_tokens_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 11514.0,
+        "vllm:prefix_cache_queries_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 11514.0,
+        "vllm:spec_decode_num_draft_tokens_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 194.0,
+        "vllm:spec_decode_num_drafts_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 97.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"repetition\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:external_prefix_cache_hits_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 0.0
+      },
+      "runtime_detail": {
+        "native_profile_cudagraph_memory_bytes": 176160768,
+        "capture_model_return_values_bytes": [
+          167772160,
+          121634816
+        ],
+        "worker_memory": {
+          "available_kv_cache_memory_bytes": 13828452660,
+          "cudagraph_memory_estimate": 176160768,
+          "requested_memory": 25528447796,
+          "peak_activation_memory": 1996472832,
+          "total_consumed": 9703522304
+        },
+        "compile_memory": {
+          "available_kv_cache_memory_bytes": 13828452660,
+          "cudagraph_memory_estimate": 176160768,
+          "requested_memory": 25528447796,
+          "peak_activation_memory": 1996472832,
+          "total_consumed": 9703522304
+        },
+        "effective_compilation": {
+          "mode": 3,
+          "cudagraph_mode": "FULL_AND_PIECEWISE",
+          "cudagraph_capture_sizes": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            8,
+            12
+          ],
+          "max_cudagraph_capture_size": 12
+        },
+        "cache_config": {
+          "block_size": 544,
+          "mamba_block_size": 544,
+          "mamba_cache_mode": "align",
+          "num_gpu_blocks": 689,
+          "kv_cache_size_tokens": 141107,
+          "kv_cache_max_concurrency": 34.45,
+          "gpu_memory_utilization": 0.3,
+          "enable_prefix_caching": true
+        },
+        "coordinator": {
+          "hash_block_size": 544,
+          "scheduler_block_size": 544,
+          "enable_partial_hash_hits": false,
+          "_cache_hit_alignment_tokens": 544,
+          "eagle_group_ids": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "return_value": null
+        },
+        "actual_graph_pool_bytes": 121634816,
+        "profiling_capture_sample_bytes": 167772160,
+        "actual_capture_descriptors_tokens": {
+          "target:PIECEWISE:uniform_token_count=None": [
+            12,
+            8,
+            6,
+            4,
+            3,
+            2,
+            1
+          ],
+          "target:FULL:uniform_token_count=3": [
+            12,
+            9,
+            6,
+            3
+          ],
+          "draft-prefill:PIECEWISE:uniform_token_count=None": [
+            12,
+            8,
+            6,
+            4,
+            3,
+            2,
+            1
+          ],
+          "draft-prefill:FULL:uniform_token_count=3": [
+            12,
+            9,
+            6,
+            3
+          ],
+          "draft-decode:FULL:uniform_token_count=1": [
+            4,
+            3,
+            2,
+            1
+          ]
+        },
+        "nvml_gpu0_after_start_mib": 23085,
+        "cached_tokens_response_field": null,
+        "cached_tokens_evidence": "API usage.prompt_tokens_details was null; use three agreeing Prometheus counters.",
+        "max_model_len": 4096
+      },
+      "log_facts": {
+        "unannotated_eagle_mamba_warning_count": 2,
+        "warning_lines": [
+          "(EngineCore pid=103129) WARNING 09-22 02:29:06 [v1/core/kv_cache_utils.py:1893] Speculative decoding (method=mtp) is enabled but no KV cache group could be identified as the draft model's, so every group -- including Mamba groups [0, 1, 2] -- will be treated as a draft group. A Mamba group cannot satisfy the widened lookup window that implies, so prefix-cache reuse across requests will be disabled and any external KV offload tier will store without ever serving a hit.",
+          "(EngineCore pid=103129) WARNING 09-22 02:29:08 [v1/core/kv_cache_utils.py:1893] Speculative decoding (method=mtp) is enabled but no KV cache group could be identified as the draft model's, so every group -- including Mamba groups [0, 1, 2] -- will be treated as a draft group. A Mamba group cannot satisfy the widened lookup window that implies, so prefix-cache reuse across requests will be disabled and any external KV offload tier will store without ever serving a hit."
+        ],
+        "graph_pool_lines": [
+          "(EngineCore pid=103129) INFO 09-22 02:29:12 [v1/worker/gpu_worker.py:801] CUDA graph pool memory: 0.11 GiB (actual), 0.16 GiB (estimated), difference: 0.05 GiB (44.8%)."
+        ],
+        "available_kv_lines": [
+          "(EngineCore pid=103129) INFO 09-22 02:29:08 [v1/worker/gpu_worker.py:629] Available KV cache memory: 12.88 GiB"
+        ],
+        "gpu_kv_lines": [
+          "(EngineCore pid=103129) INFO 09-22 02:29:08 [v1/core/kv_cache_utils.py:2042] GPU KV cache size: 141,107 tokens, Maximum concurrency for 4,096 tokens per request: 34.45x"
+        ],
+        "graph_finish_lines": [
+          "(EngineCore pid=103129) INFO 09-22 02:29:07 [v1/worker/gpu/model_runner.py:973] Graph capturing finished in 1 secs, took 0.16 GiB",
+          "(EngineCore pid=103129) INFO 09-22 02:29:12 [v1/worker/gpu/model_runner.py:973] Graph capturing finished in 4 secs, took 0.11 GiB"
+        ],
+        "engine_dead_error_count": 1
+      },
+      "metrics_consistency": {
+        "all_pass": true,
+        "requests": [
+          {
+            "request": "cold-A",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "repeat-A",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "different-suffix-B",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "repeat-B",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "different-suffix-C",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "cold-unrelated",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "repeat-A-after-unrelated",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          }
+        ],
+        "totals": {
+          "vllm:prefix_cache_queries_total": {
+            "sum_request_deltas": 11514.0,
+            "final_minus_initial": 11514.0
+          },
+          "vllm:prefix_cache_hits_total": {
+            "sum_request_deltas": 4352.0,
+            "final_minus_initial": 4352.0
+          },
+          "vllm:prompt_tokens_cached_total": {
+            "sum_request_deltas": 4352.0,
+            "final_minus_initial": 4352.0
+          },
+          "vllm:prompt_tokens_total": {
+            "sum_request_deltas": 11514.0,
+            "final_minus_initial": 11514.0
+          },
+          "vllm:generation_tokens_total": {
+            "sum_request_deltas": 207.0,
+            "final_minus_initial": 207.0
+          },
+          "vllm:request_success_total": {
+            "sum_request_deltas": 7.0,
+            "final_minus_initial": 7.0
+          }
+        }
+      }
+    },
+    "mtp_off": {
+      "run": "mtp-off-cap12",
+      "job": {
+        "argv": [
+          "vllm",
+          "serve",
+          "/ssd2/models/Qwen/Qwen3.5-4B",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "18122",
+          "--served-model-name",
+          "a100-prefix-graph",
+          "--gpu-memory-utilization",
+          "0.30",
+          "--max-model-len",
+          "4096",
+          "--max-num-seqs",
+          "4",
+          "--max-num-batched-tokens",
+          "2048",
+          "--enable-prefix-caching",
+          "--cudagraph-metrics",
+          "--cudagraph-capture-sizes",
+          "1",
+          "2",
+          "3",
+          "4",
+          "6",
+          "8",
+          "12"
+        ],
+        "env": {
+          "CUDA_VISIBLE_DEVICES": "GPU-1c2804f0-4d1a-04f0-9686-806ffa6a599f",
+          "VLLM_LOGGING_LEVEL": "DEBUG",
+          "VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS": "1",
+          "MSV_RUNTIME_CAPTURE": "1",
+          "MSV_RUNTIME_OUT": "/ssd2/zhouzijian01/msv-validation-20260922-cudagraph-prefix/a100/mtp-off-cap12",
+          "PYTHONPATH": "/ssd2/zhouzijian01/msv-validation-20260922-cudagraph-prefix/a100/harness",
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1"
+        },
+        "selected_gpu": [
+          "0",
+          "GPU-1c2804f0-4d1a-04f0-9686-806ffa6a599f",
+          "0"
+        ],
+        "startup_timeout": 1500,
+        "mtp": false,
+        "cap": 12
+      },
+      "ok": true,
+      "ready": true,
+      "server_returncode": 0,
+      "request_count": 7,
+      "valid_request_count": 7,
+      "prompt_plan": {
+        "block_sizes": [
+          528,
+          528,
+          528,
+          528
+        ],
+        "alignment_lcm": 528,
+        "common_prefix_tokens": 1584,
+        "common_prefix_sha256": "4cfad468bc52c58536dc9af62447123854b5423ee4a0f1d260907ef0ad2770ee",
+        "plan": [
+          "cold-A",
+          "repeat-A",
+          "different-suffix-B",
+          "repeat-B",
+          "different-suffix-C",
+          "cold-unrelated",
+          "repeat-A-after-unrelated"
+        ]
+      },
+      "requests": [
+        {
+          "label": "cold-A",
+          "status": 200,
+          "prompt_tokens_sent": 1598,
+          "prompt_tokens_reported": 1598,
+          "completion_tokens": 5,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 0.0,
+          "prefix_cache_query_delta": 1598.0,
+          "local_cache_hit_tokens": 0.0
+        },
+        {
+          "label": "repeat-A",
+          "status": 200,
+          "prompt_tokens_sent": 1598,
+          "prompt_tokens_reported": 1598,
+          "completion_tokens": 5,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1584.0,
+          "prefix_cache_query_delta": 1598.0,
+          "local_cache_hit_tokens": 1584.0
+        },
+        {
+          "label": "different-suffix-B",
+          "status": 200,
+          "prompt_tokens_sent": 1597,
+          "prompt_tokens_reported": 1597,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1584.0,
+          "prefix_cache_query_delta": 1597.0,
+          "local_cache_hit_tokens": 1584.0
+        },
+        {
+          "label": "repeat-B",
+          "status": 200,
+          "prompt_tokens_sent": 1597,
+          "prompt_tokens_reported": 1597,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1584.0,
+          "prefix_cache_query_delta": 1597.0,
+          "local_cache_hit_tokens": 1584.0
+        },
+        {
+          "label": "different-suffix-C",
+          "status": 200,
+          "prompt_tokens_sent": 1597,
+          "prompt_tokens_reported": 1597,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1584.0,
+          "prefix_cache_query_delta": 1597.0,
+          "local_cache_hit_tokens": 1584.0
+        },
+        {
+          "label": "cold-unrelated",
+          "status": 200,
+          "prompt_tokens_sent": 1593,
+          "prompt_tokens_reported": 1593,
+          "completion_tokens": 48,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 0.0,
+          "prefix_cache_query_delta": 1593.0,
+          "local_cache_hit_tokens": 0.0
+        },
+        {
+          "label": "repeat-A-after-unrelated",
+          "status": 200,
+          "prompt_tokens_sent": 1598,
+          "prompt_tokens_reported": 1598,
+          "completion_tokens": 5,
+          "valid_nonempty": true,
+          "prefix_cache_hit_tokens": 1584.0,
+          "prefix_cache_query_delta": 1598.0,
+          "local_cache_hit_tokens": 1584.0
+        }
+      ],
+      "metrics_total_delta": {
+        "vllm:external_prefix_cache_queries_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"a100-prefix-graph\",source=\"local_cache_hit\"}": 7920.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"abort\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"a100-prefix-graph\",source=\"local_compute\"}": 3258.0,
+        "vllm:prompt_tokens_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 11178.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"length\",model_name=\"a100-prefix-graph\"}": 4.0,
+        "vllm:external_prefix_cache_hits_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"stop\",model_name=\"a100-prefix-graph\"}": 3.0,
+        "vllm:generation_tokens_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 207.0,
+        "vllm:prefix_cache_queries_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 11178.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"error\",model_name=\"a100-prefix-graph\"}": 0.0,
+        "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"a100-prefix-graph\",source=\"external_kv_transfer\"}": 0.0,
+        "vllm:cache_config_info{_block_size_resolved=\"True\",block_size=\"528\",cache_dtype=\"auto\",enable_prefix_caching=\"True\",engine=\"0\",gpu_memory_utilization=\"0.3\",is_attention_free=\"False\",kv_cache_dtype_skip_layers=\"[]\",kv_cache_layout=\"None\",kv_cache_max_concurrency=\"48.57142857142857\",kv_cache_memory_bytes=\"None\",kv_cache_size_tokens=\"198948\",kv_offloading_backend=\"native\",kv_offloading_size=\"None\",kv_sharing_fast_prefill=\"False\",mamba_block_size=\"528\",mamba_cache_dtype=\"auto\",mamba_cache_mode=\"align\",mamba_page_size_padded=\"None\",mamba_ssm_cache_dtype=\"float32\",num_cpu_blocks=\"None\",num_gpu_blocks=\"680\",num_gpu_blocks_override=\"None\",prefix_cache_retention_interval=\"0\",prefix_caching_hash_algo=\"sha256\",prefix_match_unit=\"None\",replayssm_buffer_len=\"16\",skip_page_size_padded=\"None\",sliding_window=\"None\",use_kda_recoverssm=\"False\",use_replayssm=\"False\",user_specified_block_size=\"False\",user_specified_mamba_block_size=\"False\"}": 0.0,
+        "vllm:prefix_cache_hits_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 7920.0,
+        "vllm:prompt_tokens_cached_total{engine=\"0\",model_name=\"a100-prefix-graph\"}": 7920.0,
+        "vllm:request_success_total{engine=\"0\",finished_reason=\"repetition\",model_name=\"a100-prefix-graph\"}": 0.0
+      },
+      "runtime_detail": {
+        "native_profile_cudagraph_memory_bytes": 83886080,
+        "capture_model_return_values_bytes": [
+          75497472,
+          35651584
+        ],
+        "worker_memory": {
+          "available_kv_cache_memory_bytes": 11771146548,
+          "cudagraph_memory_estimate": 83886080,
+          "requested_memory": 25528447796,
+          "peak_activation_memory": 1904198144,
+          "total_consumed": 11853103104
+        },
+        "compile_memory": {
+          "available_kv_cache_memory_bytes": 11771146548,
+          "cudagraph_memory_estimate": 83886080,
+          "requested_memory": 25528447796,
+          "peak_activation_memory": 1904198144,
+          "total_consumed": 11853103104
+        },
+        "effective_compilation": {
+          "mode": 3,
+          "cudagraph_mode": "FULL_AND_PIECEWISE",
+          "cudagraph_capture_sizes": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            8,
+            12
+          ],
+          "max_cudagraph_capture_size": 12
+        },
+        "cache_config": {
+          "block_size": 528,
+          "mamba_block_size": 528,
+          "mamba_cache_mode": "align",
+          "num_gpu_blocks": 680,
+          "kv_cache_size_tokens": 198948,
+          "kv_cache_max_concurrency": 48.57142857142857,
+          "gpu_memory_utilization": 0.3,
+          "enable_prefix_caching": true
+        },
+        "coordinator": {
+          "hash_block_size": 528,
+          "scheduler_block_size": 528,
+          "enable_partial_hash_hits": false,
+          "_cache_hit_alignment_tokens": 528,
+          "eagle_group_ids": [],
+          "return_value": null
+        },
+        "actual_graph_pool_bytes": 35651584,
+        "profiling_capture_sample_bytes": 75497472,
+        "actual_capture_descriptors_tokens": {
+          "target:PIECEWISE:uniform_token_count=None": [
+            12,
+            8,
+            6,
+            4,
+            3,
+            2,
+            1
+          ],
+          "target:FULL:uniform_token_count=1": [
+            4,
+            3,
+            2,
+            1
+          ]
+        },
+        "nvml_gpu0_after_start_mib": 23057,
+        "cached_tokens_response_field": null,
+        "cached_tokens_evidence": "API usage.prompt_tokens_details was null; use three agreeing Prometheus counters.",
+        "max_model_len": 4096
+      },
+      "log_facts": {
+        "unannotated_eagle_mamba_warning_count": 0,
+        "warning_lines": [],
+        "graph_pool_lines": [
+          "(EngineCore pid=104459) INFO 09-22 02:34:04 [v1/worker/gpu_worker.py:801] CUDA graph pool memory: 0.03 GiB (actual), 0.08 GiB (estimated), difference: 0.04 GiB (135.3%)."
+        ],
+        "available_kv_lines": [
+          "(EngineCore pid=104459) INFO 09-22 02:34:02 [v1/worker/gpu_worker.py:629] Available KV cache memory: 10.96 GiB"
+        ],
+        "gpu_kv_lines": [
+          "(EngineCore pid=104459) INFO 09-22 02:34:02 [v1/core/kv_cache_utils.py:2042] GPU KV cache size: 198,948 tokens, Maximum concurrency for 4,096 tokens per request: 48.57x"
+        ],
+        "graph_finish_lines": [
+          "(EngineCore pid=104459) INFO 09-22 02:34:02 [v1/worker/gpu/model_runner.py:973] Graph capturing finished in 4 secs, took 0.07 GiB",
+          "(EngineCore pid=104459) INFO 09-22 02:34:04 [v1/worker/gpu/model_runner.py:973] Graph capturing finished in 2 secs, took 0.03 GiB"
+        ],
+        "engine_dead_error_count": 1
+      },
+      "metrics_consistency": {
+        "all_pass": true,
+        "requests": [
+          {
+            "request": "cold-A",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "repeat-A",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "different-suffix-B",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "repeat-B",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "different-suffix-C",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "cold-unrelated",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          },
+          {
+            "request": "repeat-A-after-unrelated",
+            "query_matches_prompt_tokens": true,
+            "three_cache_counters_agree": true,
+            "compute_plus_cache_equals_prompt": true,
+            "completion_tokens_match_metric": true,
+            "one_success": true,
+            "counter_continuity": true,
+            "common_prefix_verified": true
+          }
+        ],
+        "totals": {
+          "vllm:prefix_cache_queries_total": {
+            "sum_request_deltas": 11178.0,
+            "final_minus_initial": 11178.0
+          },
+          "vllm:prefix_cache_hits_total": {
+            "sum_request_deltas": 7920.0,
+            "final_minus_initial": 7920.0
+          },
+          "vllm:prompt_tokens_cached_total": {
+            "sum_request_deltas": 7920.0,
+            "final_minus_initial": 7920.0
+          },
+          "vllm:prompt_tokens_total": {
+            "sum_request_deltas": 11178.0,
+            "final_minus_initial": 11178.0
+          },
+          "vllm:generation_tokens_total": {
+            "sum_request_deltas": 207.0,
+            "final_minus_initial": 207.0
+          },
+          "vllm:request_success_total": {
+            "sum_request_deltas": 7.0,
+            "final_minus_initial": 7.0
+          }
+        }
+      }
+    }
+  },
+  "interpretation": {
+    "warning_is_not_hit_proof": true,
+    "mtp_on_result": "Nonzero local prefix-cache reuse was measured despite the old unannotated-eagle/Mamba warning. Hits: 0, 0, 1088, 1088, 1088, 0, 1088 in request order. The first full repeat-A miss followed by later hits is preserved as sequence evidence; it is consistent with a first-hit/retention or boundary effect candidate, not proof of genuine zero reuse.",
+    "mtp_off_result": "Prefix-cache reuse measured without speculative decoding: 0, 1584, 1584, 1584, 1584, 0, 1584 in request order.",
+    "mamba_semantics": "Runtime coordinator capture exposed eagle_group_ids [0,1,2,3] in MTP-on fallback, but source audit in stale-warning-upstream-fix.patch/current coordinator logic preserves Mamba no-eagle-drop behavior. This report does not claim the warning consequence is correct.",
+    "version_confound": "The H20 comparison is not a GPU-only comparison because the reported H20 vLLM build is newer; A100 and H20 conclusions must be treated as version/configuration-confounded.",
+    "graph_memory_rule": "Graph memory is reported only from native vLLM actual/estimated pool evidence and capture_model/profile return values. No whole-NVML subtraction was used; KV budget is reported separately.",
+    "mtp_on_first_repeat_root_cause": "Not established. A first-hit underregistration/retention/boundary effect is a hypothesis, not a measured causal explanation.",
+    "cross_gpu_version_note": "Main-agent-reported H20 0.29.1rc1.dev397+ga8d1aa9c9; not accessed or independently validated here."
+  },
+  "cleanup": {
+    "timestamp": 1790045026.0806327,
+    "owned_groups": [
+      {
+        "scenario": "mtp-on-cap12",
+        "pid": 101472,
+        "pgid": 101472,
+        "remaining_members": [],
+        "clean": true
+      },
+      {
+        "scenario": "mtp-on-cap12-r3",
+        "pid": 102788,
+        "pgid": 102788,
+        "remaining_members": [],
+        "clean": true
+      },
+      {
+        "scenario": "mtp-off-cap12",
+        "pid": 104118,
+        "pgid": 104118,
+        "remaining_members": [],
+        "clean": true
+      }
+    ],
+    "all_owned_groups_clean": true,
+    "port": 18122,
+    "final_inventory": "host-final.txt",
+    "note": "Final namespace-correct PID/PGID check. Historical DPCoordinator PID 91261 and resource_tracker PID 91260 predate task and were preserved.",
+    "ssh_close_evidence": "2026-09-22 Asia/Shanghai: own SSH session 83399 closed after final artifact upload. Output: Connection to 10.55.87.81 closed; Shared connection to relay.baidu-int.com closed. Unified exec return code 0. vllm-0920 verified running immediately before exit; all 8 GPUs 0 MiB, no own service process-group members, no listener on 18122.\n"
+  },
+  "provenance": {
+    "historical_input": "/ssd2/zhouzijian01/msv-validation-20260922/a100-evidence-final2.tar.gz",
+    "remote_artifact_root": "/ssd2/zhouzijian01/msv-validation-20260922-cudagraph-prefix/a100",
+    "source_audit_files": [
+      "source/v1/worker/gpu/cudagraph_utils.py",
+      "source/v1/worker/gpu/model_runner.py",
+      "source/v1/worker/gpu_worker.py",
+      "stale-warning-upstream-fix.patch"
+    ],
+    "no_source_patch_applied": true,
+    "local_artifact_root": "/Users/zhouzijian01/Desktop/workspace/code/kinchow/model-structure-viewer/artifacts/framework-runtime-validation/20260922-cudagraph-prefix/a100",
+    "source_verification": {
+      "commit": "73029d42441321b631779db3475031f5ec26dd6c",
+      "files": [
+        {
+          "file": "config/compilation.py",
+          "container_sha256": "3a79ea08d48d44879ac8cbfee1c7d88f9bd72927d9bd12eee31743e8da8a4d7e",
+          "git_blob_sha256": "3a79ea08d48d44879ac8cbfee1c7d88f9bd72927d9bd12eee31743e8da8a4d7e",
+          "match": true
+        },
+        {
+          "file": "config/vllm.py",
+          "container_sha256": "06b918459d5ab7694bd32fbf4e2b16a576757502d737db7197e8b0d2a1076c6e",
+          "git_blob_sha256": "06b918459d5ab7694bd32fbf4e2b16a576757502d737db7197e8b0d2a1076c6e",
+          "match": true
+        },
+        {
+          "file": "envs.py",
+          "container_sha256": "d5461b05585fad03821dcc12a2b74ea73dc5412459c4d3fdfbaf48a1a71ff3d3",
+          "git_blob_sha256": "d5461b05585fad03821dcc12a2b74ea73dc5412459c4d3fdfbaf48a1a71ff3d3",
+          "match": true
+        },
+        {
+          "file": "model_executor/models/config.py",
+          "container_sha256": "16b86e59a53b008fa89f48868cd631bdcee046a684eb81d142ea6ba3815443e9",
+          "git_blob_sha256": "16b86e59a53b008fa89f48868cd631bdcee046a684eb81d142ea6ba3815443e9",
+          "match": true
+        },
+        {
+          "file": "platforms/interface.py",
+          "container_sha256": "0a32e16fefe1e53ec721b06cfa8cbaba92310cf1c6a45a746d477fd45e041d10",
+          "git_blob_sha256": "0a32e16fefe1e53ec721b06cfa8cbaba92310cf1c6a45a746d477fd45e041d10",
+          "match": true
+        },
+        {
+          "file": "v1/core/kv_cache_coordinator.py",
+          "container_sha256": "43883199a6230b4d9efd98b9702007862e2cfa5466a2dc0326bfd1e69b3e7617",
+          "git_blob_sha256": "43883199a6230b4d9efd98b9702007862e2cfa5466a2dc0326bfd1e69b3e7617",
+          "match": true
+        },
+        {
+          "file": "v1/core/kv_cache_utils.py",
+          "container_sha256": "6611d45ed5dd0477dacd42011888ba3c8da3886b048805afeb2c14933261ba6d",
+          "git_blob_sha256": "6611d45ed5dd0477dacd42011888ba3c8da3886b048805afeb2c14933261ba6d",
+          "match": true
+        },
+        {
+          "file": "v1/core/single_type_kv_cache_manager.py",
+          "container_sha256": "c31eaebcb2313a6f2e12effbe05d32aa0d1353ed51cabe4d5eba8b31000c313b",
+          "git_blob_sha256": "c31eaebcb2313a6f2e12effbe05d32aa0d1353ed51cabe4d5eba8b31000c313b",
+          "match": true
+        },
+        {
+          "file": "v1/cudagraph_dispatcher.py",
+          "container_sha256": "51f632753af729aeee6ce4a802d9d74b64f22eef02a524f36e2a24b07ef0cf63",
+          "git_blob_sha256": "51f632753af729aeee6ce4a802d9d74b64f22eef02a524f36e2a24b07ef0cf63",
+          "match": true
+        },
+        {
+          "file": "v1/worker/gpu/cudagraph_utils.py",
+          "container_sha256": "024d0570b1808c2baa47ac0ebeb5407eeaf8dcaa847f55e844769038cc48caad",
+          "git_blob_sha256": "024d0570b1808c2baa47ac0ebeb5407eeaf8dcaa847f55e844769038cc48caad",
+          "match": true
+        },
+        {
+          "file": "v1/worker/gpu/model_runner.py",
+          "container_sha256": "5c72998ac7a3aa97ff31ed5e5576d9bcd27c79656e3989e3c00e5adf6e3bdfa6",
+          "git_blob_sha256": "5c72998ac7a3aa97ff31ed5e5576d9bcd27c79656e3989e3c00e5adf6e3bdfa6",
+          "match": true
+        },
+        {
+          "file": "v1/worker/gpu_model_runner.py",
+          "container_sha256": "d620deb484fee968aeefefcf8cc901cf2665118e1a2415ee1bb906fd697b3054",
+          "git_blob_sha256": "d620deb484fee968aeefefcf8cc901cf2665118e1a2415ee1bb906fd697b3054",
+          "match": true
+        },
+        {
+          "file": "v1/worker/gpu_worker.py",
+          "container_sha256": "8fc6f20b99474d05e92958df9cb1a5458f21d6ca4ea0902a03a72d33a52f5291",
+          "git_blob_sha256": "8fc6f20b99474d05e92958df9cb1a5458f21d6ca4ea0902a03a72d33a52f5291",
+          "match": true
+        }
+      ],
+      "all_match": true
+    },
+    "transfer": {
+      "source_host": "10.55.87.81",
+      "source_path": "/ssd2/zhouzijian01/msv-validation-20260922-cudagraph-prefix/a100/a100-live-evidence.tar.gz",
+      "bos_uri": "bos:/aihc-private-hcd/zhouzijian01/attn-moe-test/a100-cudagraph-prefix-20260922-live-evidence.tar.gz",
+      "local_path": "/Users/zhouzijian01/Desktop/workspace/code/kinchow/model-structure-viewer/artifacts/framework-runtime-validation/20260922-cudagraph-prefix/a100/a100-live-evidence.tar.gz",
+      "sha256": "04a29cbbe7fbe7424b9f8c7318f62031d0dabd8211011947a84a3a34140ee401",
+      "receiver_checksum_verified": true,
+      "note": "Unrelated connection tokens in ps argument snapshots were redacted before final packaging. Earlier progress1 object was replaced with the sanitized version."
+    },
+    "final_archive": {
+      "path": "/Users/zhouzijian01/Desktop/workspace/code/kinchow/model-structure-viewer/artifacts/framework-runtime-validation/20260922-cudagraph-prefix/a100/a100-live-evidence-final.tar.gz",
+      "sha256": "65efa643f6a565087ed9125c2cbeebbf35e159f55391269bc3bd85bf414e416d",
+      "receiver_checksum_verified": true,
+      "note": "Archive snapshot predates SSH exit; local ssh-session-close.txt and summaries confirm the subsequent close."
+    }
+  },
+  "validation_boundary": {
+    "completed": "Two successful native graph/prefix-cache controls; 14 HTTP 200 requests.",
+    "not_tested": [
+      "H20 by this agent",
+      "third graph-cap variation",
+      "external KV offload",
+      "accuracy benchmark",
+      "performance benchmark",
+      "production concurrency",
+      "exact root cause of the first MTP-on repeat-A miss",
+      "per-request graph replay counts (not exposed in collected metrics)"
+    ],
+    "output_caveat": "All outputs were nonempty and contained no replacement character; Paris was returned for A, BLUE for the unrelated control. Four requests per run reached the 48-token limit; B/C include truncated reasoning, not completed answer proofs.",
+    "cross_run_prompt_caveat": "Same text recipe but runtime-derived block sizes differ: 544 vs 528. Prompts are 1632 vs 1584 prefix tokens, not identical-length cross-run workloads.",
+    "shutdown_caveat": "Both logs contain EngineDeadError after deliberate process-group SIGTERM and framework shutdown; all requests completed before this and both server return codes were zero. The errors are retained, not hidden.",
+    "early_attempts": [
+      "mtp-on-cap12 captured graphs and became ready, but an optional /server_info 404 stopped the first harness before requests; its logs/result are retained.",
+      "mtp-on-cap12-r2 never launched a server: an intermediate harness SyntaxError was fixed and py_compile succeeded before mtp-on-cap12-r3."
+    ]
+  }
+}

@@ -1502,7 +1502,7 @@ label {
 .detail-page.theme-light .cost-breakdown span, .detail-page.theme-light .cost-metrics span, .detail-page.theme-light .cost-stages span, .detail-page.theme-light .cost-domain-breakdown span { border-color: #dce3eb; background: #f6f8fa; color: #526172; }
 .detail-page .manual-chip { position: relative; }
 .detail-page .manual-chip-form { left: 0; right: auto; top: 34px; z-index: 20; max-height: min(520px, calc(100vh - 180px)); overflow: auto; background: #151c26; border-color: #344154; color: #dce5ee; }
-.detail-page.theme-light .manual-chip-form { background: #fff; border-color: #dce3eb; color: #19212c; }
+.manual-chip-backdrop.theme-light .manual-chip-form { background: #fff; border-color: #dce3eb; color: #19212c; }
 @media (max-width: 640px) { .cost-config-grid label, .cost-plan-fields label { min-width: calc(50% - 5px); } .cost-machine-summary { align-items: flex-start; flex-direction: column; } }
 
 /* Model entry workspace */
@@ -1681,3 +1681,152 @@ label {
 .diagnostics-meta { padding: 2px 10px 6px; color: #6f8098; font-size: 12px; }
 .cost-coverage-warn { color: #e0b56a; }
 .cost-weight-source b { color: #9fb3cc; font-weight: 600; }
+
+/* Compact deployment controls: keep the summary reachable while the diagram scrolls. */
+.detail-cost-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  padding: 4px 0;
+  background: linear-gradient(#0d1117 78%, transparent);
+}
+.detail-page.theme-light .detail-cost-toggle { background: linear-gradient(#f5f8fb 78%, transparent); }
+.cost-config-section { border: 1px solid #273444; border-radius: 7px; padding: 0; overflow: hidden; }
+.cost-config-section-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 10px;
+  background: #151e29;
+  color: #b9c6d4;
+  text-align: left;
+}
+.cost-config-section-toggle:hover { border-color: transparent; background: #1b2734; }
+.cost-config-section-toggle h4 { margin: 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.cost-config-section-toggle > span { color: #f4ab52; font-size: 16px; line-height: 1; }
+.cost-config-section-body { padding: 10px; }
+.cost-config-section:not(.is-open) .cost-config-section-toggle { color: #8d9aaa; }
+.cost-plan-fields .cost-check,
+.cost-config-grid .cost-check { display: flex !important; min-width: 150px; align-items: center; grid-template-columns: none; gap: 7px; }
+.cost-config-grid input[type="checkbox"],
+.cost-plan-fields input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px;
+  min-height: 16px !important;
+  flex: 0 0 16px;
+  margin: 0;
+  padding: 0 !important;
+  accent-color: #f4ab52;
+}
+.cost-vocab-field { min-width: 132px !important; }
+.world-size-field { min-width: 112px !important; }
+.world-size-field output { display: inline-flex; align-items: center; min-height: 31px; border: 1px solid #344154; border-radius: 5px; padding: 6px 7px; background: #121923; color: #e2e9f0; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.detail-page.theme-light .cost-config-section { border-color: #dce3eb; }
+.detail-page.theme-light .cost-config-section-toggle { background: #f6f8fa; color: #19212c; }
+.detail-page.theme-light .cost-config-section-toggle:hover { background: #edf3f8; }
+.detail-page.theme-light .world-size-field output { border-color: #dce3eb; background: #f6f8fa; color: #364555; }
+
+/* The model overview is useful on demand, but should not consume the first screen. */
+.detail-summary { padding-top: 6px; }
+.summary-disclosure { max-width: 1440px; margin: 0 auto; }
+.summary-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 2px 8px;
+  cursor: pointer;
+  color: #9aa8b8;
+  font-size: 11px;
+  list-style-position: inside;
+}
+.summary-disclosure > summary::marker { color: #f4ab52; }
+.summary-disclosure > summary span { color: #6f8098; font-size: 10px; }
+.summary-disclosure[open] > summary span { color: #f4ab52; }
+.detail-page.theme-light .summary-disclosure > summary { color: #657386; }
+.detail-page.theme-light .summary-disclosure > summary span { color: #8291a3; }
+
+/* Custom chip entry is a centered dialog rather than a clipped popover in a toolbar. */
+.manual-chip-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overscroll-behavior: none;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(6, 10, 16, .62);
+}
+.manual-chip-form {
+  position: relative !important;
+  inset: auto !important;
+  width: min(620px, 100%);
+  max-height: min(680px, calc(100dvh - 40px)) !important;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 16px;
+  border: 1px solid #3b4b61;
+  border-radius: 10px;
+  background: #151e29;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .48);
+}
+.manual-chip-form-header,
+.manual-chip-source,
+.manual-chip-error,
+.manual-chip-actions { grid-column: 1 / -1; }
+.manual-chip-form-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 4px; border-bottom: 1px solid #2a3545; }
+.manual-chip-form-header div { display: grid; gap: 4px; }
+.manual-chip-form-header strong { color: #edf2f7; font-size: 14px; }
+.manual-chip-form-header span { color: #8190a2; font-size: 10px; }
+.manual-chip-form .manual-chip-close { width: 28px; height: 28px; padding: 0; border-color: #344154; background: transparent; color: #aebaca; font-size: 19px; line-height: 1; }
+.manual-chip-form label { display: grid; gap: 5px; min-width: 0; color: #8d9aaa; font-size: 10px; }
+.manual-chip-form input { width: 100%; min-height: 32px; padding: 6px 8px; border-color: #344154; border-radius: 5px; background: #121923; color: #e2e9f0; font-size: 11px; }
+.manual-chip-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.manual-chip-actions button { min-height: 32px; padding: 6px 12px; }
+.manual-chip-actions .manual-chip-cancel { border-color: #344154; background: transparent; color: #aebaca; }
+.manual-chip-error { margin: 0; }
+.manual-chip-backdrop.theme-light { background: rgba(31, 47, 64, .3); }
+.manual-chip-backdrop.theme-light .manual-chip-form { border-color: #dce3eb; background: #fff; box-shadow: 0 20px 60px rgba(31,47,64,.2); }
+.manual-chip-backdrop.theme-light .manual-chip-form-header { border-color: #dce3eb; }
+.manual-chip-backdrop.theme-light .manual-chip-form-header strong { color: #19212c; }
+.manual-chip-backdrop.theme-light .manual-chip-form input { border-color: #dce3eb; background: #f6f8fa; color: #364555; }
+.manual-chip-backdrop.theme-light .manual-chip-form .manual-chip-close { border-color: #dce3eb; color: #657386; }
+@media (max-width: 640px) {
+  .manual-chip-backdrop { padding: 10px; }
+  .manual-chip-form { grid-template-columns: 1fr; max-height: calc(100dvh - 20px) !important; padding: 14px; }
+  .manual-chip-form-header, .manual-chip-source, .manual-chip-error, .manual-chip-actions { grid-column: auto; }
+  .manual-chip-source, .manual-chip-error, .manual-chip-actions { grid-column: 1; }
+}
+.summary-preview { margin-left: auto; margin-right: 8px; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.cost-config-section-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cost-config-section-body[hidden] { display: none; }
+.world-size-field small { color: #718096; font-size: 9px; }
+
+/* Keep custom hardware as a quiet secondary action next to the GPU selector. */
+.cost-gpu-field { min-width: min(360px, 100%) !important; }
+.cost-gpu-select-row { display: flex; align-items: center; gap: 6px; }
+.cost-gpu-select-row select { min-width: 0; flex: 1 1 auto; }
+.cost-gpu-select-row .manual-chip { flex: 0 0 auto; }
+.manual-chip-trigger { border-color: #344154; background: transparent; color: #aebaca; }
+.manual-chip-trigger:hover:not(:disabled) { border-color: #f4ab52; background: rgba(244,171,82,.08); color: #f4ab52; }
+.detail-page .cost-gpu-select-row .manual-chip-trigger { min-height: 31px; padding: 5px 8px; border-radius: 5px; font-size: 10px; white-space: nowrap; }
+.detail-page.theme-light .manual-chip-trigger { border-color: #cbd6e0; background: transparent; color: #657386; }
+.detail-page.theme-light .manual-chip-trigger:hover:not(:disabled) { border-color: #c58b45; background: rgba(197,139,69,.08); color: #a9621d; }
+
+/* Chunk Prefill is a workload option, not a PD-only option. */
+
+/* Portal 不再继承 detail-page：弹窗的标签布局、主题、焦点样式独立定义。 */
+.manual-chip-backdrop .manual-chip-form label { grid-template-columns: minmax(0, 1fr); }
+.manual-chip-backdrop .manual-chip-form { color: #dce5ee; }
+.manual-chip-backdrop.theme-light .manual-chip-form label { color: #657386; }
+.manual-chip-backdrop.theme-light .manual-chip-cancel { border-color: #cbd6e0; color: #657386; }
+.manual-chip-backdrop :is(button, input):focus-visible { outline: 2px solid #f4ab52; outline-offset: 2px; }
+.manual-chip-backdrop.theme-light :is(button, input):focus-visible { outline-color: #3178b7; }

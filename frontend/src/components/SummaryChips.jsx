@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { structureStatus } from "../diagnostics";
 import { graphWeightCapacity } from "../cost/memory.js";
 import { formatCount } from "../formatters.js";
@@ -10,6 +11,7 @@ function dtypeBreakdown(byDtype) {
 }
 
 function SummaryChips({ structure, sourceLabel, language = "zh" }) {
+  const [open, setOpen] = useState(false);
   const summary = structure?.summary || {};
   const status = structureStatus(structure, language);
   const derivedCandidate = summary.parameters_total == null && structure?.graph
@@ -37,14 +39,17 @@ function SummaryChips({ structure, sourceLabel, language = "zh" }) {
     [label.status, status.label, status.tone, status.detail],
   ];
   return (
-    <div className="summary-chips">
-      {chips.map(([label, value, tone, title], index) => (
-        <span className={`chip ${tone || ""} ${index === 0 ? "identity" : ""} ${index === 1 ? "identity" : ""} ${index === 9 || index === 11 ? "primary" : ""}`.trim()} key={label} title={title || (value != null ? String(value) : undefined)}>
-          <b>{label}</b>
-          <span className="chip-value">{value ?? "-"}</span>
-        </span>
-      ))}
-    </div>
+    <details className="summary-disclosure" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>{english ? "Model data" : "模型数据"}<span className="summary-preview">{formatCount(parameterTotal)} params · {summary.text_layers ?? "−"} {english ? "layers" : "层"}</span><span>{open ? (english ? "Collapse −" : "收起 −") : (english ? "Expand +" : "展开 +")}</span></summary>
+      <div className="summary-chips">
+        {chips.map(([label, value, tone, title], index) => (
+          <span className={`chip ${tone || ""} ${index === 0 ? "identity" : ""} ${index === 1 ? "identity" : ""} ${index === 9 || index === 11 ? "primary" : ""}`.trim()} key={label} title={title || (value != null ? String(value) : undefined)}>
+            <b>{label}</b>
+            <span className="chip-value">{value ?? "-"}</span>
+          </span>
+        ))}
+      </div>
+    </details>
   );
 }
 

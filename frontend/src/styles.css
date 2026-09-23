@@ -1277,6 +1277,8 @@ label {
 .detail-page.theme-dark .detail-aux-panel .toolbar-actions > button:hover:not(:disabled) { border-color: #f4ab52; color: #f4ab52; }
 .detail-page.theme-light .detail-aux-panel .toolbar-actions select,
 .detail-page.theme-light .detail-aux-panel .toolbar-actions > button { background: #fff; border-color: #dce3eb; color: #364555; }
+/* 字号/高度统一：下拉默认 16px，与 12px 的按钮不齐；对齐到按钮口径。 */
+.detail-page .detail-aux-panel .toolbar-actions select { min-height: 34px; padding: 7px 10px; font-size: 12px; }
 /* ref: https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink — 辅助面板打开时避免盒子收缩后内容重叠。 */
 @media (min-width: 961px) {
   .detail-page.has-aux { height: auto; min-height: 100vh; overflow: visible; }

@@ -1267,6 +1267,10 @@ label {
 .detail-cost-panel.is-collapsed { display: none; }
 .detail-cost-panel .cost-summary { border: 0; margin: 0; }
 .detail-aux-panel { margin-top: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #151c26; padding: 14px; position: relative; z-index: 1; }
+/* 原始配置/导出 面板内的 textarea 默认继承全局白底，暗色主题下与面板不一致。
+   按主题显式给底色，与搜索框一致（暗 #121923 / 亮 #fff）。 */
+.detail-page.theme-dark .detail-aux-panel textarea { background: #121923; border-color: #2a3545; color: #edf2f7; }
+.detail-page.theme-light .detail-aux-panel textarea { background: #fff; border-color: #dce3eb; color: #19212c; }
 /* ref: https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink — 辅助面板打开时避免盒子收缩后内容重叠。 */
 @media (min-width: 961px) {
   .detail-page.has-aux { height: auto; min-height: 100vh; overflow: visible; }

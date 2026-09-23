@@ -1271,6 +1271,12 @@ label {
    按主题显式给底色，与搜索框一致（暗 #121923 / 亮 #fff）。 */
 .detail-page.theme-dark .detail-aux-panel textarea { background: #121923; border-color: #2a3545; color: #edf2f7; }
 .detail-page.theme-light .detail-aux-panel textarea { background: #fff; border-color: #dce3eb; color: #19212c; }
+/* 导出面板工具条的格式下拉与按钮：与搜索框/文本框统一底色（暗 #121923 / 亮 #fff）。 */
+.detail-page.theme-dark .detail-aux-panel .toolbar-actions select,
+.detail-page.theme-dark .detail-aux-panel .toolbar-actions > button { background: #121923; border-color: #2a3545; color: #edf2f7; }
+.detail-page.theme-dark .detail-aux-panel .toolbar-actions > button:hover:not(:disabled) { border-color: #f4ab52; color: #f4ab52; }
+.detail-page.theme-light .detail-aux-panel .toolbar-actions select,
+.detail-page.theme-light .detail-aux-panel .toolbar-actions > button { background: #fff; border-color: #dce3eb; color: #364555; }
 /* ref: https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink — 辅助面板打开时避免盒子收缩后内容重叠。 */
 @media (min-width: 961px) {
   .detail-page.has-aux { height: auto; min-height: 100vh; overflow: visible; }

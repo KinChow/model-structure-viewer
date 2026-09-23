@@ -123,6 +123,11 @@ export default function DetailWorkspace({
     const reduceMotion = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     node.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
   }, [auxView]);
+  // 人因优化：打开「导出」面板 / 切换格式 / 结构变化时自动生成内容，
+  // 不再要求先手动点一次按钮。
+  useEffect(() => {
+    if (auxView === "export" && structure) exporter.run(structure);
+  }, [auxView, structure, exporter.format]);
   const [costOpen, setCostOpen] = useState(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [activeLenses, setActiveLenses] = useState(() => new Set(["vram"]));
@@ -228,8 +233,8 @@ export default function DetailWorkspace({
             diagram={{ zoom, fitNonce, onFit, selectedPath, matchedPaths, expandedGroups, searchActive: Boolean(searchTerm.trim()), onSelectNode, onToggleGroup: onToggleLayerPath, onExpandAllGroups: onExpandAllLayers, onCollapseAllGroups: onCollapseAllLayers }}
             cost={{ activeLenses, activePhase, onPhaseChange: changeActivePhase, activeMode, activePlans, onPlanChange: setActivePlans, activeNodes, gpusPerNode: activeGpusPerNode, activeMachineId, onMachineChange: setActiveMachineId, activeLoads, nodeLensResult, comparisonMode, onComparisonModeChange: setComparisonMode, compareChipId, onCompareChipIdChange: setCompareChipId, comparePlan, onComparePlanChange: setComparePlan, efficiency, onEfficiencyChange: setEfficiency }}
           />
-          {auxView === "export" && <div className="detail-aux-panel" ref={auxPanelRef}><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
-          {auxView === "raw" && <div className="detail-aux-panel" ref={auxPanelRef}><RawConfigTab rawJson={rawJson} /></div>}
+          {auxView === "export" && <div className="detail-aux-panel" ref={auxPanelRef}><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} language={language} /></div>}
+          {auxView === "raw" && <div className="detail-aux-panel" ref={auxPanelRef}><RawConfigTab rawJson={rawJson} language={language} /></div>}
         </div>
         {showInspector && <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={parameterTotal.value} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} parameterTotal={parameterTotal} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>}
       </section>

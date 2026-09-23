@@ -491,6 +491,8 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "decay_projection -> state_update": "control",
   "f_b_proj -> state_update": "control",
   "indexer -> sparse_attention": "control",
+  // dsv4 稀疏 MLA 的注意力叶 id 为 `attention`（非 sparse_attention）：indexer 产出 top-k 下标（control）。
+  "indexer -> attention": "control",
   // slice：上游是融合宽张量，下游只吃一片
   "qkv_split -> q_norm": "slice",
   "qkv_split -> k_norm": "slice",
@@ -515,6 +517,8 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // fused-in：子算子汇入融合父节点，父节点入口是整个模块的输入
   "q_proj -> indexer": "fused-in",
   "k_norm -> indexer": "fused-in",
+  // dsv4 C4 indexer 的逐头权重投影（weights_proj）汇入 indexer 融合父节点。
+  "weights_proj -> indexer": "fused-in",
   // concat：多源拼成更宽的入
   "enorm -> eh_proj": "concat",
   "hnorm -> eh_proj": "concat",

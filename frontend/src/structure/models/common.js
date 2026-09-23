@@ -37,7 +37,7 @@ export function networkSpec(id, name, architecture, children, attributes = {}) {
  * 链，需显式声明数据流边：主干串行 + 草稿 fan-in，草稿输出为末端不接主干。
  * children 里草稿仍置于 decoder 之后（默认布局顺序），边由 id 声明决定拓扑。
  */
-export function networkSpecWithDraft(id, name, architecture, children, draft) {
+export function networkSpecWithDraft(id, name, architecture, children, draft, edgeMeta = {}) {
   // 主干（embed → decoder → final norm → lm_head，含 vision/projector 前置）是真实
   // 顺序数据流（HF/vLLM forward 逐模块串行），应声明为 declared 实线边。此前无草稿
   // 模型走 { sequence: true }，该标记不产出 declared 边，物化时退化成 module-order
@@ -46,10 +46,16 @@ export function networkSpecWithDraft(id, name, architecture, children, draft) {
   // fan-in / 出口边。
   const trunk = children.filter((child) => child !== draft);
   const edges = [];
+  const edgeRelations = [];
   for (let index = 0; index < trunk.length - 1; index += 1) {
-    edges.push([trunk[index].id, trunk[index + 1].id]);
+    const from = trunk[index].id;
+    const to = trunk[index + 1].id;
+    const meta = edgeMeta[`${from}=>${to}`];
+    edges.push([from, to]);
+    if (meta) edgeRelations.push({ from, to, ...meta });
   }
-  if (!draft) return networkSpec(id, name, architecture, children, { dataflow_edges: edges });
+  const relAttr = edgeRelations.length ? { dataflow_edge_relations: edgeRelations } : {};
+  if (!draft) return networkSpec(id, name, architecture, children, { dataflow_edges: edges, ...relAttr });
   const decoder = children.find((child) => child.type === "decoder");
   const embed = children.find((child) => child.type === "embedding");
   const outputHead = children.find((child) => child.type === "output");
@@ -65,7 +71,7 @@ export function networkSpecWithDraft(id, name, architecture, children, draft) {
   //     lm_head. 一律 return None——无自带 head），故 DSpark 输出经共享边接主干
   //     lm_head。
   if (draft.type === "dspark" && outputHead) edges.push([draft.id, outputHead.id]);
-  return networkSpec(id, name, architecture, children, { dataflow_edges: edges });
+  return networkSpec(id, name, architecture, children, { dataflow_edges: edges, ...relAttr });
 }
 
 /** 投机头由调用方传入（对标 vLLM 各模型文件自己挂 mtp/dspark，不是共享 dispatcher）。 */

@@ -3,14 +3,33 @@ import { decoderLayerModule } from "./decoderLayer.js";
 import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
-import { attentionScheduleOf, indexerScheduleOf, attentionKindOf } from "./schedule.js";
+import { attentionScheduleOf, indexerScheduleOf, attentionKindOf, csa2ModeForLayer } from "./schedule.js";
 import { hfNamedClass } from "../archs/index.js";
 import { foldedLayerName } from "./foldedLayerName.js";
 
-export function decoderStackNetwork(id, normalized) {
+const CSA2_MODE_LABEL = { full: "Full", reindex: "Reindex", reuse: "Reuse", swa: "SWA" };
+
+// 折叠组显示名：CSA2 层显示 `CSA2(ratio, Mode)` / `SWA`（对齐 DeepSeek 官方图），
+// 非 CSA2 模型（mode===null）保持既有 "DecoderLayer"。
+function csa2GroupLabel(normalized, index, mode) {
+  if (!mode) return "DecoderLayer";
+  if (mode === "swa") return "SWA";
+  const ratio = normalized?.compressRatios?.[index] ?? 0;
+  return `CSA2(${ratio}, ${CSA2_MODE_LABEL[mode] || mode})`;
+}
+
+/**
+ * opts.range=[start,end]（全局层号，含端点）时只装配该窗口，其余层号仍用于 schedule/
+ * ratio/source 查找（全局一致）；opts.name/opts.type 覆盖模块名与类型（CED 两段拆分用）。
+ * 缺省（无 range）行为与此前完全一致（单栈、type="decoder"）。
+ */
+export function decoderStackNetwork(id, normalized, opts = {}) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   const layers = normalized.layers || 0;
+  const start = Array.isArray(opts.range) ? opts.range[0] : 0;
+  const end = Array.isArray(opts.range) ? opts.range[1] : layers - 1;
+  const candidateSource = normalized.candidateSourceLayerId;
   // family 默认全部从 config 推导（单一源）：dense/moe 由 experts + 逐层 layerKinds 决定；
   // 注意力种类由 attentionKindOf 兜底、attentionScheduleOf 逐层覆盖。builder 不再传 opts。
   const defaultLayerKind = normalized.experts ? "moe" : "dense";
@@ -48,30 +67,46 @@ export function decoderStackNetwork(id, normalized) {
       : "no-mhc";
     return `${kind}:${attentionKind}${compressionVariant}${csaShareVariant}${indexerVariant}:${hasPle}:${hasEngram}:${mhcBoundary}`;
   });
-  const children = compactRanges(combinedKinds).map((range) => {
-    const repeat = range.end - range.start + 1;
+  // 段内折叠：先取窗口签名再 compactRanges，最后把区间下标偏移回全局层号，
+  // 保证段边界不跨折叠、且 ratio/source/mhc 查找始终用全局层号。
+  const windowKinds = combinedKinds.slice(start, end + 1);
+  const children = compactRanges(windowKinds).map((range) => {
+    const gStart = range.start + start;
+    const gEnd = range.end + start;
+    const repeat = gEnd - gStart + 1;
     const [layerKind, attentionKind] = String(range.kind).split(":");
-    const layer = decoderLayerModule(`${id}.${range.start}`, normalized, {
+    const layer = decoderLayerModule(`${id}.${gStart}`, normalized, {
       layerKind,
       attentionKind,
-      layerIndex: range.start,
+      layerIndex: gStart,
     });
-    layer.name = foldedLayerName(range.start, range.end, "DecoderLayer");
+    const mode = csa2ModeForLayer(normalized, gStart);
+    layer.name = foldedLayerName(gStart, gEnd, csa2GroupLabel(normalized, gStart, mode));
     layer.type = "layer-group";
     layer.repeat = repeat;
+    const csaAttrs = mode ? { csa2_mode: mode, compress_ratio: normalized.compressRatios?.[gStart] ?? 0 } : {};
+    if (mode && candidateSource != null) {
+      // 解码器首个 Full 层构建候选池；其后 Reindex 层受候选池约束（层级稀疏索引器）。
+      if (gStart === candidateSource) csaAttrs.candidate_pool_source = true;
+      else if (mode === "reindex" && gStart > candidateSource) csaAttrs.candidate_constrained = true;
+    }
     layer.attributes = {
       ...layer.attributes,
-      range: `${range.start}..${range.end}`,
+      range: `${gStart}..${gEnd}`,
+      ...csaAttrs,
     };
     return layer;
   });
 
+  const segmentLayers = end - start + 1;
+  const rootName = opts.name || (id.startsWith("language_model") ? "Text Decoder Layers" : "Decoder Layers");
+  const rootType = opts.type || "decoder";
   return withShapeDims(moduleSpec(
     id,
-    id.startsWith("language_model") ? "Text Decoder Layers" : "Decoder Layers",
-    "decoder",
-    { class: hfNamedClass(normalized, "modelClass", "Model"), num_hidden_layers: layers, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
+    rootName,
+    rootType,
+    { class: hfNamedClass(normalized, "modelClass", "Model"), num_hidden_layers: segmentLayers, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
     children,
-    layers || undefined,
+    segmentLayers || undefined,
   ), dims.hidden, dims.hidden);
 }

@@ -152,3 +152,20 @@ export function indexerScheduleOf(config) {
   if (!hasTopk || kpool > 1 || compressLen) return undefined;
   return dsaIndexerSchedule(text, layers) ?? dsaIndexerSchedule(source, layers);
 }
+
+// V4.1 CSA2 逐层模式（对标 model.py Indexer.owns_k / index_source / 其余）：
+//   Full    = kv_source 层：生成 global KV 并做索引；
+//   Reindex = index_source 且非 kv_source：复用 global KV、用自己的 indexer Q 重选 Top-K；
+//   Reuse   = 两者皆非：复用 global KV 与 Top-K，直接稀疏注意力；
+//   SWA     = compress_ratio===0：纯滑窗，无压缩 global KV。
+// 仅在 config 显式给出 kv_source_layer_ids（deepseek_v41）时判定；缺省（V4-Flash/Pro）
+// 返回 null，保持既有折叠组命名不变。
+export function csa2ModeForLayer(normalized, index) {
+  const kvSource = normalized?.kvSourceLayerIds;
+  if (!Array.isArray(kvSource)) return null;
+  const ratio = normalized?.compressRatios?.[index] ?? 0;
+  if (ratio === 0) return "swa";
+  if (kvSource.includes(index)) return "full";
+  if (Array.isArray(normalized?.indexSourceLayerIds) && normalized.indexSourceLayerIds.includes(index)) return "reindex";
+  return "reuse";
+}

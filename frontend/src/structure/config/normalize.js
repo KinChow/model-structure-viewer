@@ -240,6 +240,16 @@ export function normalizeConfig(config) {
     indexSourceLayerIds: Array.isArray(textConfig?.index_source_layer_ids)
       ? textConfig.index_source_layer_ids.map(Number).filter(Number.isFinite)
       : (Array.isArray(config?.index_source_layer_ids) ? config.index_source_layer_ids.map(Number).filter(Number.isFinite) : undefined),
+    // V4.1（deepseek_v41）层级稀疏索引器：解码器首个 Full 层（candidate_source_layer_id）
+    // 构建候选块池（两级 top-k 第一级），其后 index 层被限制在该候选池内（model.py
+    // Indexer.is_candidate_source / uses_candidates）。<0 表示关闭；缺省 undefined 时不建模。
+    candidateSourceLayerId: (() => {
+      const raw = textConfig?.candidate_source_layer_id ?? config?.candidate_source_layer_id;
+      const value = Number(raw);
+      return Number.isFinite(value) && value >= 0 ? value : undefined;
+    })(),
+    candidateTopkBlocks: firstNumber(textConfig, ["candidate_topk_blocks"]) ?? firstNumber(config, ["candidate_topk_blocks"]),
+    candidateBlockSize: firstNumber(textConfig, ["candidate_block_size"]) ?? firstNumber(config, ["candidate_block_size"]),
     linearKeyHeads: pick(LINEAR_KEY_HEADS_KEYS, { source: linearAttentionConfig, keys: ["num_heads"] }),
     linearValueHeads: pick(LINEAR_VALUE_HEADS_KEYS, { source: linearAttentionConfig, keys: ["num_heads"] }),
     linearKeyDim: pick(LINEAR_KEY_DIM_KEYS, { source: linearAttentionConfig, keys: ["head_dim"] }),

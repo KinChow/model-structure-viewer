@@ -74,9 +74,28 @@ const ATTENTION_COMPONENTS = [
   {
     kind: "dsv4",
     ops: (id, normalized, layerIndex) => deepseekV4AttentionOperatorSpecs(id, normalized, layerIndex),
-    edges: (normalized) => Number(normalized.compressRatios?.[0]) > 0
-      ? [["fused_wqa_wkv", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "kv_norm"], ["q_norm", "q_proj"], ["q_proj", "rope"], ["kv_norm", "rope"], ["compressor", "attention"], ["rope", "attention"], ["attention", "inverse_rope"], ["inverse_rope", "wo_a"], ["wo_a", "wo_b"]]
-      : [["fused_wqa_wkv", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "kv_norm"], ["q_norm", "q_proj"], ["q_proj", "rope"], ["kv_norm", "rope"], ["rope", "attention"], ["attention", "inverse_rope"], ["inverse_rope", "wo_a"], ["wo_a", "wo_b"]],
+    // 逐层连线（与 ops 的 compressor/indexer 发射条件同源）：只有 kv_source 层有 compressor、
+    // index_source(或 ratio===4) 层有 indexer——此前用 compressRatios[0] 全局判据导致这些子算子
+    // 在 Full/Reindex 层悬空无边。ratio、kv_source、index_source 与 ops/index.js 完全一致。
+    edges: (normalized, layerIndex = 0) => {
+      const ratio = Number(normalized.compressRatios?.[layerIndex] ?? 0);
+      const kvSrc = normalized.kvSourceLayerIds;
+      const idxSrc = normalized.indexSourceLayerIds;
+      const emitCompressor = Array.isArray(kvSrc) ? kvSrc.includes(layerIndex) : ratio > 1;
+      const emitIndexer = (Array.isArray(idxSrc) && idxSrc.includes(layerIndex)) || ratio === 4;
+      const e = [
+        ["fused_wqa_wkv", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "kv_norm"],
+        ["q_norm", "q_proj"], ["q_proj", "rope"], ["kv_norm", "rope"],
+        ["rope", "attention"], ["attention", "inverse_rope"], ["inverse_rope", "wo_a"], ["wo_a", "wo_b"],
+      ];
+      // 压缩 KV：compressor 读模块 hidden（与 fused_wqa_wkv 同为入口源），输出汇入 attention
+      //（compressor -> attention 已登记 slice）。仅 kv_source 层有。
+      if (emitCompressor) e.push(["compressor", "attention"]);
+      // 稀疏索引器：q 潜表 → indexer.q_proj（同 q_proj 连续），weights_proj（入口源）与 q_proj
+      // 汇入 indexer（fused-in），indexer 选择信号 → attention（control）。仅 index_source/ratio4 层有。
+      if (emitIndexer) e.push(["q_norm", "indexer.q_proj"], ["indexer.q_proj", "indexer"], ["indexer.weights_proj", "indexer"], ["indexer", "attention"]);
+      return e;
+    },
   },
   {
     kind: "mla",
@@ -114,7 +133,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     ? component.name(attentionKind)
     : `${attentionKind.toUpperCase()} Attention`;
   const children = component.ops(id, normalized, layerIndex, attentionKind);
-  const declaredEdges = component.edges(normalized);
+  const declaredEdges = component.edges(normalized, layerIndex);
   return withShapeDims(moduleSpec(
     id,
     displayName,

@@ -30,6 +30,13 @@ async function number(cost, label, value) {
   await input.press("Enter");
 }
 
+// 「成本假设」ConfigSection 默认折叠（openConfigSections.assumptions=false），
+// 其内的 KV/inter-node/投机等控件在折叠时 hidden。测这些控件前先展开该分区。
+// 用 data-section 定位，避免依赖语言。
+async function openAssumptions(cost) {
+  await cost.locator('[data-section="assumptions"] > .cost-config-section-toggle').click();
+}
+
 test("V4.1 Provider 日期快照与最新排序", async ({ page }, testInfo) => {
   await page.locator(".provider-card").filter({ hasText: "deepseek-ai" }).click();
   const rows = page.locator(".provider-model-list > button");
@@ -157,6 +164,7 @@ test("SGLang fusion opt-in 增加通信量，取消恢复默认", async ({ page 
 
 test("SGLang 显式 speculative workload 进入 scratch、Fit、Max Context，PD 仅传输持久 state", async ({ page }) => {
   const cost = await openCost(page, "Qwen/Qwen3.5-4B", "sglang");
+  await openAssumptions(cost);
   const state = cost.locator(".cost-breakdown > span").filter({ hasText: "KDA 状态" }).locator("b");
   const maxContext = cost.locator(".cost-metrics > span").filter({ hasText: "Max context" }).locator("b");
   const initialMaxContext = Number((await maxContext.innerText()).replaceAll(",", ""));
@@ -202,6 +210,7 @@ test("DSpark 三种 profile 的主/草稿/共享/总 KV 对账", async ({ page }
 
 test("DSA 默认 KV fallback 控件不覆盖显式 dtype", async ({ page }) => {
   const cost = await openCost(page, "deepseek-ai/DeepSeek-V3.2", "sglang");
+  await openAssumptions(cost);
   const kv = cost.locator('[data-owner="main"]');
   const before = await kv.getAttribute("data-bytes");
   await expect(cost.getByText("仅作为 fallback：", { exact: false })).toBeVisible();

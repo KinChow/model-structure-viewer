@@ -164,12 +164,16 @@ export function costSummaryModel(cost = {}, roofline = null, { english = false }
   const missingLabels = missingLabelsModel(roofline?.missing, { english }).map((entry) => entry.label);
   const bound = roofline?.bound || "unknown";
   const boundKey = UNIT_KEYS.includes(bound) ? `cost.unit.${bound}` : "cost.bound.unknown";
+  // 结论条用的「更友好」瓶颈归类：matrix/vector/sfu→算力受限、memory→访存受限、
+  // comm→通信受限。原始 boundLabel（矩阵/访存/…）仍供 Roofline 明细行使用。
+  const boundCategoryKey = `cost.boundCategory.${UNIT_KEYS.includes(bound) ? bound : "unknown"}`;
   const weightSource = cost?.weightSource || null;
   const weightSourceKey = weightSource ? `cost.weightSource.${weightSource}` : null;
   const weightSourceLabel = weightSourceKey ? t(language, weightSourceKey) : null;
   return {
     bound,
     boundLabel: t(language, boundKey),
+    boundCategoryLabel: t(language, boundCategoryKey),
     times,
     // §3.3：matrix=0 是精确陈述；unknownComputePaths 才是"成本未覆盖"
     unknownComputeCount: cost?.unknownComputePaths?.length ?? 0,

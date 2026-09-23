@@ -10,6 +10,7 @@ test("costSummaryModel：五类时间命名与未知计费计数", () => {
   );
   assert.equal(model.boundLabel, "访存");
   assert.equal(model.unknownComputeCount, 2);
+  assert.equal(model.boundCategoryLabel, "访存受限");
   assert.equal(model.weightSourceLabel, "checkpoint 真值");
   const sfu = model.times.find((t) => t.unit === "sfu");
   assert.equal(sfu.known, false);
@@ -40,8 +41,22 @@ test("costByFormulaGroup：compute 未完整时返回空表（不猜构成）", 
 test("costSummaryModel：英文文案与 unknown bound", () => {
   const model = costSummaryModel({}, null, { english: true });
   assert.equal(model.boundLabel, "unknown");
+  assert.equal(model.boundCategoryLabel, "unknown");
   assert.equal(model.weightSourceLabel, null);
   assert.deepEqual(model.times, []);
+});
+
+test("costSummaryModel：结论条友好瓶颈归类（matrix/sfu→Compute-bound）", () => {
+  const zh = costSummaryModel({}, { bound: "matrix", times: { matrix: 1 } }, { english: false });
+  assert.equal(zh.boundLabel, "矩阵");
+  assert.equal(zh.boundCategoryLabel, "算力受限");
+  const en = costSummaryModel({}, { bound: "matrix", times: { matrix: 1 } }, { english: true });
+  assert.equal(en.boundLabel, "matrix");
+  assert.equal(en.boundCategoryLabel, "Compute-bound");
+  const enSfu = costSummaryModel({}, { bound: "sfu", times: { sfu: 1 } }, { english: true });
+  assert.equal(enSfu.boundCategoryLabel, "Compute-bound");
+  const enComm = costSummaryModel({}, { bound: "comm", times: { comm: 1 } }, { english: true });
+  assert.equal(enComm.boundCategoryLabel, "Communication-bound");
 });
 
 test("diagnosticsModel：skeleton-truth 触发未适配 banner，歧义计数", () => {

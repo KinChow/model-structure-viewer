@@ -193,6 +193,14 @@
     "bound": {
       "unknown": "unknown"
     },
+    "boundCategory": {
+      "matrix": "Compute-bound",
+      "vector": "Compute-bound",
+      "sfu": "Compute-bound",
+      "memory": "Memory-bound",
+      "comm": "Communication-bound",
+      "unknown": "unknown"
+    },
     "weightSource": {
       "checkpoint": "checkpoint truth",
       "node": "graph declaration sum",

@@ -193,6 +193,14 @@
     "bound": {
       "unknown": "未知"
     },
+    "boundCategory": {
+      "matrix": "算力受限",
+      "vector": "算力受限",
+      "sfu": "算力受限",
+      "memory": "访存受限",
+      "comm": "通信受限",
+      "unknown": "未知"
+    },
     "weightSource": {
       "checkpoint": "checkpoint 真值",
       "node": "图声明汇总",

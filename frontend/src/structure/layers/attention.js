@@ -14,7 +14,7 @@ const ATTENTION_COMPONENTS = [
     edges: (normalized) => {
       const mode = recipeLinearAttentionMode(normalized);
       if (mode === "qwen3_5" || mode === "qwen4_exp") {
-        return [["qkv_projection", "qkvz_split"], ["qkvz_split", "short_conv"], ["beta_projection", "state_update"], ["decay_projection", "state_update"], ["short_conv", "state_update"], ["state_update", "output_gate_norm"], ["output_gate_norm", "out_proj"]];
+        return [["qkv_projection", "qkvz_split"], ["qkvz_split", "short_conv"], ["qkvz_split", "output_gate_norm"], ["beta_projection", "state_update"], ["decay_projection", "state_update"], ["short_conv", "state_update"], ["state_update", "output_gate_norm"], ["output_gate_norm", "out_proj"]];
       }
       if (mode === "kimi_k3" || mode === "glm5_next") {
         const lowRankGate = mode === "glm5_next";
@@ -55,7 +55,7 @@ const ATTENTION_COMPONENTS = [
     kind: "qwen35_full",
     name: () => "Qwen3.5 Full Attention",
     ops: (id, normalized) => qwen35FullAttentionOperatorSpecs(id, normalized),
-    edges: () => [["qkv_gate_proj", "qkv_gate_split"], ["qkv_gate_split", "q_norm"], ["qkv_gate_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "sdpa"], ["sdpa", "output_gate"], ["output_gate", "o_proj"]],
+    edges: () => [["qkv_gate_proj", "qkv_gate_split"], ["qkv_gate_split", "q_norm"], ["qkv_gate_split", "k_norm"], ["qkv_gate_split", "output_gate"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "sdpa"], ["sdpa", "output_gate"], ["output_gate", "o_proj"]],
   },
   {
     kind: "qsa",
@@ -134,6 +134,18 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     : `${attentionKind.toUpperCase()} Attention`;
   const children = component.ops(id, normalized, layerIndex, attentionKind);
   const declaredEdges = component.edges(normalized, layerIndex);
+  const edgeRelations = [];
+  if (Array.isArray(declaredEdges)) {
+    if (declaredEdges.some(([from, to]) => from === "qkvz_split" && to === "short_conv")) {
+      edgeRelations.push({ from: "qkvz_split", to: "short_conv", label: "q, k, v" });
+    }
+    if (declaredEdges.some(([from, to]) => from === "qkvz_split" && to === "output_gate_norm")) {
+      edgeRelations.push({ from: "qkvz_split", to: "output_gate_norm", label: "z" });
+    }
+    if (declaredEdges.some(([from, to]) => from === "qkv_gate_split" && to === "output_gate")) {
+      edgeRelations.push({ from: "qkv_gate_split", to: "output_gate", label: "gate" });
+    }
+  }
   return withShapeDims(moduleSpec(
     id,
     displayName,
@@ -153,6 +165,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
         value_shape: shapes.attentionValue,
       }),
       dataflow_edges: declaredEdges,
+      ...(edgeRelations.length ? { dataflow_edge_relations: edgeRelations } : {}),
     },
     children,
   ), dims.hidden, dims.hidden);

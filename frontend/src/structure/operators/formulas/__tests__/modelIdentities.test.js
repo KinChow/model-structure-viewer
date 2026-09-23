@@ -502,6 +502,10 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "qkv_split -> kv_norm": "slice",
   "qkv_gate_split -> q_norm": "slice",
   "qkv_gate_split -> k_norm": "slice",
+  // Qwen GDN 的 z 旁路只取 value/head_dim 片段进入 gated RMSNorm；不进入 short_conv。
+  "qkvz_split -> output_gate_norm": "slice",
+  // Qwen full attention 的 gate 片段与 q/k/v 同源 fused split，供 SDPA 输出门使用。
+  "qkv_gate_split -> output_gate": "slice",
   "qkv_index_split -> q_norm": "slice",
   "qkv_index_split -> k_norm": "slice",
   "qkv_index_split -> index_q_norm": "slice",

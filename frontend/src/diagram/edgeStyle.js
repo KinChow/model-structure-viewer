@@ -39,7 +39,7 @@ export function edgePresentation(edge, source, { english = false } = {}) {
   return {
     width,
     className: evidence === "declared" ? "" : ` ${evidence}`,
-    hint: english ? meta.hintEn : meta.hintZh,
+    hint: [english ? meta.hintEn : meta.hintZh, edge?.label].filter(Boolean).join(" · "),
     evidence,
   };
 }

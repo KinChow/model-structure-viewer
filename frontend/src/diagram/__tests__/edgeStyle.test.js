@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { edgePresentation } from "../edgeStyle.js";
 
+test("split branch labels survive presentation in both languages", () => {
+  for (const english of [false, true]) {
+    assert.match(edgePresentation({ evidence: "declared", label: "z" }, {}, { english }).hint, / · z$/);
+  }
+});
+
 test("三类 evidence 的展示互不相同（§2.2）", () => {
   const source = { output_shape: [-1, -1, 4096] };
   const declared = edgePresentation({ evidence: "declared" }, source);

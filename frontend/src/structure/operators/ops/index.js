@@ -495,7 +495,8 @@ function canonicalKdaOperatorSpecs(prefix, normalized, modelKind) {
       branches: ["q", "k", "v"],
       kernel_size: normalized.linearConvKernelSize,
       activation: "silu",
-      channel_layout: qwen ? { q: keyProjection, k: keyProjection, v: valueProjection, z: valueProjection } : undefined,
+      // Qwen3_5GatedDeltaNet.forward：z 旁路进入输出 norm，不属于 conv1d 的通道。
+      channel_layout: qwen ? { q: keyProjection, k: keyProjection, v: valueProjection } : undefined,
       // P4-2：depthwise 卷积核（causal-conv1d 自定义 kernel，无 quant_method → 不量化； [channels, kernel]，channels = 2·keyProj + valueProj
       //（extractor causal_conv1d case 的 width 同式）；沿通道（头维）tp 切）
       weightMatrices: [weightMatrixDecl("tp", { shape: [2 * keyProjection + valueProjection, normalized.linearConvKernelSize || 0], split: "output", quantizable: false })],

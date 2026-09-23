@@ -113,7 +113,9 @@ export function bindTruthToGraph(graph, truthGraph) {
       graph_bound_tensors: boundIds.length,
       graph_truth_gaps: truthNodes.filter((node) => !used.has(node.id)).map((node) => node.canonical_id || node.id),
       graph_ambiguous_truth_matches: ambiguous,
-      graph_truth_used_ids: [...used],
+      // appendGraphGaps walks the original skeleton, whose ids are canonical
+      // module paths, not the temporary truth graph's layout ids (root.0...).
+      graph_truth_used_ids: boundIds,
     },
   };
 }

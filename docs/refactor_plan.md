@@ -109,7 +109,8 @@ MAINTENANCE.md 棘轮已回写。
 2. 后端 oracle 改为“前端 Graph 主事实源 + Transformers evidence 对账”，
    `verification/compare_structure.py` 现仅自测，需扩展真实对账；
 3. C 档三项（KV keep-ratio / overlap 参数化 / per-stage 通信五路）越过
-   「纯理论估算」边界，逐项确认行为口径。
+   「纯理论估算」边界，逐项确认行为口径。**跨节点 comm 可调 + 逐 stage 算力时间
+   的开工前对齐稿见 [`details/comm_time_stage_roofline_design.md`](details/comm_time_stage_roofline_design.md)**。
 4. ~~明确 SGLang 式独立 MoE TP/EP/DP 轴与 vLLM 式展平专家域在 MSV 中的映射，
    并统一 `validatePlan`、`sharding`、通信估算和 UI 的输入契约。~~
    ✅ 已定稿（2026-09-10）：九项裁决落
@@ -130,7 +131,9 @@ MAINTENANCE.md 棘轮已回写。
 3. ~~**source_ref 采集**（§5.x）~~ ✅ 已完成（2026-09-14）：58/59 入库，
    Inspector 已接通；Kimi-K3 永不 dump。缺席产物节点 `source_ref` 为 null。
 4. **per-stage roofline 计算路**（stage 级动作向量）与 **evidence 的 I/O
-   shape**（introspect 不产数值）：诚实缺项，消费需求出现时补。
+   shape**（introspect 不产数值）：诚实缺项，消费需求出现时补。开工前对齐稿
+   见 [`details/comm_time_stage_roofline_design.md`](details/comm_time_stage_roofline_design.md)
+   （含跨节点 comm 可调）。
 5. 触发型债项维持原登记：家族知识 5 住址收口（接新家族）、§8.1 清零
   （随配方表接管）、§2.5 back-edge（展示需求）、国产芯片（字段需求）、
   后端生产化（部署需求）、catalog/证据库扩展（内容工程，按需）。

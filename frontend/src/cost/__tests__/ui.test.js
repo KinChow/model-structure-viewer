@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { costByFormulaGroup, costSummaryModel, diagnosticsModel } from "../ui.js";
+import { actionsByFormulaGroup, costByFormulaGroup, costSummaryModel, diagnosticsModel } from "../ui.js";
 
 test("costSummaryModel：五类时间命名与未知计费计数", () => {
   const model = costSummaryModel(
@@ -36,6 +36,30 @@ test("costByFormulaGroup：按 FORMULAS.group 归并 compute_macs（含 repeat �
 
 test("costByFormulaGroup：compute 未完整时返回空表（不猜构成）", () => {
   assert.deepEqual(costByFormulaGroup({ computeComplete: false, nodes: [{ compute_macs: 1, node: { attributes: { operator_id: "linear" } } }] }), []);
+});
+
+test("actionsByFormulaGroup：按 group 聚合完整动作向量并按 matrix 降序", () => {
+  const cost = {
+    computeComplete: true,
+    nodes: [
+      { actions: { matrix: 100, vector: 2, sfu: 0, bytes: { weights: 10, actIn: 1, actOut: 1, kvRead: 0, indexRead: 0 } }, node: { attributes: { operator_id: "linear" } } }, // gemm
+      { actions: { matrix: 40, vector: 0, sfu: 0, bytes: { weights: 4, actIn: 0, actOut: 0, kvRead: 0, indexRead: 0 } }, node: { attributes: { operator_id: "linear" } } }, // gemm 同域累加
+      { actions: { matrix: 300, vector: 5, sfu: 7, bytes: { weights: 0, actIn: 2, actOut: 2, kvRead: 3, indexRead: 0 } }, node: { attributes: { operator_id: "sdpa_attention" } } }, // attention
+      { actions: null, node: { attributes: { operator_id: "linear" } } }, // 父/覆盖节点 actions=null 跳过（不重复计）
+    ],
+  };
+  const groups = actionsByFormulaGroup(cost);
+  assert.deepEqual(groups.map((entry) => entry.group), ["attention", "gemm"]);
+  assert.equal(groups[1].actions.matrix, 140); // 两条 gemm 叶累加
+  assert.equal(groups[1].actions.vector, 2);
+  assert.equal(groups[1].actions.bytes.weights, 14);
+  assert.equal(groups[0].actions.matrix, 300);
+  assert.equal(groups[0].actions.bytes.kvRead, 3);
+  assert.equal(groups[0].actions.commBytes, 0); // 首版通信不按 stage 归属
+});
+
+test("actionsByFormulaGroup：compute 未完整时返回空表", () => {
+  assert.deepEqual(actionsByFormulaGroup({ computeComplete: false, nodes: [{ actions: { matrix: 1, bytes: {} }, node: { attributes: { operator_id: "linear" } } }] }), []);
 });
 
 test("costSummaryModel：英文文案与 unknown bound", () => {

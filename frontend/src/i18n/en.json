@@ -85,6 +85,8 @@
   },
   "cost": {
     "byDomain": "MACs by domain",
+    "stageRoofline": "Per-stage time (lower bound)",
+    "stageRooflineHelp": "Each domain's action vector run through the roofline, taking the max of the five paths; a theoretical lower bound (estimate). Small models dominated by kernel-launch overhead fall well below measured time. First version covers compute + memory per stage; communication stays at the whole-model level.",
     "domain": {
       "gemm": "GEMM",
       "attention": "Attention",
@@ -148,6 +150,8 @@
     "defaultKvBytesPerElement": "Default KV bytes / element",
     "kvBytesPerElementHelp": "Fallback only: explicit node/cache dtype declarations (for example DSA index dtype) take precedence.",
     "interNodeLink": "Inter-node link (roofline comm)",
+    "interNodeBandwidth": "Inter-node bandwidth GB/s (tunable)",
+    "interNodeBandwidthHelp": "Public cards lack an inter_node spec, so inter-node comm time is unknown. Enter a user-estimated effective bandwidth (GB/s; multiplied by η.comm into the roofline comm-time lower bound). Leave blank to keep it unknown. Measured reference: single rail ≈ 9.95 GB/s (79.6 Gb/s). Affects the comm-time estimate only; not a measurement.",
     "weightWhatIf": "Weight what-if",
     "weights": "Weights",
     "buffers": "Buffers",

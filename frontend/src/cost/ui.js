@@ -37,6 +37,48 @@ export function costByFormulaGroup(cost) {
 }
 
 /**
+ * N4-逐 stage：把逐算子叶的完整动作向量（matrix/vector/sfu/bytes/computeDtypes）
+ * 按 FORMULAS.group 聚合，供组件对每个 stage 桶跑 roofline 得逐 stage 理论时间下界。
+ * 与 costByFormulaGroup 同构、同一"叶 actions 非空"判据（避免与父节点重复计）；
+ * compute 未完整（有 unknown 叶）时返回空表——不猜。
+ * 本函数只做求和聚合，不做时间计算（时间由组件调 classifyRoofline，§ui.js 分工）。
+ * commBytes 不在此归属（通信字节按 role 归属，首版逐 stage 只覆盖算力+访存四路，
+ * 通信仍走整模型口径），故各桶 commBytes 恒为 0。
+ */
+export function actionsByFormulaGroup(cost) {
+  if (!cost?.computeComplete) return [];
+  const rows = cost?.nodes || [];
+  const byGroup = new Map();
+  const empty = () => ({
+    matrix: 0, vector: 0, sfu: 0,
+    bytes: { weights: 0, actIn: 0, actOut: 0, kvRead: 0, indexRead: 0 },
+    computeDtypes: {}, commBytes: 0,
+  });
+  for (const row of rows) {
+    const a = row?.actions;
+    if (!a) continue;
+    const operatorId = String(row?.node?.attributes?.operator_id || "").toLowerCase();
+    const group = FORMULAS[operatorId]?.group || "other";
+    const acc = byGroup.get(group) || empty();
+    acc.matrix += a.matrix ?? 0;
+    acc.vector += a.vector ?? 0;
+    acc.sfu += a.sfu ?? 0;
+    acc.bytes.weights += a.bytes?.weights ?? 0;
+    acc.bytes.actIn += a.bytes?.actIn ?? 0;
+    acc.bytes.actOut += a.bytes?.actOut ?? 0;
+    acc.bytes.kvRead += a.bytes?.kvRead ?? 0;
+    acc.bytes.indexRead += a.bytes?.indexRead ?? 0;
+    if (a.computeDtype) {
+      acc.computeDtypes[a.computeDtype] = (acc.computeDtypes[a.computeDtype] || 0) + (a.matrix ?? 0);
+    }
+    byGroup.set(group, acc);
+  }
+  return [...byGroup.entries()]
+    .map(([group, actions]) => ({ group, actions }))
+    .sort((left, right) => right.actions.matrix - left.actions.matrix);
+}
+
+/**
  * roofline.missing 单键 → 双语字段名；未知键原样透传（不伪造可读名）。
  * @param {string[]} missing
  * @param {{english?: boolean}} options

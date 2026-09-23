@@ -51,13 +51,14 @@ function normalizeActions(cost = {}) {
  * 数量未知或费率缺失 → 时间 null，计入 missing，bound 退化为 unknown。
  * @param {object} cost 模块成本（含 actions 或旧字段）
  * @param {object} chip 芯片规格
- * @param {{dtype?: string, efficiency?: object, interNode?: boolean}} options
+ * @param {{dtype?: string, efficiency?: object, interNode?: boolean, interNodeBandwidth?: number}} options
  */
 export function classifyRoofline(cost = {}, chip = {}, options = {}) {
   const dtype = String(options.dtype || "bf16").toLowerCase();
   const eta = resolveEfficiency(chip, options.efficiency);
   const actions = normalizeActions(cost);
-  const rates = chipRates(chip, { dtype, efficiency: options.efficiency });
+  // N4-第4项：把用户可调的跨节点带宽透传给费率表（仅 inter-node 生效）。
+  const rates = chipRates(chip, { dtype, efficiency: options.efficiency, interNodeBandwidth: options.interNodeBandwidth });
 
   // M11-P0-4：任一字节分量未知 → bytesMoved 未知（null），不得把未知当 0 计入访存。
   const b = actions.bytes || {};

@@ -43,6 +43,22 @@ test("跨节点通信使用 inter_node 带宽与效率因子", () => {
   assert.equal(result.times.comm, 100 / (20 * 0.6));
 });
 
+test("N4-第4项：芯片缺 inter_node 时用户可调带宽使跨节点通信时间可算", () => {
+  const chipNoInterNode = {
+    memory_bandwidth: 100,
+    peak_flops: { bf16: 1000 },
+    interconnect: { intra_node: { bandwidth: 50 } },
+  };
+  const actions = { actions: { matrix: 1, vector: 0, sfu: 0, bytes: { weights: 1, actIn: 0, actOut: 0 }, commBytes: 100 } };
+  // 无覆盖：inter-node 带宽缺失 → comm 时间 unknown（null），bound 退化
+  const missing = classifyRoofline(actions, chipNoInterNode, { interNode: true });
+  assert.equal(missing.times.comm, null);
+  assert.equal(missing.bound, "unknown");
+  // 有用户可调覆盖（bytes/s）：comm 时间 = commBytes / (override · η.comm)
+  const overridden = classifyRoofline(actions, chipNoInterNode, { interNode: true, interNodeBandwidth: 200 });
+  assert.equal(overridden.times.comm, 100 / (200 * 0.6));
+});
+
 test("只有 memory 时间时不做不完整的 bound 分类", () => {
   const result = classifyRoofline({
     actions: { matrix: null, vector: null, sfu: null, bytes: { weights: 100, actIn: 0, actOut: 0 } },

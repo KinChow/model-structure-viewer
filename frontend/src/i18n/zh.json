@@ -85,6 +85,8 @@
   },
   "cost": {
     "byDomain": "按功能域 MACs",
+    "stageRoofline": "逐 stage 时间下界",
+    "stageRooflineHelp": "各功能域动作向量过 roofline 的五路时间取 max，是理论下界（估计）；小模型被 kernel 启动开销主导时会明显低于实测。首版逐 stage 只覆盖算力+访存，通信仍走整模型口径。",
     "domain": {
       "gemm": "GEMM",
       "attention": "注意力",
@@ -148,6 +150,8 @@
     "defaultKvBytesPerElement": "默认 KV bytes / element",
     "kvBytesPerElementHelp": "仅作为 fallback：节点或 cache 显式 dtype（例如 DSA index dtype）优先，不受此设置覆盖。",
     "interNodeLink": "跨节点链路（roofline 通信）",
+    "interNodeBandwidth": "跨节点带宽 GB/s（可调）",
+    "interNodeBandwidthHelp": "公开卡缺 inter_node 规格时，跨节点通信时间为 unknown。此处可填用户估计的有效带宽（GB/s，乘 η.comm 后计入 roofline 通信时间下界）。留空则保持 unknown。真机参考：单 rail ≈ 9.95 GB/s（79.6 Gb/s）。仅影响通信时间估计，非实测。",
     "weightWhatIf": "权重 what-if",
     "weights": "权重",
     "buffers": "Buffers",

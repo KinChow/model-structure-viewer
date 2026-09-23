@@ -26,6 +26,13 @@ export function chipRates(chip = {}, options = {}) {
   const missing = missingFields(chip, dtype);
   const sfuFallback = chip?.sfu_ops == null && chip?.sfu_rate_source === "vector";
 
+  // N4-第4项：跨节点带宽「可调」。芯片规格缺 inter_node.bandwidth 时（三张公开卡皆缺），
+  // 允许调用方传入用户可调覆盖值 options.interNodeBandwidth（bytes/s，与芯片同单位）。
+  // 覆盖只影响 inter-node 通信费率，不写回芯片数据；仍乘 η.comm 保持"有效带宽"口径。
+  const interNodeBandwidth = positive(options.interNodeBandwidth)
+    ? options.interNodeBandwidth
+    : chip?.interconnect?.inter_node?.bandwidth;
+
   return {
     matrixPerSecond: positive(matrixFlops) ? (matrixFlops * eta.flops) / 2 : null,
     vectorPerSecond: positive(chip?.vector_flops) ? chip.vector_flops * (eta.vector ?? 1) : null,
@@ -35,8 +42,12 @@ export function chipRates(chip = {}, options = {}) {
     bytesPerSecond: positive(chip?.memory_bandwidth) ? chip.memory_bandwidth * eta.hbm : null,
     intraNodeBytesPerSecond: positive(chip?.interconnect?.intra_node?.bandwidth)
       ? chip.interconnect.intra_node.bandwidth * (eta.intra_node_comm ?? 1) : null,
-    interNodeBytesPerSecond: positive(chip?.interconnect?.inter_node?.bandwidth)
-      ? chip.interconnect.inter_node.bandwidth * (eta.comm ?? 1) : null,
+    interNodeBytesPerSecond: positive(interNodeBandwidth)
+      ? interNodeBandwidth * (eta.comm ?? 1) : null,
+    // 追溯该 inter-node 费率的来源：用户可调覆盖 vs 芯片规格 vs 缺失（诚实标注用）。
+    interNodeBandwidthSource: positive(options.interNodeBandwidth)
+      ? "user_input"
+      : (positive(chip?.interconnect?.inter_node?.bandwidth) ? "spec" : "missing"),
     missing,
     efficiency: eta,
   };

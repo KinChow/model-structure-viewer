@@ -17,6 +17,15 @@ const BASE_LAYOUT = {
   "elk.algorithm": "layered",
   "elk.layered.spacing.nodeNodeBetweenLayers": "44",
   "elk.spacing.nodeNode": "24",
+  // 让 ELK 顺带做正交连线路由：布局后每条边带 sections（含 bendPoints），
+  // 渲染层据此画避开节点的正交折线，替代渲染时的自由贝塞尔（消除“甩弧”）。
+  "elk.edgeRouting": "ORTHOGONAL",
+  // 连线美观：边与节点、边与边留出间距，避免线贴着节点或彼此重叠。
+  //（不开 mergeEdges：它会改动边拓扑/计数，收益有限却增加不确定性。）
+  "elk.spacing.edgeNode": "20",
+  "elk.spacing.edgeEdge": "12",
+  "elk.layered.spacing.edgeNodeBetweenLayers": "20",
+  "elk.layered.spacing.edgeEdgeBetweenLayers": "12",
 };
 
 const SEMANTIC_LAYOUT = {
@@ -54,7 +63,26 @@ export async function layoutGraphWithElk(graph) {
     .filter((edge) => edge.kind === "dataflow"
       && parentPath(edge.source) === path && parentPath(edge.target) === path
       && (!allowedIds || (allowedIds.has(edge.source) && allowedIds.has(edge.target))))
-    .map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }));
+    .map((edge) => ({ id: edge.id, source: edge.source, target: edge.target }));
+  // 端口约束（成熟布局器让连线好看的关键）：竖向容器里边从子节点**底部中点出、顶部中点入**，
+  // 横向容器里从**右侧中点出、左侧中点入**——与渲染层 Handle 位置一致，消除“从边角斜甩”。
+  const portSides = (direction) => (direction === "RIGHT"
+    ? { in: "WEST", out: "EAST" }
+    : { in: "NORTH", out: "SOUTH" });
+  const portId = (path, dir) => `${path}::${dir}`;
+  const elkEdge = (edge) => ({ id: edge.id, sources: [portId(edge.source, "out")], targets: [portId(edge.target, "in")] });
+  function attachPorts(shape, childPath, sides) {
+    shape.ports = [
+      { id: portId(childPath, "in"), layoutOptions: { "elk.port.side": sides.in } },
+      { id: portId(childPath, "out"), layoutOptions: { "elk.port.side": sides.out } },
+    ];
+    shape.layoutOptions = {
+      ...(shape.layoutOptions || {}),
+      "elk.portConstraints": "FIXED_SIDE",
+      "elk.portAlignment.default": "CENTER",
+    };
+    return shape;
+  }
 
   function makeShape(node, depth) {
     const allChildren = directChildren(node, nodeByPath);
@@ -64,22 +92,38 @@ export async function layoutGraphWithElk(graph) {
     // 语义流布局只信任 builder 声明的边；semantic-flow 已随 legacySemanticEdges 退役。
     const semanticFlow = graph.edges.some((edge) => edge.evidence === "declared"
       && parentPath(edge.source) === node.path && parentPath(edge.target) === node.path);
-    const internalEdges = directEdges(node.path, childIds);
+    const rawEdges = directEdges(node.path, childIds);
     const inputIds = new Set(children
-      .filter((child) => !internalEdges.some((edge) => edge.targets.includes(child.path)))
+      .filter((child) => !rawEdges.some((edge) => edge.target === child.path))
       .map((child) => child.path));
-    const orderEdges = semanticFlow ? [] : children.slice(0, -1).map((child, index) => ({
-      id: `__order__${node.path}__${index}`,
-      sources: [child.path],
-      targets: [children[index + 1].path],
-    }));
+    const direction = depth === 0 ? "RIGHT" : "DOWN";
+    const sides = portSides(direction);
+    // 端口约束只用于**嵌套竖向容器**（模块内部，也是我们消费 ELK 路由的地方）。
+    // 顶层（RIGHT）保留原有无端口布局：其主干含草稿旁挂重排等精细逻辑，且其边不消费
+    // ELK 路由——加端口反而会扰动分层（embed/lm_head 曾因此重叠）。
+    const usePorts = direction === "DOWN";
+    // 合成顺序边强制相邻子节点竖向排布。但只在**该相邻对没有真实边**时补：
+    // 若已有真实内部边（折叠层组间的 module-order 边）还补一条同端点 __order__ 边，
+    // ELK 会当两条平行边分别路由——其一绕行，正交消费后成「Z 字」。反过来，module-order
+    // 也可能漏边（如 final_norm→lm_head 缺失），此时仍需合成边约束，否则该节点会散落到
+    // 第 0 层与他人重叠。故按「缺失的相邻对」精确补齐。
+    const realPairs = new Set(rawEdges.map((edge) => `${edge.source}=>${edge.target}`));
+    const orderRaw = semanticFlow
+      ? []
+      : children.slice(0, -1)
+        .map((child, index) => ({
+          id: `__order__${node.path}__${index}`,
+          source: child.path,
+          target: children[index + 1].path,
+        }))
+        .filter((edge) => !realPairs.has(`${edge.source}=>${edge.target}`));
     return {
       id: node.path,
       layoutOptions: {
         ...(semanticFlow ? SEMANTIC_LAYOUT : BASE_LAYOUT),
         // Keep the model's top-level modules in a readable pipeline. Once a
         // module is opened, its implementation is a vertical sibling flow.
-        "elk.direction": depth === 0 ? "RIGHT" : "DOWN",
+        "elk.direction": direction,
         // 内边距把"绘制时容器边框相对 ELK shape 的外扩量"（左右各 16 / 顶 22 / 底 16）
         // 预先并入 ELK 测量的盒子：left/right 24→40、top 32→54、bottom 24→40。随后
         // frame 贴着 shape 绘制（不再外扩），使 ELK 测量的盒子 = 实际绘制的盒子，
@@ -88,6 +132,7 @@ export async function layoutGraphWithElk(graph) {
       },
       children: children.map((child) => {
         const shape = makeShape(child, depth + 1);
+        if (usePorts) attachPorts(shape, child.path, sides);
         if (semanticFlow && inputIds.has(child.path)) {
           shape.layoutOptions = {
             ...(shape.layoutOptions || {}),
@@ -98,7 +143,9 @@ export async function layoutGraphWithElk(graph) {
         }
         return shape;
       }),
-      edges: [...internalEdges, ...orderEdges],
+      edges: [...rawEdges, ...orderRaw].map((e) => (usePorts
+        ? elkEdge(e)
+        : { id: e.id, sources: [e.source], targets: [e.target] })),
     };
   }
 
@@ -167,10 +214,22 @@ export async function layoutGraphWithElk(graph) {
   }
   const positions = new Map();
   const groupFrames = [];
+  // ELK 正交路由折点（绝对画布坐标）：edgeId → [{x,y}...]。仅收集**非 root 容器**内的边——
+  // root 直属子节点的 y 在下方被手动重排（草稿旁挂/主干对齐），其 root 级边的 ELK 路由会失真，
+  // 故这些边回退到渲染层的 smart/贝塞尔；嵌套模块内部边不受重排影响（重排只平移容器整体）。
+  const edgeBends = new Map();
   function walk(shape, offsetX = 0, offsetY = 0) {
     const x = offsetX + (shape.x || 0);
     const y = offsetY + (shape.y || 0);
     if (shape.id !== "__graph_root__") positions.set(shape.id, { x, y });
+    if (shape.id !== "__graph_root__" && shape.id !== "root" && Array.isArray(shape.edges)) {
+      for (const edge of shape.edges) {
+        if (typeof edge.id !== "string" || edge.id.startsWith("__order__")) continue;
+        const bends = (edge.sections || []).flatMap((section) => section.bendPoints || []);
+        // sections 坐标相对于边所属容器（= 本 shape）原点，加上容器绝对偏移即画布绝对坐标。
+        edgeBends.set(edge.id, bends.map((p) => ({ x: x + p.x, y: y + p.y })));
+      }
+    }
     if (shape.id !== "__graph_root__" && shape.children?.length && nodeByPath.has(shape.id)) {
       const node = nodeByPath.get(shape.id);
       groupFrames.push({
@@ -198,7 +257,9 @@ export async function layoutGraphWithElk(graph) {
     ...graph,
     layoutReady: true,
     nodes: graph.nodes.map((node) => ({ ...node, ...(positions.get(node.path) || {}) })),
-    edges: graph.edges.map((edge) => ({ ...edge })),
+    edges: graph.edges.map((edge) => (
+      edgeBends.has(edge.id) ? { ...edge, bendPoints: edgeBends.get(edge.id) } : { ...edge }
+    )),
     containerFrames: groupFrames,
   };
 }

@@ -114,9 +114,11 @@
    到各 FORMULAS.group 桶；compute 未完整时返回空表（不猜）。
 2. 逐 stage 五路时间：对每个 group 桶调 classifyRoofline(groupActions, chip,
    { dtype, efficiency, interNode }) → 得该 stage 的五路时间 + bound 分类。
-   commBytes 归属需谨慎：通信字节按 role 归到相应算子（o_proj/down_proj/dispatch），
-   首版可只做算力+访存四路（matrix/vector/sfu/memory），comm 仍走整模型口径，
-   避免 group 拆分与 comm role 归属的二次对齐（登记为后续项）。
+   commBytes 归属：**已实现**（comm.js `communicationBytesByFormulaGroup`）——通信字节按
+   **发起算子自身的功能域**归组（TP all-reduce→gemm、EP all-to-all→moe），与算力/访存
+   同一归组键、单源无 role→域 映射表；组件把各域 commBytes 合并进桶再过五路 roofline。
+   PP 的 P2P 是 stage 边界、不属算子域，**刻意不计入**逐 stage（仍由 planCommunicationBytes
+   的 ppBytes 在模型级体现）。
 3. UI：复用现有 Cost Lens 分栏，把 MACs 构成表升级为「MACs 占比 + 逐 stage 时间下界
    + bound 标签」，沿用现有 per-stage HBM 展示位。
 4. 标注（强制）：显式标「理论下界 / 估计」；保留诚实注记——小模型 stage time 被 launch

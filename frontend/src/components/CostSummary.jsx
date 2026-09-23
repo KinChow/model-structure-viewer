@@ -5,7 +5,7 @@ import { walkStructure } from "../cost/traverse.js";
 import { bytesPerDtype } from "../cost/memory.js";
 import { resolveFrameworkPlan } from "../cost/sharding.js";
 import { maxContextForStages, planFitsCard, projectPdFit, projectPlan } from "../cost/parallel.js";
-import { pdKvTransferBytes, planCommunicationBytes } from "../cost/comm.js";
+import { communicationBytesByFormulaGroup, pdKvTransferBytes, planCommunicationBytes } from "../cost/comm.js";
 import { PUBLIC_CHIPS } from "../cost/chips/public.js";
 import ManualChipForm from "./ManualChipForm.jsx";
 import NumberInput from "./NumberInput.jsx";
@@ -274,16 +274,26 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
   // Cost Lens 按 FORMULAS.group 分栏：成本花在哪类算子（gemm/attention/moe/…）。
   const domainBreakdown = useMemo(() => costByFormulaGroup(cost), [cost]);
   // N4-逐 stage：每个功能域动作向量过 roofline，取五路 max 作为该 stage 理论时间下界。
-  // 首版通信不按 stage 归属（commBytes=0），只呈现算力+访存路；标注为下界/估计。
+  // 通信按 role 归属到发起算子自身的功能域（TP all-reduce→gemm、EP all-to-all→moe）；
+  // PP P2P 是 stage 边界、不计入。标注为下界/估计。
   const stageRoofline = useMemo(() => {
-    if (!cost?.computeComplete || !machine) return [];
+    if (!cost?.computeComplete || !machine || !config) return [];
     const opts = { dtype: "bf16", efficiency, interNode, interNodeBandwidth: interNodeOverrideBytesPerSecond };
-    return actionsByFormulaGroup(cost).map(({ group, actions }) => {
-      const result = classifyRoofline({ actions }, machine, opts);
+    const commTokens = phase === "decode" ? 1 : (load.chunked ? Math.min(load.sequence, load.chunkSize) : load.sequence);
+    const commByGroup = communicationBytesByFormulaGroup({ graph: structure.graph, config, plan, batch: load.batch, tokens: commTokens, frameworkProfile });
+    const grouped = actionsByFormulaGroup(cost);
+    const seen = new Set(grouped.map((entry) => entry.group));
+    // 通信-only 域（无算力叶但发起通信）也要出现，据实呈现为通信瓶颈
+    const commOnly = Object.keys(commByGroup).filter((group) => !seen.has(group)).map((group) => ({
+      group,
+      actions: { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0, kvRead: 0, indexRead: 0 }, computeDtypes: {}, commBytes: commByGroup[group] },
+    }));
+    return [...grouped, ...commOnly].map(({ group, actions }) => {
+      const result = classifyRoofline({ actions: { ...actions, commBytes: commByGroup[group] || 0 } }, machine, opts);
       const timed = Object.values(result.times).filter((value) => value != null);
       return { group, seconds: timed.length ? Math.max(...timed) : null, bound: result.bound };
     });
-  }, [cost, machine, efficiency, interNode, interNodeOverrideBytesPerSecond]);
+  }, [cost, machine, config, structure, plan, load, phase, frameworkProfile, efficiency, interNode, interNodeOverrideBytesPerSecond]);
   // M11-P1-3：η 披露——vector/SFU 路固定 1.0，滑块不作用于它（见 ui.js 注释）
   const etaNote = etaDisclosureModel({ english });
   const currentNodes = mode === "pd" ? nodes[phase] : nodes.centralized;

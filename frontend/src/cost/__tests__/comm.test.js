@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expertAllToAllBytes, nodeCommunicationBytes, pdKvTransferBytes, pipelineP2PBytes, planCommunicationBytes, ringAllReduceBytes } from "../comm.js";
+import { communicationBytesByFormulaGroup, expertAllToAllBytes, nodeCommunicationBytes, pdKvTransferBytes, pipelineP2PBytes, planCommunicationBytes, ringAllReduceBytes } from "../comm.js";
 import { materializeStructureGraph } from "../../structure/graph/materializeStructureGraph.js";
 
 // P7（步骤 7）：planCommunicationBytes 只收 Graph IR——夹具 tree root 统一转图。
@@ -142,6 +142,30 @@ test("通信汇总按 Graph IR 节点计算（root 入参已退役）", () => {
     bytesPerElement: 2,
   });
   assert.equal(result.nodeBytes, 8);
+});
+
+test("N4 通信按算子功能域归属：TP all-reduce→gemm、EP all-to-all→moe，PP 不计入", () => {
+  const byGroup = communicationBytesByFormulaGroup({
+    graph: {
+      version: 2,
+      schema_version: 2,
+      root_id: "root",
+      nodes: [
+        { id: "root", module_id: "model", parent_id: null, order: 0, type: "model" },
+        { id: "root.0", module_id: "decoder.layers.0.attention.o_proj", parent_id: "root", order: 0, type: "operator", attributes: { operator_id: "linear", communication_role: "tp_attention_output" } },
+        { id: "root.1", module_id: "decoder.layers.0.mlp.dispatch", parent_id: "root", order: 1, type: "operator", attributes: { operator_id: "moe_dispatch", communication_role: "ep_dispatch" } },
+      ],
+      edges: [],
+    },
+    config: { hiddenSize: 4, expertsPerToken: 2 },
+    plan: { tp: 2, ep: 2, pp: 2 },
+    tokens: 1,
+    bytesPerElement: 2,
+  });
+  // gemm：o_proj all-reduce = 2·(tp-1)/tp·hidden·b = 8；moe：all-to-all = topk·hidden·b = 16
+  assert.deepEqual(byGroup, { gemm: 8, moe: 16 });
+  // PP P2P（stage 边界）刻意不出现在逐 stage 归属里
+  assert.equal("pipeline" in byGroup, false);
 });
 
 // ---------------------------------------------------------------------------

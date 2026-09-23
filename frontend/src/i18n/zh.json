@@ -86,7 +86,7 @@
   "cost": {
     "byDomain": "按功能域 MACs",
     "stageRoofline": "逐 stage 时间下界",
-    "stageRooflineHelp": "各功能域动作向量过 roofline 的五路时间取 max，是理论下界（估计）；小模型被 kernel 启动开销主导时会明显低于实测。首版逐 stage 只覆盖算力+访存，通信仍走整模型口径。",
+    "stageRooflineHelp": "各功能域动作向量过 roofline 的五路时间取 max，是理论下界（估计）；小模型被 kernel 启动开销主导时会明显低于实测。通信按发起算子的功能域归属（TP all-reduce→gemm、EP all-to-all→moe）；PP 的 P2P 属 stage 边界、不计入。",
     "domain": {
       "gemm": "GEMM",
       "attention": "注意力",

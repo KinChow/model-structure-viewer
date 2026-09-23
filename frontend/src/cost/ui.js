@@ -42,8 +42,8 @@ export function costByFormulaGroup(cost) {
  * 与 costByFormulaGroup 同构、同一"叶 actions 非空"判据（避免与父节点重复计）；
  * compute 未完整（有 unknown 叶）时返回空表——不猜。
  * 本函数只做求和聚合，不做时间计算（时间由组件调 classifyRoofline，§ui.js 分工）。
- * commBytes 不在此归属（通信字节按 role 归属，首版逐 stage 只覆盖算力+访存四路，
- * 通信仍走整模型口径），故各桶 commBytes 恒为 0。
+ * 通信不在此聚合：各桶 commBytes 留 0，由 comm.js 的 communicationBytesByFormulaGroup
+ * 按算子功能域归属后，在组件里合并进各桶再过 roofline（compute/memory 与 comm 分工采集）。
  */
 export function actionsByFormulaGroup(cost) {
   if (!cost?.computeComplete) return [];

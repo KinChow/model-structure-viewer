@@ -86,7 +86,7 @@
   "cost": {
     "byDomain": "MACs by domain",
     "stageRoofline": "Per-stage time (lower bound)",
-    "stageRooflineHelp": "Each domain's action vector run through the roofline, taking the max of the five paths; a theoretical lower bound (estimate). Small models dominated by kernel-launch overhead fall well below measured time. First version covers compute + memory per stage; communication stays at the whole-model level.",
+    "stageRooflineHelp": "Each domain's action vector run through the roofline, taking the max of the five paths; a theoretical lower bound (estimate). Small models dominated by kernel-launch overhead fall well below measured time. Communication is attributed to the issuing operator's domain (TP all-reduce → gemm, EP all-to-all → moe); PP P2P is a stage boundary and is not included.",
     "domain": {
       "gemm": "GEMM",
       "attention": "Attention",

@@ -4,6 +4,7 @@
 import { kvBytesPerCard, stateBytesPerCard, validatePdPlan } from "./parallel.js";
 import { walkStructure } from "./traverse.js";
 import { getFrameworkRuntimeProfile } from "../frameworkProfiles.js";
+import { FORMULAS } from "../structure/operators/formulas/index.js";
 
 
 /**
@@ -129,4 +130,26 @@ export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 
   });
   const ppBytes = pipelineP2PBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, pp: plan.pp ?? plan.PP ?? 1 });
   return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes };
+}
+
+/**
+ * N4-逐 stage 通信归属：把每个节点的通信字节记到**发起该通信的算子自身的功能域**
+ * （FORMULAS.group）。即 TP all-reduce 归到 o_proj/down_proj 所在的 gemm 域、
+ * EP all-to-all 归到 moe_dispatch/moe_combine 所在的 moe 域——与算力/访存同一归组键，
+ * 单源、无需另维护 role→域 映射表。
+ * PP 的 P2P 是 **stage 边界**成本、不属于任何算子域，**刻意不计入**逐 stage 归属
+ *（仍由 planCommunicationBytes 的 ppBytes 在模型级体现）。
+ * @returns {Record<string, number>} group → 通信字节（>0 才记）
+ */
+export function communicationBytesByFormulaGroup({ graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2, frameworkProfile, enforceSharedExpertsFusion } = {}) {
+  plan = getFrameworkRuntimeProfile(frameworkProfile).resolvePlan(plan, config);
+  const byGroup = {};
+  walkStructure(graph, ({ node, multiplier }) => {
+    const bytes = nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement, frameworkProfile, enforceSharedExpertsFusion }) * multiplier;
+    if (!(bytes > 0)) return;
+    const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
+    const group = FORMULAS[operatorId]?.group || "other";
+    byGroup[group] = (byGroup[group] || 0) + bytes;
+  });
+  return byGroup;
 }

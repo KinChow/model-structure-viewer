@@ -148,12 +148,20 @@ function MsvStageBand({ data }) {
 }
 
 const RF_NODE_TYPES = { msvNode: MsvNode, groupFrame: MsvGroupFrame, stageBand: MsvStageBand };
-const RF_EDGE_TYPES = { msvEdge: MsvEdge, msvNativeEdge: MsvNativeEdge };
+const RF_EDGE_TYPES = { msvEdge: MsvEdge, msvNativeEdge: MsvNativeEdge, msvRoutedEdge: MsvRoutedEdge };
+
+// 语义关系边（非普通数据流）的本地化提示；kind 仍为 dataflow，靠 relation 类名区分样式。
+const RELATION_HINT = {
+  "kv-projection": {
+    zh: "CED：解码器全局 KV 由末端编码器隐状态投影",
+    en: "CED: decoder global KV projected from final encoder states",
+  },
+};
 
 function edgeClassName(data) {
   // §2.2：类名由 edgeStyle.edgePresentation 统一决策（declared 实线；
   // module-order / shape-match 推断弱化）。semantic-flow 已退役。
-  return `rf-edge ${data?.kind || "dataflow"}${data?.presentationClass || ""}${data?.related ? " related" : ""}`;
+  return `rf-edge ${data?.kind || "dataflow"}${data?.relation ? ` ${data.relation}` : ""}${data?.presentationClass || ""}${data?.related ? " related" : ""}`;
 }
 
 function edgeStyle(style, data) {
@@ -163,6 +171,36 @@ function edgeStyle(style, data) {
 
 function MsvNativeEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} data-evidence={data?.evidence}><title>{data?.hint}</title></BaseEdge>;
+}
+
+// ELK 正交路由折线：source → ELK 折点 → target，拐角加小圆角。折点为画布绝对坐标，
+// 与 ReactFlow 提供的 sourceX/targetX 同一坐标系（= 节点摆放空间）。
+function roundedOrthoPath(points, radius = 6) {
+  if (!points || points.length < 2) return "";
+  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const p = points[i - 1];
+    const c = points[i];
+    const n = points[i + 1];
+    const v1x = c.x - p.x; const v1y = c.y - p.y;
+    const v2x = n.x - c.x; const v2y = n.y - c.y;
+    const l1 = Math.hypot(v1x, v1y) || 1;
+    const l2 = Math.hypot(v2x, v2y) || 1;
+    const r = Math.min(radius, l1 / 2, l2 / 2);
+    const ax = c.x - (v1x / l1) * r; const ay = c.y - (v1y / l1) * r;
+    const bx = c.x + (v2x / l2) * r; const by = c.y + (v2y / l2) * r;
+    d += ` L ${ax} ${ay} Q ${c.x} ${c.y} ${bx} ${by}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L ${last.x} ${last.y}`;
+  return d;
+}
+
+function MsvRoutedEdge({ id, sourceX, sourceY, targetX, targetY, markerEnd, style, data }) {
+  const points = [{ x: sourceX, y: sourceY }, ...(data?.bendPoints || []), { x: targetX, y: targetY }];
+  const path = roundedOrthoPath(points, 6);
   return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} data-evidence={data?.evidence}><title>{data?.hint}</title></BaseEdge>;
 }
 
@@ -273,6 +311,9 @@ function ReactFlowCanvas({ graph, props }) {
         data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, nodeLens: props.nodeLens, activeLenses: props.activeLenses, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths },
         selected: props.selectedPath === node.path,
         draggable: false,
+        // 叶/模块瓷砖必须绘制在数据流边之上，否则边会压在瓷砖前面（frame 用负 zIndex
+        // 沉底，会把框内节点一起沉到边层之下）。tile > edge(0) > frame(-10)。
+        zIndex: 1,
       };
     });
     return [...frames, ...modelNodes];
@@ -288,10 +329,16 @@ function ReactFlowCanvas({ graph, props }) {
         target: targetId(edge.target),
         sourceHandle: "source",
         targetHandle: "target",
-        type: framePaths.has(edge.source) || framePaths.has(edge.target) ? "msvNativeEdge" : "msvEdge",
+        // ELK 已算出正交折点的边走 msvRoutedEdge（避开节点、无甩弧）；否则回退：接触 frame 的边
+        // 走原生贝塞尔，其余走 smart-edge（A* 绕行）。
+        type: Array.isArray(edge.bendPoints)
+          ? "msvRoutedEdge"
+          : (framePaths.has(edge.source) || framePaths.has(edge.target) ? "msvNativeEdge" : "msvEdge"),
         markerEnd: DATAFLOW_MARKER,
+        // 边居于 frame 背景之上、瓷砖之下（见 modelNodes zIndex 注释）。
+        zIndex: 0,
         // data-evidence：测试与调试的数据契约（W6-2 e2e 依赖）
-        data: { ...edge, evidence: presentation.evidence, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: presentation.width, presentationClass: presentation.className, hint: presentation.hint },
+        data: { ...edge, evidence: presentation.evidence, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: presentation.width, presentationClass: presentation.className, hint: edge.relation && RELATION_HINT[edge.relation] ? RELATION_HINT[edge.relation][props.english ? "en" : "zh"] : presentation.hint },
       };
     });
   }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames, props.english]);

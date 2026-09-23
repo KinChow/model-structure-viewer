@@ -143,7 +143,47 @@
   可调输入在 desktop/mobile 呈现、无 console 报错）。
 - PR 描述写明服务支柱④，且逐条对照本文红线。
 
-## 4. 参考文献
+## 4. decode 场景收口与 α 参考值（边界内）
+
+### 4.1 decode 下界已验证，不需重做建模
+
+decode 的理论下界结构已建成并经实测对账，属**已完成**、非缺口：
+
+- 相位感知已内建（`cost/.../formulas/counts.js`）：`scoredPairs` 对 decode 用
+  `queryTokens=1 × keyTokens=全上下文`，attention 的 K/V 读按 `keyTokens`（读全量 KV cache），
+  KV 写按 1 token → decode「每 token 读全部权重 + 全量 KV」的访存主导特征已建模。
+- 实测证据（不再另采）：
+  - `evidence/cost/bench_vs_roofline.md` §B（SGLang A100）：decode 全 batch **访存受限**，
+    B=100 每步地板 **4.25 ms**，实测 Mean TPOT **7.03 ms = 1.65× 地板**，bound 分类正确；
+  - `evidence/cost/vllm_bench_vs_roofline.md`：TPOT 14.41 ms、decode 访存受限、bound 一致；
+  - decode 总 MACs 与 `FlopCounterMode` 逐位相等（**1,191,968,768**），AI 0.2–0.33（memory-bound）
+    与 `classifyRoofline` 逐项一致（`validation_status.md`）。
+- 1.65× 差距 = roofline **刻意不建模**项（kernel 启动、调度/排队、continuous batching、
+  非满带宽、context 增长）。补它 = 建调度/仿真 = `principles.md §1` 明确不做，指向 Vidur。
+
+结论：decode **不需要优化其下界建模**；「更贴近实测 TPOT」不是 MSV 的目标（不得叫 TPOT/吞吐）。
+
+### 4.2 α 参考值（order-of-magnitude，非本仓实测）
+
+α（每次集合固定延迟）UI 默认 0（保持纯带宽下界），填入才生效。无公开规格、本仓亦未实测延迟
+（`evidence/parallelism/internode_comm.md` 只测了带宽 busbw ≈ 79.6 Gb/s 单 rail，未测 latency）。
+以下为**文献/厂商量级参考**，供用户估填，不作默认、不写入芯片规格：
+
+| 链路 | α 典型量级 | 来源类别 |
+|---|---|---|
+| NVLink（intra-node，NCCL 小消息） | ~1–2 µs | 厂商 / NCCL 文档量级 |
+| PCIe（intra-node） | ~1–3 µs | 同上 |
+| RoCE / InfiniBand（inter-node） | ~2–5 µs | ib_send_lat / NCCL 小消息量级 |
+
+UI 的「通信固定延迟 α（µs/次）」help 已给出该量级；本表提供 provenance（明确非本仓实测）。
+
+### 4.3 α 在 decode 的作用边界
+
+decode 主导成本是**访存**（权重 + 全量 KV / token），α 走**通信路**，只在 decode **同时通信受限**
+（高 TP all-reduce / 大 EP all-to-all 且每步字节小）时才显著；普通 decode α 权重小——这与
+§0/§1 的 regime 判断一致，也是 α 设为 opt-in、默认 0 的原因。
+
+## 5. 参考文献
 
 - Williams, Waterman, Patterson. Roofline: An Insightful Visual Performance Model. CACM 2009.
 - Thakur, Rabenseifner, Gropp. Optimization of Collective Communication Operations in MPICH. IJHPCA 2005.

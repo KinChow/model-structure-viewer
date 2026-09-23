@@ -1,0 +1,1446 @@
+{
+  "scannedAt": "2026-09-23T02:12:13.140Z",
+  "total": 60,
+  "report": [
+    {
+      "modelId": "MiniMaxAI/MiniMax-M2.7",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "214.80 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "4 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "214.80 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "4 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "MiniMaxAI/MiniMax-M3",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "795.77 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "795.77 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "413.53 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "413.53 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-0.8B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "1.67 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "1.67 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-0.8B-Base",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "1.67 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "1.67 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-122B-A10B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "233.19 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "4 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "233.19 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "4 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-122B-A10B-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "118.61 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "2 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "118.61 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "2 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "73.62 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "73.62 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-27B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "52.02 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "52.02 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-27B-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "29.02 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "29.02 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-27B-GPTQ-Int4",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "28.43 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "28.43 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-2B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "4.28 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "4.28 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-2B-Base",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "4.28 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "4.28 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-35B-A3B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "67.07 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "67.07 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-35B-A3B-Base",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "67.07 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "67.07 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-35B-A3B-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "34.99 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "34.99 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "22.83 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "22.83 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-397B-A17B",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "751.63 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "751.63 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "378.47 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "378.47 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "219.71 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "4 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "219.71 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "4 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-4B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "8.80 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "8.80 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-4B-Base",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "8.80 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "8.80 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-9B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "18.10 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "18.10 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.5-9B-Base",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "18.10 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "18.10 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.6-27B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "52.02 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "52.02 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.6-27B-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "29.02 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "29.02 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.6-35B-A3B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "67.07 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "67.07 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.6-35B-A3B-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "34.99 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "34.99 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.8-2.4T-A95B",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "4557.10 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "4557.10 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.8-2.4T-A95B-FP8",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "2325.38 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "2325.38 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.8-27B",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "52.02 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "52.02 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.8-27B-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "29.02 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "1 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "29.02 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "1 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.8-Flash-Next",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "335.44 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "335.44 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "172.93 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "172.93 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-R1",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "641.42 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "641.42 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V3.1",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "641.42 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "641.42 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V3.2",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "642.27 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "642.27 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V4-Flash",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "148.66 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "2 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "148.66 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "2 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "155.44 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "4 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "155.44 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "4 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "156.30 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "4 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "156.30 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "4 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V4-Pro",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "805.34 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "805.34 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "831.44 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "831.44 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "475.24 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "475.24 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K2-Base",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "958.63 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "958.63 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K2-Instruct",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "958.63 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "958.63 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K2-Instruct-0905",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "958.63 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "958.63 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K2-Thinking",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "553.53 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "553.53 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K2.5",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "554.41 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "554.41 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K2.6",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "554.41 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "554.41 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K2.7-Code",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "554.41 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "554.41 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "moonshotai/Kimi-K3",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "1448.74 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "1448.74 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-4.7",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "668.18 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "668.18 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "1404.37 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "1404.37 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5.1",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "1404.37 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "1404.37 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5.2",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "1403.38 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "1403.38 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5.2-FP8",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "703.92 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "703.92 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5.3",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "703.92 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "703.92 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5.3-BF16",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "1403.38 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "1403.38 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5.3-Flash",
+      "zhAnswer": {
+        "装得下": "已适配",
+        "总显存": "305.94 GiB / 74.51 GiB",
+        "瓶颈": "算力受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "fit",
+        "Total VRAM": "305.94 GiB / 74.51 GiB",
+        "Bound": "Compute-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
+      },
+      "enCost": {
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
+      },
+      "anomalies": []
+    },
+    {
+      "modelId": "zai-org/GLM-5.3-Flash-BF16",
+      "zhAnswer": {
+        "装得下": "不适配",
+        "总显存": "598.68 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
+        "需要 GPU": "8 / 8"
+      },
+      "enAnswer": {
+        "Fit": "not fit",
+        "Total VRAM": "598.68 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
+        "GPUs": "8 / 8"
+      },
+      "zhCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
+      },
+      "enCost": {
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
+      },
+      "anomalies": []
+    }
+  ]
+}

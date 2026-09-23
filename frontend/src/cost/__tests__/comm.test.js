@@ -163,9 +163,16 @@ test("N4 通信按算子功能域归属：TP all-reduce→gemm、EP all-to-all�
     bytesPerElement: 2,
   });
   // gemm：o_proj all-reduce = 2·(tp-1)/tp·hidden·b = 8；moe：all-to-all = topk·hidden·b = 16
-  assert.deepEqual(byGroup, { gemm: 8, moe: 16 });
+  assert.deepEqual(byGroup, { gemm: { bytes: 8, ops: 1 }, moe: { bytes: 16, ops: 1 } });
   // PP P2P（stage 边界）刻意不出现在逐 stage 归属里
   assert.equal("pipeline" in byGroup, false);
+});
+
+test("N4-α 通信汇总额外给出集合次数 totalOps（含 nodeOps 与 ppOps）", () => {
+  const result = planCommunicationBytes({ graph: toGraph({ repeat: 2, children: [{ id: "decoder.0.self_attn.o_proj" }] }), config: { hiddenSize: 4 }, plan: { tp: 2, pp: 2 }, tokens: 1, bytesPerElement: 2 });
+  assert.equal(result.nodeOps, 2); // 两层各一次 all-reduce
+  assert.equal(result.ppOps, 1); // pp=2 → 1 个 stage 边界
+  assert.equal(result.totalOps, 3);
 });
 
 // ---------------------------------------------------------------------------

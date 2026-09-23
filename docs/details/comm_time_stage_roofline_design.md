@@ -70,10 +70,12 @@
    interNodeBytesPerSecond = (override ?? chip.interconnect?.inter_node?.bandwidth) · η.comm。
    不改芯片数据文件（chips/public.js 保持无 inter_node，诚实）。
 3. classifyRoofline 透传：options 增 interNodeBandwidth → 传入 chipRates。
-4. 可选进阶（单独对齐后再上，不在首版）：加 α（latency）项，
-   commTime = α + commBytes/β。对 decode 小消息/多次小集合更准；但当前「只用 n/β +
-   取 max」是刻意的下界口径，加 α 会从「字节/带宽下界」变成「含固定开销的估计」，
-   需改口径标注并单独对齐。首版只做可调 β。
+4. α（latency）项：**已实现（opt-in，方案 a 平摊）**。按 Hockney
+   `T_comm = α·集合次数 + n/β`：集合次数由 `planCommunicationBytes.totalOps` /
+   `communicationBytesByFormulaGroup[].ops` 给出（每个发起 comm 的层实例算一次，含 repeat 乘子）。
+   UI 加「通信固定延迟 α（µs/次）」输入，**默认 0 → 与旧口径逐位一致（纯下界）**；α>0 时
+   comm 路变「含固定开销的估计」（非纯下界，help 已标注），对 decode/小消息更贴近。
+   α 无公开规格，为用户估计值。带宽项未知（缺 link）时整体仍 unknown，不被 α 掩盖。
 5. 标注：产物固定标「估计 / 下界」；β 由用户输入时 value_source 徽标标 user_input
    （区别于芯片规格 spec）。
 

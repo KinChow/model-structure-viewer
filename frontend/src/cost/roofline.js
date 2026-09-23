@@ -30,6 +30,8 @@ function normalizeActions(cost = {}) {
         indexRead: a.bytes?.indexRead ?? a.indexRead ?? 0,
       },
       commBytes: a.commBytes ?? null,
+      // N4-α：该动作向量对应的集合通信次数（用于 Hockney α·steps 项）；未知按 0。
+      commOps: a.commOps ?? 0,
     };
   }
   return {
@@ -42,6 +44,7 @@ function normalizeActions(cost = {}) {
       actOut: cost.actOutBytes ?? null,
     },
     commBytes: cost.commBytes ?? null,
+    commOps: cost.commOps ?? 0,
   };
 }
 
@@ -51,7 +54,7 @@ function normalizeActions(cost = {}) {
  * 数量未知或费率缺失 → 时间 null，计入 missing，bound 退化为 unknown。
  * @param {object} cost 模块成本（含 actions 或旧字段）
  * @param {object} chip 芯片规格
- * @param {{dtype?: string, efficiency?: object, interNode?: boolean, interNodeBandwidth?: number}} options
+ * @param {{dtype?: string, efficiency?: object, interNode?: boolean, interNodeBandwidth?: number, commLatencySeconds?: number}} options
  */
 export function classifyRoofline(cost = {}, chip = {}, options = {}) {
   const dtype = String(options.dtype || "bf16").toLowerCase();
@@ -66,6 +69,9 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
     ? null
     : b.weights + b.actIn + b.actOut + (b.kvRead || 0) + (b.indexRead || 0);
   const commBytes = actions.commBytes || cost.commBytes || 0;
+  const commOps = actions.commOps || cost.commOps || 0;
+  // N4-α（opt-in）：每次集合的固定延迟（秒）。默认 0 → 与旧口径逐位一致（纯下界）。
+  const commLatency = options.commLatencySeconds > 0 ? options.commLatencySeconds : 0;
   const link = options.interNode ? rates.interNodeBytesPerSecond : rates.intraNodeBytesPerSecond;
 
   const missing = [];
@@ -100,7 +106,13 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
   const vectorTime = time(actions.vector, rates.vectorPerSecond, { quantity: "vector", rate: "vector_flops" });
   const sfuTime = time(actions.sfu, rates.sfuPerSecond, { quantity: "sfu", rate: "sfu_ops" });
   const memoryTime = time(bytesMoved, rates.bytesPerSecond, { quantity: "bytes_moved", rate: "memory_bandwidth" });
-  const commTime = time(positive(commBytes) ? commBytes : 0, link, { quantity: "comm", rate: options.interNode ? "interconnect.inter_node.bandwidth" : "interconnect.intra_node.bandwidth" });
+  // Hockney：T_comm = α·steps + n/β。带宽项走 time()（缺 link 即 unknown）；α 项 opt-in 相加。
+  // α>0 时 comm 从"字节/带宽下界"变为"含固定开销的估计"（非纯下界，UI 标注）。
+  const commBandwidthTime = time(positive(commBytes) ? commBytes : 0, link, { quantity: "comm", rate: options.interNode ? "interconnect.inter_node.bandwidth" : "interconnect.intra_node.bandwidth" });
+  const commLatencyTime = commLatency > 0 && commOps > 0 ? commLatency * commOps : 0;
+  const commTime = commBandwidthTime == null
+    ? (!positive(commBytes) && commLatencyTime > 0 ? commLatencyTime : commBandwidthTime)
+    : commBandwidthTime + commLatencyTime;
 
   const candidates = [
     ["matrix", matrixTime],

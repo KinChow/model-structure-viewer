@@ -152,6 +152,8 @@
     "interNodeLink": "跨节点链路（roofline 通信）",
     "interNodeBandwidth": "跨节点带宽 GB/s（可调）",
     "interNodeBandwidthHelp": "公开卡缺 inter_node 规格时，跨节点通信时间为 unknown。此处可填用户估计的有效带宽（GB/s，乘 η.comm 后计入 roofline 通信时间下界）。留空则保持 unknown。真机参考：单 rail ≈ 9.95 GB/s（79.6 Gb/s）。仅影响通信时间估计，非实测。",
+    "commLatency": "通信固定延迟 α（µs/次）",
+    "commLatencyHelp": "opt-in：每次集合通信的固定延迟（µs），按 Hockney T=α·次数 + 字节/带宽 计入。默认 0 时通信仍是纯带宽下界；填入后通信路变为“含固定开销的估计”（非纯下界），对 decode/小消息更贴近实测。α 无公开规格，为用户估计值（NVLink 约 1–2 µs、RoCE 约 2–5 µs 量级）。",
     "weightWhatIf": "权重 what-if",
     "weights": "权重",
     "buffers": "Buffers",

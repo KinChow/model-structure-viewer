@@ -152,6 +152,8 @@
     "interNodeLink": "Inter-node link (roofline comm)",
     "interNodeBandwidth": "Inter-node bandwidth GB/s (tunable)",
     "interNodeBandwidthHelp": "Public cards lack an inter_node spec, so inter-node comm time is unknown. Enter a user-estimated effective bandwidth (GB/s; multiplied by η.comm into the roofline comm-time lower bound). Leave blank to keep it unknown. Measured reference: single rail ≈ 9.95 GB/s (79.6 Gb/s). Affects the comm-time estimate only; not a measurement.",
+    "commLatency": "Comm fixed latency α (µs/op)",
+    "commLatencyHelp": "Opt-in: fixed latency per collective (µs), added as Hockney T = α·count + bytes/bandwidth. At 0 the comm path stays a pure bandwidth lower bound; once set, the comm path becomes an estimate with fixed overhead (no longer a pure lower bound), closer to measured for decode/small messages. α has no public spec; it is a user estimate (order of ~1–2 µs NVLink, ~2–5 µs RoCE).",
     "weightWhatIf": "Weight what-if",
     "weights": "Weights",
     "buffers": "Buffers",

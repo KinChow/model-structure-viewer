@@ -125,11 +125,16 @@ export function pdKvTransferBytes({ totalKvBytes = 0, totalStateBytes = 0, confi
 export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2, frameworkProfile, enforceSharedExpertsFusion } = {}) {
   plan = getFrameworkRuntimeProfile(frameworkProfile).resolvePlan(plan, config);
   let nodeBytes = 0;
+  let nodeOps = 0;
   walkStructure(graph, ({ node, multiplier }) => {
-    nodeBytes += nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement, frameworkProfile, enforceSharedExpertsFusion }) * multiplier;
+    const bytes = nodeCommunicationBytes(node, config, plan, { batch, tokens, bytesPerElement, frameworkProfile, enforceSharedExpertsFusion }) * multiplier;
+    nodeBytes += bytes;
+    // N4-α：集合通信次数（每个发起 comm 的层实例算一次），供 Hockney α·steps 项。
+    if (bytes > 0) nodeOps += multiplier;
   });
   const ppBytes = pipelineP2PBytes({ batch, tokens, hidden: config.hiddenSize, bytesPerElement, pp: plan.pp ?? plan.PP ?? 1 });
-  return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes };
+  const ppOps = Math.max(0, (plan.pp ?? plan.PP ?? 1) - 1);
+  return { nodeBytes, ppBytes, totalBytes: nodeBytes + ppBytes, nodeOps, ppOps, totalOps: nodeOps + ppOps };
 }
 
 /**
@@ -139,7 +144,7 @@ export function planCommunicationBytes({ graph, config = {}, plan = {}, batch = 
  * 单源、无需另维护 role→域 映射表。
  * PP 的 P2P 是 **stage 边界**成本、不属于任何算子域，**刻意不计入**逐 stage 归属
  *（仍由 planCommunicationBytes 的 ppBytes 在模型级体现）。
- * @returns {Record<string, number>} group → 通信字节（>0 才记）
+ * @returns {Record<string, {bytes: number, ops: number}>} group → { 通信字节, 集合次数 }（bytes>0 才记）
  */
 export function communicationBytesByFormulaGroup({ graph, config = {}, plan = {}, batch = 1, tokens = 1, bytesPerElement = 2, frameworkProfile, enforceSharedExpertsFusion } = {}) {
   plan = getFrameworkRuntimeProfile(frameworkProfile).resolvePlan(plan, config);
@@ -149,7 +154,9 @@ export function communicationBytesByFormulaGroup({ graph, config = {}, plan = {}
     if (!(bytes > 0)) return;
     const operatorId = String(node?.attributes?.operator_id || "").toLowerCase();
     const group = FORMULAS[operatorId]?.group || "other";
-    byGroup[group] = (byGroup[group] || 0) + bytes;
+    const acc = byGroup[group] || (byGroup[group] = { bytes: 0, ops: 0 });
+    acc.bytes += bytes;
+    acc.ops += multiplier; // N4-α：该域集合通信次数
   });
   return byGroup;
 }

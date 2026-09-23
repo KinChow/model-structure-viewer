@@ -59,11 +59,26 @@ function layoutHeight(node) {
 export async function layoutGraphWithElk(graph) {
   const elk = await getElk();
   const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
-  const directEdges = (path, allowedIds) => graph.edges
-    .filter((edge) => edge.kind === "dataflow"
-      && parentPath(edge.source) === path && parentPath(edge.target) === path
-      && (!allowedIds || (allowedIds.has(edge.source) && allowedIds.has(edge.target))))
-    .map((edge) => ({ id: edge.id, source: edge.source, target: edge.target }));
+  // 跨容器真实边只在共同祖先生成布局约束，不改 IR 或可见边的精确端点。
+  const directEdges = (path, allowedIds) => {
+    const childUnder = endpoint => {
+      if (!endpoint.startsWith(`${path}.`)) return null;
+      return endpoint.split(".").slice(0, path.split(".").length + 1).join(".");
+    };
+    const pairs = new Map();
+    for (const edge of graph.edges) {
+      if (edge.kind !== "dataflow") continue;
+      const source = childUnder(edge.source), target = childUnder(edge.target);
+      if (!source || !target || source === target
+        || (allowedIds && (!allowedIds.has(source) || !allowedIds.has(target)))) continue;
+      const exact = source === edge.source && target === edge.target;
+      const projected = { id: exact ? edge.id : `__constraint__${path}__${edge.id}`,
+        source, target, evidence: edge.evidence };
+      const key = `${source}=>${target}`;
+      if (!pairs.has(key) || exact) pairs.set(key, projected);
+    }
+    return [...pairs.values()];
+  };
   // 端口约束（成熟布局器让连线好看的关键）：竖向容器里边从子节点**底部中点出、顶部中点入**，
   // 横向容器里从**右侧中点出、左侧中点入**——与渲染层 Handle 位置一致，消除“从边角斜甩”。
   const portSides = (direction) => (direction === "RIGHT"
@@ -90,9 +105,9 @@ export async function layoutGraphWithElk(graph) {
     const childIds = new Set(children.map((child) => child.path));
     if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
     // 语义流布局只信任 builder 声明的边；semantic-flow 已随 legacySemanticEdges 退役。
-    const semanticFlow = graph.edges.some((edge) => edge.evidence === "declared"
-      && parentPath(edge.source) === node.path && parentPath(edge.target) === node.path);
     const rawEdges = directEdges(node.path, childIds);
+    const semanticFlow = rawEdges.some(edge => edge.evidence === "declared")
+      || Array.isArray(node.node?.attributes?.dataflow_edges);
     const inputIds = new Set(children
       .filter((child) => !rawEdges.some((edge) => edge.target === child.path))
       .map((child) => child.path));
@@ -184,7 +199,16 @@ export async function layoutGraphWithElk(graph) {
     const baseline = trunk.length
       ? Math.min(...trunk.map((child) => child.y || 0))
       : Math.min(...modelLayout.children.map((child) => child.y || 0));
-    for (const child of trunk) child.y = baseline;
+    // 独立入口或汇合不是单一串行主干。保留 ELK 的分支行，不能把视觉和 embedding
+    // 两个同列节点拉到相同 y。纯串行主干仍保留原有紧凑基线。
+    const trunkIds = new Set(trunk.map(child => child.id));
+    const trunkEdges = directEdges("root", trunkIds);
+    const isLinearTrunk = trunk.length < 2 || (
+      trunkEdges.length === trunk.length - 1
+      && trunk.every(child => trunkEdges.filter(e => e.source === child.id).length <= 1
+        && trunkEdges.filter(e => e.target === child.id).length <= 1)
+    );
+    if (isLinearTrunk) for (const child of trunk) child.y = baseline;
     // 草稿分支（MTP / DSpark）是旁挂节点：ELK 会把它排在与主干同层节点相同的列里
     //（MTP 落 lm_head 列、DSpark 落 final norm 列），纵向本来错开、无重叠。上面把
     // 主干统一拉到 baseline 后，同列的主干节点被上移，若草稿仍停在 ELK 旧 y 就会与
@@ -195,7 +219,7 @@ export async function layoutGraphWithElk(graph) {
     const DRAFT_BAND_GAP = 24;
     const DRAFT_ROW_GAP = 24;
     const trunkBottom = trunk.length
-      ? Math.max(...trunk.map((child) => baseline + (child.height || 0)))
+      ? Math.max(...trunk.map((child) => (child.y || 0) + (child.height || 0)))
       : baseline;
     let draftTop = trunkBottom + DRAFT_BAND_GAP;
     for (const draft of drafts) {
@@ -224,7 +248,7 @@ export async function layoutGraphWithElk(graph) {
     if (shape.id !== "__graph_root__") positions.set(shape.id, { x, y });
     if (shape.id !== "__graph_root__" && shape.id !== "root" && Array.isArray(shape.edges)) {
       for (const edge of shape.edges) {
-        if (typeof edge.id !== "string" || edge.id.startsWith("__order__")) continue;
+        if (typeof edge.id !== "string" || edge.id.startsWith("__order__") || edge.id.startsWith("__constraint__")) continue;
         const bends = (edge.sections || []).flatMap((section) => section.bendPoints || []);
         // sections 坐标相对于边所属容器（= 本 shape）原点，加上容器绝对偏移即画布绝对坐标。
         edgeBends.set(edge.id, bends.map((p) => ({ x: x + p.x, y: y + p.y })));

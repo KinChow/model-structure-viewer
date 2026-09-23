@@ -102,9 +102,32 @@ export function layoutGraph(structure, expandedGroups) {
   };
   const nodes = items.map((item) => ({ ...item, stage: stageForPath(item.path), children: undefined, childItems: undefined }));
   const visiblePaths = new Set(nodes.map((node) => node.path));
-  const edges = (structureGraph.edges || []).filter(
-    (edge) => visiblePaths.has(edge.source) && visiblePaths.has(edge.target),
-  );
+  const parentById = new Map(structureGraph.nodes.map(node => [node.id, node.parent_id]));
+  const visibleAncestor = id => {
+    const seen = new Set();
+    while (id && !visiblePaths.has(id)) {
+      if (seen.has(id)) return null;
+      seen.add(id);
+      id = parentById.get(id);
+    }
+    return id;
+  };
+  const projected = new Map();
+  for (const edge of structureGraph.edges || []) {
+    const source = visibleAncestor(edge.source), target = visibleAncestor(edge.target);
+    if (!source || !target || source === target) continue;
+    const key = JSON.stringify([source, target, edge.kind, edge.relation, edge.label, edge.evidence]);
+    const existing = projected.get(key);
+    if (existing) {
+      existing.originalEdges = [...(existing.originalEdges || [existing.id]), edge.id];
+      continue;
+    }
+    const changed = source !== edge.source || target !== edge.target;
+    projected.set(key, changed ? { ...edge, source, target,
+      originalSource: edge.source, originalTarget: edge.target, originalEdges: [edge.id] }
+      : { ...edge });
+  }
+  const edges = [...projected.values()];
   const topLevelPaths = items
     .filter((item) => item.path.split(".").length === 2)
     .sort((left, right) => Number(left.path.split(".")[1]) - Number(right.path.split(".")[1]))

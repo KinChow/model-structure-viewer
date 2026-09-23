@@ -338,7 +338,7 @@ function ReactFlowCanvas({ graph, props }) {
         // 边居于 frame 背景之上、瓷砖之下（见 modelNodes zIndex 注释）。
         zIndex: 0,
         // data-evidence：测试与调试的数据契约（W6-2 e2e 依赖）
-        data: { ...edge, evidence: presentation.evidence, originalSource: edge.source, originalTarget: edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: presentation.width, presentationClass: presentation.className, hint: edge.relation && RELATION_HINT[edge.relation] ? RELATION_HINT[edge.relation][props.english ? "en" : "zh"] : presentation.hint },
+        data: { ...edge, evidence: presentation.evidence, originalSource: edge.originalSource || edge.source, originalTarget: edge.originalTarget || edge.target, flowDirection: (parentPath(edge.source)?.split(".").length || 0) > 1 ? "vertical" : "horizontal", related: relatedDataflowEdges.has(edge.id), width: presentation.width, presentationClass: presentation.className, hint: edge.relation && RELATION_HINT[edge.relation] ? RELATION_HINT[edge.relation][props.english ? "en" : "zh"] : presentation.hint },
       };
     });
   }, [renderEdges, relatedDataflowEdges, graph.nodes, graph.containerFrames, props.english]);

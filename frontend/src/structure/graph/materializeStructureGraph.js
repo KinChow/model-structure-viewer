@@ -1,10 +1,5 @@
 import { materializeDeclaredEdges } from "./declaredEdges.js";
 
-function semanticEdges(item) {
-  return materializeDeclaredEdges(item);
-}
-
-
 function isOutputNode(item) {
   const type = String(item?.node?.type || "").toLowerCase();
   return type === "output" || type === "head";
@@ -23,9 +18,15 @@ function flattenTree(root) {
   return items;
 }
 
-export function materializeStructureGraph(root) {
+export function materializeStructureGraph(root, { modelId = root?.id || root?.name } = {}) {
   const items = flattenTree(root);
-  const semanticParents = new Set(items.filter((item) => semanticEdges(item)).map((item) => item.path));
+  const canonicalItems = new Map();
+  for (const item of items) {
+    const key = item.node?.id;
+    canonicalItems.set(key, [...(canonicalItems.get(key) || []), item]);
+  }
+  const declared = new Map(items.map(item => [item.path, materializeDeclaredEdges(item, canonicalItems, modelId)]));
+  const semanticParents = new Set(items.filter(item => declared.get(item.path) !== null).map(item => item.path));
   const orderedPairs = new Set(items.flatMap((item) =>
     item.childItems.slice(0, -1).map((source, index) =>
       `${source.path}=>${item.childItems[index + 1].path}`)));
@@ -46,7 +47,7 @@ export function materializeStructureGraph(root) {
   });
 
   const dataflowEdges = items.flatMap((item) => {
-    const semantic = semanticEdges(item);
+    const semantic = declared.get(item.path);
     if (semantic) return semantic;
     const operators = item.childItems.filter((child) => child.node?.type === "operator");
     const edges = [];

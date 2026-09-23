@@ -73,7 +73,7 @@ export function materializeModelStructure(ir) {
     confidence: "high",
     children: network.children.map(structureNodeFromSpec),
   };
-  let graph = materializeStructureGraph(model);
+  let graph = materializeStructureGraph(model, { modelId: options.modelId || network.name });
   const graphTruth = enrichGraphWithTruth(graph, truth, {
     hasBuilder,
     modelName: network?.name,

@@ -48,6 +48,8 @@ class StructureGraphEdge(BaseModel):
     target_canonical_id: str | None = None
     kind: str = "dataflow"
     evidence: str | None = None
+    relation: str | None = None
+    label: str | None = None
 
 
 class StructureGraph(BaseModel):

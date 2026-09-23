@@ -9,6 +9,39 @@ function structureFrom(tree) {
   return { graph: materializeStructureGraph(tree) };
 }
 
+test("independent multimodal branches retain separate rows before their join", async () => {
+  const structure = structureFrom({
+    id: "model", type: "model",
+    attributes: { dataflow_edges: [["visual", "merge"], ["embed", "merge"], ["merge", "decoder"]] },
+    children: ["visual", "embed", "merge", "decoder"].map(id => ({
+      id, name: id, type: id === "embed" ? "embedding" : "module", children: [],
+    })),
+  });
+  const graph = await layoutGraphWithElk(layoutGraph(structure, new Set(["root"])));
+  const visual = graph.nodes.find(n => n.path === "root.0");
+  const embed = graph.nodes.find(n => n.path === "root.1");
+  const merge = graph.nodes.find(n => n.path === "root.2");
+  assert.ok(Math.abs(visual.y - embed.y) >= Math.min(visual.height, embed.height));
+  assert.ok(merge.x > visual.x && merge.x > embed.x);
+});
+
+test("cross-container dependencies constrain their common ancestor without changing endpoints", async () => {
+  const structure = structureFrom({
+    id: "model", type: "model",
+    attributes: { dataflow_edges: [["source.index", "target.reuse"]] },
+    // Deliberately reverse tree order: dependency, not array order, decides placement.
+    children: ["target", "source"].map(id => ({
+      id, name: id, type: "module", attributes: { dataflow_edges: [] },
+      children: [{ id: `${id}.${id === "source" ? "index" : "reuse"}`, name: id, type: "operator" }],
+    })),
+  });
+  const view = layoutGraph(structure, new Set(["root", "root.0", "root.1"]));
+  const graph = await layoutGraphWithElk(view);
+  assert.ok(graph.nodes.find(n => n.path === "root.1").x < graph.nodes.find(n => n.path === "root.0").x);
+  assert.deepEqual(graph.edges.map(e => [e.source, e.target]), [["root.1.0", "root.0.0"]]);
+  assert.equal(graph.edges.some(e => e.id.startsWith("__constraint__")), false);
+});
+
 test("layoutGraph exposes independent visible nodes and edges", () => {
   const graph = layoutGraph(structureFrom({
     name: "model",

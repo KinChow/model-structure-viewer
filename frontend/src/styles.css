@@ -1202,6 +1202,65 @@ label {
 .detail-fit-status { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; white-space: nowrap; }
 .detail-fit-status.fit { background: rgba(95,168,111,.16); color: #86d095; }
 .detail-fit-status.no-fit { background: rgba(215,112,92,.16); color: #f09682; }
+.detail-view-presets { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.detail-view-presets .detail-view-label { color: #8c99aa; font-size: 11px; font-weight: 700; margin-right: 2px; }
+.detail-view-presets button { border: 1px solid #2a3545; border-radius: 5px; background: #151e29; color: #9ba8b8; padding: 5px 10px; font-size: 12px; }
+.detail-view-presets button:hover { border-color: #f4ab52; }
+.detail-view-presets button.active { border-color: #a7753a; background: #3a2a19; color: #f4ab52; font-weight: 700; }
+.detail-view-panels { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.detail-view-panels .detail-view-panels-label { color: #8c99aa; font-size: 11px; margin-left: 6px; }
+.detail-view-panels .detail-view-panels-label::before { content: "·"; margin-right: 8px; color: #3a4657; }
+.detail-view-panels button { border: 1px solid #2a3545; border-radius: 5px; background: #151e29; color: #9ba8b8; padding: 5px 10px; font-size: 12px; }
+.detail-view-panels button:hover { border-color: #f4ab52; }
+.detail-view-panels button.active { border-color: #a7753a; background: #3a2a19; color: #f4ab52; font-weight: 700; }
+.detail-page.theme-light .detail-view-panels .detail-view-panels-label { color: #657386; }
+.detail-page.theme-light .detail-view-panels button { border-color: #dce3eb; background: #f6f8fa; color: #364555; }
+.detail-page.theme-light .detail-view-panels button.active { border-color: #d8973c; background: #fbf1e2; color: #b3701f; }
+.detail-layout.inspector-hidden { grid-template-columns: minmax(0, 1fr); }
+/* 结论条 answer bar */
+.detail-answer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-bottom: 10px; padding: 9px 12px; border: 1px solid #26344a; border-radius: 9px; background: linear-gradient(180deg,#1a2637,#151f2e); }
+.detail-answer-bar .ab-item { display: flex; flex-direction: column; gap: 2px; }
+.detail-answer-bar .ab-item > i { font-style: normal; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #6b7d95; }
+.detail-answer-bar .ab-item > b { font-size: 14px; color: #e7eef7; }
+.detail-answer-bar .detail-fit-status { font-size: 14px; }
+.detail-page.theme-light .detail-answer-bar { border-color: #dce3eb; background: #f6f8fa; }
+.detail-page.theme-light .detail-answer-bar .ab-item > b { color: #19212c; }
+/* 显存堆叠条 */
+.cost-vram-bar { margin: 10px 0 6px; }
+.cost-vram-bar .cvb-track { position: relative; display: flex; height: 22px; border: 1px solid #2f4058; border-radius: 6px; overflow: hidden; background: #0d1420; }
+.cost-vram-bar .cvb-track.over { outline: 2px solid #e5604d; outline-offset: 1px; }
+.cost-vram-bar .cvb-seg { height: 100%; }
+.cvb-weights { background: #4aa3e0; } .cvb-kv { background: #e0954a; } .cvb-state { background: #c6537e; } .cvb-buffers { background: #5f7488; }
+.cost-vram-bar .cvb-cap { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+.cost-vram-bar .cvb-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 7px; font-size: 11px; color: #8c99aa; }
+.cost-vram-bar .cvb-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.cost-vram-bar .cvb-cap-legend { color: #cdd8e6; }
+/* Roofline 三条时间条 */
+.cost-roofline-bars { margin: 8px 0 4px; }
+.cost-roofline-bars .crb-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.cost-roofline-bars .crb-lab { width: 52px; font-size: 11px; color: #8c99aa; }
+.cost-roofline-bars .crb-bar { flex: 1; height: 12px; border: 1px solid #2f4058; border-radius: 4px; overflow: hidden; background: #0d1420; }
+.cost-roofline-bars .crb-fill { display: block; height: 100%; }
+.crb-compute { background: #c6537e; } .crb-memory { background: #37b56b; } .crb-comm { background: #e0a53a; }
+.cost-roofline-bars .crb-val { width: 74px; text-align: right; font-size: 10.5px; color: #8c99aa; font-variant-numeric: tabular-nums; }
+.cost-roofline-bars .crb-row.bound .crb-lab, .cost-roofline-bars .crb-row.bound .crb-val { color: #e7eef7; font-weight: 700; }
+/* 并行拓扑网格 */
+.cost-topo { margin: 10px 0 4px; }
+.cost-topo .topo-cap { display: flex; justify-content: space-between; font-size: 10.5px; color: #8c99aa; margin-bottom: 5px; }
+.cost-topo .topo-nodes { display: flex; flex-direction: column; gap: 5px; }
+.cost-topo .topo-node { display: flex; align-items: center; gap: 6px; }
+.cost-topo .topo-nlab { width: 30px; font-size: 10px; color: #6b7d95; }
+.cost-topo .topo-gpus { display: flex; flex-wrap: wrap; gap: 4px; }
+.cost-topo .topo-gpu { width: 20px; height: 20px; border-radius: 5px; border: 1px solid #2f4058; background: #1a2739; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #5f7488; }
+.cost-topo .topo-gpu.used { color: #eaf4ff; }
+.cost-topo .topo-gpu.used.tp0 { background: #274a66; border-color: #3a7bb0; }
+.cost-topo .topo-gpu.used.tp1 { background: #2b5a4a; border-color: #3a9b7a; }
+.cost-topo .topo-warn, .cost-topo .topo-warn-inline { margin-top: 6px; font-size: 11px; color: #e5604d; }
+.cost-topo.compact { display: flex; gap: 10px; align-items: center; font-size: 11px; color: #8c99aa; }
+.detail-page.theme-light .cost-vram-bar .cvb-track, .detail-page.theme-light .cost-roofline-bars .crb-bar, .detail-page.theme-light .cost-topo .topo-gpu { background: #eef2f6; border-color: #dce3eb; }
+.detail-page.theme-light .detail-view-presets .detail-view-label { color: #657386; }
+.detail-page.theme-light .detail-view-presets button { border-color: #dce3eb; background: #f6f8fa; color: #364555; }
+.detail-page.theme-light .detail-view-presets button.active { border-color: #d8973c; background: #fbf1e2; color: #b3701f; }
 .detail-fit-status.unknown { background: rgba(148,161,177,.16); color: #aebaca; }
 .detail-cost-panel { flex: none; margin-bottom: 12px; border: 1px solid #2a3545; border-radius: 6px; background: #111821; padding: 0 12px; position: relative; z-index: 1; }
 .detail-cost-panel.is-collapsed { display: none; }
@@ -1709,6 +1768,8 @@ label {
 .cost-config-section-toggle:hover { border-color: transparent; background: #1b2734; }
 .cost-config-section-toggle h4 { margin: 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .cost-config-section-toggle > span { color: #f4ab52; font-size: 16px; line-height: 1; }
+.cost-config-section-toggle > .cost-config-section-summary { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8c99aa; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.detail-page.theme-light .cost-config-section-toggle > .cost-config-section-summary { color: #657386; }
 .cost-config-section-body { padding: 10px; }
 .cost-config-section:not(.is-open) .cost-config-section-toggle { color: #8d9aaa; }
 .cost-plan-fields .cost-check,

@@ -16,6 +16,7 @@ import { DEFAULT_COMPARE_PLAN, DEFAULT_LOADS, DEFAULT_PLAN } from "../cost/defau
 import { useDeploymentDefaults } from "../hooks/useDeploymentDefaults.js";
 import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { graphChildren, graphNodeAt, graphViewNode } from "../structure/graph/selectors.js";
+import { formatBytes } from "../formatters.js";
 
 function breadcrumbForPath(graph, path) {
   if (!graph?.nodes || !path) return [];
@@ -75,6 +76,14 @@ function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onTh
   );
 }
 
+// 视图预设：仅切换既有面板的折叠/展开与 lens 叠加（展示层），不隐藏、不改任何 cost 计算。
+// custom 表示"用户自定义"，不覆盖当前状态。
+const PRESET_VIEWS = {
+  structure: { cost: false, lenses: [] },
+  planning: { cost: true, lenses: ["vram"] },
+  perf: { cost: true, lenses: ["compute", "memory"] },
+};
+
 export default function DetailWorkspace({
   structure,
   frameworkProfile = "neutral",
@@ -117,6 +126,33 @@ export default function DetailWorkspace({
   const [costOpen, setCostOpen] = useState(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [activeLenses, setActiveLenses] = useState(() => new Set(["vram"]));
+  const [showInspector, setShowInspector] = useState(true);
+  const [showDiagnostics, setShowDiagnostics] = useState(true);
+  const [viewPreset, setViewPreset] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("msv-view-preset")) || "custom");
+  const persistViewPreset = (name) => { try { localStorage.setItem("msv-view-preset", name); } catch { /* ignore */ } };
+  const markViewCustom = () => { setViewPreset("custom"); persistViewPreset("custom"); };
+  const applyViewPreset = (name) => {
+    setViewPreset(name);
+    persistViewPreset(name);
+    const config = PRESET_VIEWS[name];
+    if (!config) return; // custom：保留用户当前折叠/lens 状态
+    setCostOpen(config.cost);
+    setInspectorCollapsed(false);
+    setActiveLenses(new Set(config.lenses));
+    setShowInspector(true);
+    setShowDiagnostics(true);
+  };
+  useEffect(() => {
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem("msv-view-preset") : null;
+    if (saved && saved !== "custom" && PRESET_VIEWS[saved]) {
+      setCostOpen(PRESET_VIEWS[saved].cost);
+      setInspectorCollapsed(false);
+      setActiveLenses(new Set(PRESET_VIEWS[saved].lenses));
+      setShowInspector(true);
+      setShowDiagnostics(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [activePhase, setActivePhase] = useState("prefill");
   const [activeMode, setActiveMode] = useState("centralized");
   const [activeMachineId, setActiveMachineId] = useState(chips?.[0]?.id || "");
@@ -144,7 +180,7 @@ export default function DetailWorkspace({
     [structure, lensChip, lensPhase, lensLoad, lensPlan, efficiency, frameworkProfile],
   );
   const nodeLens = nodeLensResult.nodes;
-  const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement", fit: "fit", notFit: "not fit", unknown: "unknown", centralized: "Centralized" } : { export: "导出", raw: "原始配置", cost: "成本与部署", fit: "已适配", notFit: "不适配", unknown: "未知", centralized: "集中式" };
+  const t = language === "en" ? { export: "Export", raw: "Raw config", cost: "Cost & placement", fit: "fit", notFit: "not fit", unknown: "unknown", centralized: "Centralized", view: "View", vStructure: "Structure", vPlanning: "Capacity", vPerf: "Performance", vCustom: "Custom", panels: "Panels", pCost: "Cost", pInspector: "Details", pDiagnostics: "Diagnostics", abFit: "Fit", abMem: "Total VRAM", abBound: "Bound", abGpu: "GPUs" } : { export: "导出", raw: "原始配置", cost: "成本与部署", fit: "已适配", notFit: "不适配", unknown: "未知", centralized: "集中式", view: "视图", vStructure: "结构浏览", vPlanning: "容量规划", vPerf: "性能分析", vCustom: "自定义", panels: "面板", pCost: "成本", pInspector: "详情", pDiagnostics: "诊断", abFit: "装得下", abMem: "总显存", abBound: "瓶颈", abGpu: "需要 GPU" };
   const rawJson = structure?.extra_config ? JSON.stringify(structure.extra_config, null, 2) : "";
   // M10-E：selectedNode 改为本地派生（原先 App 派生后与 selectedNodePath 成对透传，语义重复）。
   const selectedNode = selectedNodePath && structure?.graph
@@ -175,12 +211,13 @@ export default function DetailWorkspace({
     <main className={`detail-page theme-${theme}${auxView ? " has-aux" : ""}`}>
       <DetailHeader structure={structure} sourceLabel={sourceLabel} language={language} onLanguageChange={onLanguageChange} onThemeChange={onThemeChange} theme={theme} onBack={onBack} onSettings={onSettings} />
       <section className="detail-summary"><SummaryChips structure={structure} sourceLabel={sourceLabel} language={language} /></section>
-      <DiagnosticsPanel structure={structure} language={language} />
-      <section className="detail-layout">
+      {showDiagnostics && <DiagnosticsPanel structure={structure} language={language} />}
+      <section className={`detail-layout${showInspector ? "" : " inspector-hidden"}`}>
         <div className={`detail-main${costOpen ? " cost-open" : ""}`}>
           <div className="detail-search-row"><StructureSearchBox value={searchTerm} onChange={onSearchChange} hitCount={matchedPaths.size} results={matchResults} onSelect={selectSearchResult} language={language} /><div className="detail-aux-actions"><button type="button" className={auxView === "export" ? "active" : ""} onClick={() => setAuxView(auxView === "export" ? null : "export")}>{t.export}</button><button type="button" className={auxView === "raw" ? "active" : ""} onClick={() => setAuxView(auxView === "raw" ? null : "raw")}>{t.raw}</button></div></div>
-          <div className="detail-cost-toggle"><button type="button" onClick={() => setCostOpen((value) => !value)} aria-expanded={costOpen} aria-controls="detail-cost-panel"><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? deploymentSummary : `${t.centralized} · ${deploymentSummary}`}</span>{fitLabel && <span className={`detail-fit-status ${fitClass}`}>{fitLabel}</span>}<span>{costOpen ? "−" : "+"}</span></button></div>
-          <div id="detail-cost-panel" className={`detail-cost-panel${costOpen ? "" : " is-collapsed"}`} aria-hidden={!costOpen}><CostSummary structure={structure} frameworkProfile={frameworkProfile} deploymentRecommendation={deploymentRecommendation} deploymentManual={deploymentManual} onResetDeployment={resetDeployment} chips={chips} onAddChip={onAddChip} language={language} onFitStatusChange={setCostFitStatus} lenses={activeLenses} onLensesChange={setActiveLenses} phase={activePhase} onPhaseChange={changeActivePhase} mode={activeMode} onModeChange={changeActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} comparisonMode={comparisonMode} onComparisonModeChange={setComparisonMode} compareChipId={compareChipId} onCompareChipIdChange={setCompareChipId} comparePlan={comparePlan} onComparePlanChange={setComparePlan} efficiency={efficiency} onEfficiencyChange={setEfficiency} /></div>
+          <div className="detail-view-presets" role="group" aria-label={t.view}><span className="detail-view-label">{t.view}</span>{[["structure", t.vStructure], ["planning", t.vPlanning], ["perf", t.vPerf], ["custom", t.vCustom]].map(([id, label]) => (<button key={id} type="button" className={viewPreset === id ? "active" : ""} aria-pressed={viewPreset === id} onClick={() => applyViewPreset(id)}>{label}</button>))}{viewPreset === "custom" ? <span className="detail-view-panels" role="group" aria-label={t.panels}><span className="detail-view-panels-label">{t.panels}</span>{[["cost", t.pCost, costOpen, () => { setCostOpen((v) => !v); markViewCustom(); }], ["inspector", t.pInspector, showInspector, () => { setShowInspector((v) => !v); markViewCustom(); }], ["diagnostics", t.pDiagnostics, showDiagnostics, () => { setShowDiagnostics((v) => !v); markViewCustom(); }]].map(([id, label, on, toggle]) => (<button key={id} type="button" className={on ? "active" : ""} aria-pressed={on} onClick={toggle}>{label}</button>))}</span> : null}</div>
+          {costFitStatus && <div className="detail-answer-bar" aria-label={t.answer || "summary"}><span className="ab-item"><i>{t.abFit}</i><b className={`detail-fit-status ${fitClass}`}>{fitLabel || t.unknown}</b></span><span className="ab-item"><i>{t.abMem}</i><b>{formatBytes(costFitStatus.totalVram)}{costFitStatus.capacity ? ` / ${formatBytes(costFitStatus.capacity)}` : ""}</b></span><span className="ab-item"><i>{t.abBound}</i><b>{costFitStatus.boundCategoryLabel || costFitStatus.boundLabel || t.unknown}</b></span>{costFitStatus.requiredGpus != null && <span className="ab-item"><i>{t.abGpu}</i><b>{costFitStatus.requiredGpus}{costFitStatus.totalGpus != null ? ` / ${costFitStatus.totalGpus}` : ""}</b></span>}</div>}<div className="detail-cost-toggle"><button type="button" onClick={() => { setCostOpen((value) => !value); markViewCustom(); }} aria-expanded={costOpen} aria-controls="detail-cost-panel"><span>{t.cost}</span><span className="detail-cost-summary">{activeMode === "pd" ? deploymentSummary : `${t.centralized} · ${deploymentSummary}`}</span>{fitLabel && <span className={`detail-fit-status ${fitClass}`}>{fitLabel}</span>}<span>{costOpen ? "−" : "+"}</span></button></div>
+          <div id="detail-cost-panel" className={`detail-cost-panel${costOpen ? "" : " is-collapsed"}`} aria-hidden={!costOpen}><CostSummary structure={structure} frameworkProfile={frameworkProfile} deploymentRecommendation={deploymentRecommendation} deploymentManual={deploymentManual} onResetDeployment={resetDeployment} chips={chips} onAddChip={onAddChip} language={language} onFitStatusChange={setCostFitStatus} lenses={activeLenses} onLensesChange={(next) => { setActiveLenses(next); markViewCustom(); }} phase={activePhase} onPhaseChange={changeActivePhase} mode={activeMode} onModeChange={changeActiveMode} plans={activePlans} onPlansChange={setActivePlans} nodes={activeNodes} onNodesChange={setActiveNodes} gpusPerNode={activeGpusPerNode} onGpusPerNodeChange={setActiveGpusPerNode} machineId={activeMachineId} onMachineIdChange={setActiveMachineId} loads={activeLoads} onLoadsChange={setActiveLoads} comparisonMode={comparisonMode} onComparisonModeChange={setComparisonMode} compareChipId={compareChipId} onCompareChipIdChange={setCompareChipId} comparePlan={comparePlan} onComparePlanChange={setComparePlan} efficiency={efficiency} onEfficiencyChange={setEfficiency} /></div>
           <ArchitectureTab
             structure={structure}
             frameworkProfile={frameworkProfile}
@@ -194,7 +231,7 @@ export default function DetailWorkspace({
           {auxView === "export" && <div className="detail-aux-panel" ref={auxPanelRef}><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} onRun={() => exporter.run(structure)} /></div>}
           {auxView === "raw" && <div className="detail-aux-panel" ref={auxPanelRef}><RawConfigTab rawJson={rawJson} /></div>}
         </div>
-        <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={parameterTotal.value} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} parameterTotal={parameterTotal} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>
+        {showInspector && <div className="detail-inspector-slot">{selectedData ? <NodeDetailPanel node={selectedData} path={selectedPath} breadcrumbs={breadcrumbs} totalParameters={parameterTotal.value} costLens={nodeLens?.[selectedPath]} activeLenses={activeLenses} language={language} collapsed={inspectorCollapsed} onToggleCollapsed={() => setInspectorCollapsed((value) => !value)} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} onClose={() => { setInspectorCollapsed(false); onCloseNode(); }} /> : <ModelSummaryPanel structure={structure} sourceLabel={sourceLabel} language={language} parameterTotal={parameterTotal} onSelectPath={(path) => { setInspectorCollapsed(false); onSelectNode(path); }} />}</div>}
       </section>
       {loading && <div className="detail-loading-overlay" role="status" aria-live="polite"><span className="detail-loading-dot" /><span>{({ reading: language === "en" ? "Reading model files" : "读取模型配置", building: language === "en" ? "Building model structure" : "构建模型结构", metadata: language === "en" ? "Checking weight metadata" : "检查权重元数据" })[loadingPhase] || (language === "en" ? "Opening model..." : "正在打开模型...")}</span><i aria-hidden="true">...</i></div>}
     </main>

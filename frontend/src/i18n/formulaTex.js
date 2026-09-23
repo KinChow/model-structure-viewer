@@ -40,7 +40,7 @@ export const FORMULA_TEX = {
   hyper_connection: "x_n = \\operatorname{GroupedRMSNorm}(H_{hc});\\quad l = \\operatorname{SiLU}(W_{\\text{down}} x_n / hc);\\quad g = \\sigma(W_{\\text{up}} l);\\quad \\text{block\\_input} = \\operatorname{mean}(g \\odot x_n);\\quad H' = H + 2\\sigma(W_{\\text{inj}} x_n / hc) \\odot \\text{block\\_output}",
   ple: "[k, v] = W_{kv} e;\\quad y = \\operatorname{ShortConv}(\\operatorname{GatedNorm}(k, v, \\operatorname{RMSNorm}(H)))",
   shared_expert_gate: "y = y_{\\text{routed}} + \\sigma(W_g x) \\cdot y_{\\text{shared}}",
-  qsa_indexer: "s_t = \\sum_h \\operatorname{ReLU}(q_{t,h} \\cdot \\operatorname{pool}(k)) / \\sqrt{d_i};\\quad I = \\operatorname{topk\\_blocks}(s_t, \\text{budget}/\\text{ratio})",
+  qsa_indexer: "s_t = \\sum_h \\operatorname{ReLU}(q_{t,h} \\cdot \\operatorname{meanBlock}(k)) / \\sqrt{d_i};\\quad I = \\operatorname{expand}(\\operatorname{topk\\_blocks}(s_t, \\lfloor\\text{budget}/\\text{block}\\rfloor)) \\cup \\text{tail}",
   dsa_indexer: "s_t = \\sum_h w_{t,h} \\cdot \\operatorname{ReLU}(q_{t,h} \\cdot k_s) / \\sqrt{d_i};\\quad I = \\operatorname{topk}(s_t, \\text{index\\_topk})",
   dsa_kpool_indexer: "s_t = \\sum_h w_{t,h} \\cdot \\operatorname{ReLU}(q_{t,h} \\cdot \\operatorname{pool}(k)) / \\sqrt{d_i};\\quad I = \\operatorname{topk}(s_t, \\text{index\\_topk}/\\text{kpool}) \\cdot \\text{kpool} + \\text{tail}",
   dsv4_indexer: "s_t = \\sum_h w_{t,h} \\cdot \\operatorname{ReLU}(q_{t,h} \\cdot k^c_s) / \\sqrt{d_i};\\quad I = \\operatorname{topk}(s_t, \\text{index\\_topk})",

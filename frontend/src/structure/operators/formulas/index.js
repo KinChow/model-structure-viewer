@@ -15,6 +15,7 @@ import {
   dsv4CompressedAttentionCounts, gatedDeltaStateCounts, engramGateCounts,
 } from "./counts.js";
 import { sparseIndexerCounts } from "./modules.js";
+import { qsaIndexerCounts, qsaSparseAttentionCounts } from "./qsa.js";
 
 const sumCounts = (...parts) => parts.reduce((total, part) => ({
   matrix: total.matrix + part.matrix,
@@ -460,11 +461,11 @@ export const FORMULAS = {
     //      /sqrt(d)；:682/:755-761 block_topk = budget/ratio 后展开 + tail）；
     //      上游 vLLM 类名 QSAIndexer（models/qwen4_exp/nvidia/indexer_qsa.py:90）。
     //      W2：**仅 qwen4_exp 使用**；DSA/DSV4 已拆出独立条目。
-    formula: "s_t = Σ_h ReLU(q_{t,h}·pool(k)) / sqrt(d_i); I = topk_blocks(s_t, budget/ratio)",
-    explanation: "Qwen 的 QSA indexer：index_qk 单投影出 4 个 query 头 + 1 个共享 key 头，key 先按 compress_ratio 均值池化成块，ReLU 打分跨头求和后选块再展开为 token 预算。无 value 通路、无 softmax。",
-    inputs: ["x", "index_k_cache", "W_{index_qk}", "compress_ratio", "budget"],
+    formula: "s_t = Σ_h ReLU(q_{t,h}·mean_block(k)) / sqrt(d_i); I = expand(topk_blocks(s_t, floor(budget/block))) ∪ tail",
+    explanation: "QSA：query 投影后零中心 RMSNorm；key 投影后先按完整块均值池化，再零中心 RMSNorm 与块首位置 RoPE。ReLU 分数跨 index 头汇总，Top-k 选块后展开并补入可见尾 token。父节点计费，展开步骤不重复计费。",
+    inputs: ["x", "index_k_cache", "W_{index_qk}", "block_size", "budget"],
     outputs: ["selected_token_indices"],
-    counts: sparseIndexerCounts,
+    counts: qsaIndexerCounts,
   },
   dsa_indexer: {
     title: "DSA Indexer (DeepSeek Sparse Attention)",
@@ -519,7 +520,7 @@ export const FORMULAS = {
     explanation: "Qwen QSA 的主注意力：只在 indexer 选出的 token 位置上做逐头 GQA。",
     inputs: ["Q", "K_selected", "V_selected", "selected_token_indices"],
     outputs: ["O"],
-    counts: sparseLeafAttentionCounts,
+    counts: qsaSparseAttentionCounts,
   },
   dsa_sparse_mla: {
     title: "DSA Sparse MLA Attention",

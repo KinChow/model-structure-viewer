@@ -18,9 +18,12 @@ function checkInputs(graph) {
     const incoming = graph.edges.filter(e => e.target === node.id);
     if (node.attributes?.operator_id === "attention_output_gate") {
       gates++;
+      const qsa = node.attributes.semantic_role === "qsa_output_gate";
+      const split = qsa ? "q_gate_split" : "qkv_gate_split";
+      const attention = qsa ? "sparse_attention" : "sdpa";
       assert.deepEqual(new Set(incoming.map(e => e.source_canonical_id)),
-        new Set([`${prefix}.sdpa`, `${prefix}.qkv_gate_split`]));
-      assert.equal(incoming.find(e => e.source_canonical_id.endsWith(".qkv_gate_split")).label, "gate");
+        new Set([`${prefix}.${attention}`, `${prefix}.${split}`]));
+      assert.equal(incoming.find(e => e.source_canonical_id.endsWith(`.${split}`)).label, "gate");
       assert.ok(!node.attributes.weightMatrices?.length, "gate application must not own projection weights");
     }
     if (node.attributes?.operator_id === "gated_rmsnorm" && byCanonical.has(`${prefix}.qkvz_split`)) {
@@ -53,7 +56,7 @@ for (const loading of ["config", "artifacts"]) {
       if (result.gates) fullVariants++;
     }
     assert.equal(variants, 31);
-    assert.equal(fullVariants, 29);
+    assert.equal(fullVariants, 31);
   });
 }
 

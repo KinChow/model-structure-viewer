@@ -475,11 +475,12 @@ export function sdpaAttentionCounts({
 export function sparseLeafAttentionCounts({
   heads = 1, tokens = 1, selected = 1, headDim = 1, valueDim = 1, bytesPerElement = 1,
   kvHeads, kWidth, vWidth, latentRead = false, kvWrite = 0, dsv4Window = 0, phase = "prefill",
+  scorePairs, indexElements = tokens * selected, indexBytes = bytesPerElement, kvReadBatch = 1,
 }) {
   kvHeads ??= heads;
   kWidth ??= headDim;
   vWidth ??= valueDim;
-  const scores = heads * scoredPairs({ phase, queryTokens: tokens, keyTokens: selected });
+  const scores = heads * (scorePairs ?? scoredPairs({ phase, queryTokens: tokens, keyTokens: selected }));
   const context = tokens * heads * valueDim;
   const kvSpan = latentRead ? Math.max(kWidth, vWidth) : kWidth + vWidth;
   return {
@@ -489,12 +490,11 @@ export function sparseLeafAttentionCounts({
     bytes: {
       weights: 0,
       actIn: (tokens * heads * headDim
-        + kvHeads * selected * kvSpan
-        + tokens * selected
+        + kvReadBatch * kvHeads * selected * kvSpan
         + dsv4Window
-        + 2 * scores) * bytesPerElement,
+        + 2 * scores) * bytesPerElement + indexElements * indexBytes,
       actOut: (2 * scores + context + kvWrite + dsv4Window) * bytesPerElement,
-      kvRead: (kvHeads * selected * kvSpan + dsv4Window) * bytesPerElement,
+      kvRead: (kvReadBatch * kvHeads * selected * kvSpan + dsv4Window) * bytesPerElement,
     },
   };
 }

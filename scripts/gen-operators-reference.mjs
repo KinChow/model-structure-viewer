@@ -57,7 +57,7 @@ function walk(root, visit) {
   while (stack.length > 0) {
     const { node, multiplier } = stack.pop();
     const children = node?.children || [];
-    if (children.length > 0) {
+    if (children.length > 0 && !isBillingOperator(node)) {
       const childMultiplier = childRepeatMultiplier(node, multiplier);
       for (const child of children) stack.push({ node: child, multiplier: childMultiplier });
       continue;
@@ -66,10 +66,16 @@ function walk(root, visit) {
   }
 }
 
+// Same ownership boundary as computeNodeCosts: a composite formula owns
+// execution; its displayed internal stages are not additional billable leaves.
+function isBillingOperator(node) {
+  return Boolean(FORMULAS[node?.attributes?.operator_id]?.counts);
+}
+
 /** 深度优先**保序**遍历（表 B 的数据流顺序靠它；walk 用栈会倒序）。 */
 function walkOrdered(node, visit) {
   const children = node?.children || [];
-  if (children.length === 0) { visit(node); return; }
+  if (children.length === 0 || isBillingOperator(node)) { visit(node); return; }
   for (const child of children) walkOrdered(child, visit);
 }
 

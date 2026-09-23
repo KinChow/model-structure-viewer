@@ -3,6 +3,7 @@ import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
 import { indexerScheduleOf, indexShareSourceLayerOf, isIndexShareConfig } from "../../layers/schedule.js";
 import { recipeAttentionOutputGate, recipeFlag, recipeLinearAttentionMode, recipeValue } from "../../archs/index.js";
+import { moduleSpec } from "../../layers/base.js";
 
 function cleanAttributes(attributes) {
   return Object.fromEntries(
@@ -873,41 +874,121 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
   const indexerKVHeads = normalized.qsaIndexerKVHeads ?? 0;
   const indexerDim = normalized.qsaIndexerHeadDim ?? 0;
   const budget = normalized.qsaIndexerBudget ?? 0;
-  // 融合 QKV 的宽度：vLLM qwen4_exp/nvidia/qsa.py:233-241
-  //   QKVParallelLinear(hidden, head_dim, total_num_heads*(1+attn_output_gate), total_num_kv_heads)
-  // ⇒ head_dim·(heads·(1+gate) + 2·kv_heads)。此前只声明了 q 的宽度（heads·head_dim），
-  // k/v 两份权重整层漏计（Flash-Next 每 QSA 层少 2·kv_heads·head_dim·hidden = 2,621,440）。
+  // Report Fig.3 and Transformers Qwen4ExpTextAttention: q_proj includes Q
+  // and output gate. Preserve published checkpoint paths instead of inventing
+  // a fused runtime qkv module (header revision de4b8e4d, layer 3).
   const heads = normalized.attentionHeads || 0;
   const kvHeads = normalized.kvHeads || heads;
   const headDim = normalized.headDim || 0;
-  const gateFactor = normalized.attentionOutputGate ? 2 : 1;
-  const fusedWidth = headDim * (heads * gateFactor + 2 * kvHeads);
-  const fusedShape = `[batch, sequence, fused qkv${normalized.attentionOutputGate ? " + output gate" : ""}=${fusedWidth}]`;
+  const qWidth = heads * headDim;
+  const blockSize = Math.max(Number(normalized.qsaIndexerCompressRatio || 1), 1);
+  const blockBudget = Math.floor(budget / blockSize);
+  const tailMaxTokens = blockSize - 1;
+  const indexQkWidth = (indexerHeads + indexerKVHeads) * indexerDim;
+  const indexPrefix = `${prefix}.indexer`;
+  const indexQ = [-1, -1, indexerHeads, indexerDim];
+  const indexK = [-1, -1, indexerDim];
+  const selectedShape = [-1, -1, budget + tailMaxTokens];
+  // The parent owns execution; these children expose the forward mechanism and
+  // own real checkpoint weights, as in the existing composite SDPA convention.
+  const stage = (suffix, name, semanticRole, input, output, attributes = {}) => ({
+    ...moduleSpec(`${indexPrefix}.${suffix}`, name, "stage", {
+      semantic_role: semanticRole, cost_owner: indexPrefix, ...attributes,
+    }), input_shape: input, output_shape: output,
+  });
+  const indexer = operatorSpec(indexPrefix, `QSA indexer (${blockBudget} blocks × ${blockSize} + tail)`, "qsa_indexer", {
+    ...shapeFlow(shapes.hidden, `[batch, sequence, up to ${budget + tailMaxTokens} selected token indices]`),
+    indexer_heads: indexerHeads, indexer_kv_heads: indexerKVHeads, indexer_head_dim: indexerDim,
+    budget, block_budget: blockBudget, block_size: blockSize, tail_max_tokens: tailMaxTokens,
+    compress_ratio: blockSize, selection_unit: "complete_block", output_unit: "token_indices",
+    index_pipeline: ["index_qk_projection", "q_norm", "key_block_mean_pool", "k_norm",
+      "query_and_block_position", "relu_score_sum", "block_topk", "block_expand", "tail_append"],
+    dataflow_edges: [["index_qk_proj", "qk_split"], ["qk_split", "q_layernorm"],
+      ["qk_split", "raw_key_cache"], ["raw_key_cache", "key_block_mean_pool"],
+      ["key_block_mean_pool", "k_layernorm"], ["q_layernorm", "q_rope"],
+      ["k_layernorm", "k_rope"], ["q_rope", "score"], ["k_rope", "score"],
+      ["score", "block_select"], ["block_select", "block_expand"],
+      ["block_expand", "tail_append"], ["visible_indices", "key_block_mean_pool"],
+      ["visible_indices", "tail_append"]],
+    dataflow_edge_relations: [
+      { from: "visible_indices", to: "key_block_mean_pool", relation: "index-control", label: "complete causal blocks" },
+      { from: "visible_indices", to: "tail_append", relation: "index-control", label: "visible tail" },
+    ],
+    implementation: ["transformers.Qwen4ExpTextQSAIndexer"],
+    cost_assumption: "complete causal blocks; pool each complete key block once per forward; packed int32 index traffic; allocator padding not estimated",
+  }, { input: dims.hidden, output: selectedShape });
+  indexer.children = [
+    operatorSpec(`${indexPrefix}.index_qk_proj`, "index query/key projection", "linear", {
+      projection_layout: ["index_q", "index_k"], semantic_role: "qsa_index_qk_projection",
+    }, { input: dims.hidden, output: [-1, -1, indexQkWidth] }),
+    operatorSpec(`${indexPrefix}.qk_split`, "index Q/K split", "split", {
+      split_sizes: [indexerHeads * indexerDim, indexerKVHeads * indexerDim],
+    }, { input: [-1, -1, indexQkWidth], output: indexQ }),
+    operatorSpec(`${indexPrefix}.q_layernorm`, "index query zero-centered RMSNorm", "gemma_rmsnorm", {}, { input: indexQ, output: indexQ }),
+    stage("raw_key_cache", "raw index key cache", "qsa_raw_key_cache", indexK, indexK),
+    stage("visible_indices", "causal visible token indices", "qsa_visible_indices", [-1, -1], [-1, -1], { external_input: true }),
+    stage("key_block_mean_pool", "key block mean pool", "qsa_key_block_mean_pool", indexK, indexK, { block_size: blockSize, complete_blocks_only: true }),
+    operatorSpec(`${indexPrefix}.k_layernorm`, "pooled key zero-centered RMSNorm", "gemma_rmsnorm", {
+      token_axis: "complete_blocks",
+    }, { input: indexK, output: indexK }),
+    stage("q_rope", "index query partial RoPE", "qsa_query_rope", indexQ, indexQ, { rotary_dim: Math.min(normalized.rotaryDim || 0, indexerDim), position_source: "query_token" }),
+    stage("k_rope", "pooled key partial RoPE", "qsa_key_rope", indexK, indexK, { rotary_dim: Math.min(normalized.rotaryDim || 0, indexerDim), position_source: "first_token_of_block" }),
+    stage("score", "ReLU scores summed across index heads", "qsa_relu_score_sum", indexQ, [-1, -1], { reduction: "sum_over_index_heads", score_activation: "relu", no_gqa_group_selection: true }),
+    stage("block_select", "complete-block Top-k", "qsa_block_topk", [-1, -1], [-1, -1, blockBudget], { block_budget: blockBudget }),
+    stage("block_expand", "selected-block token expansion", "qsa_block_expand", [-1, -1, blockBudget], [-1, -1, budget], { tokens_per_block: blockSize }),
+    stage("tail_append", "append visible incomplete-block tail", "qsa_tail_append", [-1, -1, budget], selectedShape, { tail_max_tokens: tailMaxTokens }),
+  ];
+  // Numeric -1 axes are structural, not a promise that every internal axis
+  // equals the workload's text sequence length. Explain them without inventing
+  // per-stage materialized allocations for a composite implementation.
+  for (const child of indexer.children) {
+    child.attributes.cost_owner = indexPrefix;
+    child.attributes.activation_materialization = "unknown";
+  }
+  const semanticShapes = {
+    raw_key_cache: ["[B, new_tokens, index_dim]", "[B, visible_tokens, index_dim]"],
+    visible_indices: ["causal mask / position state", "[B, query, visible indices]"],
+    key_block_mean_pool: ["[B, visible_tokens, index_dim]", `[B, floor(visible_tokens / ${blockSize}), index_dim]`],
+    k_layernorm: ["[B, complete_blocks, index_dim]", "[B, complete_blocks, index_dim]"],
+    k_rope: ["[B, complete_blocks, index_dim]", "[B, complete_blocks, index_dim]"],
+    score: ["index Q + pooled K", "[B, query, complete causal blocks]"],
+    block_select: ["complete causal block scores", `[B, query, up to ${blockBudget} block indices]`],
+    block_expand: ["selected block indices", `[B, query, up to ${blockBudget * blockSize} token indices]`],
+    tail_append: ["expanded indices + visible tail", `[B, query, up to ${budget + tailMaxTokens} token indices]`],
+  };
+  for (const child of indexer.children) {
+    const shapes = semanticShapes[child.id.slice(indexPrefix.length + 1)];
+    if (shapes) Object.assign(child.attributes, shapeFlow(...shapes));
+  }
   return [
-    operatorSpec(`${prefix}.qkv_proj`, "QSA qkv and output-gate projection", "linear", {
-      ...shapeFlow(shapes.hidden, fusedShape),
-      projection_layout: normalized.attentionOutputGate ? ["q", "gate", "k", "v"] : ["q", "k", "v"],
-      implementation: ["vLLM.Qwen4ExpQSAAttention.qkv_proj", "SGLang.qwen4_exp qkv_proj"],
-    }, { input: dims.hidden, output: [-1, -1, fusedWidth] }),
-    operatorSpec(`${prefix}.q_norm`, "Q attention norm", "rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), { input: dims.attentionQuery, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.k_norm`, "K attention norm", "rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), { input: dims.attentionKey, output: dims.attentionKey }),
+    operatorSpec(`${prefix}.q_proj`, "QSA query and output-gate projection", "linear", {
+      projection_layout: ["q", "gate"], packing: "per_head_q_then_gate",
+      implementation: ["transformers.Qwen4ExpTextAttention.q_proj"],
+    }, { input: dims.hidden, output: [-1, -1, 2 * qWidth] }),
+    operatorSpec(`${prefix}.q_gate_split`, "query / gate split", "split", {
+      split_sizes: [headDim, headDim], split_axis: "per_head_last_dimension",
+      heads, semantic_role: "qsa_query_gate_split",
+    }, { input: [-1, -1, 2 * qWidth], output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.k_proj`, "key projection", "linear", {},
+      { input: dims.hidden, output: dims.attentionKey }),
+    operatorSpec(`${prefix}.v_proj`, "value projection", "linear", {},
+      { input: dims.hidden, output: dims.attentionValue }),
+    operatorSpec(`${prefix}.q_norm`, "Q zero-centered RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), { input: dims.attentionQuery, output: dims.attentionQuery }),
+    operatorSpec(`${prefix}.k_norm`, "K zero-centered RMSNorm", "gemma_rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), { input: dims.attentionKey, output: dims.attentionKey }),
     operatorSpec(`${prefix}.rope`, "rotary position embedding", "rope", {
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
       query_shape: shapes.attentionQuery,
       key_shape: shapes.attentionKey,
     }, { input: dims.attentionQuery, output: dims.attentionQuery }),
-    operatorSpec(`${prefix}.indexer`, "QSA indexer", "qsa_indexer", {
-      ...shapeFlow(shapes.hidden, `[batch, sequence, selected=${budget}]`),
-      indexer_heads: indexerHeads,
-      indexer_kv_heads: indexerKVHeads,
-      indexer_head_dim: indexerDim,
-      budget,
-      compress_ratio: normalized.qsaIndexerCompressRatio,
-      implementation: ["vLLM.QSAIndexer", "SGLang.qwen4_exp indexer"],
-    }, { input: dims.hidden, output: [-1, -1, budget] }),
+    indexer,
     operatorSpec(`${prefix}.sparse_attention`, "QSA sparse attention", "qsa_sparse_attention", {
-      ...shapeFlow(`${shapes.attentionQuery}, selected K/V`, shapes.attentionContext),
+      ...shapeFlow(`${shapes.attentionQuery}, selected K/V (blocks + tail)`, shapes.attentionContext),
       selected_tokens: budget,
+      selected_tokens_max: budget + tailMaxTokens,
+      block_size: blockSize,
+      complete_block_budget: blockBudget,
+      tail_max_tokens: tailMaxTokens,
+      selection_rule: "complete blocks expanded to tokens, then visible tail tokens appended",
       attention_kind: "qsa",
       ...cacheResidentDecl({
         kvElements: (normalized.kvLoraRank != null && normalized.qkRopeHeadDim != null)
@@ -917,9 +998,14 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
       }),
       implementation: ["vLLM.Qwen4ExpQSAAttention", "SGLang.qwen4_exp qsa"],
     }, { input: dims.attentionQuery, output: dims.attentionContext }),
-    operatorSpec(`${prefix}.out_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
+    operatorSpec(`${prefix}.output_gate`, "attention output gate", "attention_output_gate", {
+      ...shapeFlow(`${shapes.attentionContext}, query gate`, shapes.attentionContext),
+      activation: "sigmoid", semantic_role: "qsa_output_gate",
+    }, { input: dims.attentionContext, output: dims.attentionContext }),
+    operatorSpec(`${prefix}.o_proj`, "output projection", "linear", { ...shapeFlow(shapes.attentionContext, shapes.hidden), communication_role: "tp_attention_output" }, { input: dims.attentionContext, output: dims.hidden }),
   ];
 }
+
 
 function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
   const { shapes, dims } = shapesAndDims(normalized);

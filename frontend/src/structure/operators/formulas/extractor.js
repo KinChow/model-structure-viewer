@@ -209,7 +209,17 @@ const FROM_NODE = {
           const budget = (operatorId === "qsa_sparse_attention"
             ? config?.qsaIndexerBudget
             : config?.dsaIndexTopk) ?? keyTokens;
-          const selected = Math.min(keyTokens, budget || keyTokens);
+          const blockSize = operatorId === "qsa_sparse_attention"
+            ? Math.max(Number(config?.qsaIndexerCompressRatio || 1), 1)
+            : 1;
+          const effectiveBudget = budget || keyTokens;
+          const blockBudget = Math.floor(effectiveBudget / blockSize);
+          const completeBlocks = Math.floor(keyTokens / blockSize);
+          const selectedBlocks = Math.min(blockBudget, completeBlocks);
+          const tailTokens = keyTokens - completeBlocks * blockSize;
+          const selected = operatorId === "qsa_sparse_attention"
+            ? Math.min(keyTokens, selectedBlocks * blockSize + tailTokens)
+            : Math.min(keyTokens, effectiveBudget);
           const latentRead = kind !== "qsa" && (config?.kvLoraRank || 0) > 0;
           const kvHeads = latentRead ? 1 : config?.kvHeads || heads;
           const kWidth = latentRead ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
@@ -221,8 +231,9 @@ const FROM_NODE = {
             ? kvHeads * Math.min(options.sequence || 1, config?.slidingWindow || 128) * headDim
             : 0;
           return {
-            heads, tokens, selected, headDim, valueDim, bytesPerElement,
+            heads, tokens, selected, selectedBlocks, tailTokens, blockSize, headDim, valueDim, bytesPerElement,
             kvHeads, kWidth, vWidth, latentRead, kvWrite, dsv4Window, phase,
+            queryTokens: tokens, keyTokens, budget: effectiveBudget, pool: blockSize, batch: options.batch ?? 1,
           };
   },
   minimax_sparse_attention: ({ config, options, bytesPerElement, vision, tokens, phase }) => {
@@ -423,6 +434,9 @@ const FROM_NODE = {
   qsa_indexer: ({ config, options, bytesPerElement, tokens, phase }) => ({
           heads: config?.qsaIndexerHeads ?? 0,
           dim: config?.qsaIndexerHeadDim ?? 0,
+          inDim: config?.hiddenSize ?? 0,
+          ropeDim: Math.min(config?.rotaryDim ?? 0, config?.qsaIndexerHeadDim ?? 0),
+          batch: options.batch ?? 1,
           queryTokens: tokens,
           keyTokens: options.sequence ?? 1,
           budget: config?.qsaIndexerBudget ?? 0,

@@ -19,6 +19,7 @@ import { materializeModelStructure } from "../../../materializers/modelStructure
 import { graphRoot } from "../../../graph/selectors.js";
 import { countsForNode, isVisionPath } from "../extractor.js";
 import { childRepeatMultiplier, walkStructure } from "../../../../cost/traverse.js";
+import { computeNodeCosts } from "../../../../cost/compute.js";
 import { kvBytesPerToken, draftKvBytesPerToken, bytesPerDtype } from "../../../../cost/memory.js";
 import { paramBytes } from "../paramDtypes.js";
 import { classifyRoofline } from "../../../../cost/roofline.js";
@@ -382,29 +383,28 @@ test("W5 恒等式：KV 读量（逐层 cache 容量对账，容差 0）", () =>
       else selectiveCapacity += kv;
     });
 
-    // 实际侧：逐叶的 kvRead / indexRead（都是 actIn 的子项，单独声明）。
+    // Include composite billing operators: the QSA parent owns indexRead,
+    // while its explanatory children must not hide that read from this audit.
     let fullRead = 0;
     let selectiveRead = 0;
     let indexRead = 0;
     let attnLeaves = 0;
-    walkLeaves(treeView(structure), (node, multiplier) => {
+    for (const { node, actions } of computeNodeCosts(structure.graph, normalized, options)) {
       const id = String(node?.id || "");
-      if (isVisionPath(id)) return;
-      const actions = countsForNode(node, { config: normalized, options, path: id, bytesPerElement: B });
-      if (!actions) return;
+      if (isVisionPath(id) || !actions) continue;
       const op = String(node?.attributes?.operator_id || "").toLowerCase();
       if (INDEXER_OPS.has(op)) {
-        indexRead += (actions.bytes?.indexRead || 0) * multiplier;
-        return;
+        indexRead += actions.bytes?.indexRead || 0;
+        continue;
       }
-      if (!ATTENTION_OPS.has(op)) return;
-      const kv = (actions.bytes?.kvRead || 0) * multiplier;
+      if (!ATTENTION_OPS.has(op)) continue;
+      const kv = actions.bytes?.kvRead || 0;
       if (kv > 0) attnLeaves += 1;
       const layer = Number((id.match(/^(?:language_model\.)?layers\.(\d+)\./) || [])[1]);
       const kind = Number.isFinite(layer) ? (schedule[layer] || "gqa") : "gqa";
       if (FULL_READ_KINDS.has(kind)) fullRead += kv;
       else selectiveRead += kv;
-    });
+    }
 
     rows.push({
       cls, modelId, fullRead, fullCapacity, selectiveRead, selectiveCapacity, indexRead, indexCapacity, attnLeaves,
@@ -502,6 +502,10 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // QSA 的融合 qkv（heads·head_dim + 2·kv_heads·head_dim）直接喂逐头 norm
   "qkv_proj -> q_norm": "slice",
   "qkv_proj -> k_norm": "slice",
+  // Integer positions bound complete causal blocks and identify the tail;
+  // these control inputs are not floating-point K activations.
+  "visible_indices -> key_block_mean_pool": "control",
+  "visible_indices -> tail_append": "control",
   "qkv_split -> kv_norm": "slice",
   "qkv_gate_split -> q_norm": "slice",
   "qkv_gate_split -> k_norm": "slice",

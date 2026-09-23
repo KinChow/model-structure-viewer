@@ -113,7 +113,7 @@ S 的取法与 kvHeads 由条目/提取器决定：
 | MHA / GQA | matmul（scores/context 两叶） | seq / 上下文全长 | =heads / config.kvHeads | D | D | matrix 不随 kvHeads 变（每个 query head 做完整点积），只有 K/V 流量随 kvHeads 缩小 |
 | MQA / SWA | dsv4_swa_attention | min(S, slidingWindow) | 1 | D | D | KV 读/写宽 D（swa 缓存每 token 一份 headDim 宽 latent，K/V 共享） |
 | 块稀疏 | minimax_sparse_attention | min(可见, (topk+init+local)·blockSize) | config.kvHeads | D | D | 选中必须夹到可见长度（W5）；计 kvWrite |
-| QSA | qsa_sparse_attention | qsaIndexerBudget | config.kvHeads | D | D | 计 kvWrite（paged cache 写回在模板内无叶承担） |
+| QSA | qsa_sparse_attention | floor(budget / block) 个完整块 + 可见 tail | config.kvHeads | D | D | 计 kvWrite（paged cache 写回在模板内无叶承担） |
 | DSA 吸收式 | dsa_sparse_mla | index_topk | 1（共享 latent） | kv_lora_rank+rope | kv_lora_rank | 读宽取 max(kWidth, vWidth)（W5 防双计）；无 kvWrite（latent 写归 kv_a_proj） |
 | DSV4 C4 稀疏 | dsv4_sparse_mla | index_topk | 1 | D | D | + 原始滑窗混合读（[t-128,t]）；无 kvWrite |
 | DSV4 压缩 | dsv4_compressed_attention | ⌈S/ratio⌉ | 1 | D | D | + 滑窗读；压缩态写归 compressor 叶（无 kvWrite）；matrix 走旧链镜像 |
@@ -294,7 +294,8 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | mhc_post | F1(combine, **weightsShared**) + add(inject)（`index.js:286`） | 最终 hc_post 复用**最后一层** hc_ffn_* 参数再算一遍（model.py:1074-1097），没有自己的参数——算力照计、权重字节不重复计 |
 | mhc_contract | add（`index.js:295`） | GLM-5.3-Flash 末层 n 流平均收缩 |
 | ple | F8(hash embed) + F1(kv) + F3(norm) + F7a(conv) + add（`index.js:394`） | Qwen4Exp PLE（Qwen modeling 未入库，离线取证）；kv = [2·pleEmbedDim, H]；conv = (pleEmbedDim, pleNgramSize) |
-| qsa_indexer / dsa_indexer / dsa_kpool_indexer / dsv4_indexer / minimax_sparse_indexer | **sparseIndexerCounts 一份参数化实现**（`modules.js:748-761`，分解见 `:667-696`）——四组参数：QSA（key 池化 compress_ratio>1 时、等权求和）/ DSA（逐 token、逐头 weights_proj）/ DSA-kpool（key 池化 + pool 粒度 topk + tail）/ MSA（score 池化块 max）；dsv4_indexer 与 DSA 同参 | 五个 operator_id 不共用条目（算法出处不同），共用实现（W2 改判）；共同点：无 value 通路、无 softmax（ReLU + 逐头求和）、index k 单头、scores fp32（scoreBytes=4）；indexRead 子桶 ⊆ actIn |
+| qsa_indexer | `qsa.js` 独立复合分解：index Q/K 投影 → Q norm；完整 K 块 mean pool → K norm → partial RoPE → 跨头 ReLU 分数求和 → block Top-k → 展开并补 tail | 父节点拥有执行计费，真实投影/norm 子节点拥有容量；按每个 query 可见的完整块精确累计 score pairs；indexRead 为原始 K cache 读取；不使用 MSA 按组选择 |
+| dsa_indexer / dsa_kpool_indexer / dsv4_indexer / minimax_sparse_indexer | `sparseIndexerCounts` 参数化实现：DSA 逐 token/逐头权重；k-pool 先压缩 key；MSA 按块池化 score | 本轮未更改这些家族的数学实现；QSA 已分离，不能继续声称五个 id 数学相同 |
 
 ## 逐条清单
 
@@ -351,7 +352,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | `moe_dispatch` | moe | 仅搬运 | 0 | 0 | 0 | ✓ |
 | `ple` | — | 分解 | 复合 | 复合 | 复合 | 复合 |
 | `qsa_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
-| `qsa_sparse_attention` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `qsa_sparse_attention` | attention | 计算+访存 | ✓ | ✓ | ✓ | ✓ |
 | `qwen_qkvz_split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
 | `residual_add` | elementwise | 仅访存 | 0 | ✓ | 0 | ✓ |
 | `rmsnorm` | layernorm | 仅访存 | 0 | ✓ | ✓ | ✓ |
@@ -491,7 +492,8 @@ countsForNode(node, env = { config, options, path, bytesPerElement }) → counts
 | 结构节点 | type === "embedding" | gather：actIn/actOut = T·H·b、weights = 0（`:407-415`） |
 | 线性 | linear；或无 operatorId 但 weight_shapes 有 ≥2 维形状（effectiveOperatorId 改写，`:419-423`） | `linearLogicalShape`：attributes.logical_weight_shape 优先 → weight_shapes 首个 ≥2 维 → `derivedLinearShape`（input/output 正维积）回退；packed 无逻辑形状 → null（诚实未知）；**bias = attributes.bias === true 已接线**；文本 token embed 结构化路径排除（真查表走 gather；视觉 patch embed 是 Conv3d 一次 GEMM，不排除）；routed ×xf |
 | scores/context matmul | matmul | `attentionShapePatterns`：**context 先判**（含具体 heads/value 维，更具体；scores 的全 -1 通配会吞掉一切 4D 输出）+ text/vision 两套 patterns（`:454-519`）；scoredPairs 分相位；MLA latent 共享 → kvHeads=1、K 读宽 kv_lora+rope、V 读宽 kv_lora（context 叶同 latent 不再读，W5 防双计）；kvRead 子桶 |
-| 融合稀疏注意力 | qsa_sparse_attention / dsa_sparse_mla / dsv4_sparse_mla（**三 id 共用 case**，`:522-588`） | S = qsaIndexerBudget（qsa）/ dsaIndexTopk（dsa/dsv4）；latentRead = 非 qsa 且 kvLoraRank>0 → kvHeads=1、读宽 max(k,v)；kvWrite 仅 qsa 计（latent 写归 kv_a_proj、C4 压缩态写归 compressor，防双计）；dsv4 滑窗混合读补记；top-k 索引读 tokens·selected |
+| QSA 稀疏注意力 | qsa_sparse_attention | `qsaGeometry` 按 query 可见长度计算完整块预算和 tail；B/T/S 独立，int32 索引，scale+softmax 动作显式；发布预算为512块×4 token，最多另加3个尾 token |
+| 融合稀疏 MLA | dsa_sparse_mla / dsv4_sparse_mla | 保留既有 latent KV 读宽、kvWrite 归属和 DSV4 滑窗规则；不套用 QSA tail 规则 |
 | 块稀疏注意力 | minimax_sparse_attention | 选中 token = min(可见, (topk+init+local)·blockSize)（`:589-626`）；计 kvWrite（cache 写回在融合算子内，dense 侧由 k/v_proj actOut 计） |
 | 滑窗 / 压缩 MQA | dsv4_swa_attention / dsv4_compressed_attention | ratio 由 compressRatios[layerIndex]（层索引取自节点路径）；compressed matrix 走旧链镜像；压缩态写归 compressor 叶（无 kvWrite）；c128a 混合读含原始滑窗 |
 | softmax | softmax | elements = heads·scoredPairs（`:699-707`） |

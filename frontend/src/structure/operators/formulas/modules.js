@@ -23,6 +23,7 @@
 //   Σ decompose.bytes − fused.bytes === Σ 2·residentIntermediates.elements·b
 
 import { evaluateDecomposition } from "./atoms.js";
+import { qsaIndexerCounts, qsaIndexerDecomposition } from "./qsa.js";
 /** 与 formulas/index.js 的 sumCounts 同口径：逐分量相加。复合模块用。 */
 const sumCounts = (...parts) => parts.reduce((total, part) => ({
   matrix: total.matrix + part.matrix,
@@ -588,16 +589,17 @@ const ATTENTION_MODULES = [
   {
     id: "qsa_indexer",
     title: "Qwen Sparse Attention Indexer",
-    source: { framework: "vLLM", symbol: "QSAIndexer", ref: "models/qwen4_exp/nvidia/indexer_qsa.py:90" },
-    // W2：fused 由分解导出（fusedFromDecomposition），与运行时
-    // sparseIndexerCounts 同一实现 —— 恒等式因此结构性闭合。
+    source: { framework: "Transformers", symbol: "Qwen4ExpTextQSAIndexer", ref: "modeling_qwen4_exp.py:671-777; Qwen3.8-Flash-Next technical report §2.1.2" },
     variant: { poolStage: "key", perHeadWeights: false },
-    fused: (p) => sparseIndexerCounts({ ...p, poolStage: "key", perHeadWeights: false }),
-    decompose: (p) => indexerDecomposition({ ...p, poolStage: "key", perHeadWeights: false }),
-    residentIntermediates: (p) => indexerResident({ ...p, poolStage: "key", perHeadWeights: false }),
-    compulsoryBytes: (p) => indexerCompulsory({ ...p, poolStage: "key" }),
+    fused: qsaIndexerCounts,
+    decompose: qsaIndexerDecomposition,
+    // Logical unfused traffic: no unsupported kernel-fusion savings.
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => (p.queryTokens * (p.inDim || 1) + (p.inDim || 1) * (p.heads + 1) * p.dim + 2 * p.dim) * p.b,
     boundExpectation: { prefill: "compute", decode: "memory" },
-    notes: ["key 按 indexer_compress_ratio mean 池化（modeling_qwen4_exp.py:741），block_topk = budget / ratio"],
+    notes: ["key 完整块先 mean 池化再 RMSNorm/RoPE；跨 index 头汇总 ReLU 分数；选块展开并追加 visible tail",
+      "父节点包含投影与归一化动作；每次 forward 各完整 K 块池化一次的逻辑流量估算，非实测 fused kernel 流量",
+      "发布配置 budget=2048、block=4；非整除预算的论文 ceil 与参考代码 floor 有分歧，当前按参考代码 floor"],
   },
   {
     id: "minimax_block_indexer",
@@ -733,12 +735,12 @@ export function fusedFromDecomposition(entry, p) {
 }
 
 /**
- * 稀疏选择分支的统一计费（DSA / DSA-kpool / QSA / MSA 四变体共用一份实现，
+ * 稀疏选择分支的计费（DSA / DSA-kpool / MSA 共用参数化实现，
  * **但 operator_id 不共用**——算法出处不同就是不同条目，见 formulas/index.js）。
  * 参数矩阵：
  * - DSA（deepseek_v32 / glm_moe_dsa）：pool=1、poolStage="none"、perHeadWeights=true
  * - DSA-kpool（glm5_next）：pool=index_kpool、poolStage="key"、perHeadWeights=true
- * - QSA（qwen4_exp）：pool=indexer_compress_ratio、poolStage="key"、perHeadWeights=false
+ * - QSA 已移至 qsa.js：独立处理因果完整块、norm/RoPE、尾部及复合计费。
  * - MSA（minimax_m3_vl）：pool=sparse_block_size、poolStage="score"、perHeadWeights=false
  * 共同点（三份 modeling 取证）：无 value 通路、无 softmax（ReLU + 逐头求和）、
  * index k 单头、scores 走 fp32。

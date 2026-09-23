@@ -1,0 +1,158 @@
+{
+  "read_at": "2026-09-24",
+  "scope": "Partial header fixture: layer 3 attention only; not whole-model truth",
+  "models": [
+    {
+      "model_id": "Qwen/Qwen3.8-Flash-Next",
+      "revision": "de4b8e4d43b917e7706784d8bb445c9af86a3540",
+      "header_sha256": "ce840d1d64f034886f1774712a1f0c16d89560f5ac8f5194624b9c9f5249eb95",
+      "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/de4b8e4d43b917e7706784d8bb445c9af86a3540/model-00082-of-00131.safetensors",
+      "tensors": [
+        {
+          "name": "model.language_model.layers.3.self_attn.indexer.index_qk_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            640,
+            2560
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.indexer.k_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.indexer.q_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.k_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            512,
+            2560
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2560,
+            6144
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.q_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            2560
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            512,
+            2560
+          ]
+        }
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "revision": "236dfdf285828023ca3bcd3f37366c58a3469b13",
+      "header_sha256": "a4885cf829c44cf4305ceaf1bd2435b762a50194d99fe9ce6cfdd9a26b85ff62",
+      "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/resolve/236dfdf285828023ca3bcd3f37366c58a3469b13/model-00082-of-00131.safetensors",
+      "tensors": [
+        {
+          "name": "model.language_model.layers.3.self_attn.indexer.index_qk_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            640,
+            2560
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.indexer.k_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.indexer.q_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.k_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            512,
+            2560
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2560,
+            6144
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.q_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            2560
+          ]
+        },
+        {
+          "name": "model.language_model.layers.3.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            512,
+            2560
+          ]
+        }
+      ]
+    }
+  ]
+}

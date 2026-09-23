@@ -75,7 +75,10 @@ const ATTENTION_COMPONENTS = [
           : [...common, ["q_a_norm", "q_proj"], ["q_proj", "indexer"], ["wk_weights_proj", "k_norm"], ["k_norm", "indexer"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
       }
       if (recipeLinearAttentionMode(normalized) === "qwen4_exp" || normalized.qsaIndexerHeads) {
-        return [["qkv_proj", "q_norm"], ["qkv_proj", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "out_proj"]];
+        return [["q_proj", "q_gate_split"], ["q_gate_split", "q_norm"], ["q_gate_split", "output_gate"],
+          ["k_proj", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["indexer", "sparse_attention"],
+          ["rope", "sparse_attention"], ["v_proj", "sparse_attention"],
+          ["sparse_attention", "output_gate"], ["output_gate", "o_proj"]];
       }
       return undefined;
     },
@@ -153,6 +156,9 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     }
     if (declaredEdges.some(([from, to]) => from === "qkv_gate_split" && to === "output_gate")) {
       edgeRelations.push({ from: "qkv_gate_split", to: "output_gate", label: "gate" });
+    }
+    if (declaredEdges.some(([from, to]) => from === "q_gate_split" && to === "output_gate")) {
+      edgeRelations.push({ from: "q_gate_split", to: "output_gate", label: "gate" });
     }
   }
   return withShapeDims(moduleSpec(

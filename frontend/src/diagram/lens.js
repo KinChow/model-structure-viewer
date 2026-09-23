@@ -84,8 +84,13 @@ export function buildNodeLens(structure, chip, {
         computeSeconds: roofline.times.matrix,
         memorySeconds: roofline.times.memory,
         communicationSeconds: roofline.times.comm,
-        vramBytes: (row.aggregate_weightBytes || 0) + (row.actInBytes || 0) + (row.actOutBytes || 0),
-        memoryBytes: (row.actInBytes || 0) + (row.actOutBytes || 0),
+        // Explanatory children of a billed composite do not establish actual
+        // intermediate materialization. Generic -1 -> sequence substitution
+        // would, e.g., turn pooled block axes into full token axes.
+        vramBytes: row.node.attributes?.activation_materialization === "unknown"
+          ? null : (row.aggregate_weightBytes || 0) + (row.actInBytes || 0) + (row.actOutBytes || 0),
+        memoryBytes: row.node.attributes?.activation_materialization === "unknown"
+          ? null : (row.actInBytes || 0) + (row.actOutBytes || 0),
       },
     }];
   }));

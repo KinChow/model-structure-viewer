@@ -112,6 +112,7 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
     case "qsa_indexer":
       return c.qsaIndexerKVHeads ? {
         heads: c.qsaIndexerHeads || 0, dim: c.qsaIndexerHeadDim || 0, queryTokens: tokens, keyTokens: S,
+        inDim: c.hiddenSize || 0, ropeDim: Math.min(c.rotaryDim || 0, c.qsaIndexerHeadDim || 0), batch: 1,
         budget: c.qsaIndexerBudget, pool: c.qsaIndexerCompressRatio || 1, perHeadWeights: false, phase: ph.name, b,
       } : null;
     case "minimax_block_indexer":

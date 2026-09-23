@@ -1,0 +1,110 @@
+name: Release
+
+# 打通 GitHub Releases：推送 `v*` 标签即触发。
+# 运行发布闸（后端/前端单测、内置模型验证、生产构建、wheel + 版本一致性），
+# 抽取 CHANGELOG 对应版本段作为 Release 说明，并附上 wheel 与前端静态产物。
+# 使用内置 GITHUB_TOKEN，无需任何本地凭证或额外 PAT。
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "已存在的标签（例如 v0.3.0）"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Resolve version
+        id: ver
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check version consistency
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.ver.outputs.version }}"
+          PKG=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/model_structure_viewer/__init__.py)
+          FE=$(node -p "require('./frontend/package.json').version")
+          echo "tag=$VERSION pkg=$PKG frontend=$FE"
+          if [ "$PKG" != "$VERSION" ] || [ "$FE" != "$VERSION" ]; then
+            echo "::error::版本不一致：tag=$VERSION __init__=$PKG frontend=$FE"
+            exit 1
+          fi
+
+      - name: Install backend
+        run: pip install -e '.[test]' build
+
+      - name: Backend tests
+        run: pytest -q
+
+      - name: Install frontend
+        run: npm --prefix frontend ci --registry=https://registry.npmjs.org
+
+      - name: Frontend tests
+        run: npm --prefix frontend test
+
+      - name: Verify built-in models
+        run: npm --prefix frontend run verify:models
+
+      - name: Frontend build
+        run: npm --prefix frontend run build
+
+      - name: Build wheel + sdist
+        run: python -m build --outdir dist
+
+      - name: Package frontend static bundle
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.ver.outputs.version }}"
+          (cd frontend/dist && zip -r "../../dist/model-structure-viewer-frontend-${VERSION}.zip" .)
+
+      - name: Extract changelog section
+        id: notes
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.ver.outputs.version }}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+            flag && /^## \[/ { flag=0 }
+            flag { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "See CHANGELOG.md for changes in ${VERSION}." > RELEASE_NOTES.md
+          fi
+          echo "wrote RELEASE_NOTES.md ($(wc -l < RELEASE_NOTES.md) lines)"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: v${{ steps.ver.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/model-structure-viewer-frontend-*.zip

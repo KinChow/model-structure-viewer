@@ -146,7 +146,6 @@ for (const language of ["zh", "en"]) {
     const panel = page.locator(".export-panel");
     for (const format of ["json", "mermaid", "dot"]) {
       await panel.locator("select").selectOption(format);
-      await panel.getByRole("button", { name: "Export", exact: true }).click();
       await expect(panel.locator("textarea")).not.toHaveValue("");
       const text = await panel.locator("textarea").inputValue();
       if (format === "json") {

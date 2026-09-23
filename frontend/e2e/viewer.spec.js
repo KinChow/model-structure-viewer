@@ -1,4 +1,8 @@
 import { expect, test } from "./fixtures.js";
+import { readFileSync } from "node:fs";
+
+// 品牌版本号跟随 package.json，避免每次版本升级都要手改断言。
+const appVersion = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
 test.beforeEach(async ({ page }) => {
   await page.route(/https:\/\/(?:www\.)?(?:huggingface\.co|modelscope\.cn)\//, (route) => route.abort());
@@ -18,7 +22,7 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
   await page.getByRole("button", { name: "打开模型" }).click();
 
   await expect(page.locator(".detail-page")).toBeVisible();
-  await expect(page.locator(".detail-brand")).toHaveText("Model Structure Viewer v0.2.0");
+  await expect(page.locator(".detail-brand")).toHaveText(`Model Structure Viewer v${appVersion}`);
   await expect(page.locator(".react-flow__node").first()).toBeVisible();
   await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
   await expect.poll(() => page.locator(".react-flow__node").count()).toBeGreaterThan(3);

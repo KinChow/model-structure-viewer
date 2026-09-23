@@ -12,22 +12,27 @@ Model Structure Viewer 的重要变更记录。
 
 ## [Unreleased]
 
-### 纯前端边界（2026-09-15）
+## [0.3.0] - 2026-09-23
 
-- 页面移除后端状态、Transformers 校验和服务端配置；模型选项保留 Revision、内置模型和 HF 直连搜索。
-- 删除产品代码的 `/api/*` 请求与 Vite 后端代理；旧 auto 走内置→远程，旧 local 提示浏览器重新选择目录。Python CLI/API 兼容保留。
-- 本地目录精确匹配 config.json；覆盖取消、错误、header 与导出，并为全部浏览器回归增加同源 API 零请求断言。
+### 新增
 
 - 前端 i18n：ICU catalog（`frontend/src/i18n/{en,zh}.json` + `intl-messageformat`）。引擎只发 `{code, params}`（对标 LSP Diagnostic.code），UI `t()` / `formatIssue()`。覆盖结构状态、成本字段、plan/chip 校验、PD `linkSource`、HTTP/芯片加载错误、lens 缺输入。en/zh 键集相等；en 无汉字。
-- DSpark / MTP 节点徽标：`repeat===0` 是计费旗标（不计前向，仍驻留显存），不再渲染 `×0`；子模块数走 ICU plural。draft 说明改 `note_code: draft.residentOnly`。
-- 未做（触发池，见 `docs/implementation_plan.md`）：算子 `explanation` 双语、chrome 三元收 catalog、芯片 `notes` 翻译、`collectDiagnostics` 中文 catalog。
 - 增加 pre-commit（`.pre-commit-config.yaml`）：仓库卫生 + `check_principles.sh`。五重 oracle 不进 hook。
 - 增加 `scripts/dev-frontend.sh`，从仓库根启动 Vite 前端。
-- 删死接口 `POST /api/export`（前端本地 `exporters.js`，CLI `msv inspect --format`）。清真死代码：`scorePairsLegacy` / `graphPaths` / `product` / `StructureDiagram.jsx` 壳、`ModelSourceResolver.ensure_remote_code`、`reset_package_roots`、`flatten_source_refs`、`semantics.family`、`NoopRuntimePatch`、空操作 `exclude={"root"}`、自研 `sourceCacheKey`。动作向量合计接通 `kvRead`/`indexRead` 与 `computeDtypes.tf32→matrixTf32`（Accelergy action 名不丢）；同步 layout 返回 containerFrames。
+- 并行与权重分片协议定稿（步骤 1）：`details/parallel_protocol.md` 为协议唯一住址——逻辑轴定义、约束等式（专家域闭合 moe_ep×moe_tp=ep×tp）、九项裁决、三类成本口径。
+- 声明覆盖率护栏与全量覆盖（步骤 3）：P2 棘轮（缺声明带权叶，只许下降）13166→0；norm/linear/router/lm_head/MLA/KDA/conv1d/mHC/HC/PLE/embedding 全部声明；锚 1 升级 dtype-aware（param_dtype 引用 paramDtypes）。
+- 后端 Transformers evidence 对账（步骤 6）：/api/verify 与 CLI verify --graph 返回 per-module evidence 与 only_transformers/only_msv/mismatch 三分类，区分构造通过与结构一致。
+- 通信成本扩展（步骤 9）：interNode 开关、PD 传输时间、per-stage HBM roofline、AllToAll dp>1、KV keep-ratio、overlap 静态上限标注（overlapUpperBound）。
+
+### 变更
+
+- 页面移除后端状态、Transformers 校验和服务端配置；模型选项保留 Revision、内置模型和 HF 直连搜索。
+- 本地目录精确匹配 config.json；覆盖取消、错误、header 与导出，并为全部浏览器回归增加同源 API 零请求断言。
+- DSpark / MTP 节点徽标：`repeat===0` 是计费旗标（不计前向，仍驻留显存），不再渲染 `×0`；子模块数走 ICU plural。draft 说明改 `note_code: draft.residentOnly`。
+- 导出面板：选择格式即自动生成内容（DetailWorkspace effect 负责 run），手动「Export」按钮改为「复制」；搜索行「导出 / 原始配置」按钮与搜索框、格式下拉在字号 / 高度 / 配色 / 中英文上统一。浏览器回归随之改为选格式即断言自动产物、品牌版本号跟随 `package.json`。
 - 文档把已闭合项从「缺口 / 未排期」改成触发池；`layoutGraph` 只接受 `structure.graph`，删除裸树 / `structure.root` 兼容入口。Graph 是唯一结构载荷。
 - 落地后续终态首批实现：A17 `topk` 写出 `(values, indices)`（`actOut = T·k·(b+4)`）；`FORMULAS[id].group` 抄 SGLang 有对位的组，`ple` 暂不归组，护栏缺/非法=0；embedding/RMSNorm 增加 bytes+SFU 身份测试（不改 T4）；resolver 共享键 `repo_id+revision+cache_dir`；`details/models.md` 模型清单改由 `gen-model-reference.mjs` 生成。
 - 终态收口：`operators_reference` 按 `FORMULAS.group` 聚合；跨端契约 [`docs/details/models/source_contract.json`](docs/details/models/source_contract.json) 锁来源类型 / auto fallback / revision 默认 / 错误分类 / Graph 协议字段；前后端测试对这份 JSON。
-- 后续终态写入 [`docs/implementation_plan.md`](docs/implementation_plan.md)（2026-09-14）：产品图保持折叠（`repeat`，不展开全层）；四本账并行（容量 / GEMM / vector+sfu / bytes）互不塞入；`FORMULAS[id].group` 抄 SGLang `kernels/ops/` 有对位的组，不自造 `residual_mixing`，ple 暂不归组；topk 终态写出 `(values, indices)`；embedding/RMSNorm 走 bytes+SFU 身份，不进 T4 matrix；resolver 共享键 `repo_id+revision+cache_dir`，运行时不合并；`details/models.md` 只生成清单。明确不做：59 个 checkpoint 文件、产品图展开、对账 DSL、Kimi-K3 dump、整模型 FlopCounter。
 - `models/` 按 `architectures[0]` 拆文件（对标 vLLM `models/<arch>`）。MTP/DSpark 写在该架构文件里（`deepseek_v4.js`、`qwen3_5.js`、`qwen4_exp.js`）；SharedHead 留在 `deepseek_mtp.js` 给 GLM-5 Next 引用。删 `layers/mtp.js` 共享 dispatcher。
 - T4 C4 期望侧对齐叶 `dsv4_sparse_mla`：`min(T, index_topk)` 因果三角；窗口混合读只进 bytes。
 - Task #41：normalize 瘦到字段别名。删 `indexer*` 兼容字段；DSA/QSA 分族是唯一入口。`sharedExperts` / `sharedExpertGate` 看 `shared_expert_intermediate_size`（vLLM qwen3_moe / Qwen4Exp），不再用 `model_type` 子串——Flash-Next 因此补上 shared expert 分支。MHC 看 `mhc`/`hc_mult`；缺 `mhc_post_mult_value` 时开了 MHC 用 vLLM 默认 2.0。vision gated MLP 看 `hidden_act`。`StructureNodeBase` 抽出共用字段；解析入口收成 `model_structure_viewer.resolve`。
@@ -37,36 +42,28 @@ Model Structure Viewer 的重要变更记录。
 - `fromNode` 只抽 ctx：`countsForNode` = `FORMULAS[id].fromNode(env)` → `.counts(ctx)`。scores/context、SDPA bytes、稀疏叶、SWA/C128、causal conv、KDA state、embed gather 的动作向量升到 `counts.js`。`type=attention` 容器计费保留。
 - 结构对账补 params：meta `named_parameters().numel` ↔ 前端 `weightMatrices` 声明元素（catalog 无 `params` 时也能比；tied `shared` 组跳过）。
 - FlopCounterMode 矩阵抽查：独立 Linear / BMM / 深度可分 Conv1d 夹具，msv MAC × 2 == torch FLOPs。不对 catalog 整模型跑 forward。
-
 - 删 `derivedWeights.js` config 闭式。身份测试期望侧 walk 图声明（T4 / 锚 1）；台账参数量级走 `graphWeightCapacity`，与 UI 同口径。无 header 不是死循环——闭式不是 header 的替身。
 - 删 `config/plan.js`：组网逐层调度搬到 `layers/schedule.js`（读 HF `layer_types` / `first_k_dense_replace` / `compress_ratios`），cost 零 import。
 - 共享 layer 不再按 `modelType ===` 分派。DSA vs QSA 用 `kvLoraRank`；fused QKV / sigmoid router / hash MoE / latent MoE / vision merger MLP 写进 `ARCH_RECIPES`。§8.1 家族名 10→8。
 - 删 `formula_id`：公式索引读 `operator_id`（flop_registry / vLLM 一个 id）。
-- 删生产零调用的 `compare_structure_summary`。
 - Registry 键改为 `config.architectures[0]`（对标 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）。删除自制 `gqa-decoder` 九宫格、`ARCHITECTURE_ALIASES`、`ARCHITECTURE_CATALOG`、`withVision`。视觉塔是该建模函数内部的可选子模块。
 - 删除角色表（`roles.js` / `SUFFIX_ROLES` / 节点 `role`）。checkpoint 按模块路径绑定：剥 HF 根包装 `model.` / `language_model.` 后相等匹配。
 - 图节点 id 改为 HF `_modules` 名：文本栈 `layers`（MiniMax-M3 文本塔 `language_model`），视觉塔 `visual` / `vision_tower`。不再用自制 `decoder` / `text_decoder`。
 - 目录对齐：`structure/layers/` 共享模块、`structure/models/` 按 `architectures[0]` 组网、`structure/operators/` = formulas + ops 工厂。删除 `model_executor/`（msv 不执行模型）。
 - 配方旗标（`linearAttentionMode` / `normMode` / `sharedExpertsAreFused` / `visionInternalMerger` / `attentionOutputGate`）组网直接读 `ARCH_RECIPES` 的 `recipe*`。逐层调度读 HF 字段（`layer_types` / `first_k_dense_replace` / `compress_ratios`），不经产品对象。
 - Graph IR 仍是 module/layer 树的数据结构；summary 只留 `architecture`（HF 类名），不再写 `canonical_architecture`。
-
 - 删 `hfModulePrefix` / `hfModuleClass`：不再从 `architectures[0]` 剥任务后缀再拼 `FooAttention`。配方写 HF 全名，没写用词干。DeepSeek-V4 MoE 写 `DeepseekV4SparseMoeBlock`。vLLM/SGLang 每个模型文件手写 class，没有构词器。
 - `scripts/bind-source-ref.mjs`：`--verify` 只把 Transformers 构造失败当失败；`structurally_consistent` 只报告。walk 折叠更新走 `GraphDraft.replace_node`。
 - AutoConfig：catalog `auto_map` 同时有 AutoConfig 和 AutoModel 时走 remote config（DeepSeek-V3 / Kimi-K2 的 `rope_theta` 与 Hub modeling 配对）；只有 AutoConfig 且 `model_type` 已在 transformers `CONFIG_MAPPING` 时用库内实现（MiniMax-M3 那份 `from ...modeling_rope_utils` 不再当 remote code）。`AutoModel.from_config` 仍信任 remote。
-- Kimi-K3 不做 `dump-source-ref` / `verify --graph`：Hub modeling 在 import 时拉 `fla.modules` / `fla.ops.kda`（Triton）；transformers 无 `kimi_k3` 入库实现；不 hook Triton / 不 stub fla。结构模板继续用 catalog modeling 作二等证据。
 - introspect walk 对 `ModuleList`/`Sequential` 只展开连续同构子模块的第一个代表，其余记 `repeat`（DeepSeek-V3 remote 256 专家不再先建 7 万节点）。同构判定含直接子模块类名，`first_k_dense_replace` 的 dense MLP 与 MoE 层会拆开。`GraphDraft.add_dataflow` 改为 O(1) 索引。不改上游 modeling。
 - Decoder 注意力路径段照抄 transformers / vLLM / SGLang 属性名：默认 `self_attn`；Qwen3.5 / Qwen4Exp 的 GDN 层用 `linear_attn`。去掉把 `linear_attn` 改写成 `self_attn` 的绑定别名。Qwen4Exp linear 类名改为 `Qwen4ExpTextGatedDeltaNet`。
 - Qwen3.5 混合注意力 class 按 transformers 拆分：linear 层 `Qwen3_5GatedDeltaNet`、full 层 `Qwen3_5Attention`。RMSNorm 容器 class 走架构前缀（`Qwen3_5RMSNorm`），不再写死 `GemmaRMSNorm`。
 - 模块 `attributes.class` 改为 transformers 架构类名：从 `architectures[0]` 剥 `ForCausalLM`/`ForConditionalGeneration` 得到前缀，再拼 `Attention`/`DecoderLayer`/`MLP`/`MoE`。删除自研 `GQAAttention`/`DecoderStack`/`RoutedMoE`。算法身份仍在 `attention_kind`。同类型后缀差异（`MoE`/`SparseMoeBlock`、`TextAttention`）登记在 `ARCH_RECIPES`。
 - Transformers 校验失败分三类文案：后端不可达（需 `msv serve`）、worker 超时/崩溃、构造失败；未对账不是失败。
 - `source_ref` 采集照抄 modelmap annotate：`inspect.getsourcefile` + 包根前缀匹配；产物 `models/<org>/<id>/source-ref.json`；前端按对账路径绑定，版本不一致去掉 `#L`，inspect 失败留空。
-- 并行与权重分片协议定稿（步骤 1）：`details/parallel_protocol.md` 为协议唯一住址——逻辑轴定义、约束等式（专家域闭合 moe_ep×moe_tp=ep×tp）、九项裁决、三类成本口径。
-- 声明覆盖率护栏与全量覆盖（步骤 3）：P2 棘轮（缺声明带权叶，只许下降）13166→0；norm/linear/router/lm_head/MLA/KDA/conv1d/mHC/HC/PLE/embedding 全部声明；锚 1 升级 dtype-aware（param_dtype 引用 paramDtypes）。
 - 删除权重分片与量化枚举回退（步骤 3 收口）：weightMatrices 是权重归属唯一入口，无声明带权叶 = unknown；router 分片轴修正为 replicated（vLLM GateLinear extends ReplicatedLinear）。
 - fused shared expert 判定单源化（步骤 5）：删 normalize 的 model_type 子串第二判定源，归 archs 配方；原"双组声明"假设经 checkpoint 取证作废。
 - 并行计划 schema 单源（步骤 4）：cost/parallelPlan.js；协议校验执法（专家域闭合/整除/moe_tp=tp）；UI 第四消费者（MoE TP/EP、词表并行、world_size 只读）。
-- 后端 Transformers evidence 对账（步骤 6）：/api/verify 与 CLI verify --graph 返回 per-module evidence 与 only_transformers/only_msv/mismatch 三分类，区分构造通过与结构一致。
-- 通信成本扩展（步骤 9）：interNode 开关、PD 传输时间、per-stage HBM roofline、AllToAll dp>1、KV keep-ratio、overlap 静态上限标注（overlapUpperBound）。
 - 未知架构统一 `unsupported`（执行路线步骤 2）：删除 `generic-decoder` 字段推断兜底与 `generic-config` 分支，alias 精确表未命中的架构以空网络走完管线并枚举支持项；诊断 code 改名 `unsupported-architecture`，`models/generic.js` 删除。
 - 后端 introspection 改为通过 `GraphDraft` 直接生成 Graph IR v2，`StructureNode` 只作为兼容投影和旧调用入口。
 - 前端搜索、节点选择、祖先展开、面包屑和顶层模块列表优先从 Graph IR 稳定路径读取，新增 graph selector 单测。
@@ -84,8 +81,26 @@ Model Structure Viewer 的重要变更记录。
 - DeepSeek V4 Flash/Pro DSV4 attention dataflow 改为按 compressor 变体声明边。
 - Kimi K3、GLM5 Flash、Qwen4Exp linear attention dataflow 改为按 qkvz/非 qkvz 变体声明边。
 - Graph materializer 改为 declaration-only，不再在生产路径按 display name 推断 semantic edges；ELK 将 declared edges 作为显式语义流布局。
+
+### 移除
+
+- 删除产品代码的 `/api/*` 请求与 Vite 后端代理；旧 auto 走内置→远程，旧 local 提示浏览器重新选择目录。Python CLI/API 兼容保留。
+- 删死接口 `POST /api/export`（前端本地 `exporters.js`，CLI `msv inspect --format`）。清真死代码：`scorePairsLegacy` / `graphPaths` / `product` / `StructureDiagram.jsx` 壳、`ModelSourceResolver.ensure_remote_code`、`reset_package_roots`、`flatten_source_refs`、`semantics.family`、`NoopRuntimePatch`、空操作 `exclude={"root"}`、自研 `sourceCacheKey`。动作向量合计接通 `kvRead`/`indexRead` 与 `computeDtypes.tf32→matrixTf32`（Accelergy action 名不丢）；同步 layout 返回 containerFrames。
+- 删生产零调用的 `compare_structure_summary`。
+
+### 修复
+
 - 修复详情页标题版本号与入口不一致、DSV4 Flash Vision Tower 不可展开，以及 graph-only 结构进入 layout 时的层级/边连接问题；补齐 DSV4 Flash Vision attention 连通性回归。
+
+### 验证
+
 - 本阶段验证：后端 `148 passed`，前端 `195 passed`，内置模型 `59/59`，生产构建通过，Playwright 桌面/移动 `6/6` 通过。
+
+### 说明
+
+- 未做（触发池，见 `docs/implementation_plan.md`）：算子 `explanation` 双语、chrome 三元收 catalog、芯片 `notes` 翻译、`collectDiagnostics` 中文 catalog。
+- 后续终态写入 [`docs/implementation_plan.md`](docs/implementation_plan.md)（2026-09-14）：产品图保持折叠（`repeat`，不展开全层）；四本账并行（容量 / GEMM / vector+sfu / bytes）互不塞入；`FORMULAS[id].group` 抄 SGLang `kernels/ops/` 有对位的组，不自造 `residual_mixing`，ple 暂不归组；topk 终态写出 `(values, indices)`；embedding/RMSNorm 走 bytes+SFU 身份，不进 T4 matrix；resolver 共享键 `repo_id+revision+cache_dir`，运行时不合并；`details/models.md` 只生成清单。明确不做：59 个 checkpoint 文件、产品图展开、对账 DSL、Kimi-K3 dump、整模型 FlopCounter。
+- Kimi-K3 不做 `dump-source-ref` / `verify --graph`：Hub modeling 在 import 时拉 `fla.modules` / `fla.ops.kda`（Triton）；transformers 无 `kimi_k3` 入库实现；不 hook Triton / 不 stub fla。结构模板继续用 catalog modeling 作二等证据。
 
 ## [0.2.0] - 2026-09-06
 
@@ -166,6 +181,7 @@ Model Structure Viewer 的重要变更记录。
 
 - 这个工具用于从模型配置和元数据查看结构。它不下载权重，也不运行推理。
 
-[Unreleased]: https://github.com/KinChow/model-structure-viewer/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/KinChow/model-structure-viewer/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/KinChow/model-structure-viewer/releases/tag/v0.3.0
 [0.2.0]: https://github.com/KinChow/model-structure-viewer/releases/tag/v0.2.0
 [0.1.0]: https://github.com/KinChow/model-structure-viewer/releases/tag/v0.1.0

@@ -222,6 +222,18 @@ export const FORMULAS = {
     outputs: ["y"],
     counts: rearrangeCounts,
   },
+  index_reuse: {
+    title: "Shared Top-k Index Reference",
+    // ref: transformers.models.glm_moe_dsa.modeling_glm_moe_dsa.GlmMoeDsaAttention.forward
+    //      shared branch consumes prev_topk_indices; no projection or copy kernel is launched.
+    // GLM-5.2/5.3 shared layers receive the previous full layer's top-k indices;
+    // this is a control/reference edge, not a hidden-state transform or GEMM.
+    formula: "I_t = I_source",
+    explanation: "跨层复用 full indexer 产生的 top-k 下标；不新增投影权重，也不产生计算动作。",
+    inputs: ["I_source"],
+    outputs: ["I_t"],
+    counts: rearrangeCounts,
+  },
   moe_add: {
     title: "MoE Branch Add",
     // ref: 一等 aten::add（routed/shared 分支合并，vector = TH）。
@@ -666,7 +678,7 @@ export const FORMULA_GROUPS = {
   activation: ["swiglu", "vision_activation"],
   embeddings: ["vision_position"],
   elementwise: [
-    "residual_add", "identity",
+    "residual_add", "identity", "index_reuse",
     "mhc_pre", "mhc_fused_post_pre", "mhc_post", "mhc_contract",
     "hyper_connection", "attention_residual", "engram_gate",
   ],

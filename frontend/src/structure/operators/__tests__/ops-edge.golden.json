@@ -53,10 +53,10 @@
  "zai-org/GLM-4.7": "b334f5251f8241ba",
  "zai-org/GLM-5": "78096f78d2b6ed91",
  "zai-org/GLM-5.1": "78096f78d2b6ed91",
- "zai-org/GLM-5.2": "d2078175a04319ba",
- "zai-org/GLM-5.2-FP8": "d2078175a04319ba",
- "zai-org/GLM-5.3": "d2078175a04319ba",
- "zai-org/GLM-5.3-BF16": "d2078175a04319ba",
+ "zai-org/GLM-5.2": "b88a49bb289176b2",
+ "zai-org/GLM-5.2-FP8": "b88a49bb289176b2",
+ "zai-org/GLM-5.3": "b88a49bb289176b2",
+ "zai-org/GLM-5.3-BF16": "b88a49bb289176b2",
  "zai-org/GLM-5.3-Flash": "406e13840e1383b5",
  "zai-org/GLM-5.3-Flash-BF16": "406e13840e1383b5"
 }

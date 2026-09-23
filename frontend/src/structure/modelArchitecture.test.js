@@ -757,9 +757,8 @@ test("maps DeepSeek V3.2 and GLM DSA latent/indexer paths with top-k reuse sched
     resolved: glmResolved,
   }));
   const glmDecoder = treeView(glmStructure).children.find((node) => node.id === "layers");
-  assert.equal(glmDecoder.children[0].attributes.range, "0..2");
-  assert.equal(glmDecoder.children[1].attributes.range, "3..5");
-  assert.equal(glmDecoder.children[1].children.find((node) => node.type === "attention").children.find((node) => node.name === "DSA indexer").attributes.indexer_mode, "reuse");
+  assert.deepEqual(glmDecoder.children.slice(0, 4).map((node) => node.attributes.range), ["0..1", "2..2", "3..5", "6..6"]);
+  assert.equal(glmDecoder.children[2].children.find((node) => node.type === "attention").children.find((node) => node.name === "shared top-k index reference").attributes.indexer_mode, "reuse");
 });
 
 test("maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE", () => {

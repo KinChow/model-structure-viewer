@@ -156,6 +156,10 @@ const RELATION_HINT = {
     zh: "CED：解码器全局 KV 由末端编码器隐状态投影",
     en: "CED: decoder global KV projected from final encoder states",
   },
+  "index-reuse": {
+    zh: "IndexShare：复用前一 full 层生成的 top-k 索引",
+    en: "IndexShare: reuse top-k indices from the previous full layer",
+  },
 };
 
 function edgeClassName(data) {

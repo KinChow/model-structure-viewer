@@ -3,6 +3,7 @@ import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttenti
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
 import { hfNamedClass, recipeFlag, recipeLinearAttentionMode } from "../archs/index.js";
+import { indexerScheduleOf, isIndexShareConfig } from "./schedule.js";
 
 // 组件表：attentionKind × 字段/配方匹配 → { name, ops, edges }。
 // ops 与 edges 必须取自同一表项 —— children 改了 edges 没跟着改在结构上不可能。
@@ -60,10 +61,18 @@ const ATTENTION_COMPONENTS = [
   {
     kind: "qsa",
     ops: (id, normalized, layerIndex) => qsaAttentionOperatorSpecs(id, normalized, layerIndex),
-    edges: (normalized) => {
+    edges: (normalized, layerIndex = 0) => {
       // DSA over MLA：有 kv_lora_rank。逐头 QSA：没有。
       if ((normalized.kvLoraRank || 0) > 0) {
-        return [["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"], ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"], ["kv_b_proj", "rope"], ["q_a_norm", "q_proj"], ["q_proj", "indexer"], ["wk_weights_proj", "k_norm"], ["k_norm", "indexer"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
+        const shared = isIndexShareConfig(normalized) && indexerScheduleOf(normalized)?.[layerIndex] === "reuse";
+        const common = [
+          ["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"],
+          ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"],
+          ["kv_b_proj", "rope"],
+        ];
+        return shared
+          ? [...common, ["rope", "sparse_attention"], ["index_reuse", "sparse_attention"], ["sparse_attention", "o_proj"]]
+          : [...common, ["q_a_norm", "q_proj"], ["q_proj", "indexer"], ["wk_weights_proj", "k_norm"], ["k_norm", "indexer"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
       }
       if (recipeLinearAttentionMode(normalized) === "qwen4_exp" || normalized.qsaIndexerHeads) {
         return [["qkv_proj", "q_norm"], ["qkv_proj", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "out_proj"]];

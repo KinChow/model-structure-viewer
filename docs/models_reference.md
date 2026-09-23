@@ -91,10 +91,10 @@
 | `zai-org/GLM-4.7` | `glm4_moe` | `Glm4MoeForCausalLM` | 357,561,845,056（357.6B） | 有 | 2025-12-22 |
 | `zai-org/GLM-5` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-02-11 |
 | `zai-org/GLM-5.1` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-04-03 |
-| `zai-org/GLM-5.2` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-06-16 |
-| `zai-org/GLM-5.2-FP8` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-06-16 |
-| `zai-org/GLM-5.3` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-08-25 |
-| `zai-org/GLM-5.3-BF16` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-08-25 |
+| `zai-org/GLM-5.2` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-06-16 |
+| `zai-org/GLM-5.2-FP8` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-06-16 |
+| `zai-org/GLM-5.3` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-08-25 |
+| `zai-org/GLM-5.3-BF16` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-08-25 |
 | `zai-org/GLM-5.3-Flash` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,934,802,836（321.9B） | manifest | 2026-08-25 |
 | `zai-org/GLM-5.3-Flash-BF16` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,934,802,836（321.9B） | 有 | 2026-08-25 |
 

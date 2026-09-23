@@ -1,7 +1,7 @@
 import { formulaForOperator } from "../formulas/index.js";
 import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
-import { indexerScheduleOf } from "../../layers/schedule.js";
+import { indexerScheduleOf, indexShareSourceLayerOf, isIndexShareConfig } from "../../layers/schedule.js";
 import { recipeAttentionOutputGate, recipeFlag, recipeLinearAttentionMode, recipeValue } from "../../archs/index.js";
 
 function cleanAttributes(attributes) {
@@ -1084,6 +1084,8 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const budget = normalized.dsaIndexTopk ?? 0;
   const kpool = normalized.dsaIndexKpool ?? 1;
   const indexerMode = indexerScheduleOf(normalized)?.[layerIndex] || "compute";
+  const indexShare = isIndexShareConfig(normalized);
+  const indexSource = indexShare ? indexShareSourceLayerOf(normalized, layerIndex) : null;
   const qLatentShape = `[batch, sequence, q latent=${qRank}]`;
   const kvLatentShape = `[batch, sequence, kv latent=${kvRank}, rope=${ropeDim}]`;
   const qShape = `[batch, sequence, attention heads=${heads}, head dimension=${qkDim}]`;
@@ -1128,34 +1130,47 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       qk_rope_head_dim: ropeDim,
       implementation: ["vLLM.DeepseekV32 rotary_emb", "SGLang.Deepseek rotary_emb"],
     }, { input: [-1, -1, heads, qkDim], output: [-1, -1, heads, qkDim] }),
-    operatorSpec(`${prefix}.indexer.q_proj`, "indexer query projection", "linear", {
-      ...shapeFlow(qLatentShape, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
-      implementation: ["vLLM.Indexer.wq_b", "SGLang.Indexer.wq_b"],
-    }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }),
-    operatorSpec(`${prefix}.indexer.wk_weights_proj`, "indexer key and weight projection", "linear", {
-      ...shapeFlow(shapes.hidden, `[batch, sequence, index head dimension=${indexDim}] + [batch, sequence, index heads=${indexHeads}]`),
-      projection_layout: ["wk", "weights"],
-      implementation: ["vLLM.Indexer.wk_weights_proj", "SGLang.Indexer.wk_weights_proj"],
-    }, { input: dims.hidden, output: [-1, -1, indexDim + indexHeads] }),
-    operatorSpec(`${prefix}.indexer.k_norm`, "indexer key LayerNorm", "rmsnorm", {
-      ...shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
-      // DSA indexer 的 key norm 在 transformers 真值里是 nn.LayerNorm（weight+bias=2×width），
-      // 非 RMSNorm；affine_bias 让声明含 bias，参数量与后端 LayerNorm 一致（结构对账实证）。
-      affine_bias: true,
-      implementation: ["vLLM.Indexer.k_norm", "SGLang.Indexer.k_norm"],
-    }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
-    operatorSpec(`${prefix}.indexer`, kpool > 1 ? "DSA indexer (k-pool)" : "DSA indexer", kpool > 1 ? "dsa_kpool_indexer" : "dsa_indexer", {
-      ...shapeFlow(shapes.hidden, `[batch, sequence, selected=${budget}]`),
-      indexer_heads: indexHeads,
-      indexer_head_dim: indexDim,
-      budget,
-      index_kpool: kpool > 1 ? kpool : undefined,
-      indexer_mode: indexerMode,
-      reuse_previous_indices: indexerMode === "reuse",
-      implementation: kpool > 1
-        ? ["vLLM.SparseAttnIndexerKpool", "SGLang.dsa_indexer kpool"]
-        : ["vLLM.SparseAttnIndexer", "SGLang.dsa_indexer"],
-    }, { input: dims.hidden, output: [-1, -1, budget] }),
+    ...(indexShare && indexerMode === "reuse"
+      ? [operatorSpec(`${prefix}.index_reuse`, "shared top-k index reference", "index_reuse", {
+          ...shapeFlow(`[batch, sequence, selected=${budget}]`, `[batch, sequence, selected=${budget}]`),
+          semantic_role: "index_reuse",
+          indexer_mode: "reuse",
+          index_source_layer: indexSource,
+          index_source_layer_id: `${prefix.replace(/\.\d+(\.[^.]+)$/, `.${indexSource}$1`)}.indexer`,
+          index_budget: budget,
+          index_storage: "alias",
+          index_storage_lifetime: "current query; not autoregressive KV",
+          index_storage_dtype: "implementation-dependent",
+          implementation: ["transformers.GlmMoeDsaAttention.prev_topk_indices"],
+        }, { input: [-1, -1, budget], output: [-1, -1, budget] })]
+      : [
+          operatorSpec(`${prefix}.indexer.q_proj`, "indexer query projection", "linear", {
+            ...shapeFlow(qLatentShape, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
+            implementation: ["vLLM.Indexer.wq_b", "SGLang.Indexer.wq_b"],
+          }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }),
+          operatorSpec(`${prefix}.indexer.wk_weights_proj`, "indexer key and weight projection", "linear", {
+            ...shapeFlow(shapes.hidden, `[batch, sequence, index head dimension=${indexDim}] + [batch, sequence, index heads=${indexHeads}]`),
+            projection_layout: ["wk", "weights"],
+            implementation: ["vLLM.Indexer.wk_weights_proj", "SGLang.Indexer.wk_weights_proj"],
+          }, { input: dims.hidden, output: [-1, -1, indexDim + indexHeads] }),
+          operatorSpec(`${prefix}.indexer.k_norm`, "indexer key LayerNorm", "rmsnorm", {
+            ...shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
+            affine_bias: true,
+            implementation: ["vLLM.Indexer.k_norm", "SGLang.Indexer.k_norm"],
+          }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
+          operatorSpec(`${prefix}.indexer`, kpool > 1 ? "DSA indexer (k-pool)" : "DSA indexer", kpool > 1 ? "dsa_kpool_indexer" : "dsa_indexer", {
+            ...shapeFlow(shapes.hidden, `[batch, sequence, selected=${budget}]`),
+            indexer_heads: indexHeads,
+            indexer_head_dim: indexDim,
+            budget,
+            index_kpool: kpool > 1 ? kpool : undefined,
+            indexer_mode: indexerMode,
+            reuse_previous_indices: indexerMode === "reuse",
+            implementation: kpool > 1
+              ? ["vLLM.SparseAttnIndexerKpool", "SGLang.dsa_indexer kpool"]
+              : ["vLLM.SparseAttnIndexer", "SGLang.dsa_indexer"],
+          }, { input: dims.hidden, output: [-1, -1, budget] }),
+        ]),
     operatorSpec(`${prefix}.sparse_attention`, "DSA sparse MLA attention", "dsa_sparse_mla", {
       ...shapeFlow(`${qShape}, selected ${kShape}, selected ${vShape}`, `[batch, sequence, attention heads=${heads}, value head dimension=${valueDim}]`),
       selected_tokens: budget,
@@ -1163,13 +1178,13 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       indexer_mode: indexerMode,
       index_kpool: kpool > 1 ? kpool : undefined,
       ...cacheResidentDecl({
-        // 全驻留（W5 capacity↔kvRead 不变）：MLA latent + index 键。
+        // 每层保留独立 MLA latent；IndexShare shared 层没有自己的 index key cache。
         kvElements: kvRank + ropeDim,
-        indexElements: indexDim || 0,
+        indexElements: indexSource == null ? indexDim || 0 : 0,
         // 边际 + 逐 dtype（Bug1 修复，对齐 dsv4_sparse_mla 768-779）：MLA latent bf16 随 token 增长；
         // DSA index 键 = fp8(1B)+E8M0 尺度(4B/128)（SGLang 硬编码 uint8，非 bf16）。无滑窗，growth==full。
         growthKvElements: kvRank + ropeDim,
-        growthIndexElements: indexDim || 0,
+        growthIndexElements: indexSource == null ? indexDim || 0 : 0,
         kvDtype: "BF16",
         indexDtype: "F8_E8M0S128",
       }),

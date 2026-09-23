@@ -153,6 +153,29 @@ export function indexerScheduleOf(config) {
   return dsaIndexerSchedule(text, layers) ?? dsaIndexerSchedule(source, layers);
 }
 
+/** GLM-5.2/5.3 的 IndexShare 显式 schedule。Flash 的 indexer_types 全为 full，
+ * 因而不会进入这条跨层共享语义；DeepSeek V3.2 的频率回退也不属于本判据。 */
+export function isIndexShareConfig(config) {
+  const source = rawSource(config);
+  const text = textConfigOf(config);
+  const explicitTypes = Array.isArray(text?.indexer_types)
+    ? text.indexer_types
+    : source?.indexer_types;
+  return Array.isArray(explicitTypes)
+    && explicitTypes.some((kind) => String(kind).toLowerCase() === "shared");
+}
+
+/** shared 层复用紧邻其前的最后一个 full 层生成的 top-k index。 */
+export function indexShareSourceLayerOf(config, index) {
+  if (!isIndexShareConfig(config)) return null;
+  const schedule = indexerScheduleOf(config);
+  if (!Array.isArray(schedule) || schedule[index] !== "reuse") return null;
+  for (let source = index - 1; source >= 0; source -= 1) {
+    if (schedule[source] === "compute") return source;
+  }
+  throw new Error(`Invalid IndexShare schedule for ${rawSource(config).model_type || "model"}: shared layer ${index} has no preceding full indexer`);
+}
+
 // V4.1 CSA2 逐层模式（对标 model.py Indexer.owns_k / index_source / 其余）：
 //   Full    = kv_source 层：生成 global KV 并做索引；
 //   Reindex = index_source 且非 kv_source：复用 global KV、用自己的 indexer Q 重选 Top-K；

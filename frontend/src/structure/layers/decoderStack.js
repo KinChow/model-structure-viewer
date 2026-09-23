@@ -3,8 +3,8 @@ import { decoderLayerModule } from "./decoderLayer.js";
 import { compactRanges, layerKinds } from "./ranges.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
-import { attentionScheduleOf, indexerScheduleOf, attentionKindOf, csa2ModeForLayer } from "./schedule.js";
-import { hfNamedClass } from "../archs/index.js";
+import { attentionScheduleOf, indexerScheduleOf, attentionKindOf, csa2ModeForLayer, indexShareSourceLayerOf, isIndexShareConfig } from "./schedule.js";
+import { hfAttentionAttr, hfNamedClass } from "../archs/index.js";
 import { foldedLayerName } from "./foldedLayerName.js";
 
 const CSA2_MODE_LABEL = { full: "Full", reindex: "Reindex", reuse: "Reuse", swa: "SWA" };
@@ -40,6 +40,8 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
     ? attentionSchedule
     : Array.from({ length: layers }, () => defaultAttentionKind);
   const indexerSchedule = indexerScheduleOf(normalized);
+  const indexShare = isIndexShareConfig(normalized);
+  const indexerId = (index) => `${id}.${index}.${hfAttentionAttr(normalized, "qsa")}.indexer`;
   const combinedKinds = kinds.map((kind, index) => {
     const attentionKind = attentionKinds[index] || defaultAttentionKind;
     const compressionVariant = attentionKind === "dsv4"
@@ -59,13 +61,20 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
     const indexerVariant = attentionKind === "qsa" && indexerSchedule?.length
       ? `:i${indexerSchedule[index] || "compute"}`
       : "";
+    // IndexShare 的 source 层必须可独立定位；否则 source 与前两个 full 层
+    // 折成同一代表节点，跨层边会错误地指向 0..2 的代表。
+    const indexShareSourceBoundary = indexShare
+      && indexerSchedule?.[index] === "compute"
+      && indexerSchedule?.[index + 1] === "reuse"
+      ? ":idxsource"
+      : "";
     const hasPle = normalized.pleLayerIds?.includes(index + 1) ? "ple" : "no-ple";
     // Engram 命中层（0-indexed）必须独立成段，否则与相邻非 engram 层折叠后丢失。
     const hasEngram = normalized.engramLayerIds?.includes(index) ? "engram" : "no-engram";
     const mhcBoundary = normalized.multiHyperConnection
       ? (index === (layers || 0) - 1 ? "mhc-last" : "mhc-middle")
       : "no-mhc";
-    return `${kind}:${attentionKind}${compressionVariant}${csaShareVariant}${indexerVariant}:${hasPle}:${hasEngram}:${mhcBoundary}`;
+    return `${kind}:${attentionKind}${compressionVariant}${csaShareVariant}${indexerVariant}${indexShareSourceBoundary}:${hasPle}:${hasEngram}:${mhcBoundary}`;
   });
   // 段内折叠：先取窗口签名再 compactRanges，最后把区间下标偏移回全局层号，
   // 保证段边界不跨折叠、且 ratio/source/mhc 查找始终用全局层号。
@@ -81,6 +90,7 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
       layerIndex: gStart,
     });
     const mode = csa2ModeForLayer(normalized, gStart);
+    const indexSource = indexShare ? indexShareSourceLayerOf(normalized, gStart) : null;
     layer.name = foldedLayerName(gStart, gEnd, csa2GroupLabel(normalized, gStart, mode));
     layer.type = "layer-group";
     layer.repeat = repeat;
@@ -94,6 +104,12 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
       ...layer.attributes,
       range: `${gStart}..${gEnd}`,
       ...csaAttrs,
+      ...(indexSource != null
+        ? {
+            index_source_layer: indexSource,
+            index_source_layer_id: indexerId(indexSource),
+          }
+        : {}),
     };
     return layer;
   });
@@ -101,11 +117,43 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
   const segmentLayers = end - start + 1;
   const rootName = opts.name || (id.startsWith("language_model") ? "Text Decoder Layers" : "Decoder Layers");
   const rootType = opts.type || "decoder";
+  const sequenceEdges = children.slice(0, -1).map((child, index) => [
+    child.id,
+    children[index + 1].id,
+  ]);
+  const indexShareEdges = [];
+  if (indexShare) {
+    for (const child of children) {
+      const source = child.attributes.index_source_layer;
+      if (source == null) continue;
+      indexShareEdges.push([
+        indexerId(source),
+        `${child.id}.${hfAttentionAttr(normalized, "qsa")}.index_reuse`,
+      ]);
+    }
+  }
+  const indexShareRelations = indexShareEdges.map(([from, to]) => ({
+    from,
+    to,
+    relation: "index-reuse",
+    label: `reuse top-k from layer ${from.match(/layers\.(\d+)\./)?.[1] ?? "source"}`,
+  }));
   return withShapeDims(moduleSpec(
     id,
     rootName,
     rootType,
-    { class: hfNamedClass(normalized, "modelClass", "Model"), num_hidden_layers: segmentLayers, sequence: true, ...shapeFlow(shapes.hidden, shapes.hidden) },
+    {
+      class: hfNamedClass(normalized, "modelClass", "Model"),
+      num_hidden_layers: segmentLayers,
+      sequence: true,
+      ...(indexShareEdges.length
+        ? {
+            dataflow_edges: [...sequenceEdges, ...indexShareEdges],
+            dataflow_edge_relations: indexShareRelations,
+          }
+        : {}),
+      ...shapeFlow(shapes.hidden, shapes.hidden),
+    },
     children,
     segmentLayers || undefined,
   ), dims.hidden, dims.hidden);

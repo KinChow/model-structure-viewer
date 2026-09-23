@@ -391,6 +391,7 @@ const FROM_NODE = {
     tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement,
   }),
   identity: () => ({ copy: false }),
+  index_reuse: () => ({ copy: false }),
   moe_add: ({ node, config, bytesPerElement, tokens }) => ({
     tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement,
   }),

@@ -22,6 +22,7 @@ export const FORMULA_TEX = {
   fused_moe_mlp: "y = \\big(\\operatorname{SiLU}(xW_{\\text{gate}}^{\\top}) \\odot (xW_{\\text{up}}^{\\top})\\big) W_{\\text{down}}^{\\top}",
   residual_add: "h = x + \\operatorname{sublayer}(x)",
   identity: "y = x",
+  index_reuse: "I_t = I_{\\text{source}}",
   moe_add: "y = y_{\\text{routed}} + y_{\\text{shared}}",
   linear_attention: "S_t = \\operatorname{decay}_t \\cdot S_{t-1} + k_t^{\\top} v_t;\\quad y_t = q_t S_t",
   linear_attention_gate: "y_t = \\operatorname{gate}(z_t) \\cdot y_t",

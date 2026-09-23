@@ -1186,11 +1186,12 @@ label {
 .detail-summary .chip b { overflow: hidden; color: #758398; font: 10px system-ui, sans-serif; letter-spacing: .06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; width: 100%; max-width: 1760px; margin: 0 auto; padding: 14px 24px 40px; box-sizing: border-box; }
 .detail-main { min-width: 0; }
-.detail-search-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.detail-search-row { display: flex; align-items: stretch; gap: 10px; margin-bottom: 10px; }
 .detail-search-row .search-box { flex: 1; margin: 0; }
 .detail-search-row .search-box input { background: #121923; border-color: #2a3545; color: #edf2f7; }
-.detail-aux-actions { display: flex; gap: 5px; }
-.detail-aux-actions button { border: 1px solid #2a3545; border-radius: 5px; background: #151e29; color: #9aa7b7; padding: 7px 9px; font-size: 11px; }
+.detail-aux-actions { display: flex; align-items: stretch; gap: 5px; }
+/* 与左侧搜索框统一：同圆角(7px)、同底色、同高度（行内 stretch 拉平）。 */
+.detail-aux-actions button { border: 1px solid #2a3545; border-radius: 7px; background: #121923; color: #9aa7b7; padding: 7px 9px; font-size: 11px; }
 .detail-aux-actions button.active, .detail-aux-actions button:hover:not(:disabled) { border-color: #f4ab52; color: #f4ab52; }
 /* Cost 开关/面板与 aux 面板位于画布下方的同一滚动列。.diagram-frame 已 isolation 建栈，
    这里再给这些交互控件 position:relative + z-index:1，保证即便画布长高与其重叠，画布也不会

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { buildStructureFromArtifacts } from "../buildStructure.js";
+import { buildSkeleton } from "../truth/skeleton.js";
 import { dsparkLayerCount, mtpModuleCount } from "./deepseek_mtp.js";
 import { assembleDeepseekV4 } from "./deepseek_v4.js";
 import { assembleQwen3_5 } from "./qwen3_5.js";
@@ -126,6 +127,34 @@ test("GLM-5.3-Flash aggregates published MTP expert tensors onto the fused exper
     config,
     modelId,
     checkpointTruth: { tensors, mtp_tensor_count: tensors.length },
+  });
+  const expert = structure.graph.nodes.find(node => node.canonical_id === "mtp.layer.mlp.expert_mlp");
+  assert.ok(expert);
+  assert.deepEqual(structure.source.diagnostics.template_gaps, []);
+  assert.deepEqual(expert.tensor_names.sort(), tensors.map(tensor => tensor.name).sort());
+  assert.equal(expert.params, tensors.reduce((sum, tensor) => sum + tensor.shape.reduce((a, b) => a * b, 1), 0));
+});
+
+test("GLM-5.3-Flash preserves folded MTP expert tensor truth", () => {
+  const modelId = "zai-org/GLM-5.3-Flash-BF16";
+  const dir = new URL(`../../../../models/${modelId}/`, import.meta.url);
+  const config = JSON.parse(fs.readFileSync(new URL("config.json", dir), "utf8"));
+  const prefix = `model.language_model.layers.${config.text_config.num_hidden_layers}.mlp.experts`;
+  const tensors = [
+    [`${prefix}.0.gate_proj.weight`, [config.text_config.moe_intermediate_size, config.text_config.hidden_size]],
+    [`${prefix}.0.up_proj.weight`, [config.text_config.moe_intermediate_size, config.text_config.hidden_size]],
+    [`${prefix}.0.down_proj.weight`, [config.text_config.hidden_size, config.text_config.moe_intermediate_size]],
+    [`${prefix}.1.gate_proj.weight`, [config.text_config.moe_intermediate_size, config.text_config.hidden_size]],
+    [`${prefix}.1.up_proj.weight`, [config.text_config.moe_intermediate_size, config.text_config.hidden_size]],
+    [`${prefix}.1.down_proj.weight`, [config.text_config.hidden_size, config.text_config.moe_intermediate_size]],
+  ].map(([name, shape]) => ({ name, shape, dtype: "BF16" }));
+  const structure = buildStructureFromArtifacts({
+    config,
+    modelId,
+    checkpointTruth: {
+      skeleton: buildSkeleton(tensors, { preserveExpandedTruth: true }),
+      mtp_tensor_count: tensors.length,
+    },
   });
   const expert = structure.graph.nodes.find(node => node.canonical_id === "mtp.layer.mlp.expert_mlp");
   assert.ok(expert);

@@ -32,6 +32,14 @@ export function skeletonTruthGraph(skeleton) {
   const nodes = [];
   const edges = [];
   function visit(node, path, parentId = null, order = 0) {
+    const expandedTruth = node.expanded_tensor_names?.length
+      ? {
+        expanded_params: node.expanded_params ?? 0,
+        expanded_weight_shapes: node.expanded_weight_shapes || {},
+        expanded_weight_dtypes: node.expanded_weight_dtypes || {},
+        expanded_tensor_names: node.expanded_tensor_names,
+      }
+      : null;
     nodes.push({
       id: path,
       canonical_id: node.id,
@@ -41,7 +49,10 @@ export function skeletonTruthGraph(skeleton) {
       name: node.name,
       type: node.type || "module",
       repeat: node.repeat ?? null,
-      attributes: node.weight_dtypes && Object.keys(node.weight_dtypes).length ? { weight_dtypes: node.weight_dtypes } : {},
+      attributes: {
+        ...(node.weight_dtypes && Object.keys(node.weight_dtypes).length ? { weight_dtypes: node.weight_dtypes } : {}),
+        ...(expandedTruth ? { truth_expanded: expandedTruth } : {}),
+      },
       source_fields: [],
       confidence: "high",
       params: node.params ?? null,
@@ -74,7 +85,8 @@ export function skeletonTruthGraph(skeleton) {
  * 多候选记 ambiguous，不静默丢弃。
  */
 export function bindTruthToGraph(graph, truthGraph, { truthPathAliases = [] } = {}) {
-  const truthNodes = (truthGraph?.nodes || []).filter((node) => Number(node.params) > 0);
+  const allTruthNodes = truthGraph?.nodes || [];
+  const truthNodes = allTruthNodes.filter((node) => Number(node.params) > 0);
   const truthByPath = new Map();
   for (const node of truthNodes) {
     const truthId = node.canonical_id || node.module_id || node.id;
@@ -93,7 +105,7 @@ export function bindTruthToGraph(graph, truthGraph, { truthPathAliases = [] } = 
     const aggregatePrefix = node.attributes?.truth_path_prefix;
     if (aggregatePrefix) {
       const prefix = applyPathAliases(canonicalModulePath(aggregatePrefix), truthPathAliases);
-      const matches = truthNodes.filter((candidate) => {
+      const prefixCandidates = allTruthNodes.filter((candidate) => {
         if (used.has(candidate.id)) return false;
         const candidatePath = applyPathAliases(
           canonicalModulePath(candidate.canonical_id || candidate.module_id || candidate.id),
@@ -101,22 +113,44 @@ export function bindTruthToGraph(graph, truthGraph, { truthPathAliases = [] } = 
         );
         return candidatePath === prefix || candidatePath.startsWith(`${prefix}.`);
       });
+      // A folded list node owns the complete repeated inventory. Its
+      // representative descendants are retained for ordinary truth display,
+      // but must not be counted a second time by an explicit aggregate bind.
+      const expandedCandidates = prefixCandidates.filter((candidate) => candidate.attributes?.truth_expanded);
+      const matches = expandedCandidates.length
+        ? expandedCandidates
+        : prefixCandidates.filter((candidate) => Number(candidate.params) > 0);
       if (matches.length > 0) {
-        const tensorNames = matches.flatMap((candidate) => candidate.tensor_names || []);
+        const tensorNames = matches.flatMap((candidate) =>
+          candidate.attributes?.truth_expanded?.expanded_tensor_names || candidate.tensor_names || []);
         const weightShapes = {};
         const weightDtypes = {};
         let params = 0;
         for (const candidate of matches) {
-          params += Number(candidate.params) || 0;
-          for (const [name, shape] of Object.entries(candidate.weight_shapes || {})) {
-            const key = `${candidate.canonical_id || candidate.id}.${name}`;
+          const expanded = candidate.attributes?.truth_expanded;
+          params += expanded ? Number(expanded.expanded_params) || 0 : Number(candidate.params) || 0;
+          const shapes = expanded ? expanded.expanded_weight_shapes : candidate.weight_shapes;
+          const dtypes = expanded ? expanded.expanded_weight_dtypes : candidate.attributes?.weight_dtypes;
+          for (const [name, shape] of Object.entries(shapes || {})) {
+            const key = expanded ? name : `${candidate.canonical_id || candidate.id}.${name}`;
             weightShapes[key] = shape;
-            if (candidate.attributes?.weight_dtypes?.[name]) {
-              weightDtypes[key] = candidate.attributes.weight_dtypes[name];
+            if (dtypes?.[name]) {
+              weightDtypes[key] = dtypes[name];
             }
           }
         }
-        matches.forEach((candidate) => used.add(candidate.id));
+        matches.forEach((candidate) => {
+          used.add(candidate.id);
+          // A folded list node owns its representative descendants as part
+          // of the same checkpoint aggregate. Mark those layout-only truth
+          // nodes consumed as well; otherwise appendGraphGaps would expose
+          // the representative expert a second time.
+          const candidatePath = canonicalModulePath(candidate.canonical_id || candidate.module_id || candidate.id);
+          for (const descendant of allTruthNodes) {
+            const descendantPath = canonicalModulePath(descendant.canonical_id || descendant.module_id || descendant.id);
+            if (descendantPath.startsWith(`${candidatePath}.`)) used.add(descendant.id);
+          }
+        });
         boundIds.push(...matches.map((candidate) => candidate.canonical_id || candidate.id));
         return {
           ...node,
@@ -318,7 +352,7 @@ export function enrichGraphWithTruth(graph, truth, {
     }
     return { graph, diagnostics: { strategy: "no-truth" } };
   }
-  const skeleton = buildSkeleton(truth.tensors);
+  const skeleton = buildSkeleton(truth.tensors, { preserveExpandedTruth: true });
   const truthGraph = skeletonTruthGraph(skeleton);
   if (!hasBuilder) {
     const root = truthGraph.nodes.find((node) => node.id === truthGraph.root_id);

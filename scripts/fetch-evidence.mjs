@@ -102,7 +102,7 @@ if (process.argv.includes("--headers")) {
   }
   // 折叠：直接复用前端 skeleton 构建器（folded tree，体积小几个数量级）
   const { buildSkeleton } = await import("../frontend/src/structure/truth/skeleton.js");
-  const skeleton = buildSkeleton(tensors);
+  const skeleton = buildSkeleton(tensors, { preserveExpandedTruth: true });
   const parameterTotal = tensors.reduce((sum, t) => sum + t.shape.reduce((a, b) => a * b, 1), 0);
   fs.writeFileSync(path.join(outDir, "skeleton-truth.json"), JSON.stringify({
     generated: "safetensors headers (fetch-evidence --headers)",

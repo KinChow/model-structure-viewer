@@ -17,6 +17,8 @@
  *   params: number, weight_shapes: Record<string, number[]>,
  *   weight_dtypes: Record<string, string>, dtype: string,
  *   tensor_names: string[], children: SkeletonNode[],
+ *   expanded_params?: number, expanded_weight_shapes?: Record<string, number[]>,
+ *   expanded_weight_dtypes?: Record<string, string>, expanded_tensor_names?: string[],
  * }} SkeletonNode
  */
 
@@ -99,18 +101,59 @@ function dominantDtype(node) {
   return best;
 }
 
-function convertNode(trieNode, path) {
+function collectSubtreeTensors(trieNode, path, entries = []) {
+  for (const [param, tensor] of trieNode.tensors.entries()) {
+    entries.push({ path, param, ...tensor });
+  }
+  for (const [name, child] of trieNode.children.entries()) {
+    collectSubtreeTensors(child, [...path, name], entries);
+  }
+  return entries;
+}
+
+/**
+ * A folded numeric segment deliberately keeps one representative subtree for
+ * rendering and costing. Keep the complete repeated checkpoint inventory on
+ * the list node as auxiliary metadata for consumers that explicitly aggregate
+ * a folded subtree (for example fused MoE experts). This does not change the
+ * representative node's params, so normal repeat accounting is unchanged.
+ */
+function expandedMetadataForFoldedSegment(trieNode, path, childKeys) {
+  const expanded_tensor_names = [];
+  const expanded_weight_shapes = {};
+  const expanded_weight_dtypes = {};
+  let expanded_params = 0;
+  for (const index of childKeys) {
+    const entries = collectSubtreeTensors(trieNode.children.get(index), [...path, index]);
+    for (const entry of entries) {
+      const tensorName = `${entry.path.join(".")}.${entry.param}`;
+      const elements = entry.shape.reduce((a, b) => a * b, 1);
+      expanded_tensor_names.push(tensorName);
+      expanded_weight_shapes[tensorName] = entry.shape;
+      expanded_weight_dtypes[tensorName] = entry.dtype;
+      expanded_params += elements;
+    }
+  }
+  return {
+    expanded_params,
+    expanded_weight_shapes,
+    expanded_weight_dtypes,
+    expanded_tensor_names,
+  };
+}
+
+function convertNode(trieNode, path, options = {}) {
   const id = path.join(".");
   const name = path[path.length - 1] ?? "root";
   const children = [...trieNode.children.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([k, child]) => convertNode(child, [...path, k]));
+    .map(([k, child]) => convertNode(child, [...path, k], options));
 
   // 数字段折叠：连续 0..n-1 且各 index 同构 → repeat 节点，children 取 index 0 的子树
   const childKeys = [...trieNode.children.keys()];
   if (segmentFoldsCleanly(trieNode)) {
     const count = numericSegmentInfo(childKeys).count;
-    const repNode = convertNode(trieNode.children.get("0"), [...path, "0"]);
+    const repNode = convertNode(trieNode.children.get("0"), [...path, "0"], options);
     return {
       id,
       name,
@@ -121,6 +164,9 @@ function convertNode(trieNode, path) {
       weight_dtypes: {},
       dtype: null,
       tensor_names: [],
+      ...(options.preserveExpandedTruth
+        ? expandedMetadataForFoldedSegment(trieNode, path, childKeys)
+        : {}),
       children: [repNode],
     };
   }
@@ -153,9 +199,9 @@ function convertNode(trieNode, path) {
  * @param {TensorEntry[]} tensors 归一化后的张量列表（含 dtype/shape）
  * @returns {SkeletonNode} 折叠后的含参模块树
  */
-export function buildSkeleton(tensors) {
+export function buildSkeleton(tensors, options = {}) {
   const trie = buildTrie(tensors);
-  const root = convertNode(trie, []);
+  const root = convertNode(trie, [], options);
   // 单一顶层段（如 model）时去掉空路径包装，直接以该段为根
   if (root.children.length === 1 && root.tensor_names.length === 0 && root.children[0].type === "module") {
     return root.children[0];

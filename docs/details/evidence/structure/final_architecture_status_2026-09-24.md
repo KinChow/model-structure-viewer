@@ -108,7 +108,7 @@ node scripts/verify-builtin-models.mjs
   `*_repair.md` 与 `*_sources.json`。
 - config-only 与 production artifacts：由各家族机制测试分别加载；
   不用总参数量替代逐模块绑定。
-- 全量门禁：前端 577/577、后端 184/184、内置模型 60/60；
+- 全量门禁：前端 579/579、后端 184/184、内置模型 60/60；
   这些证明当前代码链路稳定，不等于表中所有“证据不足”项目已经通过。
 
 ## 当前明确未完成项

@@ -123,6 +123,9 @@ function deepSeekMultiTokenPredictorLayer(id, normalized) {
       class: hfNamedClass(normalized, "mtpClass", "DeepSeekMultiTokenPredictorLayer"),
       modules: count,
       ...draftBilling(),
+      ...(recipeValue(normalized, "mtpSharedHeadProjection") === false
+        ? { output_reference: "lm_head", weight_sharing: "lm_head" }
+        : {}),
       implementation: ["vLLM.models.deepseek_mtp.DeepSeekMultiTokenPredictorLayer"],
       dataflow_edges: [
         ["enorm", "eh_proj"],

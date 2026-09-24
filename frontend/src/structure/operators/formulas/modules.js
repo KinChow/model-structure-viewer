@@ -681,7 +681,7 @@ function indexerDecomposition(p) {
     { atom: "matmul", args: {
       batch: p.heads, m: p.queryTokens, k: p.dim, n: scored, density, bytesPerElement: p.b,
       lhsElements: p.heads * p.queryTokens * p.dim,
-      rhsElements: scored * p.dim,
+      rhsElements: (p.batch ?? 1) * scored * p.dim,
       outElements: pairs,
     } },
     { atom: "scale", args: { elements: pairs, bytesPerElement: scoreBytes } },
@@ -761,7 +761,13 @@ export function sparseIndexerCounts(params) {
   // indexer 必须扫全长才能选出 top-k，两个乘子不同。indexRead ⊆ actIn，不额外累加。
   const pool = Math.max(p.pool ?? 1, 1);
   const scored = (p.poolStage ?? "none") === "key" ? Math.ceil((p.keyTokens || 0) / pool) : (p.keyTokens || 0);
-  return { ...counts, bytes: { ...counts.bytes, indexRead: scored * (p.dim || 0) * (p.b || 0) } };
+  return {
+    ...counts,
+    bytes: {
+      ...counts.bytes,
+      indexRead: (p.batch ?? 1) * scored * (p.dim || 0) * (p.b || 0),
+    },
+  };
 }
 
 

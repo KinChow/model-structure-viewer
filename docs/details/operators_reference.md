@@ -1776,16 +1776,16 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 ## 注册表 ↔ 触发面对账（生成物）
 
-- 注册表条目：**56**
+- 注册表条目：**59**
 - 实际被触发：**53**（含结构节点 `embedding`）
-- 零触发条目：**4** —— `matmul` · `softmax` · `linear_attention` · `linear_attention_gate`
+- 零触发条目：**7** —— `matmul` · `softmax` · `linear_attention` · `linear_attention_gate` · `dsv4_window_reduce` · `dsv4_position_bias` · `dsv4_compression_rope`
 
 ## 按 group 聚合（生成物，SGLang kernels/ops）
 
 | group | 算子 |
 |---|---|
 | `gemm` | `linear` · `matmul` · `mla_query_compress` · `mla_kv_compress` |
-| `attention` | `softmax` · `sdpa_attention` · `rope` · `linear_attention_gate` · `qsa_indexer` · `dsa_indexer` · `dsa_kpool_indexer` · `dsv4_indexer` · `qsa_sparse_attention` · `dsa_sparse_mla` · `dsv4_sparse_mla` · `minimax_sparse_indexer` · `minimax_sparse_attention` · `dsv4_swa_attention` · `dsv4_compressed_attention` · `attention_output_gate` · `mla_output_gate` |
+| `attention` | `softmax` · `sdpa_attention` · `rope` · `linear_attention_gate` · `qsa_indexer` · `dsa_indexer` · `dsa_kpool_indexer` · `dsv4_indexer` · `qsa_sparse_attention` · `dsa_sparse_mla` · `dsv4_sparse_mla` · `minimax_sparse_indexer` · `minimax_sparse_attention` · `dsv4_swa_attention` · `dsv4_compressed_attention` · `attention_output_gate` · `mla_output_gate` · `dsv4_window_reduce` · `dsv4_position_bias` · `dsv4_compression_rope` |
 | `moe` | `topk` · `moe_dispatch` · `moe_combine` · `fused_moe_mlp` · `moe_add` · `shared_expert_gate` · `dsv4_hash_route` |
 | `layernorm` | `rmsnorm` · `gemma_rmsnorm` · `gated_rmsnorm` |
 | `activation` | `swiglu` · `situ_glu` · `vision_activation` |

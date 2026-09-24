@@ -48,7 +48,8 @@ function macsSource(node, counts, billingParent) {
 }
 
 function isBillingParent(node, counts) {
-  return Boolean(node?.children?.length && counts && node?.attributes?.operator_id);
+  return Boolean(node?.children?.length && counts && node?.attributes?.operator_id
+    && node?.attributes?.billing_mode !== "children");
 }
 
 function scaleActions(counts, multiplier) {

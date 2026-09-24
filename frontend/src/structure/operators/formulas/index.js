@@ -13,6 +13,7 @@ import {
   fusedMoeMlpCounts, embedGatherCounts, matmulPartCounts, sdpaAttentionCounts,
   sparseLeafAttentionCounts, minimaxSparseAttentionCounts, dsv4SwaAttentionCounts,
   dsv4CompressedAttentionCounts, gatedDeltaStateCounts, engramGateCounts,
+  dsv4WindowReduceCounts, dsv4PositionBiasCounts, dsv4CompressionRopeCounts,
 } from "./counts.js";
 import { sparseIndexerCounts } from "./modules.js";
 import { gatedResidualCounts } from "./gatedResidual.js";
@@ -392,6 +393,38 @@ export const FORMULAS = {
     outputs: ["c_KV", "k_R"],
     counts: (ctx) => sumCounts(linearCounts(ctx.proj), rearrangeCounts()),
   },
+  dsv4_window_reduce: {
+    title: "DeepSeek V4 Compression Window Reduction",
+    // ref: 二等 modeling 对照 models/deepseek-ai/DeepSeek-V4-Flash/
+    //      modeling_deepseek_v4.py DeepseekV4CSA/HCACompressor.forward；
+    //      softmax(gate + position_bias) 后按完整窗口加权归约。
+    formula: "c_i = sum_j softmax(g_j + B_j) * v_j",
+    explanation: "V4 fused C4/C128 compression gate and weighted window reduction; no checkpoint weight is owned here.",
+    inputs: ["packed KV", "packed gate", "position bias"],
+    outputs: ["compressed state"],
+    counts: dsv4WindowReduceCounts,
+  },
+  dsv4_position_bias: {
+    title: "DeepSeek V4 Compressor Position Bias",
+    // ref: 二等 modeling 对照 models/deepseek-ai/DeepSeek-V4-Flash/
+    //      modeling_deepseek_v4.py position_bias 参数与 compressor gate logits。
+    formula: "gate_logits = gate_proj(x) + B_window",
+    explanation: "C4/C128 learned position bias capacity belongs to this checkpoint node; runtime reads the bias only for a closed window.",
+    inputs: ["position bias"],
+    outputs: ["bias contribution"],
+    counts: dsv4PositionBiasCounts,
+  },
+  dsv4_compression_rope: {
+    title: "DeepSeek V4 Compression RoPE",
+    // ref: 二等 modeling 对照 models/deepseek-ai/DeepSeek-V4-Flash/
+    //      modeling_deepseek_v4.py DeepseekV4RotaryEmbedding(layer_type="compress")
+    //      与 apply_rotary_pos_emb；C4 indexer 同时旋转压缩 key 和 query。
+    formula: "x' = \\operatorname{RoPE}_{compress}(x)",
+    explanation: "Applies the V4 compression RoPE to emitted compressed keys; the C4 indexer also rotates the current query.",
+    inputs: ["compressed state", "position"],
+    outputs: ["rotated compressed state"],
+    counts: dsv4CompressionRopeCounts,
+  },
   mla_kv_split: {
     title: "MLA KV Latent Split",
     // ref: 一等 aten::split（视图语义）；A1：latent/rope 拆分零流量。
@@ -698,6 +731,7 @@ export const FORMULA_GROUPS = {
     "minimax_sparse_indexer", "minimax_sparse_attention",
     "dsv4_swa_attention", "dsv4_compressed_attention",
     "attention_output_gate", "mla_output_gate",
+    "dsv4_window_reduce", "dsv4_position_bias", "dsv4_compression_rope",
   ],
   moe: ["topk", "moe_dispatch", "moe_combine", "fused_moe_mlp", "moe_add", "shared_expert_gate", "dsv4_hash_route"],
   layernorm: ["rmsnorm", "gemma_rmsnorm", "gated_rmsnorm"],

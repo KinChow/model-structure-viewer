@@ -780,9 +780,10 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
         projection_role: "compressor_gate",
         implementation: ["transformers.DeepseekV4CSACompressor.gate_proj", "vLLM.DeepseekCompressor.gate_proj"],
       }, { input: dims.hidden, output: [-1, -1, compressorWidth] }),
-      operatorSpec(`${compressorId}.position_bias`, "compressor position bias", "identity", {
+      operatorSpec(`${compressorId}.position_bias`, "compressor position bias", "dsv4_position_bias", {
         checkpoint_module: true,
         semantic_role: "compressor_position_bias",
+        compress_ratio: ratio,
         position_bias_shape: [ratio, compressorWidth],
         weightMatrices: [weightMatrixDecl("replicated", {
           shape: [ratio, compressorWidth], quantizable: false, param_dtype: "compressor_ape",
@@ -791,8 +792,10 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       operatorSpec(`${compressorId}.window_reduce`, "compressor gated window reduction", "identity", {
         checkpoint_module: false,
         semantic_role: "compressor_window_reduce",
+        operator_id: "dsv4_window_reduce",
         reduction: "softmax(gate + position_bias) weighted sum over complete compression windows",
         compress_ratio: ratio,
+        reduction_width: headDim,
         overlap_width: ratio === 4 ? headDim : 0,
       }, { input: [-1, -1, compressorWidth], output: [-1, -1, headDim] }),
       operatorSpec(`${compressorId}.kv_norm`, "compressor latent RMSNorm", "rmsnorm",
@@ -801,9 +804,12 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
           compression_output_ratio: ratio,
           implementation: ["transformers.DeepseekV4CSACompressor.kv_norm", "vLLM.DeepseekCompressor.kv_norm"] },
         { input: [-1, -1, headDim], output: [-1, -1, headDim] }),
-      operatorSpec(`${compressorId}.rotary_emb`, "compressor rotary position embedding", "identity", {
+      operatorSpec(`${compressorId}.rotary_emb`, "compressor rotary position embedding", "dsv4_compression_rope", {
         checkpoint_module: true,
         semantic_role: "compressor_rope",
+        compress_ratio: ratio,
+        compression_rope_dim: Math.min(headDim, normalized.qkRopeHeadDim || headDim),
+        rope_roles: ["compressed_key"],
         position_encoding: "compress_rope",
         implementation: ["transformers.DeepseekV4CSACompressor.rotary_emb"],
       }, { input: [-1, -1, headDim], output: [-1, -1, headDim] }),
@@ -831,9 +837,10 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
           projection_role: "indexer_gate",
           implementation: ["transformers.DeepseekV4Indexer.gate_proj"],
         }, { input: dims.hidden, output: [-1, -1, indexerWidth] }),
-        operatorSpec(`${indexerId}.position_bias`, "indexer position bias", "identity", {
+        operatorSpec(`${indexerId}.position_bias`, "indexer position bias", "dsv4_position_bias", {
           checkpoint_module: true,
           semantic_role: "indexer_position_bias",
+          compress_ratio: 4,
           position_bias_shape: [4, indexerWidth],
           weightMatrices: [weightMatrixDecl("replicated", {
             shape: [4, indexerWidth], quantizable: false, param_dtype: "compressor_ape",
@@ -842,8 +849,10 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
         operatorSpec(`${indexerId}.window_reduce`, "indexer gated window reduction", "identity", {
           checkpoint_module: false,
           semantic_role: "compressor_window_reduce",
+          operator_id: "dsv4_window_reduce",
           reduction: "softmax(gate + position_bias) weighted sum over complete index windows",
           compress_ratio: 4,
+          reduction_width: indexDim,
           overlap_width: indexDim,
         }, { input: [-1, -1, indexerWidth], output: [-1, -1, indexDim] }),
         operatorSpec(`${indexerId}.kv_norm`, "indexer latent RMSNorm", "rmsnorm", {
@@ -857,15 +866,18 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
           projection_role: "indexer_q_b",
           implementation: ["transformers.DeepseekV4Indexer.q_b_proj"],
         }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }),
-        operatorSpec(`${indexerId}.rotary_emb`, "indexer rotary position embedding", "identity", {
+        operatorSpec(`${indexerId}.rotary_emb`, "indexer rotary position embedding", "dsv4_compression_rope", {
           checkpoint_module: true,
           semantic_role: "indexer_rope",
+          compress_ratio: 4,
+          compression_rope_dim: Math.min(indexDim, normalized.qkRopeHeadDim || indexDim),
+          rope_roles: ["compressed_key", "query"],
           position_encoding: "compress_rope",
           implementation: ["transformers.DeepseekV4Indexer.rotary_emb"],
         }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
         withShapeDims(moduleSpec(scorerId, "indexer scorer", "module", {
           semantic_role: "indexer_scorer",
-          dataflow_edges: [["weights_proj", scorerId]],
+          dataflow_edges: [["weights_proj", scorerId], ["score", scorerId]],
           implementation: ["transformers.DeepseekV4IndexerScorer"],
         }, [
           operatorSpec(`${scorerId}.weights_proj`, "indexer weight projection", "linear", {
@@ -873,6 +885,16 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
             projection_role: "indexer_weights",
             implementation: ["transformers.DeepseekV4IndexerScorer.weights_proj"],
           }, { input: dims.hidden, output: [-1, -1, indexHeads] }),
+          operatorSpec(`${scorerId}.score`, "compressed index score and Top-k", "dsv4_indexer", {
+            semantic_role: "indexer_score",
+            indexer_heads: indexHeads,
+            indexer_head_dim: indexDim,
+            budget,
+            compress_ratio: 4,
+            index_key_domain: "compressed_window",
+            score_mask_stage: "after_dense_scores",
+            checkpoint_module: false,
+          }, { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, budget] }),
         ]), dims.hidden, indexHeads),
       ];
       indexerChildren.forEach((child) => {
@@ -880,6 +902,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       });
       const indexer = withShapeDims(moduleSpec(indexerId, "DeepSeek V4 C4 sparse indexer", "indexer", {
         operator_id: "dsv4_indexer",
+        billing_mode: "children",
         formula: indexerFormula?.formula,
         explanation: indexerFormula?.explanation,
         inputs: indexerFormula?.inputs,
@@ -907,6 +930,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
     }
     specs.push(withShapeDims(moduleSpec(compressorId, "compressed KV/state compressor", "compressor", {
       operator_id: "mla_kv_compress",
+      billing_mode: "children",
       formula: compressorFormula?.formula,
       explanation: compressorFormula?.explanation,
       inputs: compressorFormula?.inputs,

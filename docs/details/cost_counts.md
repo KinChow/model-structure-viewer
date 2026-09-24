@@ -323,7 +323,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 
 > 生成物（`scripts/gen-cost-counts.mjs`，勿手改）：逐条 = FORMULAS 注册表；`分类`/三分量
 > 由单元探针（形状全 1，同 counts.test.js）判定。符号 bytes 公式见上方 F1–F9；复合节点
-> 分解见「复合节点」表。共 **56** 条。
+> 分解见「复合节点」表。共 **59** 条。
 
 | 条目 | group | 分类 | matrix | vector | sfu | bytes |
 |---|---|---|---|---|---|---|
@@ -336,10 +336,13 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | `dsa_kpool_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
 | `dsa_sparse_mla` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
 | `dsv4_compressed_attention` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `dsv4_compression_rope` | attention | 仅访存 | 0 | ✓ | 0 | ✓ |
 | `dsv4_hash_route` | moe | 仅搬运 | 0 | 0 | 0 | ✓ |
 | `dsv4_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `dsv4_position_bias` | attention | 仅搬运 | 0 | 0 | 0 | 0 |
 | `dsv4_sparse_mla` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
 | `dsv4_swa_attention` | attention | 计算+访存 | ✓ | 0 | 0 | ✓ |
+| `dsv4_window_reduce` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
 | `engram_gate` | elementwise | 仅访存 | 0 | ✓ | ✓ | ✓ |
 | `fused_moe_mlp` | moe | 计算+访存 | ✓ | ✓ | ✓ | ✓ |
 | `gated_delta_attention` | mamba | 计算+访存 | ✓ | ✓ | ✓ | ✓ |

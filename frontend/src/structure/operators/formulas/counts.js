@@ -141,6 +141,56 @@ export function compressedOutputTokens({ batch = 1, sequence = 1, phase = "prefi
   return batch * Math.floor(sequence / ratio);
 }
 
+/** V4 window gate + weighted reduction. The fused kernel keeps intermediates
+ * on chip, but the logical actions remain visible for the cost ledger. */
+export function dsv4WindowReduceCounts({
+  batch = 1, sequence = 1, phase = "prefill", ratio = 1, width = 1,
+  overlap = false, bytesPerElement = 1,
+}) {
+  const outputs = compressedOutputTokens({ batch, sequence, phase, ratio });
+  const slots = ratio * (overlap ? 2 : 1);
+  const logits = outputs * slots * width;
+  const reduced = outputs * width;
+  return {
+    matrix: 0,
+    // softmax (3 flops/element), gate multiply, then weighted reduction.
+    vector: 4 * logits + Math.max(logits - reduced, 0),
+    sfu: 2 * logits,
+    bytes: {
+      weights: 0,
+      actIn: (2 * logits) * bytesPerElement,
+      actOut: reduced * bytesPerElement,
+    },
+  };
+}
+
+/** A learned V4 positional bias is read only when a compression window emits. */
+export function dsv4PositionBiasCounts({
+  batch = 1, sequence = 1, phase = "prefill", ratio = 1,
+  weightBytesPerElement = 4, positionElements = 0,
+}) {
+  const emits = compressedOutputTokens({ batch, sequence, phase, ratio }) > 0;
+  return { matrix: 0, vector: 0, sfu: 0,
+    bytes: { weights: emits ? positionElements * weightBytesPerElement : 0, actIn: 0, actOut: 0 } };
+}
+
+/** V4 compression RoPE. The C4 indexer applies its compression RoPE to both
+ * compressed keys and current queries; the outer compressor only has keys. */
+export function dsv4CompressionRopeCounts({
+  batch = 1, sequence = 1, phase = "prefill", ratio = 1,
+  ropeDim = 1, query = false, bytesPerElement = 1,
+}) {
+  const compressed = compressedOutputTokens({ batch, sequence, phase, ratio });
+  const queryTokens = query ? batch * (phase === "decode" ? 1 : sequence) : 0;
+  const elements = (compressed + queryTokens) * ropeDim;
+  return {
+    matrix: 0,
+    vector: 3 * elements,
+    sfu: 0,
+    bytes: { weights: 0, actIn: 2 * elements * bytesPerElement, actOut: elements * bytesPerElement },
+  };
+}
+
 /**
  * F4 门控乘（sigmoid(G) ⊙ O）。gateProjection = true 时多一个 [W, H] 投影权重。
  */

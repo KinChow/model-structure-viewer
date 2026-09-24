@@ -230,7 +230,8 @@ test("N2-4 锚 1：weightMatrices 声明与叶 counts.bytes.weights 单源（容
       // sink、逐专家路由修正 bias）：计入权重驻留容量（memory.js 读全声明），但其"读"未在
       // 算子 compute counts 里单独建模（与 hc_head/confidence_head 同类：声明=驻留、counts=
       // 相位读量）。锚 1 只对账"会被算子读一遍"的权重矩阵，故从声明侧扣除这些驻留辅助组再比。
-      const RESIDENCY_AUX = new Set(["attn_sink", "router_correction_bias", "router_bias_vl", "compressor_ape"]);
+      // V4 compressor_ape now has its own execution owner: position_bias.
+      const RESIDENCY_AUX = new Set(["attn_sink", "router_correction_bias", "router_bias_vl"]);
       const declaredBytes = declaration.reduce(
         (sum, group) => (group.param_dtype && RESIDENCY_AUX.has(group.param_dtype))
           ? sum
@@ -508,6 +509,7 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // weights as auxiliary inputs; neither is a same-width activation edge.
   "rotary_emb -> scorer": "control",
   "weights_proj -> scorer": "control",
+  "score -> scorer": "control",
   // slice：上游是融合宽张量，下游只吃一片
   "qkv_split -> q_norm": "slice",
   "qkv_split -> k_norm": "slice",
@@ -619,7 +621,7 @@ test("W5 恒等式：激活流形状连续性（全内置模型声明边）", ()
         assert.equal(out, src.canonical_id.endsWith(".rotary_emb")
           ? normalized.headDim : normalized.dsaIndexTopk);
         assert.equal(src.attributes?.operator_id,
-          src.canonical_id.endsWith(".rotary_emb") ? "identity" : "dsv4_indexer");
+          src.canonical_id.endsWith(".rotary_emb") ? "dsv4_compression_rope" : "dsv4_indexer");
         matched += 1;
         continue;
       }

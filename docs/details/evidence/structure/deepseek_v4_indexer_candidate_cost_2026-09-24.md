@@ -27,15 +27,19 @@
 `1,048,576 B`（index_head_dim=512，动作字节口径 `2 B/element`）。
 这只是 **indexer 算子候选域**，不是全模型成本变化结论。
 
+随后补齐了 V4 压缩链的计费归属：`compressor` 与嵌套 `indexer` 标记
+`billing_mode=children`，真实投影、位置 bias、窗口 softmax/加权归约、
+RMSNorm、压缩 RoPE 和 indexer scorer 子节点各自承担动作；父节点不再
+与子节点重复计费。C4 indexer 的 RoPE 节点同时表达压缩 key 与当前
+query 两次应用，外层 HCA/CSA compressor 只表达压缩 key。
+
 ## 仍未封闭的成本边界
 
-外层 `mla_kv_compress` 是计费复合父节点，当前父子计费逻辑会压住
-内嵌 `dsv4_indexer` 的执行计费；外层父公式也没有完整窗口 softmax、
-归约、norm、RoPE 与索引支路。因此本次 `countsForNode(indexer)` 的
-候选域纠错**尚未使模型总成本准确**。下一步须统一修复该计费所有权，
-并以小尺寸前向动作和逐模块参数建立断言，不能把这次单算子绿灯写成
-全链路验收。
+窗口归约与 fused kernel 的真实片上复用、FP8/FP4 量化执行字节、
+缓存 overlap 状态，以及 GPU 实测时延仍未知；本批只是理论动作/强制
+流量账本，不声称 fused kernel 性能或全模型实测成本。
 
 核验：config-only 与生产 artifacts 的 C4 几何断言；Flash 小工作点
 `prefill S=8` 的矩形打分、`decode S=4/4096` 的压缩 indexRead；
-前端全量测试、后端测试和 docs check。
+父子不重复计费、压缩 RoPE 双路径断言；前端全量测试、后端测试、
+docs check、构建及 Chrome 桌面/移动端 12/12。

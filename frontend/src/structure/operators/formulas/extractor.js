@@ -456,6 +456,31 @@ const FROM_NODE = {
           },
         };
   },
+  dsv4_window_reduce: ({ node, config, options, bytesPerElement }) => ({
+    batch: options.batch ?? 1,
+    sequence: options.sequence ?? 1,
+    phase: options.phase ?? "prefill",
+    ratio: Number(node?.attributes?.compress_ratio ?? 1),
+    width: Number(node?.attributes?.reduction_width ?? config?.headDim ?? 0),
+    overlap: node?.attributes?.overlap_width > 0,
+    bytesPerElement,
+  }),
+  dsv4_position_bias: ({ node, options }) => ({
+    batch: options.batch ?? 1,
+    sequence: options.sequence ?? 1,
+    phase: options.phase ?? "prefill",
+    ratio: Number(node?.attributes?.compress_ratio ?? 1),
+    positionElements: node?.attributes?.position_bias_shape?.reduce((a, b) => a * b, 1) ?? 0,
+  }),
+  dsv4_compression_rope: ({ node, config, options, bytesPerElement }) => ({
+    batch: options.batch ?? 1,
+    sequence: options.sequence ?? 1,
+    phase: options.phase ?? "prefill",
+    ratio: Number(node?.attributes?.compress_ratio ?? 1),
+    ropeDim: Number(node?.attributes?.compression_rope_dim ?? config?.headDim ?? 0),
+    query: node?.attributes?.rope_roles?.includes("query") === true,
+    bytesPerElement,
+  }),
   qsa_indexer: ({ config, options, bytesPerElement, tokens, phase }) => ({
           heads: config?.qsaIndexerHeads ?? 0,
           dim: config?.qsaIndexerHeadDim ?? 0,
@@ -496,6 +521,7 @@ const FROM_NODE = {
           b: bytesPerElement,
         }),
   dsv4_indexer: ({ node, config, options, bytesPerElement, tokens, phase }) => ({
+          batch: options.batch ?? 1,
           // Only the published nested V4 C4 indexer declares compressed
           // index keys. V4.1 flat approximations retain their existing domain.
           ...(node?.attributes?.index_key_domain === "compressed_window" ? {

@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildStructureFromArtifacts, buildStructureFromConfig } from "../buildStructure.js";
 import { normalizeConfig } from "../config/normalize.js";
 import { countsForNode } from "../operators/formulas/extractor.js";
+import { computeNodeCosts } from "../../cost/compute.js";
 
 const root = new URL("../../../../models/deepseek-ai/", import.meta.url);
 const read = path => JSON.parse(fs.readFileSync(new URL(path, root)));
@@ -225,4 +226,34 @@ test("V4 C4 indexer scores compressed keys, not raw sequence positions", () => {
     options: { batch: 1, sequence: 4096, phase: "decode" },
     bytesPerElement: 2,
   }).bytes.indexRead, long.bytes.indexRead, "production artifacts use the same compressed-key geometry");
+});
+
+test("V4 compressor execution is owned by real children, not a duplicate parent estimate", () => {
+  const config = read("DeepSeek-V4-Flash/config.json");
+  const normalized = normalizeConfig(config);
+  const structure = buildStructureFromConfig(config);
+  const rows = computeNodeCosts(structure.graph, normalized, {
+    batch: 1, sequence: 8, phase: "prefill",
+  });
+  const byCanonical = new Map(structure.graph.nodes.map(node => [node.canonical_id, node.id]));
+  const row = canonical => rows.find(item => item.path === byCanonical.get(canonical));
+  const compressor = row("layers.2.self_attn.compressor");
+  const kv = row("layers.2.self_attn.compressor.kv_proj");
+  const reduce = row("layers.2.self_attn.compressor.window_reduce");
+  const indexer = row("layers.2.self_attn.compressor.indexer");
+  const score = row("layers.2.self_attn.compressor.indexer.scorer.score");
+  assert.ok(compressor && kv && reduce && indexer && score);
+  assert.equal(compressor.node.attributes.billing_mode, "children");
+  assert.equal(indexer.node.attributes.billing_mode, "children");
+  assert.equal(compressor.actions, null);
+  assert.equal(indexer.actions, null);
+  assert.ok(kv.compute_macs > 0);
+  assert.ok(reduce.actions.vector > 0 && reduce.actions.sfu > 0);
+  assert.ok(score.compute_macs > 0);
+  assert.ok(row("layers.2.self_attn.compressor.rotary_emb").actions.vector > 0);
+  assert.ok(row("layers.2.self_attn.compressor.indexer.rotary_emb").actions.vector >
+    row("layers.2.self_attn.compressor.rotary_emb").actions.vector,
+  "C4 indexer RoPE includes both compressed keys and current queries");
+  assert.equal(score.actions.bytes.indexRead, 2 * 2 * normalized.dsaIndexHeadDim,
+    "two closed C4 windows produce two index-key cache rows");
 });

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
+import { buildStructureFromArtifacts } from "../buildStructure.js";
 import { dsparkLayerCount, mtpModuleCount } from "./deepseek_mtp.js";
 import { assembleDeepseekV4 } from "./deepseek_v4.js";
 import { assembleQwen3_5 } from "./qwen3_5.js";
@@ -34,4 +36,42 @@ test("各架构文件自己挂对应 vLLM 投机头，不经 draftClassOf 分派
   assert.equal(treeClass(assembleQwen3_5, { mtpModules: 1, hiddenSize: 8, layers: 1 }), "Qwen3_5MultiTokenPredictor");
   assert.equal(treeClass(assembleDeepseekV3, { mtpModules: 1, kvLoraRank: 512, hiddenSize: 8, layers: 1 }), "DeepSeekMultiTokenPredictorLayer");
   assert.equal(treeClass(assembleDeepseekV3, { mtpModules: 0, hiddenSize: 8, layers: 1 }), undefined);
+});
+
+test("DeepSeek-style MTP binds tail-layer checkpoint paths to the draft branch", () => {
+  for (const [modelId, layerIndex] of [
+    ["deepseek-ai/DeepSeek-R1", 61],
+    ["zai-org/GLM-4.7", 92],
+  ]) {
+    const dir = new URL(`../../../../models/${modelId}/`, import.meta.url);
+    const config = JSON.parse(fs.readFileSync(new URL("config.json", dir), "utf8"));
+    const prefix = `model.layers.${layerIndex}`;
+    const tensors = [
+      [`${prefix}.embed_tokens.weight`, [config.vocab_size, config.hidden_size]],
+      [`${prefix}.enorm.weight`, [config.hidden_size]],
+      [`${prefix}.hnorm.weight`, [config.hidden_size]],
+      [`${prefix}.eh_proj.weight`, [config.hidden_size, config.hidden_size * 2]],
+      [`${prefix}.input_layernorm.weight`, [config.hidden_size]],
+      [`${prefix}.shared_head.norm.weight`, [config.hidden_size]],
+      [`${prefix}.shared_head.head.weight`, [config.vocab_size, config.hidden_size]],
+    ].map(([name, shape]) => ({ name, shape, dtype: "BF16" }));
+    const { graph } = buildStructureFromArtifacts({
+      config,
+      modelId,
+      checkpointTruth: { tensors, mtp_tensor_count: tensors.length },
+    });
+    const owners = new Map();
+    for (const tensor of tensors) {
+      const matches = graph.nodes.filter(node => node.tensor_names?.includes(tensor.name));
+      assert.equal(matches.length, 1, `${modelId}: ${tensor.name}`);
+      owners.set(tensor.name, matches[0].canonical_id);
+    }
+    assert.equal(owners.get(`${prefix}.embed_tokens.weight`), "mtp.embed_tokens");
+    assert.equal(owners.get(`${prefix}.enorm.weight`), "mtp.enorm");
+    assert.equal(owners.get(`${prefix}.hnorm.weight`), "mtp.hnorm");
+    assert.equal(owners.get(`${prefix}.eh_proj.weight`), "mtp.eh_proj");
+    assert.equal(owners.get(`${prefix}.input_layernorm.weight`), "mtp.layer.input_layernorm");
+    assert.equal(owners.get(`${prefix}.shared_head.norm.weight`), "mtp.shared_head.norm");
+    assert.equal(owners.get(`${prefix}.shared_head.head.weight`), "mtp.shared_head.head");
+  }
 });

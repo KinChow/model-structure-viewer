@@ -2,6 +2,7 @@
 // SharedHead 被 V4 / GLM-5 Next 引用，不升格成跨架构 dispatcher。
 import { moduleSpec, withShapeDims } from "../layers/base.js";
 import { decoderLayerModule } from "../layers/decoderLayer.js";
+import { embeddingModule } from "../layers/embedding.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { operatorSpec, weightMatrixDecl } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
@@ -122,6 +123,12 @@ function deepSeekMultiTokenPredictorLayer(id, normalized) {
       ...shapeFlow(shapes.hidden, shapes.hidden),
     },
     [
+      // DeepSeek's published MTP layer owns a checkpoint-local
+      // `layers.<num_hidden_layers>.embed_tokens` table.  Runtime forward may
+      // receive the already-computed input embedding from the target model,
+      // but the local table is still resident and must be represented for
+      // checkpoint binding and capacity accounting.
+      embeddingModule(`${id}.embed_tokens`, normalized),
       ...ehProj(id, normalized),
       mtpBlock(`${id}.layer`, normalized, { layerKind, attentionKind, layerIndex: normalized.layers || 0, disableAttnRes: true }),
       sharedHead(id, normalized),

@@ -107,8 +107,11 @@ export const ARCH_RECIPES = {
   // Transformers' published MiniMax-M2 and GLM-4.7 implementations expose
   // separate q_proj/k_proj/v_proj leaves.  Do not infer a fused QKV weight
   // from the runtime's possible kernel fusion.
+  DeepseekV3ForCausalLM: { mtpLayerAtTail: true },
+  DeepseekV32ForCausalLM: { mtpLayerAtTail: true },
+  GlmMoeDsaForCausalLM: { mtpLayerAtTail: true },
   MiniMaxM2ForCausalLM: { ffn: "block_sparse_moe", moeClass: "MiniMaxM2SparseMoeBlock", separateQkvQkNorm: true, sigmoidRouter: true },
-  Glm4MoeForCausalLM: { separateQkvQkNorm: true, sigmoidRouter: true },
+  Glm4MoeForCausalLM: { separateQkvQkNorm: true, sigmoidRouter: true, mtpLayerAtTail: true },
   MiniMaxM3SparseForConditionalGeneration: {
     visionFusion: "placeholder_scatter",
     visionProjectorPath: "multi_modal_projector",
@@ -216,7 +219,26 @@ export function archRecipe(architecture) {
 
 /** Explicit checkpoint path aliases for published wrapper/state-dict layouts. */
 export function checkpointPathAliases(normalized) {
-  return archRecipe(normalized?.architecture).checkpointPathAliases || [];
+  const recipe = archRecipe(normalized?.architecture);
+  const aliases = [...(recipe.checkpointPathAliases || [])];
+  if (recipe.mtpLayerAtTail && normalized?.layers != null && normalized?.mtpModules > 0) {
+    const layer = `layers.${normalized.layers}`;
+    const suffixes = [
+      ["embed_tokens", "mtp.embed_tokens"],
+      ["enorm", "mtp.enorm"],
+      ["hnorm", "mtp.hnorm"],
+      ["eh_proj", "mtp.eh_proj"],
+      ["shared_head", "mtp.shared_head"],
+      ["input_layernorm", "mtp.layer.input_layernorm"],
+      ["post_attention_layernorm", "mtp.layer.post_attention_layernorm"],
+      ["self_attn", "mtp.layer.self_attn"],
+      ["mlp", "mtp.layer.mlp"],
+    ];
+    for (const [source, target] of suffixes) {
+      aliases.push({ from: `${layer}.${source}`, to: target });
+    }
+  }
+  return aliases;
 }
 
 // 类名：配方 *Class 写 HF 全名；没写就用词干。不从 architectures[0] 剥前缀再拼

@@ -69,7 +69,9 @@ export function networkSpecWithDraft(id, name, architecture, children, draft, ed
   const outputHead = children.find((child) => child.type === "output");
   // 主干末层 hidden → 草稿（MTP/DSpark 皆有）
   if (decoder) edges.push([decoder.id, draft.attributes?.hidden_input_endpoint || draft.id]);
-  // token 嵌入 → 草稿（仅 MTP：与主模型共享 embedding；DSpark 不吃 embedding）
+  // 主干 token embedding → MTP 的运行时输入。DeepSeek MTP 还保留一个
+  // checkpoint-local `mtp.embed_tokens` fallback/resident table；它不是
+  // 另一条 active tensor-flow copy，因此不串入此边。
   if (draft.type === "mtp" && embed) edges.push([embed.id, draft.attributes?.embedding_input_endpoint || draft.id]);
   // 草稿 logits 出口（对标 SGLang/vLLM 的两种投机头权重实装）：
   //   - MTP：SharedHead 自带 head（checkpoint 有 shared_head.head.weight，

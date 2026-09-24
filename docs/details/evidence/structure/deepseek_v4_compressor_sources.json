@@ -1,0 +1,43 @@
+{
+  "checked_at": "2026-09-24",
+  "variants": [
+    "deepseek-ai/DeepSeek-V4-Flash",
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+    "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+    "deepseek-ai/DeepSeek-V4-Pro",
+    "deepseek-ai/DeepSeek-V4-Pro-0813"
+  ],
+  "sources": [
+    {
+      "kind": "pinned_framework_forward_reference",
+      "url": "https://raw.githubusercontent.com/sgl-project/sglang/d4dcce12d4fcdb3eb694d54d6afd31628c2eb7ce/python/sglang/srt/layers/attention/dsv4/compressor.py",
+      "sha256": "ec75b5f042100fae04c45d569765101912e083362e491a8375e0127909a00d9f",
+      "anchors": [
+        "Compressor.__init__: wkv_gate=2*coff*head_dim, norm=head_dim, ape",
+        "Compressor.forward_native: compute_kv_score -> backend.forward_compress",
+        "CompressorBackendMixin.forward_compress: compress_forward -> compress_fused_norm_rope_inplace"
+      ]
+    },
+    {
+      "kind": "pinned_framework_forward_reference",
+      "url": "https://raw.githubusercontent.com/sgl-project/sglang/d4dcce12d4fcdb3eb694d54d6afd31628c2eb7ce/python/sglang/srt/layers/attention/dsv4/indexer.py",
+      "sha256": "f34008c250abba5d05be96040c9438ce8ad05347a4e2962b276ba21c90f13a37",
+      "anchors": [
+        "C4Indexer.__init__: wq_b, weights_proj, nested Compressor(ratio=4, rotate=True)",
+        "C4Indexer.forward: backend.forward_c4_indexer"
+      ]
+    },
+    {
+      "kind": "release_model_card",
+      "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4-Flash/raw/main/README.md",
+      "sha256": "c4d714818a4d3333542edc7d38ea065825a0cf7aa8fea3605bbd1d1c18e4a610",
+      "anchors": [
+        "DeepSeek-V4-Flash release model description"
+      ]
+    }
+  ],
+  "limitations": [
+    "Forward source establishes operation order, not measured runtime costs.",
+    "Published sidecar headers do not independently prove every nested projector tensor for every variant."
+  ]
+}

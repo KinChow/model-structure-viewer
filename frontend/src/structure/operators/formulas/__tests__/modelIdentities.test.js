@@ -571,7 +571,7 @@ function indexNodesByCanonicalId(graph, map) {
 
 const lastDim = (shape) => (Array.isArray(shape) && shape.length > 0 ? shape[shape.length - 1] : undefined);
 
-test("W5 恒等式：激活流形状连续性（全 59 模型声明边）", () => {
+test("W5 恒等式：激活流形状连续性（全内置模型声明边）", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
   const classes = new Map();
   let total = 0;
@@ -592,6 +592,38 @@ test("W5 恒等式：激活流形状连续性（全 59 模型声明边）", () =
       const inn = lastDim(dst.input_shape);
       if (out == null || inn == null) { noShape += 1; continue; }
       if (out === inn) { matched += 1; continue; }
+      // V4 compressor 的 norm.weight 在压缩核内部使用：这里是复合算子的
+      // 参数/子步骤依赖，不是 norm 的 head_dim 输出回灌给 hiddenSize 输入。
+      if (src.canonical_id === `${dst.canonical_id}.norm`
+          && dst.attributes?.operator_id === "mla_kv_compress"
+          && dst.attributes?.compress_ratio > 1) {
+        const ratio = dst.attributes.compress_ratio;
+        const projected = 2 * (ratio === 4 ? 2 : 1) * out;
+        assert.equal(inn, normalizeConfig(raw).hiddenSize);
+        assert.equal(src.attributes?.operator_id, "rmsnorm");
+        assert.equal(dst.attributes?.weightMatrices?.[0]?.shape?.[0], projected);
+        matched += 1;
+        continue;
+      }
+      // C4 indexer 内部 wkv_gate 的融合宽是 4*head_dim（overlap=2、
+      // K/V 两份）；压缩核先按窗口汇聚，才用 norm.weight 归一化。
+      if (dst.canonical_id === src.canonical_id.replace(/\.wkv_gate$/, ".norm")
+          && /\.indexer\.compressor\.wkv_gate$/.test(src.canonical_id)) {
+        assert.equal(src.attributes?.operator_id, "linear");
+        assert.equal(dst.attributes?.operator_id, "rmsnorm");
+        assert.equal(out, 4 * inn);
+        matched += 1;
+        continue;
+      }
+      // norm 是 indexer 内嵌压缩核的子步骤，indexer 输入仍是 hidden；
+      // 并非把 head_dim 激活直接送入 hiddenSize 的投影。
+      if (src.canonical_id === `${dst.canonical_id}.compressor.norm`
+          && dst.attributes?.operator_id === "dsv4_indexer") {
+        assert.equal(inn, normalizeConfig(raw).hiddenSize);
+        assert.equal(out, normalizeConfig(raw).dsaIndexHeadDim);
+        matched += 1;
+        continue;
+      }
       if (src.attributes?.semantic_role === "msa_valid_block_ids") {
         const config = normalizeConfig(raw);
         assert.equal(dst.attributes?.attention_kind, "minimax_m3_sparse_gqa");

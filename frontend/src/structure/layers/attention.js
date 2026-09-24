@@ -100,12 +100,28 @@ const ATTENTION_COMPONENTS = [
         ["q_norm", "q_proj"], ["q_proj", "rope"], ["kv_norm", "rope"],
         ["rope", "attention"], ["attention", "inverse_rope"], ["inverse_rope", "wo_a"], ["wo_a", "wo_b"],
       ];
-      // 压缩 KV：compressor 读模块 hidden（与 fused_wqa_wkv 同为入口源），输出汇入 attention
-      //（compressor -> attention 已登记 slice）。仅 kv_source 层有。
-      if (emitCompressor) e.push(["compressor", "attention"]);
+      // 压缩 KV：compressor 是包含投影、窗口压缩、norm/rope 的复合前向；
+      // norm.weight 在 fused kernel 内应用，不是 compressor 输出之后的第二次归一化。
+      // 以 norm -> compressor 标注内部依赖，输出仍由 compressor 连接 attention。
+      if (emitCompressor) {
+        if (recipeFlag(normalized, "compressorApe")) {
+          e.push(["compressor.norm", "compressor"]);
+        }
+        e.push(["compressor", "attention"]);
+      }
       // 稀疏索引器：q 潜表 → indexer.q_proj（同 q_proj 连续），weights_proj（入口源）与 q_proj
       // 汇入 indexer（fused-in），indexer 选择信号 → attention（control）。仅 index_source/ratio4 层有。
-      if (emitIndexer) e.push(["q_norm", "indexer.q_proj"], ["indexer.q_proj", "indexer"], ["indexer.weights_proj", "indexer"], ["indexer", "attention"]);
+      if (emitIndexer) {
+        e.push(["q_norm", "indexer.q_proj"], ["indexer.q_proj", "indexer"],
+          ["indexer.weights_proj", "indexer"]);
+        if (recipeFlag(normalized, "compressorApe")) {
+          // wkv_gate 的打包投影先经窗口压缩才形成 head_dim 状态；
+          // norm 是 C4Indexer 内部 compressor 的一部分，并非 indexer 之后的叶。
+          e.push(["indexer.compressor.wkv_gate", "indexer.compressor.norm"],
+            ["indexer.compressor.norm", "indexer"]);
+        }
+        e.push(["indexer", "attention"]);
+      }
       return e;
     },
   },

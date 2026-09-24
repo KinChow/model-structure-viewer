@@ -126,10 +126,10 @@ node scripts/evidence/structure/qwen-qsa-reconcile.mjs \
   多模态入口及全量60模型浏览器验收仍属于后续阶段。
 - 本批 fixture 是局部张量清单，不是完整模型 truth；不能用其缺失张量
   推断其他模块不存在。没有量化 packed 形状的外推或性能 benchmark。
-- 后续公共成本审计项：`roofline.js` 还会将已包含在 `actIn` 的
-  `kvRead/indexRead` 诊断子桶再相加。本批表格报告 MAC/action ledger，
-  **不把当前 roofline 的访存时间作为已对账结论**；该公共重复流量问题需
-  独立修复并回归其他家族。
+- 公共成本审计项已在 2026-09-24 独立修复：`roofline.js` 不再将已包含在
+  `actIn` 的 `kvRead/indexRead` 诊断子桶重复相加。两项仍保留在 action
+  ledger 和 cache/index 对账中；修复证据见
+  `roofline_traffic_repair.md`，并由 roofline chain 与全量模型检查回归。
 
 ## 独立验证入口
 

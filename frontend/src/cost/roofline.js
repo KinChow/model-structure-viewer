@@ -65,9 +65,14 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
 
   // M11-P0-4：任一字节分量未知 → bytesMoved 未知（null），不得把未知当 0 计入访存。
   const b = actions.bytes || {};
+  // `kvRead`/`indexRead` are diagnostic subsets of `actIn`, not additional
+  // traffic.  Attention formulas intentionally expose them for cache/index
+  // accounting, so adding them here would double-count the same reads in the
+  // roofline memory term.  Keep the subsets in the action vector/UI, but use
+  // the disjoint traffic buckets for bytes moved.
   const bytesMoved = b.weights == null || b.actIn == null || b.actOut == null
     ? null
-    : b.weights + b.actIn + b.actOut + (b.kvRead || 0) + (b.indexRead || 0);
+    : b.weights + b.actIn + b.actOut;
   const commBytes = actions.commBytes || cost.commBytes || 0;
   const commOps = actions.commOps || cost.commOps || 0;
   // N4-α（opt-in）：每次集合的固定延迟（秒）。默认 0 → 与旧口径逐位一致（纯下界）。

@@ -113,3 +113,25 @@ test("W5-2 sfu 单元参与五路 max", () => {
   assert.equal(result.bound, "sfu");
   assert.equal(result.times.sfu, 10);
 });
+
+test("KV/index 读取是 actIn 的诊断子集，roofline 不重复计入", () => {
+  const result = classifyRoofline({
+    actions: {
+      matrix: 1,
+      vector: 0,
+      sfu: 0,
+      bytes: {
+        weights: 100,
+        actIn: 50,
+        actOut: 25,
+        // 两项都已包含在 actIn=50 中，只用于诊断和 cache/index 对账。
+        kvRead: 40,
+        indexRead: 20,
+      },
+    },
+  }, { memory_bandwidth: 100, peak_flops: { bf16: 1000 } });
+
+  assert.equal(result.bytesMoved, 175);
+  assert.equal(result.times.memory, 175 / 70);
+  assert.equal(result.arithmeticIntensity, 2 / 175);
+});

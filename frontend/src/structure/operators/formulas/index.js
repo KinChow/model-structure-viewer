@@ -15,6 +15,7 @@ import {
   dsv4CompressedAttentionCounts, gatedDeltaStateCounts, engramGateCounts,
 } from "./counts.js";
 import { sparseIndexerCounts } from "./modules.js";
+import { gatedResidualCounts } from "./gatedResidual.js";
 import { qsaIndexerCounts, qsaSparseAttentionCounts } from "./qsa.js";
 
 const sumCounts = (...parts) => parts.reduce((total, part) => ({
@@ -441,15 +442,7 @@ export const FORMULAS = {
     explanation: "Qwen4Exp 的 delayed HyperConnection：hc_count 条残差流先做逐流 GroupedGemmaRMSNorm，再经低秩 down/up 得到门控权重混成单流 block 输入；block 输出按 per-stream injection 权重注回每条流。",
     inputs: ["hidden_streams", "block_output", "W_down", "W_up", "W_inject"],
     outputs: ["hidden_streams", "block_input"],
-    counts: (ctx) => sumCounts(
-      rmsnormCounts(ctx.grouped),
-      linearCounts(ctx.mixDown),
-      gateCounts(ctx.silu),
-      linearCounts(ctx.mixUp),
-      gateCounts(ctx.gate),
-      linearCounts(ctx.inject),
-      addCounts(ctx.combine),
-    ),
+    counts: gatedResidualCounts,
   },
   ple: {
     title: "Per-Layer Embedding",

@@ -51,7 +51,13 @@ for (const loading of ["config", "artifacts"]) {
       assert.deepEqual(incoming(vision), [imageInput.id]);
       assert.deepEqual(new Set(incoming(fusion)), new Set([embed.id, (projector || vision).id, textInput.id]));
       const entryStack = g.nodes.find(node => node.type === (n.modelType === "deepseek_v41" ? "encoder" : "decoder"));
-      assert.ok(g.edges.some(e => e.source === fusion.id && e.target === entryStack.id));
+      const expand = g.nodes.find(node => node.attributes?.semantic_role === "gr_expand" && node.parent_id === g.root_id);
+      assert.ok(g.edges.some(e => e.source === fusion.id && e.target === (expand || entryStack).id));
+      if (expand) {
+        assert.equal(expand.input_shape.at(-1), n.hiddenSize);
+        assert.equal(expand.output_shape.at(-1), n.hiddenSize * n.hyperConnectionCount);
+        assert.ok(g.edges.some(e => e.source === expand.id && e.target === entryStack.id));
+      }
       assert.equal(g.version, 2);
       assert.equal(g.schema_version, 2);
       assert.ok(!fusion.attributes.weightMatrices?.length);

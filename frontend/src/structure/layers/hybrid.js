@@ -33,48 +33,61 @@ function mhcGroups(normalized, hiddenWidth) {
 }
 
 export function hyperConnectionModule(id, normalized, phase = "branch") {
-  const shapes = tensorShapes(normalized);
-  const dims = tensorDims(normalized);
-  const names = {
-    attn_mix: "HyperConnection attention mix",
-    mlp_combine_mix: "HyperConnection MLP combine + mix",
-    final: "HyperConnection final mixer",
-    branch: id.split(".").at(-1) === "mixer" ? "Hyper Connection Mixer" : id.split(".").at(-1).replaceAll("_", " "),
-  };
-  return withShapeDims(moduleSpec(
-    id,
-    names[phase] || names.branch,
-    "hyper-connection",
-    {
-      class: hfNamedClass(normalized, "gatedResidualClass", "GatedResidual"),
-      hc_phase: phase,
-      hc_count: normalized.hyperConnectionCount,
-      hc_lowrank: normalized.hyperConnectionLowrank,
-      state_handoff: phase === "mlp_combine_mix" ? "from_previous_layer" : phase === "attn_mix" ? "to_next_layer" : undefined,
-      ...shapeFlow(shapes.hidden, shapes.hidden),
-    },
-    [operatorSpec(`${id}.${phase}`, names[phase] || "hyper-connection mix", "hyper_connection", {
-      ...shapeFlow(`${shapes.hidden}, ${shapes.hidden}, injection`, shapes.hidden),
-      hc_phase: phase,
-      hc_count: normalized.hyperConnectionCount,
-      hc_lowrank: normalized.hyperConnectionLowrank,
-      // GatedResidual 的 use_combine（vLLM qwen4_exp/common/hyperconnection.py:157-158、
-      // 188-193）：最终 mixer 只做 mix（把多流收成单流），没有 combine，因此
-      // **没有** block_inject_weight（hc_count × hyper_hidden）。此前一律按有
-      // combine 记，Flash-Next 多算 40,960 参数（2026-09-09 权重字节逐层归因）。
-      hc_use_combine: phase !== "final",
-      // P4-2：hc_norm[grouped] + W_down + W_up + W_inject 的组成与 extractor 的
-      // hyper_connection ctx 逐项同源；raw nn.Linear 无并行包装 → replicated。
-      weightMatrices: [
-        weightMatrixDecl("replicated", { shape: [(normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0)], quantizable: false }),
-        weightMatrixDecl("replicated", { shape: [normalized.hyperConnectionLowrank || 0, (normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0)], quantizable: false }),
-        weightMatrixDecl("replicated", { shape: [(normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0), normalized.hyperConnectionLowrank || 0], quantizable: false }),
-        ...(phase !== "final"
-          ? [weightMatrixDecl("replicated", { shape: [normalized.hyperConnectionCount || 0, (normalized.hyperConnectionCount || 1) * (normalized.hiddenSize || 0)], quantizable: false })]
-          : []),
-      ],
-    }, { input: dims.hidden, output: dims.hidden })],
-  ), dims.hidden, dims.hidden);
+  const H = normalized.hiddenSize, N = normalized.hyperConnectionCount || 1;
+  const R = normalized.hyperConnectionLowrank, W = N * H;
+  const wide = [-1, -1, W], hidden = [-1, -1, H], rank = [-1, -1, R], scalar = [-1, -1, N];
+  const final = phase === "final";
+  const semantic = (suffix, name, role, input, output, formula) => operatorSpec(`${id}.${suffix}`, name, "identity", {
+    checkpoint_module: false, semantic_role: role, activation_materialization: "unknown", formula,
+  }, { input, output });
+  const linear = (suffix, input, output) => operatorSpec(`${id}.${suffix}`, suffix, "linear", {
+    activation_materialization: "unknown",
+    weightMatrices: [weightMatrixDecl("replicated", { shape: [output.at(-1), input.at(-1)], quantizable: false })],
+  }, { input, output });
+  const children = [
+    semantic("streams", "original residual streams", "gr_streams", wide, wide, "R (unnormalized branches)"),
+    operatorSpec(`${id}.hc_norm`, "per-branch RMSNorm", "gemma_rmsnorm", {
+      norm_groups: N, norm_group_width: H, activation_materialization: "unknown",
+      weightMatrices: [weightMatrixDecl("replicated", { shape: [W], quantizable: false })],
+    }, { input: wide, output: wide }),
+    linear("input_mix_weight_down", wide, rank),
+    semantic("read_silu", "scaled read SiLU", "gr_read_silu", rank, rank, "SiLU(down / nr)"),
+    linear("input_mix_weight_up", rank, wide),
+    semantic("read_gate", "elementwise read gate", "gr_read_gate", wide, wide, "G = sigmoid(up)"),
+    semantic("read_mean", "gated branch mean", "gr_read_mean", wide, hidden, "x = mean_i(G_i * norm(R_i))"),
+    ...(!final ? [linear("block_inject_weight", wide, scalar),
+      semantic("write_gate", "per-branch write gate", "gr_write_gate", scalar, scalar, "s = 2 * sigmoid(inject / nr)")] : []),
+  ];
+  const edges = [["streams", "hc_norm"], ["hc_norm", "input_mix_weight_down"],
+    ["input_mix_weight_down", "read_silu"], ["read_silu", "input_mix_weight_up"],
+    ["input_mix_weight_up", "read_gate"], ["read_gate", "read_mean"], ["hc_norm", "read_mean"],
+    ...(!final ? [["hc_norm", "block_inject_weight"], ["block_inject_weight", "write_gate"]] : [])];
+  return withShapeDims(moduleSpec(id, final ? "Gated Residual final read" : "Gated Residual read", "hyper-connection", {
+    class: hfNamedClass(normalized, "gatedResidualClass", "GatedResidual"),
+    operator_id: "hyper_connection", hc_stage: "read", hc_phase: phase, hc_count: N,
+    hc_lowrank: R, hc_use_combine: !final,
+    execution_schedule: "mix predicts gates; combine may be delayed until block output is available",
+    formula: "x = mean(sigmoid(up(SiLU(down(norm(R))/nr))) * norm(R)); s = 2*sigmoid(inject(norm(R))/nr)",
+    activation_materialization: "unknown", dataflow_edges: edges,
+    ...shapeFlow(`[batch, sequence, ${W}]`, `[batch, sequence, ${H}]`),
+  }, children), wide, hidden);
+}
+
+export function gatedResidualWrite(id, normalized) {
+  const H = normalized.hiddenSize, N = normalized.hyperConnectionCount || 1;
+  return operatorSpec(id, "Gated Residual write", "hyper_connection", {
+    checkpoint_module: false, hc_stage: "write", hc_count: N,
+    semantic_role: "gr_write", weightMatrices: [], activation_materialization: "unknown",
+    formula: "R'_i = R_i + s_i * block_output", inputs: ["original wide streams", "scalar write gates", "block output"],
+    outputs: ["updated wide streams"],
+  }, { input: [-1, -1, N * H], output: [-1, -1, N * H] });
+}
+
+export function gatedResidualExpand(id, normalized) {
+  return operatorSpec(id, "expand residual branches", "identity", {
+    checkpoint_module: false, semantic_role: "gr_expand", activation_materialization: "unknown",
+    formula: "R_i = embedding, i=1..nr (logical broadcast; allocation unspecified)",
+  }, { input: [-1, -1, normalized.hiddenSize], output: [-1, -1, normalized.hiddenSize * normalized.hyperConnectionCount] });
 }
 
 export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
@@ -93,6 +106,8 @@ export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
   //   漏计了 key 的 hc_count 因子、value 分支与另外两个 norm（逐 checkpoint 对账抓出）。
   const pleEmbed = normalized.pleEmbedDim || 0;
   const hcHidden = (normalized.hiddenSize || 0) * (normalized.hyperConnectionCount || 1);
+  const wide = [-1, -1, hcHidden];
+  const wideLabel = `[batch, sequence, ${hcHidden}]`;
   const pleNorm = () => weightMatrixDecl("replicated", { shape: [hcHidden], quantizable: false });
   return withShapeDims(moduleSpec(
     id,
@@ -109,7 +124,8 @@ export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
       value_projection_size: normalized.hiddenSize,
       implementation: ["ngram_embedding", "kv_proj", "grouped_norm", "gated_output", "dilated_short_conv"],
       dataflow_edges: [["ple_embedding", "inject"]],
-      ...shapeFlow(shapes.hidden, shapes.hidden),
+      semantic_role: "ple_wide_delta",
+      ...shapeFlow(wideLabel, wideLabel),
     },
     [
       withShapeDims(moduleSpec(
@@ -123,8 +139,9 @@ export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
         [ngramEmbeddingModule(`${id}.ple_embedding.ngram_embedding`, normalized, { pleLayerIndex })],
       ), dims.tokenIds, embedOut),
       operatorSpec(`${id}.inject`, "PLE injection", "ple", {
-        ...shapeFlow(`${shapes.hidden}, input_ids, ngram_context`, shapes.hidden),
+        ...shapeFlow(`${wideLabel}, input_ids, ngram_context`, wideLabel),
         embed_dim: normalized.pleEmbedDim,
+        semantic_role: "ple_injection",
         // P4-2：inject 叶声明 key_proj / value_proj / conv1d(depthwise) / 3×RMSNorm。ngram 表是
         // `ple.ple_embedding.ngram_embedding` 的 nn.Embedding（modeling_qwen4_exp.py:1111），
         // 容量走 type=embedding 子叶，不进本叶 weightMatrices。
@@ -134,9 +151,9 @@ export function pleModule(id, normalized, { layerIndex = 0 } = {}) {
           weightMatrixDecl("tp", { shape: [hcHidden, normalized.pleConvKernelSize || 1], split: "output", quantizable: false }),
           pleNorm(), pleNorm(), pleNorm(),
         ],
-      }, { input: dims.hidden, output: dims.hidden }),
+      }, { input: wide, output: wide }),
     ],
-  ), dims.hidden, dims.hidden);
+  ), wide, wide);
 }
 
 export function sharedExpertGateModule(id, normalized) {

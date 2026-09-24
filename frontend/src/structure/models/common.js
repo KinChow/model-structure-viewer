@@ -9,7 +9,7 @@ import { lmHeadModule } from "../layers/outputHead.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { outputAttentionResidualModule } from "../layers/residual.js";
 import { multimodalEntry } from "../layers/multimodalEntry.js";
-import { hyperConnectionModule } from "../layers/hybrid.js";
+import { hyperConnectionModule, gatedResidualExpand } from "../layers/hybrid.js";
 import { hfLayersAttr } from "../archs/index.js";
 
 export function networkSpec(id, name, architecture, children, attributes = {}) {
@@ -68,9 +68,9 @@ export function networkSpecWithDraft(id, name, architecture, children, draft, ed
   const embed = children.find((child) => child.type === "embedding");
   const outputHead = children.find((child) => child.type === "output");
   // 主干末层 hidden → 草稿（MTP/DSpark 皆有）
-  if (decoder) edges.push([decoder.id, draft.id]);
+  if (decoder) edges.push([decoder.id, draft.attributes?.hidden_input_endpoint || draft.id]);
   // token 嵌入 → 草稿（仅 MTP：与主模型共享 embedding；DSpark 不吃 embedding）
-  if (draft.type === "mtp" && embed) edges.push([embed.id, draft.id]);
+  if (draft.type === "mtp" && embed) edges.push([embed.id, draft.attributes?.embedding_input_endpoint || draft.id]);
   // 草稿 logits 出口（对标 SGLang/vLLM 的两种投机头权重实装）：
   //   - MTP：SharedHead 自带 head（checkpoint 有 shared_head.head.weight，
   //     tie_word_embeddings=false），草稿在自身 shared_head 内落 logits，不回主干；
@@ -84,12 +84,21 @@ export function networkSpecWithDraft(id, name, architecture, children, draft, ed
 
 /** 投机头由调用方传入（对标 vLLM 各模型文件自己挂 mtp/dspark，不是共享 dispatcher）。 */
 export function textDecoderNetwork(resolved, normalized, { draft } = {}) {
+  // Qwen4Exp/Qwen3.8-Flash-Next forward ends at the final GatedResidual
+  // read and feeds that H-wide result directly to lm_head. Its published
+  // forward and checkpoint index have no standalone language-model norm.
+  // Do not inherit the ordinary pre-norm decoder tail here.
+  const finalNorm = normalized.hyperConnectionCount
+    ? []
+    : [rmsNormModule("norm", "final norm", normalized)];
   const children = [
     embeddingModule("embed_tokens", normalized),
+    ...(normalized.hyperConnectionCount ? [gatedResidualExpand("residual_expand", normalized)] : []),
     decoderStackNetwork(hfLayersAttr(normalized), normalized),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
     ...(draft ? [draft] : []),
-    rmsNormModule("norm", "final norm", normalized),
+    ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
+    ...finalNorm,
     lmHeadModule("lm_head", normalized),
   ];
   return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft);
@@ -97,13 +106,17 @@ export function textDecoderNetwork(resolved, normalized, { draft } = {}) {
 
 export function multimodalDecoderNetwork(resolved, normalized, { draft } = {}) {
   const entry = multimodalEntry(normalized);
+  const finalNorm = normalized.hyperConnectionCount
+    ? []
+    : [rmsNormModule("norm", "final norm", normalized)];
   const children = [
     ...entry.children,
+    ...(normalized.hyperConnectionCount ? [gatedResidualExpand("residual_expand", normalized)] : []),
     decoderStackNetwork(hfLayersAttr(normalized), normalized),
     ...(draft ? [draft] : []),
     ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
     ...(normalized.attnResBlockSize ? [outputAttentionResidualModule("output_attn_residual", normalized)] : []),
-    rmsNormModule("norm", "final norm", normalized),
+    ...finalNorm,
     lmHeadModule("lm_head", normalized),
   ];
   return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft, {}, entry);

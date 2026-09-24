@@ -1,0 +1,70 @@
+[
+  {
+    "model_id": "Qwen/Qwen3.8-Flash-Next",
+    "revision": "de4b8e4d43b917e7706784d8bb445c9af86a3540",
+    "source_header_sha256": "ce840d1d64f034886f1774712a1f0c16d89560f5ac8f5194624b9c9f5249eb95",
+    "tensors": {
+      "model.language_model.layers.3.mlp_hyper_connection.block_inject_weight.weight": {
+        "shape": [
+          4,
+          10240
+        ],
+        "dtype": "BF16"
+      },
+      "model.language_model.layers.3.mlp_hyper_connection.hc_norm.weight": {
+        "shape": [
+          10240
+        ],
+        "dtype": "BF16"
+      },
+      "model.language_model.layers.3.mlp_hyper_connection.input_mix_weight_down.weight": {
+        "shape": [
+          320,
+          10240
+        ],
+        "dtype": "BF16"
+      },
+      "model.language_model.layers.3.mlp_hyper_connection.input_mix_weight_up.weight": {
+        "shape": [
+          10240,
+          320
+        ],
+        "dtype": "BF16"
+      }
+    }
+  },
+  {
+    "model_id": "Qwen/Qwen3.8-Flash-Next-FP8",
+    "revision": "236dfdf285828023ca3bcd3f37366c58a3469b13",
+    "source_header_sha256": "a4885cf829c44cf4305ceaf1bd2435b762a50194d99fe9ce6cfdd9a26b85ff62",
+    "tensors": {
+      "model.language_model.layers.3.mlp_hyper_connection.block_inject_weight.weight": {
+        "shape": [
+          4,
+          10240
+        ],
+        "dtype": "BF16"
+      },
+      "model.language_model.layers.3.mlp_hyper_connection.hc_norm.weight": {
+        "shape": [
+          10240
+        ],
+        "dtype": "BF16"
+      },
+      "model.language_model.layers.3.mlp_hyper_connection.input_mix_weight_down.weight": {
+        "shape": [
+          320,
+          10240
+        ],
+        "dtype": "BF16"
+      },
+      "model.language_model.layers.3.mlp_hyper_connection.input_mix_weight_up.weight": {
+        "shape": [
+          10240,
+          320
+        ],
+        "dtype": "BF16"
+      }
+    }
+  }
+]

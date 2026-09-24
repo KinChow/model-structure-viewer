@@ -27,6 +27,7 @@ function csa2GroupLabel(normalized, index, mode) {
 export function decoderStackNetwork(id, normalized, opts = {}) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
+  const streamDims = normalized.hyperConnectionCount ? [-1, -1, normalized.hiddenSize * normalized.hyperConnectionCount] : dims.hidden;
   const layers = normalized.layers || 0;
   const start = Array.isArray(opts.range) ? opts.range[0] : 0;
   const end = Array.isArray(opts.range) ? opts.range[1] : layers - 1;
@@ -174,5 +175,5 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
     },
     children,
     segmentLayers || undefined,
-  ), dims.hidden, dims.hidden);
+  ), streamDims, streamDims);
 }

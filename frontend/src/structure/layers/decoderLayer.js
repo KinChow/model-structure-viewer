@@ -6,7 +6,7 @@ import { rmsNormModule } from "./norm.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
 import { attentionResidualModule, attentionResidualStage, residualBankState } from "./residual.js";
-import { engramModule, hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
+import { engramModule, hyperConnectionModule, gatedResidualWrite, multiHyperConnectionModule, pleModule } from "./hybrid.js";
 import { layerInSpec, operatorSpec, residualAddSpec } from "../operators/ops/index.js";
 import { hfAttentionAttr, hfFfnAttr, hfNamedClass, recipeValue } from "../archs/index.js";
 
@@ -24,20 +24,6 @@ function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, has
       ["attn_residual_add", "ffn_residual_add"],
       ...(isLastLayer ? [["ffn_residual_add", "mhc_final_post"], ["mhc_final_post", "mhc_contract"]] : []),
     ];
-  }
-  if (layerMix === "hyper_connection") {
-    const edges = [];
-    if (hasPle) edges.push(["ple", "attn_hyper_connection"]);
-    edges.push(
-      ["attn_hyper_connection", attnAttr],
-      [attnAttr, "attn_residual_add"],
-      ["attn_hyper_connection", "attn_residual_add"],
-      ["attn_residual_add", "mlp_hyper_connection"],
-      ["mlp_hyper_connection", ffn],
-      [ffn, "ffn_residual_add"],
-      ["attn_residual_add", "ffn_residual_add"],
-    );
-    return edges;
   }
   const edges = [
     ["layer_in", "input_layernorm"],
@@ -121,6 +107,39 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
       ...shapeFlow(shapes.hidden, shapes.hidden),
     }, children), dims.hidden, dims.hidden);
   }
+  if (layerMix === "hyper_connection") {
+    const wide = [-1, -1, normalized.hiddenSize * normalized.hyperConnectionCount];
+    const input = operatorSpec(`${id}.layer_in`, "wide residual input", "identity", {
+      checkpoint_module: false, semantic_role: "gr_streams", activation_materialization: "unknown",
+    }, { input: wide, output: wide });
+    const children = [input,
+      ...(hasPle ? [pleModule(`${id}.ple`, normalized, { layerIndex }),
+        operatorSpec(`${id}.ple_residual_add`, "PLE wide residual add", "residual_add", {
+          checkpoint_module: false, semantic_role: "ple_residual_add",
+          formula: "R' = R + PLE(R, token_ids)",
+        }, { input: wide, output: wide })] : []),
+      hyperConnectionModule(`${id}.attn_hyper_connection`, normalized, "attn_mix"),
+      attentionModule(`${id}.${attnAttr}`, normalized, attentionKind, layerIndex),
+      gatedResidualWrite(`${id}.attn_residual_add`, normalized),
+      hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized, "mlp_combine_mix"),
+      ffn, gatedResidualWrite(`${id}.ffn_residual_add`, normalized)];
+    const source = hasPle ? "ple_residual_add" : "layer_in";
+    const edges = [ ...(hasPle ? [["layer_in", "ple"], ["layer_in", "ple_residual_add"], ["ple", "ple_residual_add"]] : []),
+      [source, "attn_hyper_connection"], [source, `${id}.attn_hyper_connection.streams`],
+      [`${id}.attn_hyper_connection.read_mean`, attnAttr],
+      [source, "attn_residual_add"], [attnAttr, "attn_residual_add"],
+      [`${id}.attn_hyper_connection.write_gate`, "attn_residual_add"],
+      ["attn_residual_add", "mlp_hyper_connection"],
+      ["attn_residual_add", `${id}.mlp_hyper_connection.streams`],
+      [`${id}.mlp_hyper_connection.read_mean`, ffnAttr],
+      ["attn_residual_add", "ffn_residual_add"], [ffnAttr, "ffn_residual_add"],
+      [`${id}.mlp_hyper_connection.write_gate`, "ffn_residual_add"] ];
+    return withShapeDims(moduleSpec(id, "DecoderLayer", "decoder", {
+      class: hfNamedClass(normalized, "decoderLayerClass", "DecoderLayer"), layer_kind: layerKind,
+      dataflow_edges: edges, residual_streams: normalized.hyperConnectionCount,
+      ...shapeFlow(`[batch, sequence, ${wide.at(-1)}]`, `[batch, sequence, ${wide.at(-1)}]`),
+    }, children), wide, wide);
+  }
   const children = isMhc ? [
     ...(hasEngram ? [engramModule(`${id}.engram`, normalized, { layerIndex })] : []),
     multiHyperConnectionModule(`${id}.mhc_attn_pre`, normalized, "pre"),
@@ -133,14 +152,6 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
       multiHyperConnectionModule(`${id}.mhc_final_post`, normalized, "post"),
       multiHyperConnectionModule(`${id}.mhc_contract`, normalized, "contract"),
     ] : []),
-  ] : layerMix === "hyper_connection" ? [
-    ...(hasPle ? [pleModule(`${id}.ple`, normalized, { layerIndex })] : []),
-    hyperConnectionModule(`${id}.attn_hyper_connection`, normalized, "attn_mix"),
-    attentionModule(`${id}.${attnAttr}`, normalized, attentionKind, layerIndex),
-    residualAddSpec(`${id}.attn_residual_add`, normalized, "attention"),
-    hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized, "mlp_combine_mix"),
-    ffn,
-    residualAddSpec(`${id}.ffn_residual_add`, normalized, "feed-forward"),
   ] : [
     layerInSpec(`${id}.layer_in`, normalized),
     rmsNormModule(`${id}.input_layernorm`, "input layernorm", normalized),

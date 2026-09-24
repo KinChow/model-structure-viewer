@@ -592,6 +592,37 @@ test("W5 恒等式：激活流形状连续性（全 59 模型声明边）", () =
       const inn = lastDim(dst.input_shape);
       if (out == null || inn == null) { noShape += 1; continue; }
       if (out === inn) { matched += 1; continue; }
+      if (src.type === "ngram-embedding" && dst.attributes?.semantic_role === "ple_injection") {
+        // This edge supplies the PLE lookup vector, not the residual operand.
+        // The receiving fused node projects this exact embedding width to its
+        // wide key and narrow value; verify both matrices rather than exempting
+        // every edge called "inject".
+        const config = normalizeConfig(raw);
+        assert.equal(out, config.pleEmbedDim);
+        assert.equal(inn, config.hiddenSize * config.hyperConnectionCount);
+        assert.deepEqual(dst.attributes.weightMatrices.slice(0, 2).map(w => w.shape),
+          [[inn, out], [config.hiddenSize, out]]);
+        matched += 1;
+        continue;
+      }
+      // GR Eq(34) is a three-input broadcast, not equal-width addition.
+      // Check the declared semantics AND exact widths. Never exempt every
+      // residual edge by its suffix (which would also hide ordinary bugs).
+      if (dst.attributes?.semantic_role === "gr_write") {
+        const streams = dst.attributes.hc_count;
+        const hidden = normalizeConfig(raw).hiddenSize;
+        assert.equal(inn, streams * hidden, `${dst.canonical_id}: wide write destination`);
+        assert.equal(lastDim(dst.output_shape), inn);
+        const incoming = structure.graph.edges.filter(e => e.target === dst.id)
+          .map(e => nodes.get(e.source_canonical_id));
+        assert.equal(incoming.length, 3, `${dst.canonical_id}: exactly state, output and gate`);
+        assert.deepEqual(incoming.map(n => lastDim(n.output_shape)).sort((a, b) => a - b),
+          [streams, hidden, streams * hidden].sort((a, b) => a - b));
+        const gate = incoming.find(n => n.attributes?.semantic_role === "gr_write_gate");
+        assert.ok(gate && lastDim(gate.output_shape) === streams, "one scalar gate per branch");
+        matched += 1;
+        continue;
+      }
       const key = `${String(edge.source_canonical_id).split(".").pop()} -> ${String(edge.target_canonical_id).split(".").pop()}`;
       const rec = classes.get(key) || { count: 0, models: new Set(), out, inn };
       rec.count += 1;

@@ -604,14 +604,15 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   }));
   const decoder = treeView(structure).children.find((node) => node.id === "layers");
   const firstLayer = decoder.children[0];
-  // W4：attention 与 FFN 之后各补一处 residual add 叶。
+  // GR Eq(30–34): read contracts, scalar-gated write preserves all branches.
   assert.deepEqual(firstLayer.children.map((node) => node.name), [
-    "HyperConnection attention mix",
+    "wide residual input",
+    "Gated Residual read",
     "LINEAR Attention",
-    "attention residual add",
-    "HyperConnection MLP combine + mix",
+    "Gated Residual write",
+    "Gated Residual read",
     "Routed MoE",
-    "feed-forward residual add",
+    "Gated Residual write",
   ]);
   const linear = firstLayer.children.find((node) => node.type === "attention");
   assert.ok(linear.id.endsWith(".linear_attn"), `Qwen4Exp GDN attr should be linear_attn, got ${linear.id}`);
@@ -625,13 +626,13 @@ test("maps Qwen4Exp GDN, QSA, PLE, and delayed HyperConnection boundaries", () =
   assert.ok(firstMoe.children.some((node) => node.name === "Shared Expert Gate"));
   assert.ok(firstMoe.children.some((node) => node.name === "shared expert branch add"));
   const pleLayer = decoder.children.find((node) => node.attributes.range === "1..1");
-  assert.equal(pleLayer.children[0].name, "PLE");
+  assert.equal(pleLayer.children.find(node => node.type === "ple").name, "PLE");
   const qsaLayer = decoder.children.find((node) => node.attributes.range === "3..3");
   const qsaAttn = qsaLayer.children.find((node) => node.type === "attention");
   assert.equal(qsaAttn.attributes.attention_kind, "qsa");
   assert.ok(qsaAttn.id.endsWith(".self_attn"), `Qwen4Exp QSA slot should be self_attn, got ${qsaAttn.id}`);
   assert.equal(qsaAttn.attributes.class, "Qwen4ExpTextAttention");
-  assert.equal(treeView(structure).children.find((node) => node.id === "hyper_connection_mixer").name, "HyperConnection final mixer");
+  assert.equal(treeView(structure).children.find((node) => node.id === "hyper_connection_mixer").name, "Gated Residual final read");
   const ple = pleLayer.children.find((node) => node.type === "ple");
   assert.equal(ple.attributes.ngram_size, 3);
   assert.equal(ple.attributes.heads_per_ngram, 8);

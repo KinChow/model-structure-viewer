@@ -1,0 +1,65 @@
+{
+  "read_at": "2026-09-24T10:28:49.991303+08:00",
+  "baseline": "3b42763fc347f1be255f87c9433dde32d884cbff",
+  "stage": "GR, PLE, MTP and final norm implementation evidence; pre-commit gate pending",
+  "sources": [
+    {
+      "id": "gallery",
+      "file": "artifacts/architecture-repair/C5-gr/gallery.html",
+      "url": "https://sebastianraschka.com/llm-architecture-gallery/",
+      "sha256": "84aad6ac80b13cf3054c2b991c10d1e96c5ab889bf836846f1345ef9f47d00d9",
+      "status": "fresh download; card-qwen3-8-flash-next-125b-a6b"
+    },
+    {
+      "id": "release-card",
+      "file": "artifacts/architecture-repair/C5-gr/README.md",
+      "url": "https://hf-mirror.com/Qwen/Qwen3.8-Flash-Next/raw/de4b8e4d43b917e7706784d8bb445c9af86a3540/README.md",
+      "sha256": "35ca37ccc366f1ba478dab33841a2c0c18ce53fd62f291ca05341f7728b225b2",
+      "status": "fresh pinned download"
+    },
+    {
+      "id": "fp8-release-card",
+      "file": "artifacts/architecture-repair/C5-gr/README-FP8.md",
+      "url": "https://hf-mirror.com/Qwen/Qwen3.8-Flash-Next-FP8/raw/236dfdf285828023ca3bcd3f37366c58a3469b13/README.md",
+      "sha256": "3c5fcfaf37c4415dbabdbd25eaa7a17ed42f8e63fead97b8644053b1d60ea43f",
+      "status": "fresh pinned download"
+    },
+    {
+      "id": "report",
+      "file": "artifacts/architecture-repair/C5/tech_report-pinned.pdf",
+      "url": "https://raw.githubusercontent.com/QwenLM/Qwen3.8-Flash-Next/4f58f4ddd855bedaf7eadcd53bbbb1b3362cecff/tech_report.pdf",
+      "sha256": "04f263446d74a35cb7cea368574e0c561f3b05c133be2c777ac884404063655d",
+      "status": "existing pinned snapshot rehashed; fresh download timed out; partial explicitly excluded"
+    },
+    {
+      "id": "reference-forward",
+      "file": "models/Qwen/Qwen3.8-Flash-Next/modeling_qwen4_exp.py",
+      "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/qwen4_exp/modeling_qwen4_exp.py",
+      "sha256": "2e36ee6a1bc4f43fa0434ae197c2de9eba27a71aec84ee1ff111dc3a812e8283",
+      "status": "repository snapshot; fresh raw fetch timed out, not independently byte-verified against remote this turn"
+    },
+    {
+      "id": "mtp-forward",
+      "file": "artifacts/architecture-repair/C5-gr/mtp-reference.py",
+      "url": "https://raw.githubusercontent.com/vllm-project/vllm/153242a314153637999eb6ebe8dd830e63433bb6/vllm/models/qwen4_exp/nvidia/mtp.py",
+      "sha256": "35dc7e4b4cf124ce79a7bfc65a5f198c9edc622f1692bf6b24c91486112b7d99",
+      "status": "fresh pinned download; byte-identical to local reference; shared fc_hidden applied across branches, broadcast embedding addition",
+      "read_at": "2026-09-24T10:53:44.623233+08:00"
+    },
+    {
+      "id": "checkpoint-index",
+      "file": "artifacts/architecture-repair/C5/model.safetensors.index.json",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/de4b8e4d43b917e7706784d8bb445c9af86a3540/model.safetensors.index.json",
+      "sha256": "99e815241ef03325536b0aaa4441deea45174c17fae31e10f0bb456410c590de",
+      "status": "existing pinned full weight name map; no standalone model.language_model.norm.weight; contains hyper_connection_mixer norms"
+    },
+    {
+      "id": "checkpoint-index-fp8",
+      "file": "artifacts/architecture-repair/C5/model-FP8.safetensors.index.json",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/resolve/236dfdf285828023ca3bcd3f37366c58a3469b13/model.safetensors.index.json",
+      "sha256": "0419e2c2dfbb925257d7409405433a793cf7ff7d96f3eba882a815ec6d9fe7a6",
+      "status": "existing pinned full weight name map; no standalone model.language_model.norm.weight"
+    }
+  ],
+  "updated_at": "2026-09-24T11:10:29.091051+08:00"
+}

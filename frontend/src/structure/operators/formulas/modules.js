@@ -23,6 +23,7 @@
 //   Σ decompose.bytes − fused.bytes === Σ 2·residentIntermediates.elements·b
 
 import { evaluateDecomposition } from "./atoms.js";
+import { gatedResidualCounts, gatedResidualDecomposition } from "./gatedResidual.js";
 import { qsaIndexerCounts, qsaIndexerDecomposition } from "./qsa.js";
 /** 与 formulas/index.js 的 sumCounts 同口径：逐分量相加。复合模块用。 */
 const sumCounts = (...parts) => parts.reduce((total, part) => ({
@@ -318,47 +319,18 @@ const MODULE_LIST = [
     id: "hyper_connection",
     title: "Hyper Connection",
     source: { framework: "vLLM", symbol: "GatedResidual", ref: "models/qwen4_exp/common/hyperconnection.py:140" },
-    fused: (p) => {
-      const hyperHidden = p.streams * p.hidden;
-      return sumCounts(
-        rmsnormCounts({ tokens: p.tokens, hidden: hyperHidden, bytesPerElement: p.b, weightOne: true }),
-        linearCounts({ logicalShape: [p.lowrank, hyperHidden], tokens: p.tokens, bytesPerElement: p.b }),
-        gateCounts({ tokens: p.tokens, width: p.lowrank, bytesPerElement: p.b }),
-        linearCounts({ logicalShape: [hyperHidden, p.lowrank], tokens: p.tokens, bytesPerElement: p.b }),
-        gateCounts({ tokens: p.tokens, width: hyperHidden, bytesPerElement: p.b }),
-        linearCounts({ logicalShape: [p.streams, hyperHidden], tokens: p.tokens, bytesPerElement: p.b }),
-        addCounts({ tokens: p.tokens, hidden: hyperHidden, bytesPerElement: p.b }),
-      );
-    },
-    decompose: (p) => {
-      const hyperHidden = p.streams * p.hidden;
-      const e = p.tokens * hyperHidden;
-      const el = p.tokens * p.lowrank;
-      return [
-        ...rmsnormAtomSteps({ tokens: p.tokens, hidden: hyperHidden, weightOne: true, b: p.b }).decompose,
-        ...linearAtomSteps({ tokens: p.tokens, inDim: hyperHidden, out: p.lowrank, b: p.b }).decompose,
-        { atom: "silu", args: { elements: el, bytesPerElement: p.b } },
-        ...linearAtomSteps({ tokens: p.tokens, inDim: p.lowrank, out: hyperHidden, b: p.b }).decompose,
-        { atom: "sigmoid", args: { elements: e, bytesPerElement: p.b } },
-        { atom: "mul", args: { elements: e, bytesPerElement: p.b } },
-        ...linearAtomSteps({ tokens: p.tokens, inDim: hyperHidden, out: p.streams, b: p.b }).decompose,
-        { atom: "add", args: { elements: e, bytesPerElement: p.b } },
-      ];
-    },
+    fused: gatedResidualCounts,
+    decompose: gatedResidualDecomposition,
     residentIntermediates: (p) => [
-      { name: "hc_norm 的中间量组", elements: p.tokens * p.streams * p.hidden },
-      { name: "SiLU 输出", elements: p.tokens * p.lowrank },
+      { name: "group-normalized wide state", elements: p.tokens * p.streams * p.hidden },
+      { name: "low-rank read preactivation", elements: p.tokens * p.lowrank },
     ],
     compulsoryBytes: (p) => {
-      const hyperHidden = p.streams * p.hidden;
-      // 主输入（多流状态）+ 输出（混合后的 block 输入）+ 三份权重
-      const weights = (2 * p.lowrank * hyperHidden + p.streams * hyperHidden) * p.b;
-      return (2 * p.tokens * hyperHidden) * p.b + weights;
+      const c = gatedResidualCounts(p);
+      return c.bytes.weights + c.bytes.actIn + c.bytes.actOut;
     },
-    notes: [
-      "gate 的 vector/sfu（gateCounts）= sigmoid + mul 两原子之和，逐位闭合",
-      "inject 在最终 mixer（use_combine=false）由运行时置零，模块层按有 combine 的常规形态声明",
-    ],
+    notes: ["Read owns gate prediction, write is a separate weightless broadcast update.",
+      "Grouped norm includes per-branch mean/epsilon and one affine-offset precompute; no final write."],
   },
   {
     // Qwen4Exp 指定层的 PLE 注入叶。ngram 表是 sibling Embedding

@@ -1,7 +1,7 @@
 // 对标 vLLM models/qwen4_exp：主干 + nvidia/mtp.py
 import { rmsNormModule } from "../layers/norm.js";
 import { hyperConnectionModule } from "../layers/hybrid.js";
-import { operatorSpec } from "../operators/ops/index.js";
+import { operatorSpec, weightMatrixDecl } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
 import { moduleSpec, withShapeDims } from "../layers/base.js";
@@ -31,9 +31,11 @@ function fcEmbeddingFcHidden(id, normalized) {
       implementation: ["vLLM.Qwen4ExpMultiTokenPredictor.fc_embedding"],
     }, { input: dims.hidden, output: dims.hidden }),
     operatorSpec(`${id}.fc_hidden`, "hidden projection", "linear", {
-      ...shapeFlow(shapes.hidden, shapes.hidden),
+      ...shapeFlow(groupedHidden, groupedHidden),
+      linear_application_groups: streams,
+      weightMatrices: [weightMatrixDecl("tp", { shape: [hidden, hidden], split: "output" })],
       implementation: ["vLLM.Qwen4ExpMultiTokenPredictor.fc_hidden"],
-    }, { input: dims.hidden, output: dims.hidden }),
+    }, { input: [-1, -1, streams * hidden], output: [-1, -1, streams * hidden] }),
   ];
 }
 
@@ -50,18 +52,30 @@ function qwen4ExpMultiTokenPredictor(id, normalized) {
       class: "Qwen4ExpMultiTokenPredictor",
       modules: count,
       ...draftBilling(),
+      hidden_input_endpoint: `${id}.pre_fc_norm_hidden`,
+      embedding_input_endpoint: `${id}.pre_fc_norm_embedding`,
       implementation: ["vLLM.models.qwen4_exp.nvidia.mtp.Qwen4ExpMultiTokenPredictor"],
       dataflow_edges: [
         ["pre_fc_norm_embedding", "fc_embedding"],
         ["pre_fc_norm_hidden", "fc_hidden"],
-        ["fc_embedding", "layer"],
-        ["fc_hidden", "layer"],
+        ["fc_embedding", "embedding_expand"],
+        ["embedding_expand", "input_add"],
+        ["fc_hidden", "input_add"],
+        ["input_add", "layer"],
         ["layer", "hyper_connection_mixer"],
       ],
       ...shapeFlow(shapes.hidden, shapes.hidden),
     },
     [
       ...fcEmbeddingFcHidden(id, normalized),
+      operatorSpec(`${id}.embedding_expand`, "broadcast embedding to residual branches", "identity", {
+        checkpoint_module: false, semantic_role: "gr_expand", activation_materialization: "unknown",
+        formula: "E_i = fc_embedding(E), i=1..nr",
+      }, { input: dims.hidden, output: [-1, -1, normalized.hiddenSize * normalized.hyperConnectionCount] }),
+      operatorSpec(`${id}.input_add`, "MTP wide input sum", "residual_add", {
+        checkpoint_module: false, formula: "R_i = fc_hidden(norm(R)_i) + fc_embedding(norm(E))",
+      }, { input: [-1, -1, normalized.hiddenSize * normalized.hyperConnectionCount],
+        output: [-1, -1, normalized.hiddenSize * normalized.hyperConnectionCount] }),
       mtpBlock(`${id}.layer`, normalized, {
         layerKind,
         attentionKind: "qsa",

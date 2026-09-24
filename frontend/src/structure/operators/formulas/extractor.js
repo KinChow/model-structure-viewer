@@ -185,7 +185,7 @@ const FROM_NODE = {
           const logical = linearLogicalShape(node) || derivedLinearShape(node);
           if (!logical) return null;
           return {
-            logicalShape: logical, tokens, bytesPerElement, expertFraction,
+            logicalShape: logical, tokens: tokens * (node?.attributes?.linear_application_groups || 1), bytesPerElement, expertFraction,
             bias: node?.attributes?.bias === true,
           };
   },
@@ -507,23 +507,13 @@ const FROM_NODE = {
     candidates: node?.attributes?.candidate_states,
     skipped: node?.attributes?.execution_skipped === true,
   }),
-  hyper_connection: ({ node, config, bytesPerElement, tokens }) => {
-    const H = config?.hiddenSize || 0;
-          const streams = config?.hyperConnectionCount || 1;
-          const lowrank = config?.hyperConnectionLowrank || 0;
-          const hyperHidden = streams * H;
-          return {
-            grouped: { tokens, hidden: hyperHidden, weightOne: true, bytesPerElement },
-            mixDown: { logicalShape: [lowrank, hyperHidden], tokens, bytesPerElement },
-            silu: { tokens, width: lowrank, bytesPerElement },
-            mixUp: { logicalShape: [hyperHidden, lowrank], tokens, bytesPerElement },
-            gate: { tokens, width: hyperHidden, bytesPerElement },
-            inject: node?.attributes?.hc_use_combine === false
-              ? { logicalShape: [streams, hyperHidden], tokens: 0, bytesPerElement, weightsShared: true }
-              : { logicalShape: [streams, hyperHidden], tokens, bytesPerElement },
-            combine: { tokens, hidden: hyperHidden, bytesPerElement },
-          };
-  },
+  hyper_connection: ({ node, config, bytesPerElement, tokens }) => ({
+    tokens, hidden: config?.hiddenSize || 0,
+    streams: config?.hyperConnectionCount || 1,
+    lowrank: config?.hyperConnectionLowrank || 0, b: bytesPerElement,
+    useCombine: node?.attributes?.hc_use_combine !== false,
+    stage: node?.attributes?.hc_stage || "read",
+  }),
   ple: ({ config, bytesPerElement, tokens }) => {
     const H = config?.hiddenSize || 0;
     const hcHidden = H * (config?.hyperConnectionCount || 1);

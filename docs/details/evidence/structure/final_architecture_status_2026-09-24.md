@@ -18,11 +18,11 @@
 
 | model_type | 条目数 | 当前状态 | 已完成的结构工作 | 剩余边界 |
 |---|---:|---|---|---|
-| `deepseek_v3` | 2 | 基线/证据不足 | 保留 MLA、MoE、MTP 现有结构 | R1/V3.1 的逐模块发布差异未完成 |
+| `deepseek_v3` | 2 | 已修复/有边界 | 对照发布 `DeepseekV3Attention` 修正 MLA 的真实 `q_a_layernorm`、`kv_a_proj_with_mqa`、`kv_a_layernorm` 路径；保留前三层 dense、后续 MoE 和 header 已证明的 MTP | 完整逐张量 truth、量化 scale 归属和 GPU fused kernel 仍 unknown |
 | `deepseek_v32` | 1 | 已修复/已回归 | DSA indexer 的物理路径、主 sparse MLA 与真实 source-ref | 完整权重逐模块 truth 未完成 |
 | `deepseek_v4` | 5 | 已修复/有边界 | compressor、C4 indexer、norm/gate/APE 依赖；按 ratio 和变体区分；C4 首窗口 overlap 成本已按 pinned forward 修正 | GPU fused kernel、量化 scale 交通、跨请求 cache 追加 prefill 仍 unknown |
 | `deepseek_v41` | 1 | 已修复/有边界 | CED、CSA2 Full/Reuse、DSpark、MTP 抑制基线 | 完整权重/GPU 行为和视觉融合物化仍未证明 |
-| `kimi_k2` | 4 | 基线/证据不足 | 保留 MLA/MoE；未因 README 缺少 MTP 就伪造结论 | Thinking QAT、MTP 和逐模块 checkpoint 审计 |
+| `kimi_k2` | 4 | 已修复/有边界 | 对照 Kimi 发布 `DeepseekV3` 实现修正 MLA 精确模块路径；Base/Thinking 均按 header 的 `mtp_tensor_count=0` 不生成 MTP | Thinking QAT、完整逐模块 checkpoint truth、量化 scale 和 GPU 行为仍 unknown |
 | `kimi_k25` | 3 | 已修复/有边界 | 视觉/文本两路融合入口；视觉塔、projector 和 3 个变体的 checkpoint header/source audit 已通过 | 融合搬运 unknown；GPU/融合物化未实测 |
 | `kimi_k3` | 1 | 已修复/有边界 | AttnRes、NoPE、SiTU、Gated MLA、视觉 RoPE、LatentMoE；发布 `PatchMergerMLPV2` 无 bias 且后置 RMSNorm | 局部 header 不是全模型 truth；视觉生命周期仍保留边界 |
 | `qwen3_5` | 15 | 已修复/有边界 | Gated Attention / GDN 必需 fan-in；多模态入口 | 量化/Base 变体 packed layout 和视觉 truth |
@@ -31,7 +31,7 @@
 | `qwen4_exp` | 2 | 已修复/有边界 | QSA 微块、尾部 token、PLE、第 2 层位置、四路 gated residual；视觉 packed attention、grid_thw 位置插值、pre-shuffle merger norm | 融合搬运 unknown；GPU packed-attention 性能未实测 |
 | `minimax_m2` | 1 | 已修复/有边界 | 按随附 Transformers/source-ref 修正为独立 Q/K/V projection、Q/K RMSNorm、partial RoPE；保留 GQA/MoE，生产 header 仍抑制未落地 MTP | 融合搬运、量化 scale traffic、完整 GPU 行为仍 unknown |
 | `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block；发布权重的 `multi_modal_projector → patch_merge_mlp` 双模块路径；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
-| `glm4_moe` | 1 | 基线/证据不足 | 保留 GQA/MoE，不从 GLM-5 DSA 规则外推 | 官方结构细节不足 |
+| `glm4_moe` | 1 | 已修复/有边界 | 对照 GLM-4.7 source-ref 修正独立 Q/K/V、Q/K RMSNorm、partial RoPE 和 attention bias；未把 GLM-5 DSA 外推到 GLM-4.7 | 完整逐模块 truth、量化 scale 和 GPU fused kernel 仍 unknown |
 | `glm_moe_dsa` | 6 | 已修复/有边界 | IndexShare source/reuse schedule、真实 `wq_b/wk/k_norm/weights_proj` 路径 | 完整 checkpoint truth 与量化 scale 归属 |
 | `glm5_next` | 2 | 已修复/有边界 | KDA/DSA 混合、四路 mHC/GR、GLM-5.3-Flash 独立视觉塔；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
 

@@ -72,8 +72,10 @@ const models = catalog.models.map(entry => {
       const layer = value => value.match(/(?:^|\.)layers\.(\d+)\./)?.[1];
       return layer(source) != null && layer(target) != null && layer(source) !== layer(target);
     }),
-    activation_operators: [...new Set(nodes.filter(node => node.attributes?.operator_id === "swiglu")
-      .map(node => `${node.name}:${node.attributes.activation || "unspecified"}`))],
+    activation_operators: [...new Set(nodes
+      .filter(node => ["swiglu", "situ_glu", "fused_moe_mlp"].includes(node.attributes?.operator_id)
+        && (node.attributes?.activation || node.attributes?.operator_id === "situ_glu"))
+      .map(node => `${node.attributes.operator_id}:${node.attributes.activation || "unspecified"}`))],
     isolated_compressor_operators: nodes.filter(node => node.type === "operator"
       && node.canonical_id?.includes("compressor") && degree(node.id) === 0)
       .map(node => node.canonical_id),

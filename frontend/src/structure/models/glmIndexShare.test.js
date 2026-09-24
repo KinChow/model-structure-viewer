@@ -79,7 +79,7 @@ for (const loading of ["config", "artifacts"]) {
         assert.equal(sparse.attributes.cache_index_elements, 0);
         assert.equal(sparse.attributes.cache_index_growth_elements, 0);
         assert.equal(sparse.attributes.cache_kv_elements, 576, "independent MLA KV stays resident");
-        for (const suffix of ["q_a_proj", "q_b_proj", "kv_a_proj", "kv_b_proj", "o_proj"]) {
+        for (const suffix of ["q_a_proj", "q_b_proj", "kv_a_proj_with_mqa", "kv_b_proj", "o_proj"]) {
           assert.ok(children.some(child => child.canonical_id.endsWith(`.${suffix}`)), suffix);
         }
         assert.equal(node.attributes.index_storage, "alias");

@@ -24,6 +24,7 @@ import {
   scale,
   scatter,
   sigmoid,
+  tanh,
   silu,
   softmax,
   sumActions,
@@ -168,8 +169,12 @@ test("A18 decay_scan: 2 步 x state 4，单头每步 1 次 exp", () => {
     { vector: 8, sfu: 2, actIn: 32, actOut: 16 });
 });
 
-test("原子注册表恰好 19 条，且 evaluateDecomposition 与手工求和一致", () => {
-  assert.equal(Object.keys(ATOMS).length, 19);
+test("tanh: 4 元素为 4 个语义 SFU 动作，无参数或 GEMM", () => {
+  expect(tanh({ elements: 4, bytesPerElement: B }), { sfu: 4, actIn: 8, actOut: 8 });
+});
+
+test("原子注册表恰好 20 条，且 evaluateDecomposition 与手工求和一致", () => {
+  assert.equal(Object.keys(ATOMS).length, 20);
   const steps = [
     { atom: "matmul", args: { batch: 1, m: 2, k: 2, n: 2, bytesPerElement: B } },
     { atom: "softmax", args: { elements: 4, bytesPerElement: B } },

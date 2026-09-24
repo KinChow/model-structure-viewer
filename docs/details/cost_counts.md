@@ -42,7 +42,7 @@
 | A2 | softmax 按**融合单遍**实现，logits 读 1 遍；多遍未融合读放大不建模 | 2026-09-07 拍板；kernel 口径实测（ncu flash_fwd_kernel，A100）：scores/probs **不落 HBM**，真实 attn HBM≈Q/K/V/O（O(H·S·D)），物化字节口径仅作 roofline 上界、长上下文按 S² 高估（见 `evidence/cost/flash_kernel_caliber.md`） |
 | A3 | rope 的 sin/cos **查表**，SFU ≈ 0 | 常规实现 |
 | A4 | 复合节点的分解假设（见「复合节点」表）逐条标注 | §3.1 分解声明 |
-| A5 | SFU 计数约定：sigmoid = 2（exp + rcp）、exp = 1、rsqrt = 1、div = 1；elementwise/vector 操作逐 flop 计 | 2026-09-07 统一口径 |
+| A5 | SFU 计数约定：sigmoid = 2（exp + rcp）、exp = 1、rsqrt = 1、div = 1、tanh = 1；elementwise/vector 操作逐 flop 计。tanh 是语义动作，不等同于所有设备的一条机器指令或同延迟 | 2026-09-07 统一口径；2026-09-24 SiTU 补充 |
 | A6 | 线性注意力递推核（外积 / delta matvec / query）按 per-token 计；**状态流量**按 chunked steps 计（显式近似） | Gated DeltaNet arXiv 2412.06464 |
 | A7 | 融合算子（MegaMoE / fused gate+up / megakernel 等）按**语义分解**计数（matrix/vector/sfu 与融合无关）；bytes 按未融合口径（保守），融合收益记 attributes.implementation，不做流量折算 | TritonMoE arXiv 2605.23911（fused gate+up 省 35% 流量）；Megatron 2026 roadmap |
 
@@ -162,6 +162,20 @@ bytes = { 0, 2·T·I·b, T·I·b }。aten: `aten.silu` + `aten.mul`。
   实现，如实登记；如需分档属后续条目）。
 - **路由专家叶已拆独立条目 fused_moe_mlp**（N2-4 W-A），本式只服务 dense/vision 纯激活，
   **不再乘 expertFraction**。
+
+### F5b SiTU-GLU（situGluCounts）
+
+依据 Kimi-K3 技术报告 §2.3.2 式 (12) 与发布 `SituAndMul.forward`：
+`softcap(g, β)·sigmoid(g)·softcap(u, β_u)`，其中 `softcap(x,β)=β·tanh(x/β)`。
+`linear_beta` 未设置时 up 分支直接为 `u`。β 是超参数，无权重。
+
+- beta/linear_beta 常量倒数按预计算处理：一次 softcap 为 2 次 scale + 1 次 tanh。
+- 有 up softcap：matrix=0，vector=`6TI`，sfu=`4TI`；无 up softcap：vector=`4TI`，sfu=`3TI`。
+- compulsory 边界流量 `{weights:0, actIn:2TIb, actOut:TIb}`，输入输出沿用调用方 dtype。
+- 发布参考前向内部为 FP32；此处不假设中间张量一定写入 HBM，不将语义 tanh 计数解释为设备实测指令或延迟。
+- dense/shared 使用独立 `situ_glu`；routed `fused_moe_mlp` 保留三段投影与原有权重归属，
+  仅将激活计数替换为 `situGluCounts(T·topk,I)`，不额外发射计费激活叶。
+- 逐模块与全量回归见 `evidence/structure/kimi_k3_situ_repair.md`。
 
 ### F6 旋转位置（ropeCounts，`counts.js:165-172`）
 
@@ -309,7 +323,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 
 > 生成物（`scripts/gen-cost-counts.mjs`，勿手改）：逐条 = FORMULAS 注册表；`分类`/三分量
 > 由单元探针（形状全 1，同 counts.test.js）判定。符号 bytes 公式见上方 F1–F9；复合节点
-> 分解见「复合节点」表。共 **54** 条。
+> 分解见「复合节点」表。共 **55** 条。
 
 | 条目 | group | 分类 | matrix | vector | sfu | bytes |
 |---|---|---|---|---|---|---|
@@ -360,6 +374,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | `rope` | attention | 仅访存 | 0 | ✓ | 0 | ✓ |
 | `sdpa_attention` | attention | 计算+访存 | ✓ | ✓ | ✓ | ✓ |
 | `shared_expert_gate` | moe | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `situ_glu` | activation | 仅访存 | 0 | ✓ | ✓ | ✓ |
 | `softmax` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
 | `split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
 | `swiglu` | activation | 仅访存 | 0 | ✓ | ✓ | ✓ |

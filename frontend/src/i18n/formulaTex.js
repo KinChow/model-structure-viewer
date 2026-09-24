@@ -17,6 +17,7 @@ export const FORMULA_TEX = {
   rmsnorm: "y = \\dfrac{x}{\\sqrt{\\operatorname{mean}(x^2) + \\epsilon}} \\cdot w",
   gemma_rmsnorm: "y = \\dfrac{x}{\\sqrt{\\operatorname{mean}(x^2) + \\epsilon}} \\cdot (1 + w)",
   swiglu: "y = \\operatorname{SiLU}(xW_{\\text{gate}}) \\cdot (xW_{\\text{up}})",
+  situ_glu: "y = \\beta\\tanh(g/\\beta)\\,\\sigma(g)\\,u_{\\mathrm{cap}},\\quad u_{\\mathrm{cap}} = \\begin{cases}\\beta_u\\tanh(u/\\beta_u)&\\text{if linear\\_beta is set}\\\\u&\\text{otherwise}\\end{cases}",
   topk: "\\text{experts} = \\operatorname{topk}(\\text{router\\_logits},\\ k)",
   moe_dispatch: "x_e = \\operatorname{dispatch}(x,\\ \\text{expert\\_ids})",
   moe_combine: "y = \\sum_e w_e \\cdot \\operatorname{expert}_e(x_e)",

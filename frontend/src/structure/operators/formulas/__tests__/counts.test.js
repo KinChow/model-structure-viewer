@@ -287,7 +287,7 @@ test("注册表完整性：52 个条目全部终止于 counts（无白名单，�
   // 清单必须与 FORMULAS 键集逐键一致（W4 的 residual_add 曾漏登记，此处补齐）。
   const live = ["linear","matmul","softmax","sdpa_attention","split","causal_conv1d","rope","vision_position","vision_merge","vision_activation","rmsnorm","gemma_rmsnorm","swiglu","fused_moe_mlp","topk","moe_dispatch","moe_combine","moe_add","residual_add","identity","index_reuse","linear_attention","linear_attention_gate","gated_delta_attention","gated_rmsnorm","mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","mla_kv_split","mla_output_gate","attention_residual","hyper_connection","ple","shared_expert_gate","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","qsa_sparse_attention","dsa_sparse_mla","dsv4_sparse_mla","qwen_qkvz_split","attention_qkv_split","attention_output_gate","minimax_sparse_indexer","minimax_sparse_attention","dsv4_hash_route","dsv4_swa_attention","dsv4_compressed_attention","engram_gate"];
   // 复合节点的 ctx 是嵌套结构，数值由各自的复合用例覆盖（如 mla_query_compress）
-  live.push("multimodal_fusion");
+  live.push("multimodal_fusion", "situ_glu");
   const composites = new Set(["mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","attention_residual","hyper_connection","ple","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","minimax_sparse_indexer"]);
   // 防漂移（双向）：本清单与 FORMULAS 键集逐键一致，新增条目必须同步登记。
   assert.deepEqual(Object.keys(FORMULAS).sort(), [...live].sort(), "清单与 FORMULAS 键集不一致：新增/删除条目须同步本清单");

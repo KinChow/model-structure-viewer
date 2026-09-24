@@ -121,6 +121,12 @@ export function sigmoid({ elements, bytesPerElement }) {
   return actions({ sfu: 2 * elements, actIn: elements * bytesPerElement, actOut: elements * bytesPerElement });
 }
 
+// aten.tanh: one semantic transcendental action per element, not an assumed
+// exp-based kernel implementation or a measured instruction/latency count.
+export function tanh({ elements, bytesPerElement }) {
+  return actions({ sfu: elements, actIn: elements * bytesPerElement, actOut: elements * bytesPerElement });
+}
+
 // A8 silu —— aten.silu = x·sigmoid(x)：2 SFU + 1 乘。
 export function silu({ elements, bytesPerElement }) {
   return actions({
@@ -239,6 +245,7 @@ export const ATOMS = {
   mul,
   relu,
   sigmoid,
+  tanh,
   silu,
   reduce_max: reduceMax,
   reduce_sum: reduceSum,

@@ -1,0 +1,41 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/MoonshotAI/Kimi-K3/main/k3_tech_report.pdf",
+      "artifact": "artifacts/architecture-repair/C1-situ/report.pdf",
+      "retrieved_at": "2026-09-24T01:03:22.566507+00:00",
+      "sha256": "86fb82a63ced501f0c3f4f404c0c6fa88a7a6cfac17aae81fd1a8f455998067c",
+      "anchor": "section 2.3.2 Eq(12), Figure4"
+    },
+    {
+      "url": "https://huggingface.co/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_linear.py",
+      "artifact": "artifacts/architecture-repair/C1-situ/modeling_kimi_linear.py",
+      "retrieved_at": "2026-09-24T01:03:22.566507+00:00",
+      "sha256": "9e3564c70ac21854ce5a090cc946c5dc76b70d1050ef50840449181a20fff44a",
+      "anchor": "SituAndMul lines64-91; KimiBlockSparseMLP/KimiMLP lines240-301"
+    },
+    {
+      "url": "https://sebastianraschka.com/llm-architecture-gallery/",
+      "artifact": "artifacts/architecture-repair/C1-mla/gallery.html",
+      "retrieved_at": "2026-09-24T00:30:08.177823+00:00",
+      "sha256": "84aad6ac80b13cf3054c2b991c10d1e96c5ab889bf836846f1345ef9f47d00d9",
+      "anchor": "card-kimi-k3; discovery/cross-check only"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "K3-SITU-ALL-FFN",
+      "status": "confirmed",
+      "assertion": "dense, shared and routed FFNs use SituAndMul when hidden_act=situ; no activation weights",
+      "test": "kimiSitu.test.js"
+    },
+    {
+      "id": "K3-SITU-PARAMS",
+      "status": "confirmed",
+      "assertion": "release beta4/linear_beta25; absent beta defaults1; absent linear_beta bypasses up softcap",
+      "test": "kimiSitu.test.js"
+    }
+  ]
+}

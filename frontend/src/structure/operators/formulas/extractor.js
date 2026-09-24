@@ -332,6 +332,10 @@ const FROM_NODE = {
   swiglu: ({ node, bytesPerElement, tokens }) => ({
     tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement,
   }),
+  situ_glu: ({ node, bytesPerElement, tokens }) => ({
+    tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement,
+    linearBeta: node?.attributes?.situ_linear_beta,
+  }),
   fused_moe_mlp: ({ node, config, bytesPerElement, tokens }) => ({
             tokens,
             topk: config?.expertsPerToken || 1,
@@ -341,6 +345,8 @@ const FROM_NODE = {
             experts: node?.attributes?.weightMatrices?.[0]?.count ?? config?.experts ?? 0,
             expertHidden: node?.attributes?.latent_size || config?.routedExpertHiddenSize || config?.hiddenSize || 0,
             expertIntermediate: config?.moeIntermediateSize || config?.intermediateSize || 0,
+            activation: node?.attributes?.activation,
+            linearBeta: node?.attributes?.situ_linear_beta,
             bytesPerElement,
           }),
   causal_conv1d: ({ config, bytesPerElement, tokens, phase }) => {

@@ -153,6 +153,25 @@ export function swigluCounts({ tokens, intermediate, bytesPerElement }) {
 }
 
 /**
+ * SiTU-GLU, K3 report Eq(12) and SituAndMul.forward.
+ * gate: scale(1/beta), tanh, scale(beta), sigmoid(raw gate), multiply.
+ * up: optionally scale(1/linear_beta), tanh, scale(linear_beta).
+ * final multiply. Constants have precomputed reciprocals (A3), no weights.
+ * FP32 elementwise intermediates stay internal in this fused estimate; the
+ * boundary tensors retain the input dtype. No measured kernel speedup claimed.
+ */
+export function situGluCounts({ tokens, intermediate, bytesPerElement, linearBeta }) {
+  const elements = tokens * intermediate;
+  const cappedUp = linearBeta != null;
+  return {
+    matrix: 0,
+    vector: elements * (cappedUp ? 6 : 4),
+    sfu: elements * (cappedUp ? 4 : 3),
+    bytes: { weights: 0, actIn: 2 * elements * bytesPerElement, actOut: elements * bytesPerElement },
+  };
+}
+
+/**
  * F6 旋转位置编码。A3：sin/cos 查表，sfu ≈ 0。每维对 4 乘 2 加 = 3 flop/元素。
  * `ropeDims` = **每 token 被旋转的元素总数**（跨全部 query 头与 kv 头求和，
  * 含 partial_rotary_factor），不是单头的 head_dim。
@@ -307,8 +326,9 @@ export function moeCombineCounts({ tokens, hidden, topk, bytesPerElement }) {
  * 形式上与相位无关，相位差异由 tokens 自然涌现（这是「T=1 自然涌现」
  * 真正成立的情形）。每专家 3 段 GEMM，各 EH x EI。激活段走 F5 共享实现。
  */
-export function fusedMoeMlpCounts({ tokens, topk, experts, expertHidden, expertIntermediate, bytesPerElement }) {
-  const activation = swigluCounts({ tokens: tokens * topk, intermediate: expertIntermediate, bytesPerElement });
+export function fusedMoeMlpCounts({ tokens, topk, experts, expertHidden, expertIntermediate, bytesPerElement, activation: activationId, linearBeta }) {
+  const activationCounts = activationId === "situ" ? situGluCounts : swigluCounts;
+  const activation = activationCounts({ tokens: tokens * topk, intermediate: expertIntermediate, bytesPerElement, linearBeta });
   const touchedExperts = experts > 0 ? Math.min(topk * tokens, experts) : topk;
   return {
     matrix: tokens * 3 * expertHidden * expertIntermediate * topk,

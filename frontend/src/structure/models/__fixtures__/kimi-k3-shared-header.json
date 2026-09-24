@@ -1,0 +1,32 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+  "source_fixture": "kimi-k3-mla-header.json",
+  "header_sha256": "3ff389a539b7408ba7b99e9445efa1bc1e5f4bbba1e9402e2c494015add5a647",
+  "tensors": [
+    {
+      "name": "language_model.model.layers.3.block_sparse_moe.shared_experts.down_proj.weight",
+      "shape": [
+        7168,
+        6144
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.block_sparse_moe.shared_experts.gate_proj.weight",
+      "shape": [
+        6144,
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.block_sparse_moe.shared_experts.up_proj.weight",
+      "shape": [
+        6144,
+        7168
+      ],
+      "dtype": "BF16"
+    }
+  ]
+}

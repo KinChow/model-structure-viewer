@@ -18,6 +18,7 @@ export const OPERATOR_TO_MODULE = Object.freeze({
   gated_rmsnorm: "rmsnorm",
   rope: "rope",
   swiglu: "swiglu",
+  situ_glu: "situ_glu",
   softmax: "softmax",
   topk: "topk_router",
   dsa_indexer: "dsa_indexer",
@@ -44,6 +45,8 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
       return { tokens, ropeDims: c.qkRopeHeadDim || c.headDim || 0, b };
     case "swiglu":
       return { tokens, intermediate: c.intermediateSize || 0, b };
+    case "situ_glu":
+      return c.hiddenAct === "situ" ? { tokens, intermediate: c.intermediateSize || 0, linearBeta: c.situLinearBeta, b } : null;
     case "gate":
       return { tokens, width: c.hiddenSize || 0, gateProjection: false, b };
     case "softmax":

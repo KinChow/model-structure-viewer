@@ -1319,8 +1319,27 @@ export function layerInSpec(id, normalized) {
   }, { input: dims.hidden, output: dims.hidden });
 }
 
+export function mlpActivationId(normalized) {
+  return normalized.hiddenAct === "situ" ? "situ_glu" : "swiglu";
+}
+
+function situAttributes(normalized, { fused = false } = {}) {
+  if (normalized.hiddenAct !== "situ") return {};
+  return {
+    activation: "situ",
+    situ_beta: normalized.situBeta || 1,
+    situ_linear_beta: normalized.situLinearBeta,
+    activation_compute_dtype: "float32",
+    ...(fused ? {
+      formula: "g=x W_gate^T; u=x W_up^T; y=(beta*tanh(g/beta)*sigmoid(g)*u_cap) W_down^T; u_cap=linear_beta*tanh(u/linear_beta) if set, otherwise u",
+      explanation: "融合路由专家 MLP：三段投影与 SiTU-GLU 激活统一计费；latent 压缩、归一化和升维在外部独立节点。beta 与可选 linear_beta 不是可训练参数。",
+    } : { checkpoint_module: false }),
+  };
+}
+
 export function mlpOperatorSpecs(prefix, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
+  const activationId = mlpActivationId(normalized);
   // N2-4 层 1：dense MLP 三投影的权重声明（tp 亲和）。shared expert 复用本函数。
   return [
     operatorSpec(`${prefix}.gate_proj`, "gate projection", "linear", {
@@ -1331,7 +1350,7 @@ export function mlpOperatorSpecs(prefix, normalized) {
       ...shapeFlow(shapes.hidden, shapes.intermediate),
       weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.intermediate), dimWidth(dims.hidden)], split: "output" })],
     }, { input: dims.hidden, output: dims.intermediate }),
-    operatorSpec(`${prefix}.swiglu`, "SwiGLU activation", "swiglu", {
+    operatorSpec(`${prefix}.${activationId}`, activationId === "situ_glu" ? "SiTU-GLU activation" : "SwiGLU activation", activationId, {
       ...shapeFlow(`${shapes.intermediate}, ${shapes.intermediate}`, shapes.intermediate),
       gate_shape: shapes.intermediate,
       up_shape: shapes.intermediate,
@@ -1339,6 +1358,7 @@ export function mlpOperatorSpecs(prefix, normalized) {
       swiglu_alpha: normalized.swigluAlpha,
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,
+      ...situAttributes(normalized),
     }, { input: dims.intermediate, output: dims.intermediate }),
     operatorSpec(`${prefix}.down_proj`, "down projection", "linear", {
       ...shapeFlow(shapes.intermediate, shapes.hidden),
@@ -1416,6 +1436,7 @@ export function moeOperatorSpecs(prefix, normalized) {
       swiglu_alpha: normalized.swigluAlpha,
       swiglu_beta: normalized.swigluBeta,
       swiglu_limit: normalized.swigluLimit,
+      ...situAttributes(normalized, { fused: true }),
       // N2-4 W-A：专家 gate/up/down 三矩阵在叶内声明（ep 组）。此前该叶与纯激活
       // 共用 swiglu id、权重对量化/投影/容量不可见——正是 N2-4 的枚举缺口。
       weightMatrices: routedExpertWeightMatrices(normalized),
@@ -1510,6 +1531,7 @@ export function kimiK3MoeOperatorSpecs(prefix, normalized) {
     }, { input: latentDims, output: latentDims }),
     operatorSpec(`${prefix}.expert_mlp`, "latent expert MLP", "fused_moe_mlp", {
       ...shapeFlow(latentShape, latentShape),
+      ...situAttributes(normalized, { fused: true }),
       intermediate_shape: shapes.moeIntermediate,
       latent_size: latent,
       weightMatrices: routedExpertWeightMatrices(normalized),

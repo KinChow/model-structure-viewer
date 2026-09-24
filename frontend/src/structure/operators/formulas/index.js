@@ -7,7 +7,7 @@
 // - 三等：分解声明（复合条目，写明由哪几个 F 函数组合）。
 // 每条注明单位换算与 A1-A7 全局假设引用（docs/details/cost_counts.md）。
 import {
-  linearCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts,
+  linearCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts, situGluCounts,
   ropeCounts, causalConvCounts, causalShortConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
   fusedMoeMlpCounts, embedGatherCounts, matmulPartCounts, sdpaAttentionCounts,
@@ -171,6 +171,15 @@ export const FORMULAS = {
     inputs: ["x", "W_gate", "W_up"],
     outputs: ["y"],
     counts: swigluCounts,
+  },
+  situ_glu: {
+    title: "SiTU-GLU",
+    // ref: Kimi-K3 report §2.3.2 Eq(12); SituAndMul.forward in the pinned release.
+    formula: "y = beta*tanh(g/beta)*sigmoid(g)*u_cap; u_cap = linear_beta*tanh(u/linear_beta) if set, otherwise u",
+    explanation: "SiTU-GLU 对 gate 与可选 up 分支进行平滑截幅。beta/linear_beta 是激活超参数，不是可训练权重；投影在独立节点计费。参考前向使用 FP32 内部计算后转回输入 dtype。",
+    inputs: ["gate projection g", "up projection u", "beta", "optional linear_beta"],
+    outputs: ["y"],
+    counts: situGluCounts,
   },
   topk: {
     title: "TopK Routing",
@@ -690,7 +699,7 @@ export const FORMULA_GROUPS = {
   ],
   moe: ["topk", "moe_dispatch", "moe_combine", "fused_moe_mlp", "moe_add", "shared_expert_gate", "dsv4_hash_route"],
   layernorm: ["rmsnorm", "gemma_rmsnorm", "gated_rmsnorm"],
-  activation: ["swiglu", "vision_activation"],
+  activation: ["swiglu", "situ_glu", "vision_activation"],
   embeddings: ["vision_position"],
   elementwise: [
     "residual_add", "identity", "index_reuse",

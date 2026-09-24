@@ -302,6 +302,9 @@ export function normalizeConfig(config) {
     swigluLimit: pick(["swiglu_limit"]),
     swigluAlpha: pick(["swiglu_alpha"]),
     swigluBeta: pick(["swiglu_beta"]),
+    hiddenAct: textConfig?.hidden_act ?? config?.hidden_act,
+    situBeta: pick(["activation_situ_beta"]),
+    situLinearBeta: pick(["activation_situ_linear_beta"]),
     normTopkProb: textConfig?.norm_topk_prob ?? config?.norm_topk_prob,
     qkRopeHeadDim:
       pick(QK_ROPE_HEAD_DIM_KEYS),

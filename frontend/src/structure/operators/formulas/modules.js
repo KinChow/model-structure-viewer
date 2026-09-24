@@ -51,6 +51,7 @@ import {
   sinkhornCounts,
   softmaxCounts,
   swigluCounts,
+  situGluCounts,
   topkCounts,
   scoredPairs,
   causalDensity,
@@ -125,6 +126,26 @@ const MODULE_LIST = [
     },
     residentIntermediates: (p) => [{ name: "silu(gate)", elements: p.tokens * p.intermediate }],
     compulsoryBytes: (p) => 3 * p.tokens * p.intermediate * p.b,
+  },
+  {
+    id: "situ_glu",
+    title: "SiTU-GLU",
+    source: { framework: "MoonshotAI", symbol: "SituAndMul.forward", ref: "Kimi-K3 technical report §2.3.2 Eq(12)" },
+    fused: (p) => situGluCounts({ tokens: p.tokens, intermediate: p.intermediate, bytesPerElement: p.b, linearBeta: p.linearBeta }),
+    decompose: (p) => {
+      // Semantic operation counts. The release casts intermediate values to
+      // FP32; decomposition traffic is illustrative, not a kernel allocation.
+      const args = { elements: p.tokens * p.intermediate, bytesPerElement: 4 };
+      return [
+        { atom: "scale", args }, { atom: "tanh", args }, { atom: "scale", args },
+        { atom: "sigmoid", args }, { atom: "mul", args },
+        ...(p.linearBeta != null ? [{ atom: "scale", args }, { atom: "tanh", args }, { atom: "scale", args }] : []),
+        { atom: "mul", args },
+      ];
+    },
+    residentIntermediates: () => [],
+    compulsoryBytes: (p) => 3 * p.tokens * p.intermediate * p.b,
+    notes: ["beta/linear_beta are hyperparameters, not weights", "tanh counts one semantic SFU action; not measured latency", "Internal FP32 activation materialization is implementation-dependent"],
   },
   {
     id: "gate",

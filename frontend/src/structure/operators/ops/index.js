@@ -788,6 +788,13 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
           shape: [ratio, compressorWidth], quantizable: false, param_dtype: "compressor_ape",
         })],
       }, { input: [ratio, compressorWidth], output: [ratio, compressorWidth] }),
+      operatorSpec(`${compressorId}.window_reduce`, "compressor gated window reduction", "identity", {
+        checkpoint_module: false,
+        semantic_role: "compressor_window_reduce",
+        reduction: "softmax(gate + position_bias) weighted sum over complete compression windows",
+        compress_ratio: ratio,
+        overlap_width: ratio === 4 ? headDim : 0,
+      }, { input: [-1, -1, compressorWidth], output: [-1, -1, headDim] }),
       operatorSpec(`${compressorId}.kv_norm`, "compressor latent RMSNorm", "rmsnorm",
         { ...shapeFlow(`[batch, compressed sequence=⌊sequence/${ratio}⌋, head dimension=${headDim}]`,
           `[batch, compressed sequence=⌊sequence/${ratio}⌋, head dimension=${headDim}]`),
@@ -802,7 +809,8 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       }, { input: [-1, -1, headDim], output: [-1, -1, headDim] }),
     ];
     const compressorEdges = [
-      ["kv_proj", "kv_norm"], ["gate_proj", "kv_norm"], ["position_bias", "gate_proj"],
+      ["kv_proj", "window_reduce"], ["gate_proj", "window_reduce"], ["position_bias", "window_reduce"],
+      ["window_reduce", "kv_norm"],
       ["kv_norm", "rotary_emb"],
     ];
     if (hasCompressorApe && emitIndexer) {
@@ -831,6 +839,13 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
             shape: [4, indexerWidth], quantizable: false, param_dtype: "compressor_ape",
           })],
         }, { input: [4, indexerWidth], output: [4, indexerWidth] }),
+        operatorSpec(`${indexerId}.window_reduce`, "indexer gated window reduction", "identity", {
+          checkpoint_module: false,
+          semantic_role: "compressor_window_reduce",
+          reduction: "softmax(gate + position_bias) weighted sum over complete index windows",
+          compress_ratio: 4,
+          overlap_width: indexDim,
+        }, { input: [-1, -1, indexerWidth], output: [-1, -1, indexDim] }),
         operatorSpec(`${indexerId}.kv_norm`, "indexer latent RMSNorm", "rmsnorm", {
           ...shapeFlow(`[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`,
             `[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`),
@@ -876,13 +891,13 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
         compress_ratio: ratio,
         implementation: ["transformers.DeepseekV4Indexer", "vLLM.DeepseekV4Indexer"],
         dataflow_edges: [
-          ["kv_proj", "kv_norm"], ["gate_proj", "kv_norm"], ["position_bias", "gate_proj"],
+          ["kv_proj", "window_reduce"], ["gate_proj", "window_reduce"], ["position_bias", "window_reduce"],
+          ["window_reduce", "kv_norm"],
           ["kv_norm", "rotary_emb"], ["q_b_proj", "rotary_emb"],
           ["rotary_emb", scorerId], ["scorer", indexerId],
         ],
       }, indexerChildren), dims.hidden, budget);
       compressorChildren.push(indexer);
-      compressorEdges.push(["indexer", "rotary_emb"]);
     }
     specs.push(withShapeDims(moduleSpec(compressorId, "compressed KV/state compressor", "compressor", {
       operator_id: "mla_kv_compress",

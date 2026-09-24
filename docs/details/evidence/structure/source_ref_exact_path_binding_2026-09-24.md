@@ -35,7 +35,9 @@ attributes.class = compressed KV/state compressor
 
 - 单元测试：source-ref binder 与 DeepSeek-V4 机制测试 **18/18**；
 - 60 个内置条目均有正向 source-ref 绑定；
-- 全量当前统计：`bound=6340`、`unmatched=40107`。
+- 2026-09-24 DeepSeek V4 topology 修复后的全量统计：
+  `bound=6798`、`unmatched=41113`。新增的发布子模块使 V4 的精确路径可绑定；
+  unmatched 总量上升是因为图中同时物化了更多真实节点，不能单看总数判断变差。
 
 `unmatched` 仍然存在是预期的审计信号：当前模板没有为每个发布模块都物化
 独立 graph node，尤其是已知 DeepSeek-V4 compressor/indexer 内部的

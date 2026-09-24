@@ -43,12 +43,14 @@ self_attn
     ├── kv_proj
     ├── gate_proj
     ├── position_bias
+    ├── window_reduce
     ├── kv_norm
     ├── rotary_emb
     └── indexer
         ├── kv_proj
         ├── gate_proj
         ├── position_bias
+        ├── window_reduce
         ├── kv_norm
         ├── q_b_proj
         ├── rotary_emb
@@ -61,6 +63,12 @@ checkpoint-shaped linear/norm/bias parameters are owned by the corresponding
 children, so the parent no longer duplicates their residency.  Internal
 control/fused-in edges are explicitly marked in the shape audit rather than
 being treated as same-width activation edges.
+
+`window_reduce` is a non-checkpoint semantic node.  It represents the published
+softmax gate plus position-bias weighted reduction over complete compression
+windows (including the CSA overlap layout).  It prevents the diagram from
+claiming that `position_bias` is an input to `gate_proj`, or that the packed
+projection feeds RMSNorm without the window reduction.
 
 DeepSeek V4.1 remains on its existing flat approximation because its current
 production source-ref manifest does not expose the V4 nested compressor paths.

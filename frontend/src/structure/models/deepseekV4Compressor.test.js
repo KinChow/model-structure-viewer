@@ -32,8 +32,17 @@ for (const modelId of ["DeepSeek-V4-Flash", "DeepSeek-V4-Flash-0731",
       }
       const edge = (from, to) => structure.graph.edges.some(e =>
         e.source_canonical_id === `${prefix}.${from}` && e.target_canonical_id === `${prefix}.${to}`);
-      assert.ok(edge("compressor.indexer.kv_proj", "compressor.indexer.kv_norm"));
-      assert.ok(edge("compressor.indexer.gate_proj", "compressor.indexer.kv_norm"));
+      for (const branch of ["compressor", "compressor.indexer"]) {
+        assert.ok(get(`${branch}.window_reduce`), `${branch} must expose gated compression`);
+        for (const input of ["kv_proj", "gate_proj", "position_bias"]) {
+          assert.ok(edge(`${branch}.${input}`, `${branch}.window_reduce`), `${input} enters window reduction`);
+        }
+        assert.ok(edge(`${branch}.window_reduce`, `${branch}.kv_norm`));
+        assert.ok(!edge(`${branch}.position_bias`, `${branch}.gate_proj`),
+          "position bias adds to projected logits, not to the projection's input");
+      }
+      assert.ok(!edge("compressor.indexer", "compressor.rotary_emb"),
+        "index selection is a sibling result; it must not feed the compressor's RoPE");
       assert.ok(edge("compressor.indexer.kv_norm", "compressor.indexer.rotary_emb"));
       assert.ok(edge("compressor.indexer.rotary_emb", "compressor.indexer.scorer"));
       assert.ok(edge("compressor.indexer.scorer", "compressor.indexer"));

@@ -201,9 +201,9 @@ test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks",
 
     assert.equal(normalized.hasVision, true, modelId);
     assert.equal(resolved.architecture, architecture, modelId);
-    assert.equal(network.children.some((node) => ["visual", "vision_tower"].includes(node.id)), true, modelId);
+    assert.equal(network.children.some((node) => ["visual", "vision_tower", "vision"].includes(node.id)), true, modelId);
     assert.equal(network.children.some((node) => node.type === "projector"), hasProjector, modelId);
-    assert.equal(network.children.find((node) => ["visual", "vision_tower"].includes(node.id)).children.length > 0, true, modelId);
+    assert.equal(network.children.find((node) => ["visual", "vision_tower", "vision"].includes(node.id)).children.length > 0, true, modelId);
     if (modelId.startsWith("Qwen/")) {
       assert.equal(network.children.find((node) => ["visual", "vision_tower"].includes(node.id)).children.some((node) => node.name === "Vision Merger"), true, modelId);
     }

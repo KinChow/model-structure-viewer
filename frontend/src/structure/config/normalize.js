@@ -107,7 +107,7 @@ function visionTokenCount(config) {
   // 扁平 vision 配置（DeepSeek V4 Flash Vision 的 vision_* 顶层字段）没有
   // image_size，无法从 patch 网格推 token 数，但直接给了送进 LLM 的**上限**
   // vision_max_n_token（已过 downsample，不再除 merge²）。优先用它。
-  const declared = firstNumber(config, ["max_n_token"]);
+  const declared = firstNumber(config, ["max_n_token", "max_image_tokens"]);
   if (declared) return declared;
   const patchTokens = visionPatchTokenCount(config);
   const merge = visionMergeSize(config);

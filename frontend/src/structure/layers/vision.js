@@ -4,6 +4,7 @@ import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { visionDimensions } from "../config/visionDims.js";
 import { hfNamedClass, hfVisionAttr, recipeFlag, recipeVisionInternalMerger } from "../archs/index.js";
 import { foldedLayerName } from "./foldedLayerName.js";
+import { nativeVitTowerModule } from "./nativeVit.js";
 
 function visionLayerModule(id, normalized) {
   const d = visionDimensions(normalized);
@@ -133,6 +134,9 @@ function visionMergerModule(id, normalized) {
 }
 
 export function visionTowerModule(normalized) {
+  if (recipeFlag(normalized, "visionNativeVit")) {
+    return nativeVitTowerModule(normalized);
+  }
   const shapes = tensorShapes(normalized);
   const d = visionDimensions(normalized);
   const layers = normalized.visionLayers || 0;

@@ -1,0 +1,245 @@
+{
+  "read_at": "2026-09-24",
+  "models": [
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "revision": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+      "index_sha256": "507977e3d3818865264e68c0fdab139aa7f3929d0d0cf693dacc47428da56395",
+      "header_shard": "model-00001-of-00048.safetensors",
+      "tensors": [
+        {
+          "name": "aligner.w1.bias",
+          "shape": [
+            4096
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "aligner.w1.weight",
+          "shape": [
+            4096,
+            9216
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "aligner.w2.bias",
+          "shape": [
+            4096
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "aligner.w2.weight",
+          "shape": [
+            4096,
+            4096
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wo.bias",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wo.weight",
+          "shape": [
+            1024,
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wqkv.bias",
+          "shape": [
+            3072
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wqkv.weight",
+          "shape": [
+            3072,
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.mlp.w1.weight",
+          "shape": [
+            5632,
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.mlp.w2.weight",
+          "shape": [
+            1024,
+            2816
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.norm1.weight",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.norm2.weight",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.norm.weight",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.patch_embed.proj.bias",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.patch_embed.proj.weight",
+          "shape": [
+            1024,
+            588
+          ],
+          "dtype": "BF16"
+        }
+      ]
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "revision": "dba1be0a40aa45a94ad051997016db3960a90277",
+      "index_sha256": "74b0686a3d2891980d5e303251b075a3bccae2c2ff650747db2620a649b98fa8",
+      "header_shard": "model-00001-of-00048.safetensors",
+      "tensors": [
+        {
+          "name": "aligner.w1.bias",
+          "shape": [
+            5120
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "aligner.w1.weight",
+          "shape": [
+            5120,
+            9216
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "aligner.w2.bias",
+          "shape": [
+            5120
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "aligner.w2.weight",
+          "shape": [
+            5120,
+            5120
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wo.bias",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wo.weight",
+          "shape": [
+            1024,
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wqkv.bias",
+          "shape": [
+            3072
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.attn.wqkv.weight",
+          "shape": [
+            3072,
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.mlp.w1.weight",
+          "shape": [
+            5632,
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.mlp.w2.weight",
+          "shape": [
+            1024,
+            2816
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.norm1.weight",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.blocks.0.norm2.weight",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.norm.weight",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.patch_embed.proj.bias",
+          "shape": [
+            1024
+          ],
+          "dtype": "BF16"
+        },
+        {
+          "name": "vision.patch_embed.proj.weight",
+          "shape": [
+            1024,
+            588
+          ],
+          "dtype": "BF16"
+        }
+      ]
+    }
+  ]
+}

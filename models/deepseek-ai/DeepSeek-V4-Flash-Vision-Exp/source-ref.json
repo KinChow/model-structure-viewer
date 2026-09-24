@@ -457,7 +457,7 @@
       "has_params": false
     },
     {
-      "module_path": "root.visual",
+      "module_path": "root.vision",
       "class_name": "ViT",
       "has_params": true,
       "source_ref": {

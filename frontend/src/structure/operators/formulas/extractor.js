@@ -20,7 +20,7 @@ import { recipeLinearAttentionMode } from "../../archs/index.js";
 // 路径正则全仓统一处（旧 compute.js/parallel.js 三种变体收敛于此）
 export const LAYER_INDEX_RE = /(?:^|\.)(?:layers|language_model|decoder)\.(\d+)(?:\.|$)/;
 export const ROUTED_EXPERT_RE = /(?:^|\.)(?<!shared_)(?:experts|expert_mlp)(?:\.|$)/;
-export const VISION_PATH_RE = /(?:^|\.)(?:visual|vision_tower)(?:\.|$)/;
+export const VISION_PATH_RE = /(?:^|\.)(?:visual|vision_tower|vision)(?:\.|$)/;
 
 export function isVisionPath(path) {
   return VISION_PATH_RE.test(String(path || ""));

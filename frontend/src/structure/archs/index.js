@@ -24,6 +24,8 @@
 export const ARCH_RECIPES = {
   DeepseekV4ForCausalLM: {
     visionFusion: "image_span_overwrite",
+    visionAttr: "vision",
+    visionNativeVit: true,
     visionProjectorPath: "aligner",
     visionProjectorKind: "deepseek_aligner",
     moeClass: "DeepseekV4SparseMoeBlock",
@@ -37,6 +39,8 @@ export const ARCH_RECIPES = {
   // 见 decoderLayer.js）。类名取自随附 model.py 原生实现（Block/Transformer/MoE）。
   DeepseekV41ForCausalLM: {
     visionFusion: "image_span_overwrite",
+    visionAttr: "vision",
+    visionNativeVit: true,
     visionProjectorPath: "aligner",
     visionProjectorKind: "deepseek_aligner",
     hashMoE: true,

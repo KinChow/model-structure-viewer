@@ -301,7 +301,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 |---|---|---|
 | mla_query_compress | **F1(qa)**（`index.js:310`） | **norm 与 q_b 都不在本叶内**（q_a_norm / q_b_proj 是独立叶，算进来就是双计——q_b 由 2026-09-07 参数审计、norm 由 2026-09-09 权重字节逐层归因抓出）；ctx 的 norm 键为残留，counts 不消费 |
 | mla_kv_compress | F1(proj) + F9(split view)（`index.js:321`） | out 维以节点 output_shape 为权威（MLA latent = kvLoraRank+qkRopeHeadDim；DSV4 压缩 = 2·headDim·k），config 组合仅作无形状回退；latent cache 写 = 本叶 actOut |
-| attention_residual | softmax(aggregate) + add(mix)（`index.js:358`） | 两个 norm 与两个 [H→1] 打分投影是独立叶（self_attention_res_norm / mlp_res_norm / *_res_proj，vLLM kimi_k3/amd/linear.py:562-580），算进来就是双计（K3 每层 +14,336）；ctx 的 norms/scoreProj 键残留不消费 |
+| attention_residual | 每次聚合按 C 个候选做归一化、打分、depth softmax、weighted matmul | 2026-09-24 按官方 `_apply_attn_res` 修正：父节点拥有整次执行，真实 norm/proj 子模块拥有驻留权重；首层 pre-attention 跳过执行但不删权重。matrix=TCH、vector=TC(5H+3)+H、sfu=3TC；边界流量 weights=2Hb、actIn=TCHb、actOut=THb。无内部 output norm；深度 bank 非自回归 KV。见 `evidence/structure/kimi_k3_attnres_repair.md` |
 | hyper_connection | F3(grouped, weightOne) + F1(mixDown) + F4(silu) + F1(mixUp) + F4(gate) + F1(inject) + add(combine) **七段**（`index.js:376-384`） | 形状全来自 vLLM GatedResidual（hyperconnection.py:140-193）：hyper_hidden = hc_count·hidden；hc_use_combine === false 的相位（最终 mixer）无 block_inject_weight → inject tokens=0 + weightsShared |
 | mhc_pre | gate(mix) + F1×3(fn/base/scale) + F3(norm) + sinkhorn + add(merge)，**computeDtype: "tf32"**（`index.js:265`） | N2-1：pre-GEMM 在 Hopper/Blackwell + DeepGEMM 上跑 TF32（tilelang_kernels.py:686-711），roofline 按 tf32 费率拆算；fn/base/scale 是 fp32 参数（paramDtypes：mhc_fn/mhc_base/mhc_scale = 4B），base/scale 传 tokens=0（纯参数无激活流量）；attn_norm 权重融进内核（无独立 input_layernorm 叶）记 norm 段；混合矩阵形状 mix_hc = (2+hc_mult)·hc_mult、hc_dim = hc_mult·hidden（model.py:709-752，此前写 [H, hc_mult] 小 24 倍已修） |
 | mhc_fused_post_pre | gate(post) + add(inject) + gate(pre) + F1×3 + F3 + sinkhorn，**computeDtype: "tf32"**（`index.js:276`） | 同上；ffn_norm 权重融进 fused 内核（model.py:705）；A7 融合收益记 implementation 不折算 |
@@ -323,13 +323,14 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 
 > 生成物（`scripts/gen-cost-counts.mjs`，勿手改）：逐条 = FORMULAS 注册表；`分类`/三分量
 > 由单元探针（形状全 1，同 counts.test.js）判定。符号 bytes 公式见上方 F1–F9；复合节点
-> 分解见「复合节点」表。共 **55** 条。
+> 分解见「复合节点」表。共 **56** 条。
 
 | 条目 | group | 分类 | matrix | vector | sfu | bytes |
 |---|---|---|---|---|---|---|
 | `attention_output_gate` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
 | `attention_qkv_split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
 | `attention_residual` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
+| `attn_res_snapshot` | memory | 仅搬运 | 0 | 0 | 0 | unknown |
 | `causal_conv1d` | mamba | 计算+访存 | ✓ | 0 | 0 | ✓ |
 | `dsa_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
 | `dsa_kpool_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |

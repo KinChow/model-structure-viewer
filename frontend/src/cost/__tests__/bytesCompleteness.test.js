@@ -26,7 +26,7 @@ const VIEW_OPS = new Set(["split", "mla_kv_split", "qwen_qkvz_split", "attention
 // qsa_attention / dsv4_swa / dsv4_compressed 已全部补齐清空。
 // Fusion has known zero arithmetic/weights but unknown prefill movement unless
 // image occupancy and materialization are supplied. Unknown is not free.
-const PENDING_UNMODELED = new Set(["multimodal_fusion"]);
+const PENDING_UNMODELED = new Set(["multimodal_fusion", "attn_res_snapshot"]);
 
 test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁免除外）", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
@@ -55,6 +55,13 @@ test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁
       // 各架构文件 draftBilling）本来就该聚合成零，
       // 不是「未建模的零」。判据是显式的 multiplier===0，不是白名单。
       if (row.multiplier === 0) continue;
+      // Published first AttnRes aggregation is an identity when history is
+      // empty. Its physical parameters still reside in child nodes.
+      if (op === "attention_residual" && row.node.attributes.execution_skipped === true) {
+        assert.equal(row.node.attributes.candidate_states, 1);
+        assert.equal(row.actions.matrix + row.actions.vector + row.actions.sfu, 0);
+        continue;
+      }
       const { weights, actIn, actOut } = row.actions.bytes;
       if (!(weights > 0 || actIn > 0 || actOut > 0)) {
         if (!offenders.has(op)) offenders.set(op, new Set());

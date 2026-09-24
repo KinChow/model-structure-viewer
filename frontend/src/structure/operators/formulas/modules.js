@@ -37,6 +37,7 @@ const sumCounts = (...parts) => parts.reduce((total, part) => ({
 }), { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } });
 import {
   addCounts,
+  attentionResidualCounts,
   attentionCounts,
   causalConvCounts,
   gateCounts,
@@ -283,24 +284,30 @@ const MODULE_LIST = [
     notes: ["gelu 与 silu 的一阶口径差（erf vs sigmoid）登记为已知近似"],
   },
   {
-    // K3 AttnResBlock 的**聚合叶**（两个 norm + 两个打分投影是独立叶，
-    // 见 ops 模板与 2026-09-09 的双计修正）：对 prev_valid_blocks 个残差
-    // 打分归一化后加权求和。softmax 原子与 softmaxCounts 逐位同构、
-    // add 原子与 addCounts 逐位同构，分解逐位闭合。
     id: "attention_residual",
     title: "Attention Residual Aggregate",
-    source: { framework: "vLLM", symbol: "KimiK3 attn_res aggregate", ref: "models/kimi_k3/amd/linear.py:562-580" },
-    fused: (p) => sumCounts(
-      softmaxCounts({ elements: p.tokens * p.hidden, bytesPerElement: p.b }),
-      addCounts({ tokens: p.tokens, hidden: p.hidden, bytesPerElement: p.b }),
-    ),
-    decompose: (p) => [
-      { atom: "softmax", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
-      { atom: "add", args: { elements: p.tokens * p.hidden, bytesPerElement: p.b } },
-    ],
+    source: { framework: "MoonshotAI", symbol: "_apply_attn_res", ref: "Kimi-K3 report §2.2 Eq(8-10); modeling_kimi_linear.py" },
+    fused: (p) => attentionResidualCounts({ tokens: p.tokens, hidden: p.hidden, candidates: p.candidates, bytesPerElement: p.b }),
+    decompose: (p) => {
+      const groups = p.tokens * p.candidates, elements = groups * p.hidden;
+      const args = { elements, bytesPerElement: 4 };
+      return [
+        { atom: "mul", args }, // V squared
+        { atom: "reduce_sum", args: { ...args, groups } },
+        { atom: "scale", args: { elements: groups, bytesPerElement: 4 } },
+        { atom: "add", args: { elements: groups, bytesPerElement: 4 } },
+        { atom: "rsqrt", args: { elements: groups, bytesPerElement: 4 } },
+        { atom: "mul", args }, // normalized candidates
+        { atom: "mul", args: { elements: p.hidden, bytesPerElement: 4 } }, // norm*proj once
+        { atom: "mul", args },
+        { atom: "reduce_sum", args: { ...args, groups } },
+        { atom: "softmax", args: { elements: groups, bytesPerElement: 4 } },
+        { atom: "matmul", args: { batch: p.tokens, m: 1, k: p.candidates, n: p.hidden, bytesPerElement: 4 } },
+      ];
+    },
     residentIntermediates: () => [],
-    compulsoryBytes: (p) => 3 * p.tokens * p.hidden * p.b,
-    notes: ["norm/proj 两对是独立叶（self_attention_res_* / mlp_res_*），不在本模块内"],
+    compulsoryBytes: (p) => (2 * p.hidden + p.tokens * p.hidden * (p.candidates + 1)) * p.b,
+    notes: ["Depth candidates, not sequence KV; internal FP32 materialization is implementation-dependent", "No output normalization inside the aggregation"],
   },
   {
     // Qwen4Exp 的 delayed HyperConnection（GatedResidual，vLLM

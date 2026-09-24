@@ -6,6 +6,7 @@ import { tensorDims } from "../config/dims.js";
 import { attentionScheduleOf, indexerScheduleOf, attentionKindOf, csa2ModeForLayer, indexShareSourceLayerOf, isIndexShareConfig } from "./schedule.js";
 import { hfAttentionAttr, hfNamedClass } from "../archs/index.js";
 import { foldedLayerName } from "./foldedLayerName.js";
+import { attentionResidualStage } from "./residual.js";
 
 const CSA2_MODE_LABEL = { full: "Full", reindex: "Reindex", reuse: "Reuse", swa: "SWA" };
 
@@ -74,7 +75,13 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
     const mhcBoundary = normalized.multiHyperConnection
       ? (index === (layers || 0) - 1 ? "mhc-last" : "mhc-middle")
       : "no-mhc";
-    return `${kind}:${attentionKind}${compressionVariant}${csaShareVariant}${indexerVariant}${indexShareSourceBoundary}:${hasPle}:${hasEngram}:${mhcBoundary}`;
+    const residualStage = normalized.attnResBlockSize ? attentionResidualStage(normalized, index) : null;
+    const residualSignature = residualStage
+      // Each prefix_out is a different immutable state used by the next layer.
+      // A repeat representative cannot stand in for that exact endpoint.
+      ? `:attnres-${residualStage.block}-${residualStage.before}-${residualStage.after}-${residualStage.write}-layer${index}`
+      : "";
+    return `${kind}:${attentionKind}${compressionVariant}${csaShareVariant}${indexerVariant}${indexShareSourceBoundary}:${hasPle}:${hasEngram}:${mhcBoundary}${residualSignature}`;
   });
   // 段内折叠：先取窗口签名再 compactRanges，最后把区间下标偏移回全局层号，
   // 保证段边界不跨折叠、且 ratio/source/mhc 查找始终用全局层号。
@@ -138,6 +145,13 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
     relation: "index-reuse",
     label: `reuse top-k from layer ${from.match(/layers\.(\d+)\./)?.[1] ?? "source"}`,
   }));
+  const attnResEdges = normalized.attnResBlockSize ? children.slice(0, -1).flatMap((child, index) => [
+    [`${child.id}.prefix_out`, `${children[index + 1].id}.layer_in`],
+    [`${child.id}.bank_out`, `${children[index + 1].id}.bank_in`],
+  ]) : [];
+  const attnResRelations = attnResEdges.map(([from, to]) => ({
+    from, to, relation: "depth-state", label: from.endsWith("bank_out") ? "depth snapshots" : "current block prefix",
+  }));
   return withShapeDims(moduleSpec(
     id,
     rootName,
@@ -146,10 +160,14 @@ export function decoderStackNetwork(id, normalized, opts = {}) {
       class: hfNamedClass(normalized, "modelClass", "Model"),
       num_hidden_layers: segmentLayers,
       sequence: true,
-      ...(indexShareEdges.length
+      ...(normalized.attnResBlockSize ? {
+        attnres_final_prefix: `${children.at(-1).id}.prefix_out`,
+        attnres_final_bank: `${children.at(-1).id}.bank_out`,
+      } : {}),
+      ...(indexShareEdges.length || normalized.attnResBlockSize
         ? {
-            dataflow_edges: [...sequenceEdges, ...indexShareEdges],
-            dataflow_edge_relations: indexShareRelations,
+            dataflow_edges: [...(normalized.attnResBlockSize ? attnResEdges : sequenceEdges), ...indexShareEdges],
+            dataflow_edge_relations: [...indexShareRelations, ...attnResRelations],
           }
         : {}),
       ...shapeFlow(shapes.hidden, shapes.hidden),

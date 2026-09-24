@@ -7,7 +7,7 @@
 // - 三等：分解声明（复合条目，写明由哪几个 F 函数组合）。
 // 每条注明单位换算与 A1-A7 全局假设引用（docs/details/cost_counts.md）。
 import {
-  linearCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts, situGluCounts,
+  linearCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts, situGluCounts, attentionResidualCounts,
   ropeCounts, causalConvCounts, causalShortConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
   fusedMoeMlpCounts, embedGatherCounts, matmulPartCounts, sdpaAttentionCounts,
@@ -405,22 +405,25 @@ export const FORMULAS = {
     outputs: ["O'"],
     counts: gateCounts,
   },
+  attn_res_snapshot: {
+    title: "Attention Residual Snapshot Write",
+    // ref: Kimi-K3 _forward_attn_residual torch.cat vs report §2.2 block storage.
+    // Layout and reuse strategy are not supplied by config; unknown is not zero.
+    formula: "bank_out = append(bank_in, prefix_in)",
+    explanation: "保存本 block prefix 的深度快照；参考实现 cat 与优化实现的存储策略不同。逻辑状态大小已标明，但具体搬运/物化未知；不是自回归 KV，也没有新权重。",
+    inputs: ["bank_in", "prefix_in"],
+    outputs: ["bank_out"],
+    counts: () => ({ matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: null, actOut: null } }),
+  },
   attention_residual: {
     title: "Attention Residual",
-    // ref: 二等 modeling 对照 models/moonshotai/Kimi-K3/modeling_kimi_linear.py
-    //      （:907 use_attn_residuals、:931 _forward_attn_residual；config
-    //      attn_res_block_size=12）；三等分解 = F3(norms) ×2 + F1(score 小投影)
-    //      + F2(流数维 softmax) + add(mix)。
-    formula: "s_i = <RMSNorm(x_i), w>; p = softmax(s); y = RMSNorm(sum_i p_i x_i)",
-    explanation: "Kimi-K3 在 attention 前和 MLP 前从 snapshot bank 与当前 prefix 中按 RMSNorm 后的投影分数聚合 residual stream；block 写层额外保存新的 snapshot。",
-    inputs: ["residual_states", "score_projection", "score_norm", "output_norm"],
-    outputs: ["y"],
-    // 本叶只负责**聚合**（对 prev_valid_blocks 打分归一化后加权求和）。
-    // 两个 norm 与两个 [hidden→1] 打分投影是**独立叶**
-    //（self_attention_res_norm / mlp_res_norm / self_attention_res_proj /
-    //  mlp_res_proj，vLLM kimi_k3/amd/linear.py:562-580），算进来就是双计
-    //（K3 每层 +14,336，2026-09-09 权重字节逐层归因抓出）。
-    counts: (ctx) => sumCounts(softmaxCounts(ctx.aggregate), addCounts(ctx.mix)),
+    // ref: Kimi-K3 report §2.2 Eq(8-10), pinned _apply_attn_res forward.
+    // The composite owns execution; real norm/proj children own residency.
+    formula: "V = concat(history, prefix); K = V / sqrt(mean(V^2)+eps); scores = sum(K*(w_norm*w_proj)); y = softmax(scores, depth) @ V",
+    explanation: "在深度历史快照和当前 prefix 上归一化打分，softmax 沿候选状态维，再加权汇总原始值。没有额外 output RMSNorm；真实 norm/proj 子模块只拥有权重，执行由此复合父节点计费。",
+    inputs: ["historical snapshots", "current prefix", "score norm weight", "score projection weight"],
+    outputs: ["weighted hidden state"],
+    counts: attentionResidualCounts,
   },
   hyper_connection: {
     title: "Hyper Connection",
@@ -706,7 +709,7 @@ export const FORMULA_GROUPS = {
     "mhc_pre", "mhc_fused_post_pre", "mhc_post", "mhc_contract",
     "hyper_connection", "attention_residual", "engram_gate",
   ],
-  memory: ["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split", "vision_merge", "multimodal_fusion"],
+  memory: ["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split", "vision_merge", "multimodal_fusion", "attn_res_snapshot"],
   mamba: ["linear_attention", "gated_delta_attention", "causal_conv1d"],
 };
 

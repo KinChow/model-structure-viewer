@@ -478,23 +478,23 @@ test("keeps Kimi-K3 KDA semantics canonical while retaining its model-specific i
     short_convolution: "conv1d",
     output_gate: "in_proj_qkvgfab.g",
   });
-  const moeLayer = decoder.children.find((node) => node.attributes.range === "1..2");
+  const moeLayer = decoder.children.find((node) => node.attributes.range === "1..1");
   const moe = moeLayer.children.find((node) => node.type === "moe");
   assert.ok(moe.id.endsWith(".block_sparse_moe"), `Kimi-K3 MoE HF attr is block_sparse_moe, got ${moe.id}`);
   assert.ok(moe.children.some((node) => node.name === "routed expert latent down projection"));
   assert.ok(moe.children.some((node) => node.name === "routed expert latent up projection"));
   const shared = moe.children.find((node) => node.id.endsWith(".shared_experts"));
   assert.equal(shared.attributes.intermediate_size, 6144);
-  const layerZeroResidual = kdaLayer.children.find((node) => node.type === "residual");
-  assert.equal(layerZeroResidual.attributes.block_write, true);
-  assert.equal(layerZeroResidual.attributes.previous_blocks, 0);
-  assert.equal(layerZeroResidual.children.find((node) => node.name === "attention residual norm").attributes.snapshot_write, true);
-  const layerOne = decoder.children.find((node) => node.attributes.range === "1..2");
-  const layerOneResidual = layerOne.children.find((node) => node.type === "residual");
-  assert.equal(layerOneResidual.attributes.block_write, false);
-  assert.equal(layerOneResidual.attributes.previous_blocks, 0);
-  assert.equal(layerOneResidual.children.find((node) => node.name === "attention residual norm").attributes.snapshot_write, false);
-  assert.equal(treeView(structure).children.find((node) => node.id === "output_attn_residual").attributes.snapshot_blocks, 8);
+  const layerZeroResidual = kdaLayer.children.find((node) => node.id.endsWith(".attn_res_pre"));
+  assert.equal(layerZeroResidual.attributes.execution_skipped, true);
+  assert.equal(kdaLayer.attributes.block_write, true);
+  assert.equal(kdaLayer.attributes.snapshot_count_in, 0);
+  const layerOne = decoder.children.find((node) => node.attributes.range === "1..1");
+  const layerOneResidual = layerOne.children.find((node) => node.id.endsWith(".attn_res_pre"));
+  assert.equal(layerOne.attributes.block_write, false);
+  assert.equal(layerOne.attributes.snapshot_count_in, 1);
+  assert.equal(layerOneResidual.attributes.candidate_states, 2);
+  assert.equal(treeView(structure).children.find((node) => node.id === "output_attn_residual").attributes.candidate_states, 9);
 });
 
 test("maps DeepSeek V4 compression variants and hash MoE without duplicating framework kernels", () => {

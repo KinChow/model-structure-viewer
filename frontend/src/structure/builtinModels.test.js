@@ -68,7 +68,8 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       assert.equal(normalized.sharedExperts, 2);
       assert.equal(normalized.attnResBlockSize, 12);
       const nodes = structure.graph.nodes;
-      assert.ok(nodes.some((node) => node.name === "Attention Residual"), "Kimi-K3: missing per-layer AttnRes module");
+      assert.ok(nodes.some((node) => node.attributes?.aggregation_point === "pre_attention"), "Kimi-K3: missing pre-attention AttnRes");
+      assert.ok(nodes.some((node) => node.attributes?.aggregation_point === "pre_mlp"), "Kimi-K3: missing pre-MLP AttnRes");
       assert.ok(nodes.some((node) => node.name === "Output Attention Residual"), "Kimi-K3: missing output AttnRes module");
       assert.ok(nodes.some((node) => node.name === "MLA output gate"), "Kimi-K3: missing MLA output gate");
       assert.ok(nodes.some((node) => node.canonical_id.endsWith(".block_sparse_moe.shared_experts")), "Kimi-K3: missing shared experts");

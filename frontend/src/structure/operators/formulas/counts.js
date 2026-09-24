@@ -171,6 +171,22 @@ export function situGluCounts({ tokens, intermediate, bytesPerElement, linearBet
   };
 }
 
+/** Official _apply_attn_res: depth-candidate normalization/scoring in FP32,
+ * softmax over C, then [T,1,C] @ [T,C,H]. Parent bills execution; its real
+ * norm/proj children own the two H-element weight vectors exactly once. */
+export function attentionResidualCounts({ tokens, hidden, candidates, bytesPerElement, skipped = false }) {
+  if (skipped) return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+  if (!Number.isFinite(candidates) || candidates < 1) return null;
+  return {
+    matrix: tokens * candidates * hidden,
+    vector: tokens * candidates * (5 * hidden + 3) + hidden,
+    sfu: 3 * tokens * candidates,
+    bytes: { weights: 2 * hidden * bytesPerElement,
+      actIn: tokens * candidates * hidden * bytesPerElement,
+      actOut: tokens * hidden * bytesPerElement },
+  };
+}
+
 /**
  * F6 旋转位置编码。A3：sin/cos 查表，sfu ≈ 0。每维对 4 乘 2 加 = 3 flop/元素。
  * `ropeDims` = **每 token 被旋转的元素总数**（跨全部 query 头与 kv 头求和，

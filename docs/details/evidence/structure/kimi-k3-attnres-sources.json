@@ -1,0 +1,40 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/MoonshotAI/Kimi-K3/main/k3_tech_report.pdf",
+      "anchor": "section 2.2 Eq(8-10), eight residual blocks plus embedding",
+      "retrieved_at": "2026-09-24T01:48:43.689689+00:00",
+      "sha256": "86fb82a63ced501f0c3f4f404c0c6fa88a7a6cfac17aae81fd1a8f455998067c",
+      "artifact": "artifacts/architecture-repair/C1-attnres/report.pdf"
+    },
+    {
+      "url": "https://huggingface.co/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_linear.py",
+      "anchor": "_forward_attn_residual lines973-1046; _apply_attn_res1075; model forward bank init/final",
+      "retrieved_at": "2026-09-24T01:48:43.693506+00:00",
+      "sha256": "9e3564c70ac21854ce5a090cc946c5dc76b70d1050ef50840449181a20fff44a",
+      "artifact": "artifacts/architecture-repair/C1-attnres/modeling_kimi_linear.py"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "K3-ATTNRES-STAGES",
+      "status": "confirmed",
+      "assertion": "pre-attention before snapshot append; pre-MLP after attention prefix accumulation; final output aggregation",
+      "test": "kimiAttnRes.test.js"
+    },
+    {
+      "id": "K3-ATTNRES-FIRST",
+      "status": "confirmed",
+      "assertion": "first pre-attention skipped with weights still instantiated; block0 snapshots embedding",
+      "test": "kimiAttnRes.test.js"
+    },
+    {
+      "id": "K3-ATTNRES-HISTORY",
+      "status": "confirmed",
+      "assertion": "depth candidates depend on actual bank; no output norm inside aggregate; final9 candidates",
+      "test": "kimiAttnRes.test.js"
+    }
+  ]
+}

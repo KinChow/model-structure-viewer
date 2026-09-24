@@ -51,6 +51,14 @@ export function networkSpecWithDraft(id, name, architecture, children, draft, ed
     const from = trunk[index].id;
     const to = trunk[index + 1].id;
     const meta = edgeMeta[`${from}=>${to}`];
+    if (trunk[index].attributes?.attnres_final_prefix && trunk[index + 1].attributes?.aggregation_point === "output") {
+      for (const [key, label] of [["attnres_final_prefix", "final block prefix"], ["attnres_final_bank", "depth snapshots"]]) {
+        const source = trunk[index].attributes[key];
+        edges.push([source, to]);
+        edgeRelations.push({ from: source, to, relation: "depth-state", label });
+      }
+      continue;
+    }
     edges.push([from, to]);
     if (meta) edgeRelations.push({ from, to, ...meta });
   }

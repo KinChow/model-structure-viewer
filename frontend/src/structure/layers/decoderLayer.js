@@ -5,12 +5,12 @@ import { moeModule } from "./moe.js";
 import { rmsNormModule } from "./norm.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
-import { attentionResidualModule } from "./residual.js";
+import { attentionResidualModule, attentionResidualStage, residualBankState } from "./residual.js";
 import { engramModule, hyperConnectionModule, multiHyperConnectionModule, pleModule } from "./hybrid.js";
-import { layerInSpec, residualAddSpec } from "../operators/ops/index.js";
+import { layerInSpec, operatorSpec, residualAddSpec } from "../operators/ops/index.js";
 import { hfAttentionAttr, hfFfnAttr, hfNamedClass, recipeValue } from "../archs/index.js";
 
-function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, hasEngram, attnAttr, ffnAttr }) {
+function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasEngram, attnAttr, ffnAttr }) {
   const ffn = ffnAttr;
   if (isMhc) {
     return [
@@ -58,7 +58,6 @@ function decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, has
     edges.push([prev, "attn_hyper_connection"], ["attn_hyper_connection", "mlp_hyper_connection"]);
     prev = "mlp_hyper_connection";
   }
-  if (hasAttnRes) edges.push([prev, "attn_residual"]);
   return edges;
 }
 
@@ -80,6 +79,48 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     : mlpModule(`${id}.${ffnAttr}`, normalized.denseIntermediateSize
       ? { ...normalized, intermediateSize: normalized.denseIntermediateSize }
       : normalized);
+  if (hasAttnRes) {
+    const stage = attentionResidualStage(normalized, layerIndex);
+    const aggregate = (suffix, point, candidates, skipped = false) => attentionResidualModule(`${id}.${suffix}`, normalized, {
+      candidates, point, skipped,
+      normId: `${id}.${point === "pre_attention" ? "self_attention" : "mlp"}_res_norm`,
+      projId: `${id}.${point === "pre_attention" ? "self_attention" : "mlp"}_res_proj`,
+    });
+    const children = [
+      layerInSpec(`${id}.layer_in`, normalized),
+      residualBankState(`${id}.bank_in`, normalized, stage.before),
+      aggregate("attn_res_pre", "pre_attention", stage.before + 1, layerIndex === 0),
+      residualBankState(`${id}.bank_out`, normalized, stage.after, stage.write),
+      rmsNormModule(`${id}.input_layernorm`, "input layernorm", normalized),
+      attentionModule(`${id}.${attnAttr}`, normalized, attentionKind, layerIndex),
+      operatorSpec(`${id}.prefix_after_attn`, stage.write ? "start new block prefix" : "accumulate attention into prefix",
+        stage.write ? "identity" : "residual_add", {
+          checkpoint_module: false, prefix_reset: stage.write,
+          formula: stage.write ? "prefix = attention_output" : "prefix = prefix_in + attention_output",
+        }, { input: dims.hidden, output: dims.hidden }),
+      aggregate("attn_res_mlp", "pre_mlp", stage.after + 1),
+      rmsNormModule(`${id}.post_attention_layernorm`, "post attention layernorm", normalized),
+      ffn,
+      operatorSpec(`${id}.prefix_out`, "accumulate FFN into prefix", "residual_add", {
+        checkpoint_module: false, formula: "prefix_out = prefix_after_attn + FFN_output",
+      }, { input: dims.hidden, output: dims.hidden }),
+    ];
+    return withShapeDims(moduleSpec(id, "DecoderLayer", "decoder", {
+      class: hfNamedClass(normalized, "decoderLayerClass", "DecoderLayer"), layer_kind: layerKind,
+      block_index: stage.block, block_write: stage.write, snapshot_count_in: stage.before, snapshot_count_out: stage.after,
+      dataflow_edges: [
+        ["layer_in", "attn_res_pre"], ["bank_in", "attn_res_pre"],
+        ["bank_in", "bank_out"], ...(stage.write ? [["layer_in", "bank_out"]] : []),
+        ["attn_res_pre", "input_layernorm"], ["input_layernorm", attnAttr],
+        [attnAttr, "prefix_after_attn"], ...(!stage.write ? [["layer_in", "prefix_after_attn"]] : []),
+        ["prefix_after_attn", "attn_res_mlp"], ["bank_out", "attn_res_mlp"],
+        ["attn_res_mlp", "post_attention_layernorm"], ["post_attention_layernorm", ffnAttr],
+        [ffnAttr, "prefix_out"], ["prefix_after_attn", "prefix_out"],
+      ],
+      dataflow_edge_relations: [{ from: "bank_in", to: "bank_out", label: "snapshot references" }],
+      ...shapeFlow(shapes.hidden, shapes.hidden),
+    }, children), dims.hidden, dims.hidden);
+  }
   const children = isMhc ? [
     ...(hasEngram ? [engramModule(`${id}.engram`, normalized, { layerIndex })] : []),
     multiHyperConnectionModule(`${id}.mhc_attn_pre`, normalized, "pre"),
@@ -113,7 +154,6 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
       hyperConnectionModule(`${id}.attn_hyper_connection`, normalized),
       hyperConnectionModule(`${id}.mlp_hyper_connection`, normalized),
     ] : []),
-    ...(hasAttnRes ? [attentionResidualModule(`${id}.attn_residual`, normalized, { layerIndex })] : []),
   ];
   return withShapeDims(moduleSpec(
     id,
@@ -122,7 +162,7 @@ export function decoderLayerModule(id, normalized, { layerKind, attentionKind, l
     {
       class: hfNamedClass(normalized, "decoderLayerClass", "DecoderLayer"),
       layer_kind: layerKind,
-      dataflow_edges: decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasAttnRes, hasEngram, attnAttr, ffnAttr }),
+      dataflow_edges: decoderLayerEdges({ isMhc, layerMix, isLastLayer, hasPle, hasHyper, hasEngram, attnAttr, ffnAttr }),
       ...shapeFlow(shapes.hidden, shapes.hidden),
     },
     children,

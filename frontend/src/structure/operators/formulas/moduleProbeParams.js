@@ -90,7 +90,7 @@ export function moduleParamsFor(id, c, ph, bytesPerElement = 2) {
     case "hyper_connection":
       return c.hyperConnectionCount ? { tokens, hidden: c.hiddenSize || 0, streams: c.hyperConnectionCount, lowrank: c.hyperConnectionLowrank || 0, b } : null;
     case "attention_residual":
-      return c.attnResBlockSize ? { tokens, hidden: c.hiddenSize || 0, b } : null;
+      return c.attnResBlockSize ? { tokens, hidden: c.hiddenSize || 0, candidates: Math.ceil(c.layers / c.attnResBlockSize) + 1, b } : null;
     case "vision_merge":
       // 内融合器只在 plan.visionInternalMerger 的结构类存在（S13 走外置
       // projector，树上没有 vision_merge 叶，模块恒等式不该覆盖它）。

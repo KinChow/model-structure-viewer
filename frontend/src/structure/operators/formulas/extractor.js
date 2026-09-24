@@ -329,6 +329,7 @@ const FROM_NODE = {
           };
   },
   split: () => ({}),
+  attn_res_snapshot: () => ({}),
   swiglu: ({ node, bytesPerElement, tokens }) => ({
     tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement,
   }),
@@ -501,15 +502,11 @@ const FROM_NODE = {
           phase,
           b: bytesPerElement,
         }),
-  attention_residual: ({ config, bytesPerElement, tokens }) => {
-    const H = config?.hiddenSize || 0;
-    return {
-          norms: { tokens, hidden: H, bytesPerElement },
-          scoreProj: { logicalShape: [1, H], tokens, bytesPerElement },
-          aggregate: { elements: H * tokens, bytesPerElement },
-          mix: { tokens, hidden: H, bytesPerElement },
-        };
-  },
+  attention_residual: ({ node, config, bytesPerElement, tokens }) => ({
+    tokens, hidden: config?.hiddenSize || 0, bytesPerElement,
+    candidates: node?.attributes?.candidate_states,
+    skipped: node?.attributes?.execution_skipped === true,
+  }),
   hyper_connection: ({ node, config, bytesPerElement, tokens }) => {
     const H = config?.hiddenSize || 0;
           const streams = config?.hyperConnectionCount || 1;

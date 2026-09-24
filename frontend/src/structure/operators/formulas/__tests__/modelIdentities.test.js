@@ -494,6 +494,8 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // GLM IndexShare 的 shared 层只传递前一 full 层产出的 top-k 下标；
   // 不是 hidden 激活流，末维与 sparse attention 的 q/k/v 视图有意不同。
   "index_reuse -> sparse_attention": "control",
+  // Depth weights [T,C,1] broadcast across unnormalized values [T,C,H].
+  "probabilities -> weighted_sum": "control",
   // dsv4 稀疏 MLA 的注意力叶 id 为 `attention`（非 sparse_attention）：indexer 产出 top-k 下标（control）。
   "indexer -> attention": "control",
   // slice：上游是融合宽张量，下游只吃一片

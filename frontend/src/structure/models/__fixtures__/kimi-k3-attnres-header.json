@@ -1,0 +1,58 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+  "source_fixture": "kimi-k3-mla-header.json",
+  "tensors": [
+    {
+      "name": "language_model.model.layers.3.mlp_res_norm.weight",
+      "shape": [
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.mlp_res_proj.weight",
+      "shape": [
+        1,
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attention_res_norm.weight",
+      "shape": [
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attention_res_proj.weight",
+      "shape": [
+        1,
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.output_attn_res_norm.weight",
+      "shape": [
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.output_attn_res_proj.weight",
+      "shape": [
+        1,
+        7168
+      ],
+      "dtype": "BF16"
+    }
+  ],
+  "output_header": {
+    "source": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/model-00094-of-000096.safetensors",
+    "bytes": 576,
+    "sha256": "f28a4f196abb0804a3f8a5b2c125f646f598359c5b92266442761216e47dd2bf"
+  },
+  "layer_header_sha256": "3ff389a539b7408ba7b99e9445efa1bc1e5f4bbba1e9402e2c494015add5a647"
+}

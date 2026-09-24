@@ -18,11 +18,11 @@
 
 | model_type | 条目数 | 当前状态 | 已完成的结构工作 | 剩余边界 |
 |---|---:|---|---|---|
-| `deepseek_v3` | 2 | 已修复/有边界 | 对照发布 `DeepseekV3Attention` 修正 MLA 的真实 `q_a_layernorm`、`kv_a_proj_with_mqa`、`kv_a_layernorm` 路径；保留前三层 dense、后续 MoE 和 header 已证明的 MTP | 完整逐张量 truth、量化 scale 归属和 GPU fused kernel 仍 unknown |
+| `deepseek_v3` | 2 | 已修复/有边界 | 对照发布 `DeepseekV3Attention` 修正 MLA 的真实 `q_a_layernorm`、`kv_a_proj_with_mqa`、`kv_a_layernorm` 路径；保留前三层 dense、后续 MoE；index manifest 确认 `shared_head.norm/head` 两个 MTP 权重 | 完整逐张量 truth、量化 scale 归属、MTP 内部完整绑定和 GPU fused kernel 仍 unknown |
 | `deepseek_v32` | 1 | 已修复/已回归 | DSA indexer 的物理路径、主 sparse MLA 与真实 source-ref | 完整权重逐模块 truth 未完成 |
 | `deepseek_v4` | 5 | 已修复/有边界 | compressor、C4 indexer、norm/gate/APE 依赖；按 ratio 和变体区分；C4 首窗口 overlap 成本已按 pinned forward 修正 | GPU fused kernel、量化 scale 交通、跨请求 cache 追加 prefill 仍 unknown |
 | `deepseek_v41` | 1 | 已修复/有边界 | CED、CSA2 Full/Reuse、DSpark、MTP 抑制基线 | 完整权重/GPU 行为和视觉融合物化仍未证明 |
-| `kimi_k2` | 4 | 已修复/有边界 | 对照 Kimi 发布 `DeepseekV3` 实现修正 MLA 精确模块路径；Base/Thinking 均按 header 的 `mtp_tensor_count=0` 不生成 MTP | Thinking QAT、完整逐模块 checkpoint truth、量化 scale 和 GPU 行为仍 unknown |
+| `kimi_k2` | 4 | 已修复/有边界 | 对照 Kimi 发布 `DeepseekV3` 实现修正 MLA 精确模块路径；Base/Thinking 的 index manifest 与 header 均确认无 MTP，不生成 MTP | Thinking QAT、完整逐模块 checkpoint truth、量化 scale 和 GPU 行为仍 unknown |
 | `kimi_k25` | 3 | 已修复/有边界 | 视觉/文本两路融合入口；视觉塔、projector 和 3 个变体的 checkpoint header/source audit 已通过 | 融合搬运 unknown；GPU/融合物化未实测 |
 | `kimi_k3` | 1 | 已修复/有边界 | AttnRes、NoPE、SiTU、Gated MLA、视觉 RoPE、LatentMoE；发布 `PatchMergerMLPV2` 无 bias 且后置 RMSNorm | 局部 header 不是全模型 truth；视觉生命周期仍保留边界 |
 | `qwen3_5` | 15 | 已修复/有边界 | Gated Attention / GDN 必需 fan-in；多模态入口 | 量化/Base 变体 packed layout 和视觉 truth |

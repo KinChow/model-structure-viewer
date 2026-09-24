@@ -95,8 +95,8 @@
 | `zai-org/GLM-5.2-FP8` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,233,105,920（755.2B） | 有 | 2026-06-16 |
 | `zai-org/GLM-5.3` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,233,105,920（755.2B） | 有 | 2026-08-25 |
 | `zai-org/GLM-5.3-BF16` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,233,105,920（755.2B） | 有 | 2026-08-25 |
-| `zai-org/GLM-5.3-Flash` | `glm5_next` | `Glm5NextForConditionalGeneration` | 322,586,297,236（322.6B） | manifest | 2026-08-25 |
-| `zai-org/GLM-5.3-Flash-BF16` | `glm5_next` | `Glm5NextForConditionalGeneration` | 322,586,297,236（322.6B） | 有 | 2026-08-25 |
+| `zai-org/GLM-5.3-Flash` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,316,733,790（321.3B） | manifest | 2026-08-25 |
+| `zai-org/GLM-5.3-Flash-BF16` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,316,733,790（321.3B） | 有 | 2026-08-25 |
 
 ## 按 architectures[0] 汇总（生成物）
 

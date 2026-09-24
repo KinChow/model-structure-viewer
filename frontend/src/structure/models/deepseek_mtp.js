@@ -7,7 +7,7 @@ import { rmsNormModule } from "../layers/norm.js";
 import { operatorSpec, weightMatrixDecl } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
-import { hfNamedClass } from "../archs/index.js";
+import { hfNamedClass, recipeFlag, recipeValue } from "../archs/index.js";
 
 export function mtpModuleCount(normalized) {
   if ((normalized.dsparkTargetLayerIds || []).length > 0) return 0;
@@ -30,11 +30,15 @@ export function draftBilling() {
   };
 }
 
-export function mtpBlock(id, normalized, { layerKind, attentionKind, layerIndex = 0, forceLastMhc = false, disablePle = false, disableAttnRes = false }) {
+export function mtpBlock(id, normalized, {
+  layerKind, attentionKind, layerIndex = 0, forceLastMhc = false,
+  disablePle = false, disableAttnRes = false, disableMhc = false,
+}) {
   return decoderLayerModule(id, {
     ...normalized,
     ...(disablePle ? { pleLayerIds: [] } : {}),
     ...(disableAttnRes ? { attnResBlockSize: undefined } : {}),
+    ...(disableMhc ? { multiHyperConnection: false, hyperConnectionCount: undefined } : {}),
   }, { layerKind, attentionKind, layerIndex, forceLastMhc });
 }
 
@@ -44,7 +48,7 @@ export function mtpBlock(id, normalized, { layerKind, attentionKind, layerIndex 
  * `tie_word_embeddings=false`，MTP 草稿头不复用主干 lm_head，见
  * vllm/model_executor/models/deepseek_mtp.py:SharedHead）。
  */
-export function sharedHead(id, normalized) {
+export function sharedHead(id, normalized, { includeHead = true } = {}) {
   const shapes = tensorShapes(normalized);
   const dims = tensorDims(normalized);
   return withShapeDims(moduleSpec(
@@ -54,12 +58,18 @@ export function sharedHead(id, normalized) {
     {
       class: "SharedHead",
       implementation: ["vLLM.models.deepseek_mtp.SharedHead"],
-      dataflow_edges: [["norm", "head"]],
+      ...(includeHead
+        ? { dataflow_edges: [["norm", "head"]] }
+        : {
+            dataflow_edges: [],
+            output_reference: "lm_head",
+            weight_sharing: "lm_head",
+          }),
       ...shapeFlow(shapes.hidden, shapes.logits),
     },
     [
       rmsNormModule(`${id}.shared_head.norm`, "shared head norm", normalized),
-      operatorSpec(`${id}.shared_head.head`, "draft output projection", "linear", {
+      ...(includeHead ? [operatorSpec(`${id}.shared_head.head`, "draft output projection", "linear", {
         ...shapeFlow(shapes.hidden, shapes.logits),
         class: "ParallelLMHead",
         vocab_size: normalized.vocabSize,
@@ -68,7 +78,7 @@ export function sharedHead(id, normalized) {
           quantizable: false,
         })],
         implementation: ["vLLM.models.deepseek_mtp.SharedHead.head"],
-      }, { input: dims.hidden, output: dims.logits }),
+      }, { input: dims.hidden, output: dims.logits })] : []),
     ],
   ), dims.hidden, dims.logits);
 }
@@ -127,11 +137,27 @@ function deepSeekMultiTokenPredictorLayer(id, normalized) {
       // `layers.<num_hidden_layers>.embed_tokens` table.  Runtime forward may
       // receive the already-computed input embedding from the target model,
       // but the local table is still resident and must be represented for
-      // checkpoint binding and capacity accounting.
-      embeddingModule(`${id}.embed_tokens`, normalized),
+      // checkpoint binding and capacity accounting.  GLM-5.3-Flash is the
+      // evidence-backed exception: its tail manifest has no local embedding
+      // and reuses the main embedding input.
+      ...(recipeValue(normalized, "mtpLocalEmbedding") === false
+        ? []
+        : [embeddingModule(`${id}.embed_tokens`, normalized)]),
       ...ehProj(id, normalized),
-      mtpBlock(`${id}.layer`, normalized, { layerKind, attentionKind, layerIndex: normalized.layers || 0, disableAttnRes: true }),
-      sharedHead(id, normalized),
+      mtpBlock(`${id}.layer`, normalized, {
+        layerKind,
+        attentionKind,
+        layerIndex: normalized.layers || 0,
+        disableAttnRes: true,
+        // GLM-5.3-Flash's published tail layer is a standard decoder block:
+        // its state dict contains input/post-attention layernorm and does not
+        // contain the main-stack mHC stream parameters.  Do not inherit the
+        // main backbone's four-stream residual recipe into the MTP block.
+        disableMhc: recipeFlag(normalized, "mtpStandardDecoderLayer"),
+      }),
+      sharedHead(id, normalized, {
+        includeHead: recipeValue(normalized, "mtpSharedHeadProjection") !== false,
+      }),
     ],
     0,
   ), dims.hidden, dims.hidden);

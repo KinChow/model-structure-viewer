@@ -14,6 +14,8 @@
 | `moonshotai/Kimi-K2-Thinking` | 208,276 | 0 | 不生成 MTP |
 | `MiniMaxAI/MiniMax-M2.7` | 96,103 | 0 | 不生成 MTP，尽管 config 声明 `use_mtp/num_mtp_modules` |
 | `zai-org/GLM-4.7` | 44,691 | 2 `shared_head.*` | 保留 1 个 MTP 模块；header `mtp_tensor_count=502` |
+| `zai-org/GLM-5.3-Flash` | 76,108 | 1,760 | 保留 1 个 MTP 模块；尾层 `model.language_model.layers.45.*`，不是主干 0–44 层 |
+| `zai-org/GLM-5.3-Flash-BF16` | 38,770 | 889 | 与 FP8 变体同一尾层布局；只把 dtype/packing 差异留给 truth |
 
 MTP-like key 的筛选同时覆盖 `mtp`、`nextn` 和 `shared_head`；DeepSeek 两个模型的实际发布路径是 `model.layers.61.shared_head.*`，不是配置中直接出现的 `mtp.*`。
 
@@ -25,6 +27,10 @@ MTP-like key 的筛选同时覆盖 `mtp`、`nextn` 和 `shared_head`；DeepSeek 
 - Kimi-K2 Base/Thinking 的 header `mtp_tensor_count=0` 与 index manifest 一致，抑制 config/继承路径可能产生的幻影 MTP；
 - MiniMax-M2.7 的 header/index 都没有 MTP 权重，继续抑制其 config-only 的 `use_mtp/num_mtp_modules` 声明；
 - GLM-4.7 的 header/index 都有 shared-head 权重，当前生产图保留 1 个 MTP 模块；
+- GLM-5.3-Flash 两个发布变体都在 `model.language_model.layers.45.*` 发布 MTP
+  尾层，且 Transformers forward 将该层列入 unexpected-key 忽略规则；不能把
+  主干四路 mHC 结构直接复制到 MTP。当前图将其绑定到标准 decoder MTP，
+  不生成本地 embedding 或独立 shared-head projection；
 - 不能仅以 `shared_head` 两个参数推出完整 MTP 内部逐层权重，因此 MTP 子图的完整 checkpoint 绑定仍保留 unknown。
 
 ## 来源
@@ -35,5 +41,7 @@ MTP-like key 的筛选同时覆盖 `mtp`、`nextn` 和 `shared_head`；DeepSeek 
 - `https://modelscope.cn/models/moonshotai/Kimi-K2-Thinking/resolve/master/model.safetensors.index.json`
 - `https://hf-mirror.com/MiniMaxAI/MiniMax-M2.7/resolve/main/model.safetensors.index.json`
 - `https://hf-mirror.com/zai-org/GLM-4.7/resolve/main/model.safetensors.index.json`
+- `https://hf-mirror.com/zai-org/GLM-5.3-Flash/resolve/main/model.safetensors.index.json`
+- `https://hf-mirror.com/zai-org/GLM-5.3-Flash-BF16/resolve/main/model.safetensors.index.json`
 
 该审计只读取索引，不声称完成完整权重或 GPU 执行验证。

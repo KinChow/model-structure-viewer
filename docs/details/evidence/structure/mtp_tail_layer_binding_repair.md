@@ -21,7 +21,10 @@ model.layers.61.shared_head.norm.weight
 model.layers.61.shared_head.head.weight
 ```
 
-GLM-4.7 对应尾层为 `model.layers.92.*`。
+GLM-4.7 对应尾层为 `model.layers.92.*`。GLM-5.3-Flash 的两个发布变体
+则把 MTP 尾层放在 `model.language_model.layers.45.*`，并且该尾层是标准
+input/post-attention norm + DSA/MoE block，不继承主干四路 mHC；它没有本地
+`embed_tokens` 或独立 `shared_head.head`，输出头复用主模型。
 
 旧图虽然显示了 `mtp.enorm/eh_proj/layer/shared_head`，但没有 MTP 本地 `embed_tokens`，且 header-only 场景无法验证这些真实尾层路径是否能绑定到草稿分支。
 
@@ -32,10 +35,15 @@ GLM-4.7 对应尾层为 `model.layers.92.*`。
 - 增加动态 tail-layer path aliases，把发布的 `layers.<N>.*` 精确绑定到 `mtp.*` / `mtp.layer.*`；
 - 只对 DeepSeek-style MTP 架构启用该映射，不影响 Qwen 等本来就发布为 `mtp.*` 的架构；
 - MTP 本地 embedding 的驻留权重进入容量计算，避免 header 总量与模板漏项不一致。
+- GLM-5.3-Flash 单独关闭 MTP 本地 embedding/独立 shared-head projection，
+  并关闭 MTP 对主干 mHC 的继承；其尾层只绑定发布 manifest 中真实存在的
+  `enorm/hnorm/eh_proj/norm/input_layernorm/self_attn/mlp` 路径。
 
 ## 验证
 
-新增机制测试覆盖 DeepSeek-R1（尾层 61）和 GLM-4.7（尾层 92），确认以下 tensor 每个只绑定一个 Graph IR 节点：
+新增机制测试覆盖 DeepSeek-R1（尾层 61）、GLM-4.7（尾层 92）以及
+GLM-5.3-Flash/GLM-5.3-Flash-BF16（尾层 45），确认发布路径每个只绑定一个
+Graph IR 节点，并确认 Flash MTP 不产生 phantom embedding/head/mHC 节点：
 
 - `embed_tokens`
 - `enorm`

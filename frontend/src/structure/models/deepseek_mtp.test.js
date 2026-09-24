@@ -75,3 +75,38 @@ test("DeepSeek-style MTP binds tail-layer checkpoint paths to the draft branch",
     assert.equal(owners.get(`${prefix}.shared_head.head.weight`), "mtp.shared_head.head");
   }
 });
+
+test("GLM-5.3-Flash MTP binds the published tail layer for both released variants", () => {
+  for (const modelId of ["zai-org/GLM-5.3-Flash", "zai-org/GLM-5.3-Flash-BF16"]) {
+    const dir = new URL(`../../../../models/${modelId}/`, import.meta.url);
+    const config = JSON.parse(fs.readFileSync(new URL("config.json", dir), "utf8"));
+    const prefix = `model.language_model.layers.${config.text_config.num_hidden_layers}`;
+    const tensors = [
+      [`${prefix}.enorm.weight`, [config.text_config.hidden_size]],
+      [`${prefix}.hnorm.weight`, [config.text_config.hidden_size]],
+      [`${prefix}.eh_proj.weight`, [config.text_config.hidden_size, config.text_config.hidden_size * 2]],
+      [`${prefix}.input_layernorm.weight`, [config.text_config.hidden_size]],
+      [`${prefix}.post_attention_layernorm.weight`, [config.text_config.hidden_size]],
+      [`${prefix}.self_attn.q_a_layernorm.weight`, [config.text_config.q_lora_rank]],
+      [`${prefix}.shared_head.norm.weight`, [config.text_config.hidden_size]],
+    ].map(([name, shape]) => ({ name, shape, dtype: "BF16" }));
+    const structure = buildStructureFromArtifacts({
+      config,
+      modelId,
+      checkpointTruth: { tensors, mtp_tensor_count: tensors.length },
+    });
+    const { graph } = structure;
+    for (const tensor of tensors) {
+      const matches = graph.nodes.filter(node => node.tensor_names?.includes(tensor.name));
+      assert.equal(matches.length, 1, `${modelId}: ${tensor.name}`);
+      assert.ok(matches[0].canonical_id.startsWith("mtp."), `${modelId}: ${tensor.name}`);
+    }
+    assert.deepEqual(structure.source.diagnostics.template_gaps, []);
+    assert.equal(graph.nodes.some(node => node.canonical_id === "mtp.embed_tokens"), false);
+    assert.equal(graph.nodes.some(node => node.canonical_id === "mtp.shared_head.head"), false);
+    assert.equal(graph.nodes.some(node => node.canonical_id === "mtp.layer.mhc_attn_pre"), false);
+    assert.equal(graph.nodes.some(node => node.canonical_id === "mtp.layer.mhc_ffn_pre"), false);
+    assert.ok(graph.nodes.some(node => node.canonical_id === "mtp.layer.input_layernorm"));
+    assert.ok(graph.nodes.some(node => node.canonical_id === "mtp.layer.post_attention_layernorm"));
+  }
+});

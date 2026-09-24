@@ -49,6 +49,17 @@ export const ARCH_RECIPES = {
     modelClass: "Transformer",
   },
   Glm5NextForConditionalGeneration: {
+    // The released GLM-5.3-Flash checkpoints keep one DeepSeek-style MTP
+    // predictor under `model.language_model.layers.<num_hidden_layers>.*`
+    // rather than a top-level `mtp.*` module.  The Transformers model
+    // intentionally ignores that tail layer, so production truth needs the
+    // same explicit aliasing as DeepSeek/GLM-5 DSA.
+    mtpLayerAtTail: true,
+    // Unlike the four-stream main stack, the released tail predictor carries
+    // ordinary input/post-attention norms and reuses the main lm head.
+    mtpStandardDecoderLayer: true,
+    mtpLocalEmbedding: false,
+    mtpSharedHeadProjection: false,
     visionFusion: "placeholder_scatter",
     linearAttentionMode: "glm5_next",
     visionInternalMerger: true,

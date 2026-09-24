@@ -29,7 +29,8 @@ export function networkSpec(id, name, architecture, children, attributes = {}) {
  *   MTP.forward(previous_hidden_states, inputs_embeds)
  *     inputs_embeds   = enorm(embed_tokens(input_ids))   // 与主模型共享 token 嵌入
  *     previous_hidden = hnorm(主干末层 hidden，final norm 之前)
- *     → eh_proj(cat[...]) → mtp_block → shared_head（草稿 logits）
+ *     → eh_proj(cat[...]) → mtp_block → shared_head（草稿 logits；GLM-5.3-Flash
+ *     的发布尾层复用主 lm_head，不物化独立 head）
  * 即 MTP 与主模型同源输入（embedding + decoder 输出两路 fan-in），输出走自己的
  * shared_head，**不回流**主干 final norm / lm_head。DSpark 仅从主干目标层 hidden
  * 取输入（单路 fan-in）。因此顶层不能把草稿串进 embed→decoder→draft→norm 的顺序
@@ -70,12 +71,13 @@ export function networkSpecWithDraft(id, name, architecture, children, draft, ed
   // 主干末层 hidden → 草稿（MTP/DSpark 皆有）
   if (decoder) edges.push([decoder.id, draft.attributes?.hidden_input_endpoint || draft.id]);
   // 主干 token embedding → MTP 的运行时输入。DeepSeek MTP 还保留一个
-  // checkpoint-local `mtp.embed_tokens` fallback/resident table；它不是
-  // 另一条 active tensor-flow copy，因此不串入此边。
+  // checkpoint-local `mtp.embed_tokens` fallback/resident table（GLM-5.3-Flash
+  // 没有该本地表）；它不是另一条 active tensor-flow copy，因此不串入此边。
   if (draft.type === "mtp" && embed) edges.push([embed.id, draft.attributes?.embedding_input_endpoint || draft.id]);
   // 草稿 logits 出口（对标 SGLang/vLLM 的两种投机头权重实装）：
-  //   - MTP：SharedHead 自带 head（checkpoint 有 shared_head.head.weight，
+  //   - MTP：默认 SharedHead 自带 head（checkpoint 有 shared_head.head.weight，
   //     tie_word_embeddings=false），草稿在自身 shared_head 内落 logits，不回主干；
+  //     GLM-5.3-Flash 是发布例外：只有 shared_head.norm，head 复用主 lm_head；
   //   - DSpark：SGLang deepseek_v4_dspark._logits_from_x_post_hc 复用主干
   //     self.lm_head（attach_shared_modules 挂 target lm_head，_remap 对 head./
   //     lm_head. 一律 return None——无自带 head），故 DSpark 输出经共享边接主干

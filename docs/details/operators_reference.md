@@ -1734,11 +1734,11 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
-| `fused_moe_mlp` | 8.622e+13 | 41.17% | 5.860e+13 | 96.64% |
-| `linear` | 1.168e+14 | 55.79% | 1.686e+12 | 2.78% |
-| `sdpa_attention` | 2.889e+12 | 1.38% | 1.955e+10 | 0.03% |
-| `mla_query_compress` | 1.665e+12 | 0.80% | 2.844e+10 | 0.05% |
-| `mla_kv_compress` | 8.285e+11 | 0.40% | 1.549e+10 | 0.03% |
+| `fused_moe_mlp` | 8.622e+13 | 40.66% | 5.860e+13 | 96.64% |
+| `linear` | 1.168e+14 | 55.10% | 1.686e+12 | 2.78% |
+| `sdpa_attention` | 5.510e+12 | 2.60% | 1.955e+10 | 0.03% |
+| `mla_query_compress` | 1.665e+12 | 0.79% | 2.844e+10 | 0.05% |
+| `mla_kv_compress` | 8.285e+11 | 0.39% | 1.549e+10 | 0.03% |
 | `gated_delta_attention` | 4.641e+11 | 0.22% | 1.008e+10 | 0.02% |
 | `hyper_connection` | 1.637e+11 | 0.08% | 4.331e+9 | 0.01% |
 | `dsa_sparse_mla` | 1.268e+11 | 0.06% | 6.618e+9 | 0.01% |
@@ -1750,7 +1750,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mhc_pre` | 2.429e+10 | 0.01% | 6.689e+9 | 0.01% |
 | `residual_add` | 0.000e+0 | 0.00% | 2.715e+10 | 0.04% |
 
-合计：matrix 2.0941e+14 MACs · bytes unknown；已知部分 6.0639e+13，上表百分比仅以已知部分为分母（仅列前 15 名）
+合计：matrix 2.1203e+14 MACs · bytes unknown；已知部分 6.0639e+13，上表百分比仅以已知部分为分母（仅列前 15 名）
 
 ## 算力/访存占比（decode，T=1 S=4096，59 模型实例加权求和）
 
@@ -1981,7 +1981,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `linear` | prefill | 86/208 | 1.597e+12 | 0 | 0 | 1.701e+9 | 1.094e+9 | 2.756e+9 | 287.62 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 86/208 | 7.519e+8 | 0 | 0 | 1.504e+9 | 4.936e+5 | 1.297e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `sdpa_attention` | prefill | 8/18 | 5.463e+10 | 4.986e+8 | 2.493e+8 | 0 | 1.073e+8 | 1.073e+8 | 254.44 | matrix | — | — | — |
+| `sdpa_attention` | prefill | 8/18 | 5.768e+10 | 5.940e+8 | 2.970e+8 | 0 | 1.073e+8 | 1.073e+8 | 268.66 | matrix | — | — | — |
 | `sdpa_attention` | decode | 8/18 | 1.007e+8 | 7.864e+5 | 3.932e+5 | 0 | 5.036e+7 | 3.686e+4 | 2.00 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 6/18 | 2.899e+10 | 1.510e+8 | 2.765e+4 | 2.304e+3 | 3.232e+8 | 3.232e+8 | 44.85 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `gated_delta_attention` | decode | 6/18 | 1.416e+7 | 4.719e+6 | 8.640e+2 | 2.304e+3 | 1.010e+7 | 1.010e+7 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2028,7 +2028,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `linear` | decode | 155/412 | 1.939e+9 | 0 | 0 | 3.877e+9 | 1.274e+6 | 1.852e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `fused_moe_mlp` | prefill | 21/40 | 2.062e+12 | 6.711e+8 | 6.711e+8 | 6.442e+10 | 1.342e+9 | 6.711e+8 | 31.03 | memory | — | — | — |
 | `fused_moe_mlp` | decode | 21/40 | 1.007e+9 | 3.277e+5 | 3.277e+5 | 2.013e+9 | 6.554e+5 | 3.277e+5 | 0.50 | memory | — | — | — |
-| `sdpa_attention` | prefill | 12/37 | 1.822e+11 | 1.630e+9 | 8.150e+8 | 0 | 3.172e+8 | 3.172e+8 | 287.22 | matrix | — | — | — |
+| `sdpa_attention` | prefill | 12/37 | 1.925e+11 | 1.916e+9 | 9.581e+8 | 0 | 3.172e+8 | 3.172e+8 | 303.46 | matrix | — | — | — |
 | `sdpa_attention` | decode | 12/37 | 3.355e+8 | 2.621e+6 | 1.311e+6 | 0 | 8.397e+7 | 1.024e+5 | 3.99 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 10/30 | 9.664e+10 | 5.033e+8 | 9.216e+4 | 7.680e+3 | 1.054e+9 | 1.054e+9 | 45.85 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `gated_delta_attention` | decode | 10/30 | 4.719e+7 | 1.573e+7 | 2.880e+3 | 7.680e+3 | 3.293e+7 | 3.293e+7 | 0.72 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2210,7 +2210,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `fused_moe_mlp` | decode | 1/60 | 2.114e+10 | 1.966e+6 | 1.966e+6 | 4.228e+10 | 3.932e+6 | 1.966e+6 | 0.50 | memory | — | — | — |
 | `linear` | prefill | 21/538 | 2.019e+13 | 1.206e+7 | 0 | 2.018e+10 | 8.959e+9 | 1.325e+10 | 476.19 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 21/538 | 9.623e+9 | 0 | 0 | 1.925e+10 | 4.155e+6 | 6.186e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `sdpa_attention` | prefill | 3/88 | 2.654e+12 | 3.367e+10 | 1.684e+10 | 0 | 3.405e+9 | 2.238e+9 | 470.28 | matrix | — | — | — |
+| `sdpa_attention` | prefill | 3/88 | 2.686e+12 | 3.458e+10 | 1.729e+10 | 0 | 3.405e+9 | 2.238e+9 | 476.05 | matrix | — | — | — |
 | `sdpa_attention` | decode | 3/88 | 5.117e+9 | 6.396e+7 | 3.198e+7 | 0 | 2.893e+8 | 9.994e+5 | 17.62 | memory | — | — | — |
 | `mla_query_compress` | prefill | 2/61 | 1.375e+12 | 0 | 0 | 1.343e+9 | 1.791e+9 | 3.838e+8 | 390.98 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `mla_query_compress` | decode | 2/61 | 6.716e+8 | 0 | 0 | 1.343e+9 | 8.745e+5 | 1.874e+5 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2310,14 +2310,14 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `dsa_kpool_indexer` | decode | 12/11 | 4.614e+7 | 5.767e+6 | 0 | 0 | 1.599e+7 | 2.256e+6 | 2.53 | memory | 计算✓ 字节✓ | 1.049e+6 | 0 |
 | `moe_combine` | prefill | 23/42 | 0 | 5.637e+9 | 0 | 0 | 5.639e+9 | 7.046e+8 | 0.00 | memory | — | — | — |
 | `moe_combine` | decode | 23/42 | 0 | 2.753e+6 | 0 | 0 | 2.753e+6 | 3.441e+5 | 0.00 | memory | — | — | — |
+| `sdpa_attention` | prefill | 1/24 | 3.221e+9 | 1.007e+8 | 5.033e+7 | 0 | 3.775e+7 | 3.775e+7 | 42.67 | memory | — | — | — |
+| `sdpa_attention` | decode | 1/24 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `residual_add` | prefill | 48/90 | 0 | 7.550e+8 | 0 | 0 | 3.020e+9 | 1.510e+9 | 0.00 | memory | — | — | — |
 | `residual_add` | decode | 48/90 | 0 | 3.686e+5 | 0 | 0 | 1.475e+6 | 7.373e+5 | 0.00 | memory | — | — | — |
 | `rope` | prefill | 12/11 | 0 | 2.215e+9 | 0 | 0 | 2.953e+9 | 1.476e+9 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 12/11 | 0 | 1.081e+6 | 0 | 0 | 1.442e+6 | 7.209e+5 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `gated_rmsnorm` | prefill | 12/34 | 0 | 2.852e+9 | 1.141e+9 | 8.704e+3 | 2.282e+9 | 1.141e+9 | 0.00 | memory | 计算✓ 字节✓ | 6.713e+7 | 0 |
 | `gated_rmsnorm` | decode | 12/34 | 0 | 1.393e+6 | 5.571e+5 | 8.704e+3 | 1.114e+6 | 5.571e+5 | 0.00 | memory | 计算✓ 字节✓ | 3.278e+4 | 0 |
-| `sdpa_attention` | prefill | 1/24 | 1.617e+9 | 5.053e+7 | 2.526e+7 | 0 | 3.775e+7 | 3.775e+7 | 21.42 | memory | — | — | — |
-| `sdpa_attention` | decode | 1/24 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `moe_add` | prefill | 23/42 | 0 | 3.523e+8 | 0 | 0 | 1.409e+9 | 7.046e+8 | 0.00 | memory | — | — | — |
 | `moe_add` | decode | 23/42 | 0 | 1.720e+5 | 0 | 0 | 6.881e+5 | 3.441e+5 | 0.00 | memory | — | — | — |
 | `swiglu` | prefill | 26/70 | 0 | 5.589e+8 | 5.589e+8 | 0 | 1.118e+9 | 5.589e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.007e+8 | 0 |
@@ -2355,10 +2355,10 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `linear` | decode | 29/491 | 1.182e+10 | 0 | 0 | 2.364e+10 | 4.332e+6 | 3.916e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `fused_moe_mlp` | prefill | 2/57 | 2.644e+13 | 2.869e+9 | 2.869e+9 | 8.262e+11 | 5.738e+9 | 2.869e+9 | 31.67 | memory | — | — | — |
 | `fused_moe_mlp` | decode | 2/57 | 1.291e+10 | 1.401e+6 | 1.401e+6 | 2.582e+10 | 2.802e+6 | 1.401e+6 | 0.50 | memory | — | — | — |
+| `sdpa_attention` | prefill | 2/35 | 2.305e+12 | 5.665e+10 | 2.832e+10 | 0 | 1.387e+9 | 1.387e+9 | 830.64 | matrix | — | — | — |
+| `sdpa_attention` | decode | 2/35 | 2.013e+8 | 3.146e+6 | 1.573e+6 | 0 | 2.521e+7 | 5.530e+4 | 7.97 | memory | — | — | — |
 | `minimax_sparse_attention` | prefill | 2/57 | 1.959e+12 | 0 | 0 | 0 | 3.277e+10 | 3.277e+10 | 29.90 | memory | — | — | — |
 | `minimax_sparse_attention` | decode | 2/57 | 1.913e+9 | 0 | 0 | 0 | 2.699e+8 | 3.094e+7 | 6.36 | memory | — | — | — |
-| `sdpa_attention` | prefill | 2/35 | 1.204e+12 | 2.914e+10 | 1.457e+10 | 0 | 1.387e+9 | 1.387e+9 | 433.98 | matrix | — | — | — |
-| `sdpa_attention` | decode | 2/35 | 2.013e+8 | 3.146e+6 | 1.573e+6 | 0 | 2.521e+7 | 5.530e+4 | 7.97 | memory | — | — | — |
 | `minimax_sparse_indexer` | prefill | 2/57 | 6.123e+10 | 1.435e+9 | 0 | 0 | 4.005e+9 | 1.076e+9 | 12.05 | memory | 计算✓ 字节✓ | 6.714e+7 | 0 |
 | `minimax_sparse_indexer` | decode | 2/57 | 1.195e+8 | 1.868e+6 | 0 | 0 | 6.359e+7 | 1.941e+6 | 1.82 | memory | 计算✓ 字节✓ | 1.311e+5 | 0 |
 | `residual_add` | prefill | 6/120 | 0 | 1.510e+9 | 0 | 0 | 6.040e+9 | 3.020e+9 | 0.00 | memory | — | — | — |
@@ -2457,7 +2457,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `ple` | decode | 1/1 | 3.281e+7 | 1.357e+5 | 2.048e+4 | 6.568e+7 | 1.024e+5 | 1.126e+5 | 0.50 | memory | — | — | — |
 | `qsa_indexer` | prefill | 13/12 | 4.348e+10 | 1.265e+8 | 1.044e+5 | 3.933e+7 | 7.534e+8 | 5.507e+8 | 32.37 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `qsa_indexer` | decode | 13/12 | 2.595e+7 | 1.428e+7 | 1.234e+4 | 3.933e+7 | 4.798e+7 | 1.963e+7 | 0.24 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `sdpa_attention` | prefill | 1/27 | 1.034e+10 | 2.872e+8 | 1.436e+8 | 0 | 1.075e+8 | 1.075e+8 | 48.08 | memory | — | — | — |
+| `sdpa_attention` | prefill | 1/27 | 2.064e+10 | 5.733e+8 | 2.867e+8 | 0 | 1.075e+8 | 1.075e+8 | 96.00 | matrix | — | — | — |
 | `sdpa_attention` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `moe_combine` | prefill | 27/48 | 0 | 5.033e+9 | 0 | 0 | 5.035e+9 | 5.033e+8 | 0.00 | memory | — | — | — |
 | `moe_combine` | decode | 27/48 | 0 | 2.458e+6 | 0 | 0 | 2.459e+6 | 2.458e+5 | 0.00 | memory | — | — | — |
@@ -2643,7 +2643,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `linear` | decode | 866/970 | 5.519e+10 | 0 | 0 | 1.104e+11 | 1.091e+7 | 1.870e+7 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `fused_moe_mlp` | prefill | 92/92 | 9.957e+13 | 5.557e+10 | 3.704e+10 | 5.445e+12 | 3.704e+10 | 1.852e+10 | 18.10 | memory | — | — | — |
 | `fused_moe_mlp` | decode | 92/92 | 4.862e+10 | 2.713e+7 | 1.809e+7 | 9.724e+10 | 1.809e+7 | 9.044e+6 | 0.50 | memory | — | — | — |
-| `sdpa_attention` | prefill | 25/51 | 1.590e+12 | 2.002e+10 | 1.001e+10 | 0 | 2.123e+9 | 1.463e+9 | 443.51 | matrix | — | — | — |
+| `sdpa_attention` | prefill | 25/51 | 1.634e+12 | 2.070e+10 | 1.035e+10 | 0 | 2.123e+9 | 1.463e+9 | 455.62 | matrix | — | — | — |
 | `sdpa_attention` | decode | 25/51 | 3.020e+9 | 3.775e+7 | 1.887e+7 | 0 | 1.141e+8 | 5.898e+5 | 26.32 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 69/69 | 6.668e+11 | 3.473e+9 | 6.359e+5 | 3.418e+6 | 7.434e+9 | 7.434e+9 | 44.84 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `gated_delta_attention` | decode | 69/69 | 3.256e+8 | 1.085e+8 | 1.987e+4 | 3.418e+6 | 2.323e+8 | 2.323e+8 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |

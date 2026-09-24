@@ -70,6 +70,15 @@ windows (including the CSA overlap layout).  It prevents the diagram from
 claiming that `position_bias` is an input to `gate_proj`, or that the packed
 projection feeds RMSNorm without the window reduction.
 
+The published `DeepseekV4HCACompressor.forward` returns rotated compressed
+KV and a causal block bias. `DeepseekV4CSACompressor.forward` additionally
+calls its nested indexer and uses the selected indices to form that block bias.
+The graph now connects `rotary_emb → compressor` in both C4 and C128, plus
+`indexer → compressor` as an `index-control` dependency in C4. It does **not**
+connect the indexer to compressor RoPE: those are sibling branches. These are
+dependencies on a module's *output*, not another checkpoint module or another
+weight owner; parameter and cost ownership remain unchanged.
+
 DeepSeek V4.1 remains on its existing flat approximation because its current
 production source-ref manifest does not expose the V4 nested compressor paths.
 No V4 APE parameter is introduced for V4.1.
@@ -81,3 +90,6 @@ No V4 APE parameter is introduced for V4.1.
 - Built-in model and architecture tests covering this change: passed.
 - Weight declaration and activation-shape identity audits: passed.
 - `ops-edge.golden.json` and `ops-spec-tree.golden.json` regenerated only for the six DeepSeek V4/V4.1 entries affected by the intentional topology change.
+- The output-dependency correction changes the five V4 golden hashes, not V4.1;
+  its config-only and production-artifact edge assertions cover all five V4
+  variants, and C128 explicitly excludes an indexer.

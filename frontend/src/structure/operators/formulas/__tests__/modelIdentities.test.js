@@ -607,6 +607,22 @@ test("W5 恒等式：激活流形状连续性（全内置模型声明边）", ()
       const inn = lastDim(dst.input_shape);
       if (out == null || inn == null) { noShape += 1; continue; }
       if (out === inn) { matched += 1; continue; }
+      // Published V4 compressor returns the rotated compressed KV together
+      // with a block mask from its nested indexer. These child→parent edges
+      // are output/control dependencies, not another hidden-width input.
+      if (dst.attributes?.operator_id === "mla_kv_compress"
+          && dst.attributes?.compress_ratio > 1
+          && (src.canonical_id === `${dst.canonical_id}.rotary_emb`
+            || src.canonical_id === `${dst.canonical_id}.indexer`)) {
+        const normalized = normalizeConfig(raw);
+        assert.equal(inn, normalized.hiddenSize);
+        assert.equal(out, src.canonical_id.endsWith(".rotary_emb")
+          ? normalized.headDim : normalized.dsaIndexTopk);
+        assert.equal(src.attributes?.operator_id,
+          src.canonical_id.endsWith(".rotary_emb") ? "identity" : "dsv4_indexer");
+        matched += 1;
+        continue;
+      }
       // V4 compressor 的 norm.weight 在压缩核内部使用：这里是复合算子的
       // 参数/子步骤依赖，不是 norm 的 head_dim 输出回灌给 hiddenSize 输入。
       if (src.canonical_id === `${dst.canonical_id}.norm`

@@ -27,20 +27,23 @@ for (const variant of variants) {
     const before = await page.locator(".react-flow__edge").count();
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
     const compressor = graph.nodes.find(n =>
-      /layers\.(?:(?:encoder|decoder)\.)?\d+\.self_attn\.compressor$/.test(n.canonical_id || ""));
+      /layers\.(?:(?:encoder|decoder)\.)?\d+\.self_attn\.compressor$/.test(n.canonical_id || "")
+      && (variant.includes("V4.1") || n.attributes?.compress_ratio === 4));
     expect(compressor).toBeTruthy();
     const prefix = compressor.canonical_id.replace(/\.compressor$/, "");
     const indexer = graph.nodes.find(n =>
       n.attributes?.operator_id === "dsv4_indexer" &&
-      /\.self_attn\.compressor\.indexer$/.test(n.canonical_id || ""));
+      n.canonical_id === `${prefix}.compressor.indexer`);
     const pairs = variant.includes("V4.1")
       ? [[`${prefix}.compressor`, `${prefix}.attention`]]
       : [
         [`${prefix}.compressor.kv_norm`, `${prefix}.compressor.rotary_emb`],
+        [`${prefix}.compressor.rotary_emb`, `${prefix}.compressor`],
         [`${prefix}.compressor`, `${prefix}.attention`],
         [`${indexer.canonical_id}.kv_norm`, `${indexer.canonical_id}.rotary_emb`],
         [`${indexer.canonical_id}.rotary_emb`, `${indexer.canonical_id}.scorer`],
         [`${indexer.canonical_id}.scorer.weights_proj`, `${indexer.canonical_id}.scorer`],
+        [indexer.canonical_id, `${prefix}.compressor`],
       ];
     for (const [from, to] of pairs) {
       const edge = graph.edges.find(e => e.source_canonical_id === from && e.target_canonical_id === to);

@@ -47,6 +47,14 @@ for (const modelId of ["DeepSeek-V4-Flash", "DeepSeek-V4-Flash-0731",
       assert.ok(edge("compressor.indexer.rotary_emb", "compressor.indexer.scorer"));
       assert.ok(edge("compressor.indexer.scorer", "compressor.indexer"));
       assert.ok(edge("compressor.indexer.scorer.weights_proj", "compressor.indexer.scorer"));
+      assert.ok(edge("compressor.rotary_emb", "compressor"),
+        "compressed KV must contribute to the outer compressor output");
+      assert.ok(edge("compressor.indexer", "compressor"),
+        "C4 index selection must contribute to the outer compressor's block mask");
+      assert.ok(structure.graph.edges.some(e =>
+        e.source_canonical_id === `${prefix}.compressor.indexer`
+        && e.target_canonical_id === `${prefix}.compressor`
+        && e.relation === "index-control"), "selected blocks must be labelled as an index-control dependency");
 
       const compressor = get("compressor");
       assert.ok(compressor);
@@ -82,6 +90,9 @@ for (const modelId of ["DeepSeek-V4-Flash", "DeepSeek-V4-Flash-0731",
       assert.ok(structure.graph.edges.some(e =>
         e.source_canonical_id === `${hcaPrefix}.compressor.kv_norm`
         && e.target_canonical_id === `${hcaPrefix}.compressor.rotary_emb`));
+      assert.ok(structure.graph.edges.some(e =>
+        e.source_canonical_id === `${hcaPrefix}.compressor.rotary_emb`
+        && e.target_canonical_id === `${hcaPrefix}.compressor`));
       assert.ok(!structure.graph.nodes.some(n => n.canonical_id === `${hcaPrefix}.indexer`),
         "HCA is not a C4 sparse-indexer path");
       // A ratio-0 sliding-window layer has no compressor or C4 indexer.

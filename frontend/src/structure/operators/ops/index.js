@@ -811,7 +811,7 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
     const compressorEdges = [
       ["kv_proj", "window_reduce"], ["gate_proj", "window_reduce"], ["position_bias", "window_reduce"],
       ["window_reduce", "kv_norm"],
-      ["kv_norm", "rotary_emb"],
+      ["kv_norm", "rotary_emb"], ["rotary_emb", compressorId],
     ];
     if (hasCompressorApe && emitIndexer) {
       // In published V4, the C4 indexer is a child of the CSA compressor, not a
@@ -898,6 +898,10 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
         ],
       }, indexerChildren), dims.hidden, budget);
       compressorChildren.push(indexer);
+      // CSA returns compressed KV together with an index-controlled block
+      // mask. The indexer does not feed the compression RoPE, but its selected
+      // indices do feed the enclosing compressor result.
+      compressorEdges.push(["indexer", compressorId]);
     }
     specs.push(withShapeDims(moduleSpec(compressorId, "compressed KV/state compressor", "compressor", {
       operator_id: "mla_kv_compress",
@@ -910,6 +914,9 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
       implementation: ["transformers.DeepseekV4CSACompressor", "vLLM.DeepseekCompressor"],
       cache_role: "compressed_kv_and_score_state",
       dataflow_edges: compressorEdges,
+      dataflow_edge_relations: hasCompressorApe && emitIndexer
+        ? [{ from: "indexer", to: compressorId, relation: "index-control", label: "selected compressed blocks" }]
+        : [],
     }, compressorChildren), dims.hidden, [-1, -1, 2 * compressorWidth]));
     }
   }

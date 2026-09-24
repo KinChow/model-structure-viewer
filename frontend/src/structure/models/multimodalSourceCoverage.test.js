@@ -1,0 +1,89 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { buildStructureFromArtifacts } from "../buildStructure.js";
+import { normalizeConfig } from "../config/normalize.js";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
+
+// These two custom/pinned entries intentionally do not have a local source-ref
+// sidecar yet. Keep the gap explicit instead of silently treating it as coverage.
+const EXPECTED_SOURCE_REF_GAPS = new Set([
+  "deepseek-ai/DeepSeek-V4.1-Flash",
+  "moonshotai/Kimi-K3",
+]);
+const EXPECTED_VISUAL_MODULE_GAPS = new Set([
+  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+]);
+
+function readModelFile(modelId, file) {
+  return JSON.parse(fs.readFileSync(path.join(repoRoot, "models", modelId, file), "utf8"));
+}
+
+function canonicalWithoutRoot(modulePath) {
+  return String(modulePath || "").replace(/^root\./, "");
+}
+
+function graphRepresentsModule(graphIds, modulePath) {
+  const canonical = canonicalWithoutRoot(modulePath);
+  return graphIds.has(canonical)
+    || [...graphIds].some((id) => id.startsWith(`${canonical}.`) || canonical.startsWith(`${id}.`));
+}
+
+test("multimodal source-ref visual modules are represented by Graph IR", () => {
+  const sourceRefGaps = [];
+  const visualModuleGaps = [];
+  const checkedModels = [];
+  let sourceModules = 0;
+
+  for (const entry of catalog.models) {
+    const modelDir = path.join(repoRoot, "models", entry.model_id);
+    const sourcePath = path.join(modelDir, "source-ref.json");
+    if (!fs.existsSync(sourcePath)) {
+      sourceRefGaps.push(entry.model_id);
+      continue;
+    }
+
+    const sourceRef = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+    const visualModules = (sourceRef.modules || []).filter((module) =>
+      /visual|vision/i.test(module.module_path || ""));
+    if (!visualModules.length) {
+      if (structureHasVision(entry.model_id)) visualModuleGaps.push(entry.model_id);
+      continue;
+    }
+
+    const structure = buildStructureFromArtifacts({
+      modelId: entry.model_id,
+      config: readModelFile(entry.model_id, "config.json"),
+      checkpointTruth: readModelFile(entry.model_id, "header-truth.json"),
+      sourceRef,
+    });
+    const graphIds = new Set(
+      structure.graph.nodes.map((node) => node.canonical_id).filter(Boolean),
+    );
+    const missing = visualModules.filter((module) =>
+      !graphRepresentsModule(graphIds, module.module_path));
+
+    assert.deepEqual(
+      missing,
+      [],
+      `${entry.model_id}: source-ref visual modules missing from Graph IR: ${
+        missing.map((module) => module.module_path).join(", ")}`,
+    );
+    sourceModules += visualModules.length;
+    checkedModels.push(entry.model_id);
+  }
+
+  assert.deepEqual(new Set(sourceRefGaps), EXPECTED_SOURCE_REF_GAPS);
+  assert.deepEqual(new Set(visualModuleGaps), EXPECTED_VISUAL_MODULE_GAPS);
+  assert.equal(checkedModels.length, 36);
+  assert.equal(sourceModules, 752);
+});
+
+function structureHasVision(modelId) {
+  const config = readModelFile(modelId, "config.json");
+  return Boolean(normalizeConfig(config).hasVision);
+}

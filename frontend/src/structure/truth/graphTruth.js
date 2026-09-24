@@ -90,6 +90,49 @@ export function bindTruthToGraph(graph, truthGraph, { truthPathAliases = [] } = 
   const nodes = (graph?.nodes || []).map((node) => {
     if (node.attributes?.checkpoint_module === false) return node;
     const templateId = node.canonical_id || node.module_id || node.id;
+    const aggregatePrefix = node.attributes?.truth_path_prefix;
+    if (aggregatePrefix) {
+      const prefix = applyPathAliases(canonicalModulePath(aggregatePrefix), truthPathAliases);
+      const matches = truthNodes.filter((candidate) => {
+        if (used.has(candidate.id)) return false;
+        const candidatePath = applyPathAliases(
+          canonicalModulePath(candidate.canonical_id || candidate.module_id || candidate.id),
+          truthPathAliases,
+        );
+        return candidatePath === prefix || candidatePath.startsWith(`${prefix}.`);
+      });
+      if (matches.length > 0) {
+        const tensorNames = matches.flatMap((candidate) => candidate.tensor_names || []);
+        const weightShapes = {};
+        const weightDtypes = {};
+        let params = 0;
+        for (const candidate of matches) {
+          params += Number(candidate.params) || 0;
+          for (const [name, shape] of Object.entries(candidate.weight_shapes || {})) {
+            const key = `${candidate.canonical_id || candidate.id}.${name}`;
+            weightShapes[key] = shape;
+            if (candidate.attributes?.weight_dtypes?.[name]) {
+              weightDtypes[key] = candidate.attributes.weight_dtypes[name];
+            }
+          }
+        }
+        matches.forEach((candidate) => used.add(candidate.id));
+        boundIds.push(...matches.map((candidate) => candidate.canonical_id || candidate.id));
+        return {
+          ...node,
+          params,
+          weight_shapes: weightShapes,
+          dtype: matches[0].dtype,
+          tensor_names: tensorNames,
+          value_source: "checkpoint",
+          attributes: {
+            ...(node.attributes || {}),
+            ...(Object.keys(weightDtypes).length ? { weight_dtypes: weightDtypes } : {}),
+            truth_aggregate_count: matches.length,
+          },
+        };
+      }
+    }
     const seen = new Set();
     const candidates = [];
     for (const key of pathBindKeys(templateId)) {

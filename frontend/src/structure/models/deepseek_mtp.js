@@ -115,6 +115,37 @@ function deepSeekMultiTokenPredictorLayer(id, normalized) {
   const dims = tensorDims(normalized);
   const count = mtpModuleCount(normalized);
   const { attentionKind, layerKind } = ehProjKind(normalized);
+  const layer = mtpBlock(`${id}.layer`, normalized, {
+    layerKind,
+    attentionKind,
+    layerIndex: normalized.layers || 0,
+    disableAttnRes: true,
+    // GLM-5.3-Flash's published tail layer is a standard decoder block:
+    // its state dict contains input/post-attention layernorm and does not
+    // contain the main-stack mHC stream parameters.  Do not inherit the
+    // main backbone's four-stream residual recipe into the MTP block.
+    disableMhc: recipeFlag(normalized, "mtpStandardDecoderLayer"),
+  });
+  // The runtime uses a fused expert leaf, while checkpoint truth expands
+  // `layers.<N>.mlp.experts.<E>.*` into one module per expert.  Keep the
+  // aggregate leaf as the single weight owner and let truth binding fold the
+  // published expert descendants into it.
+  const findExpertLeaf = (node) => {
+    if (node?.id?.endsWith(".mlp.expert_mlp")) return node;
+    for (const child of node?.children || []) {
+      const found = findExpertLeaf(child);
+      if (found) return found;
+    }
+    return null;
+  };
+  const expertLeaf = findExpertLeaf(layer);
+  if (expertLeaf) {
+    expertLeaf.attributes = {
+      ...(expertLeaf.attributes || {}),
+      truth_path_prefix: `layers.${normalized.layers}.mlp.experts`,
+      truth_aggregate: "routed_experts",
+    };
+  }
   return withShapeDims(moduleSpec(
     id,
     "MTP",
@@ -147,17 +178,7 @@ function deepSeekMultiTokenPredictorLayer(id, normalized) {
         ? []
         : [embeddingModule(`${id}.embed_tokens`, normalized)]),
       ...ehProj(id, normalized),
-      mtpBlock(`${id}.layer`, normalized, {
-        layerKind,
-        attentionKind,
-        layerIndex: normalized.layers || 0,
-        disableAttnRes: true,
-        // GLM-5.3-Flash's published tail layer is a standard decoder block:
-        // its state dict contains input/post-attention layernorm and does not
-        // contain the main-stack mHC stream parameters.  Do not inherit the
-        // main backbone's four-stream residual recipe into the MTP block.
-        disableMhc: recipeFlag(normalized, "mtpStandardDecoderLayer"),
-      }),
+      layer,
       sharedHead(id, normalized, {
         includeHead: recipeValue(normalized, "mtpSharedHeadProjection") !== false,
       }),

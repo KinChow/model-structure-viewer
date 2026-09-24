@@ -26,6 +26,10 @@ GLM-4.7 对应尾层为 `model.layers.92.*`。GLM-5.3-Flash 的两个发布变�
 input/post-attention norm + DSA/MoE block，不继承主干四路 mHC；它没有本地
 `embed_tokens` 或独立 `shared_head.head`，输出头复用主模型。
 
+SGLang 的发布 `glm5_next_nextn.py` 也把该尾层整体映射为
+`model.decoder`，并单独把 `eh_proj/enorm/hnorm` 映射到 `model`；
+这与“尾层是 NextN decoder、不是主干第 45 层的 mHC 实例”的判断一致。
+
 旧图虽然显示了 `mtp.enorm/eh_proj/layer/shared_head`，但没有 MTP 本地 `embed_tokens`，且 header-only 场景无法验证这些真实尾层路径是否能绑定到草稿分支。
 
 ## 修复

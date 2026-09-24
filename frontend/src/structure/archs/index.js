@@ -244,6 +244,7 @@ export function checkpointPathAliases(normalized) {
       ["post_attention_layernorm", "mtp.layer.post_attention_layernorm"],
       ["self_attn", "mtp.layer.self_attn"],
       ["mlp", "mtp.layer.mlp"],
+      ["mlp.gate", "mtp.layer.mlp.router"],
     ];
     for (const [source, target] of suffixes) {
       aliases.push({ from: `${layer}.${source}`, to: target });

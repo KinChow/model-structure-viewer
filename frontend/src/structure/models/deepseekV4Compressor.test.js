@@ -98,6 +98,22 @@ test("DeepSeek V4.1 CSA2 does not inherit V4's nested compressor norm", () => {
     e.target_canonical_id === compressor.canonical_id.replace(/\.compressor$/, ".attention")));
 });
 
+test("DeepSeek V4 production source-ref binds the published compressor module path", () => {
+  const config = read("DeepSeek-V4-Flash/config.json");
+  const sourceRef = read("DeepSeek-V4-Flash/source-ref.json");
+  const graph = buildStructureFromArtifacts({
+    config,
+    modelId: "deepseek-ai/DeepSeek-V4-Flash",
+    checkpointTruth: read("DeepSeek-V4-Flash/header-truth.json"),
+    sourceRef,
+  });
+  const compressor = graph.graph.nodes.find(n =>
+    n.canonical_id === "layers.2.self_attn.compressor");
+  assert.equal(compressor.source_ref.className, "DeepseekV4CSACompressor");
+  assert.equal(compressor.source_ref.line, 580);
+  assert.ok(graph.source.diagnostics.source_ref.bound > 0);
+});
+
 test("V4 compressor RMSNorm executes on emitted compressed blocks, not every raw token", () => {
   // SGLang pinned compressor.py: forward_compress passes compress_forward's
   // output to fused_norm_rope; c4/c128.cuh decode only compress at ratio boundaries.

@@ -19,6 +19,13 @@ export function canonicalSourceRefPath(value) {
   return segments.filter((segment) => !isFoldedSegment(segment)).join(".");
 }
 
+function exactSourceRefPath(value) {
+  const segments = String(value || "").split(".").filter(Boolean);
+  if (segments[0] === "root") segments.shift();
+  while (segments[0] && WRAPPERS.has(segments[0])) segments.shift();
+  return segments.join(".");
+}
+
 export function displaySourceRef(sourceRef, runtimeVersion) {
   if (!sourceRef || typeof sourceRef !== "object") return null;
   const file = sourceRef.file || null;
@@ -44,9 +51,16 @@ export function displaySourceRef(sourceRef, runtimeVersion) {
 }
 
 function moduleIndex(catalog) {
+  const byExactPath = new Map();
   const byPath = new Map();
   const byClass = new Map();
   for (const row of catalog?.modules || []) {
+    const exact = exactSourceRefPath(row.module_path);
+    if (exact) {
+      const exactHits = byExactPath.get(exact) || [];
+      exactHits.push(row);
+      byExactPath.set(exact, exactHits);
+    }
     const path = canonicalSourceRefPath(row.module_path);
     if (path) {
       const pathHits = byPath.get(path) || [];
@@ -59,7 +73,7 @@ function moduleIndex(catalog) {
       byClass.set(row.class_name, classHits);
     }
   }
-  return { byPath, byClass };
+  return { byExactPath, byPath, byClass };
 }
 
 function sameSourceDefinition(rows) {
@@ -80,9 +94,20 @@ function pickUnique(rows, className) {
 }
 
 function pickRow(node, index) {
+  const exact = exactSourceRefPath(node.canonical_id || node.module_id || node.id);
   const path = canonicalSourceRefPath(node.canonical_id || node.module_id || node.id);
   const className = node.attributes?.class;
-  const pathHit = pickUnique(path ? index.byPath.get(path) : null, className);
+  const exactRows = exact ? index.byExactPath.get(exact) : null;
+  const exactHit = exactRows?.length === 1 ? exactRows[0] : pickUnique(exactRows, className);
+  if (exactHit) return exactHit;
+  // 精确 canonical path 是主证据，不能先用模板 display class 过滤。
+  // builder 的 class 常是“压缩 KV/state compressor”这类展示语义，而 source-ref
+  // 保存的是发布实现类名（例如 DeepseekV4CSACompressor）；同一路径仍应绑定。
+  // 只有同一路径存在多个不同定义时，才用 class 做消歧。
+  const pathRows = path ? index.byPath.get(path) : null;
+  // 折叠后的 path（例如 visual.0 -> visual）不能越过 class 约束，
+  // 否则 VisionBlock 会错误绑定到 VisionModel 的 source-ref。
+  const pathHit = pickUnique(pathRows, className);
   if (pathHit) return pathHit;
   return pickUnique(className ? index.byClass.get(className) : null, className);
 }

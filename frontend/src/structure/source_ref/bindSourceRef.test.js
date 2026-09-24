@@ -73,6 +73,30 @@ test("bindSourceRefToGraph 按路径绑定，聚合节点保持 null", () => {
   assert.equal(diagnostics.transformers_version, "4.40.0");
 });
 
+test("bindSourceRefToGraph 精确路径优先于模板展示 class", () => {
+  const catalog = {
+    transformers_version: "5.16.1",
+    modules: [{
+      module_path: "root.layers.2.self_attn.compressor",
+      class_name: "DeepseekV4CSACompressor",
+      source_ref: { file: "modeling_deepseek_v4.py", line: 580, class_name: "DeepseekV4CSACompressor" },
+    }],
+  };
+  const graph = {
+    nodes: [{
+      id: "root.0",
+      canonical_id: "layers.2.self_attn.compressor",
+      type: "operator",
+      attributes: { class: "compressed KV/state compressor" },
+    }],
+  };
+  const { graph: bound, diagnostics } = bindSourceRefToGraph(graph, catalog);
+  assert.equal(bound.nodes[0].source_ref.line, 580);
+  assert.equal(bound.nodes[0].source_ref.className, "DeepseekV4CSACompressor");
+  assert.equal(diagnostics.bound, 1);
+  assert.equal(diagnostics.unmatched, 0);
+});
+
 test("bindSourceRefToGraph 按 HF 属性名绑定 linear_attn 与 self_attn，同 class 多实例共享定义", () => {
   const catalog = {
     transformers_version: "5.16.1",

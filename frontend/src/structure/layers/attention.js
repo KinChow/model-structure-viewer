@@ -61,7 +61,7 @@ const ATTENTION_COMPONENTS = [
   {
     kind: "qsa",
     ops: (id, normalized, layerIndex) => qsaAttentionOperatorSpecs(id, normalized, layerIndex),
-    edges: (normalized, layerIndex = 0) => {
+    edges: (normalized, layerIndex = 0, id) => {
       // DSA over MLA：有 kv_lora_rank。逐头 QSA：没有。
       if ((normalized.kvLoraRank || 0) > 0) {
         const shared = isIndexShareConfig(normalized) && indexerScheduleOf(normalized)?.[layerIndex] === "reuse";
@@ -91,7 +91,7 @@ const ATTENTION_COMPONENTS = [
     // 逐层连线（与 ops 的 compressor/indexer 发射条件同源）：只有 kv_source 层有 compressor、
     // index_source(或 ratio===4) 层有 indexer——此前用 compressRatios[0] 全局判据导致这些子算子
     // 在 Full/Reindex 层悬空无边。ratio、kv_source、index_source 与 ops/index.js 完全一致。
-    edges: (normalized, layerIndex = 0) => {
+    edges: (normalized, layerIndex = 0, id) => {
       const ratio = Number(normalized.compressRatios?.[layerIndex] ?? 0);
       const kvSrc = normalized.kvSourceLayerIds;
       const idxSrc = normalized.indexSourceLayerIds;
@@ -104,25 +104,21 @@ const ATTENTION_COMPONENTS = [
       ];
       // 压缩 KV：compressor 是包含投影、窗口压缩、norm/rope 的复合前向；
       // norm.weight 在 fused kernel 内应用，不是 compressor 输出之后的第二次归一化。
-      // 以 norm -> compressor 标注内部依赖，输出仍由 compressor 连接 attention。
+      // V4 的真实发布拓扑是 compressor.indexer 嵌套在 compressor 内；
+      // 内部投影/归一化边由嵌套模块声明，外层只连接复合输出。
       if (emitCompressor) {
-        if (recipeFlag(normalized, "compressorApe")) {
-          e.push(["compressor.norm", "compressor"]);
-        }
         e.push(["compressor", "attention"]);
       }
-      // 稀疏索引器：q 潜表 → indexer.q_proj（同 q_proj 连续），weights_proj（入口源）与 q_proj
-      // 汇入 indexer（fused-in），indexer 选择信号 → attention（control）。仅 index_source/ratio4 层有。
+      // V4 indexer 是 compressor 的子模块；使用完整 canonical ID 连接到
+      // attention，避免把嵌套 endpoint 误解析成 self_attn 的同名兄弟。
+      // V4.1 保持其独立的 flat indexer（q_norm → q_proj/weights_proj）。
       if (emitIndexer) {
-        e.push(["q_norm", "indexer.q_proj"], ["indexer.q_proj", "indexer"],
-          ["indexer.weights_proj", "indexer"]);
         if (recipeFlag(normalized, "compressorApe")) {
-          // wkv_gate 的打包投影先经窗口压缩才形成 head_dim 状态；
-          // norm 是 C4Indexer 内部 compressor 的一部分，并非 indexer 之后的叶。
-          e.push(["indexer.compressor.wkv_gate", "indexer.compressor.norm"],
-            ["indexer.compressor.norm", "indexer"]);
+          e.push([`${id}.compressor.indexer`, `${id}.attention`]);
+        } else {
+          e.push(["q_norm", "indexer.q_proj"], ["indexer.q_proj", "indexer"],
+            ["indexer.weights_proj", "indexer"], ["indexer", "attention"]);
         }
-        e.push(["indexer", "attention"]);
       }
       return e;
     },
@@ -176,7 +172,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
     ? component.name(attentionKind)
     : `${attentionKind.toUpperCase()} Attention`;
   const children = component.ops(id, normalized, layerIndex, attentionKind);
-  const declaredEdges = component.edges(normalized, layerIndex);
+  const declaredEdges = component.edges(normalized, layerIndex, id);
   const edgeRelations = [];
   if (attentionKind === "mla" && normalized.mlaUseNope) {
     edgeRelations.push(

@@ -20,55 +20,59 @@ for (const modelId of ["DeepSeek-V4-Flash", "DeepSeek-V4-Flash-0731",
           sourceRef: read(`${modelId}/source-ref.json`),
         });
       const ratio4 = structure.graph.nodes.find(n =>
-        n.canonical_id?.match(/layers\.\d+\.self_attn\.indexer$/) &&
+        n.canonical_id?.match(/layers\.\d+\.self_attn\.compressor\.indexer$/) &&
         n.attributes?.operator_id === "dsv4_indexer");
       assert.ok(ratio4, "at least one C4 indexer");
-      const prefix = ratio4.canonical_id.replace(/\.indexer$/, "");
+      const prefix = ratio4.canonical_id.replace(/\.compressor\.indexer$/, "");
       const get = suffix => structure.graph.nodes.find(n => n.canonical_id === `${prefix}.${suffix}`);
-      for (const suffix of ["indexer.q_proj", "indexer.weights_proj",
-        "indexer.compressor.wkv_gate", "indexer.compressor.norm", "indexer"]) {
+      for (const suffix of ["compressor.indexer.q_b_proj", "compressor.indexer.scorer.weights_proj",
+        "compressor.indexer.kv_proj", "compressor.indexer.gate_proj",
+        "compressor.indexer.kv_norm", "compressor.indexer", "compressor"]) {
         assert.ok(get(suffix), `missing ${prefix}.${suffix}`);
       }
       const edge = (from, to) => structure.graph.edges.some(e =>
         e.source_canonical_id === `${prefix}.${from}` && e.target_canonical_id === `${prefix}.${to}`);
-      assert.ok(edge("indexer.compressor.wkv_gate", "indexer.compressor.norm"));
-      assert.ok(edge("indexer.compressor.norm", "indexer"));
-      assert.ok(edge("indexer.q_proj", "indexer"));
-      assert.ok(edge("indexer.weights_proj", "indexer"));
+      assert.ok(edge("compressor.indexer.kv_proj", "compressor.indexer.kv_norm"));
+      assert.ok(edge("compressor.indexer.gate_proj", "compressor.indexer.kv_norm"));
+      assert.ok(edge("compressor.indexer.kv_norm", "compressor.indexer.rotary_emb"));
+      assert.ok(edge("compressor.indexer.rotary_emb", "compressor.indexer.scorer"));
+      assert.ok(edge("compressor.indexer.scorer", "compressor.indexer"));
+      assert.ok(edge("compressor.indexer.scorer.weights_proj", "compressor.indexer.scorer"));
 
       const compressor = get("compressor");
       assert.ok(compressor);
       const compressorPrefix = compressor.canonical_id;
       const compressorNorm = structure.graph.nodes.find(n =>
-        n.canonical_id === `${compressorPrefix}.norm`);
+        n.canonical_id === `${compressorPrefix}.kv_norm`);
       assert.ok(compressorNorm);
       const ratio = compressor.attributes.compress_ratio;
       assert.equal(compressor.attributes.operator_id, "mla_kv_compress");
-      assert.equal(compressor.attributes.weightMatrices[0].shape[0],
-        2 * (ratio === 4 ? 2 : 1) * compressorNorm.output_shape.at(-1));
+      assert.equal(compressor.attributes.weightMatrices, undefined,
+        "published compressor weights belong to checkpoint-shaped children");
+      assert.equal(get("compressor.kv_proj").attributes.weightMatrices[0].shape[0],
+        (ratio === 4 ? 2 : 1) * compressorNorm.output_shape.at(-1));
       assert.ok(structure.graph.edges.some(e =>
-        e.source_canonical_id === compressorNorm.canonical_id && e.target_canonical_id === compressorPrefix));
+        e.source_canonical_id === compressorNorm.canonical_id &&
+        e.target_canonical_id === `${compressorPrefix}.rotary_emb`));
       assert.ok(structure.graph.edges.some(e =>
         e.source_canonical_id === compressorPrefix &&
         e.target_canonical_id === `${prefix}.attention`));
-      assert.ok(!structure.graph.edges.some(e =>
-        e.source_canonical_id === compressorPrefix && e.target_canonical_id === compressorNorm.canonical_id),
-      "the composite compressor already applies its own norm; do not normalize its output twice");
-      const packed = get("indexer.compressor.wkv_gate");
-      const indexNorm = get("indexer.compressor.norm");
-      assert.equal(packed.output_shape.at(-1), 4 * indexNorm.input_shape.at(-1),
-        "packed K/V plus overlap is compressed before head-dimension normalization");
+      const indexNorm = get("compressor.indexer.kv_norm");
+      assert.equal(get("compressor.indexer.kv_proj").output_shape.at(-1), 2 * indexNorm.input_shape.at(-1),
+        "indexer K/V projections emit the published 2*index_head_dim packed width");
       const ratio128 = structure.graph.nodes.find(n =>
         n.canonical_id?.match(/layers\.\d+\.self_attn\.compressor$/) &&
         n.attributes?.compress_ratio === 128);
       assert.ok(ratio128, "HCA ratio-128 compressor must also be represented");
       const hcaPrefix = ratio128.canonical_id.replace(/\.compressor$/, "");
       assert.ok(structure.graph.edges.some(e =>
-        e.source_canonical_id === `${hcaPrefix}.compressor.norm`
-        && e.target_canonical_id === ratio128.canonical_id));
-      assert.ok(structure.graph.edges.some(e =>
-        e.source_canonical_id === ratio128.canonical_id
+        e.source_canonical_id === `${hcaPrefix}.compressor`
         && e.target_canonical_id === `${hcaPrefix}.attention`));
+      assert.ok(structure.graph.nodes.some(n =>
+        n.canonical_id === `${hcaPrefix}.compressor.kv_norm`));
+      assert.ok(structure.graph.edges.some(e =>
+        e.source_canonical_id === `${hcaPrefix}.compressor.kv_norm`
+        && e.target_canonical_id === `${hcaPrefix}.compressor.rotary_emb`));
       assert.ok(!structure.graph.nodes.some(n => n.canonical_id === `${hcaPrefix}.indexer`),
         "HCA is not a C4 sparse-indexer path");
       // A ratio-0 sliding-window layer has no compressor or C4 indexer.
@@ -132,10 +136,10 @@ test("V4 compressor RMSNorm executes on emitted compressed blocks, not every raw
       const compressor = nodes.find(n => n.attributes?.operator_id === "mla_kv_compress"
         && n.attributes?.compress_ratio === ratio);
       assert.ok(compressor, `${modelId}: missing C${ratio}`);
-      const norm = nodes.find(n => n.canonical_id === `${compressor.canonical_id}.norm`);
+      const norm = nodes.find(n => n.canonical_id === `${compressor.canonical_id}.kv_norm`);
       assert.ok(norm);
       const related = ratio === 4
-        ? [norm, nodes.find(n => n.canonical_id === compressor.canonical_id.replace(/\.compressor$/, ".indexer.compressor.norm"))]
+        ? [norm, nodes.find(n => n.canonical_id === `${compressor.canonical_id}.indexer.kv_norm`)]
         : [norm];
       for (const leaf of related) {
         assert.ok(leaf, `${modelId}: missing nested C4 compressor norm`);

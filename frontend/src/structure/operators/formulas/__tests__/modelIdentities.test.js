@@ -498,6 +498,16 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "probabilities -> weighted_sum": "control",
   // dsv4 稀疏 MLA 的注意力叶 id 为 `attention`（非 sparse_attention）：indexer 产出 top-k 下标（control）。
   "indexer -> attention": "control",
+  // DeepSeek V4 published compressor topology: the two packed projections are
+  // reduced over each compression window before the head-dimension norm; the
+  // position bias modifies gate logits, not the hidden activation.
+  "kv_proj -> kv_norm": "slice",
+  "gate_proj -> kv_norm": "slice",
+  "position_bias -> gate_proj": "control",
+  // The V4 indexer scorer consumes compressed rotary keys and hidden-state
+  // weights as auxiliary inputs; neither is a same-width activation edge.
+  "rotary_emb -> scorer": "control",
+  "weights_proj -> scorer": "control",
   // slice：上游是融合宽张量，下游只吃一片
   "qkv_split -> q_norm": "slice",
   "qkv_split -> k_norm": "slice",

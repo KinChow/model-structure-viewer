@@ -528,8 +528,10 @@ test("maps DeepSeek V4 compression variants and hash MoE without duplicating fra
   const sparseLayer = decoder.children.find((node) => node.attributes.range === "2..2");
   const sparseAttention = sparseLayer.children.find((node) => node.type === "attention");
   assert.equal(sparseAttention.attributes.compress_ratio, 4);
-  assert.equal(sparseAttention.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer").attributes.implementation[0], "vLLM.DeepseekV4Indexer");
-  assert.equal(sparseAttention.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer").attributes.operator_id, "dsv4_indexer");
+  const sparseCompressor = sparseAttention.children.find((node) => node.name === "compressed KV/state compressor");
+  const sparseIndexer = sparseCompressor.children.find((node) => node.name === "DeepSeek V4 C4 sparse indexer");
+  assert.equal(sparseIndexer.attributes.implementation[0], "transformers.DeepseekV4Indexer");
+  assert.equal(sparseIndexer.attributes.operator_id, "dsv4_indexer");
   assert.equal(sparseAttention.children.find((node) => node.name === "C4 sparse MLA attention").attributes.operator_id, "dsv4_sparse_mla");
 
   const compressedLayer = decoder.children.find((node) => node.attributes.range === "3..3");

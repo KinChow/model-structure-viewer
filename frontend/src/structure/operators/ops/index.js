@@ -752,59 +752,172 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
   const compCoff = hasCompressorApe ? (ratio === 4 ? 2 : 1) : (ratio > 1 ? 2 : 1);
 
   if (emitCompressor) {
-    specs.push(operatorSpec(`${prefix}.compressor`, "compressed KV/state compressor", "mla_kv_compress", {
-      ...shapeFlow(shapesForHidden(normalized), `[compressed sequence=ceil(sequence/${ratio}), state dimension]`),
-      compress_ratio: ratio,
-      implementation: ["vLLM.DeepseekCompressor", "SGLang.Compressor.wkv_gate"],
-      cache_role: "compressed_kv_and_score_state",
-      // extractor mla_kv_compress ctx：out 以叶 output_shape 为权威（模板声明）。
-      weightMatrices: [
-        weightMatrixDecl("tp", { shape: [2 * compCoff * headDim, dimWidth(dims.hidden)], split: "output" }),
-        ...(hasCompressorApe ? [weightMatrixDecl("replicated", { shape: [ratio, compCoff * headDim], quantizable: false, param_dtype: "compressor_ape" })] : []),
-      ],
-    }, { input: dims.hidden, output: [-1, -1, 2 * compCoff * headDim] }));
-    // SGLang Compressor.norm = RMSNorm(head_dim, fp32)（compressor.py:43）。checkpoint attn.compressor.norm。
-    if (hasCompressorApe) {
-      specs.push(operatorSpec(`${prefix}.compressor.norm`, "compressor latent RMSNorm", "rmsnorm",
+    if (!hasCompressorApe) {
+      // V4.1's published source-ref does not expose the V4 nested APE
+      // submodules. Keep its previously calibrated flat approximation intact
+      // until a matching V4.1 module manifest is available.
+      specs.push(operatorSpec(`${prefix}.compressor`, "compressed KV/state compressor", "mla_kv_compress", {
+        ...shapeFlow(shapesForHidden(normalized), `[compressed sequence=ceil(sequence/${ratio}), state dimension]`),
+        compress_ratio: ratio,
+        implementation: ["vLLM.DeepseekCompressor", "SGLang.Compressor.wkv_gate"],
+        cache_role: "compressed_kv_and_score_state",
+        weightMatrices: [
+          weightMatrixDecl("tp", { shape: [2 * compCoff * headDim, dimWidth(dims.hidden)], split: "output" }),
+        ],
+      }, { input: dims.hidden, output: [-1, -1, 2 * compCoff * headDim] }));
+    } else {
+    const compressorId = `${prefix}.compressor`;
+    const compressorWidth = compCoff * headDim;
+    const compressorFormula = formulaForOperator("mla_kv_compress");
+    const compressorChildren = [
+      operatorSpec(`${compressorId}.kv_proj`, "compressor KV projection", "linear", {
+        ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, compressor width=${compressorWidth}]`),
+        projection_role: "compressor_kv",
+        implementation: ["transformers.DeepseekV4CSACompressor.kv_proj", "vLLM.DeepseekCompressor.kv_proj"],
+      }, { input: dims.hidden, output: [-1, -1, compressorWidth] }),
+      operatorSpec(`${compressorId}.gate_proj`, "compressor gate projection", "linear", {
+        ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, compressor width=${compressorWidth}]`),
+        projection_role: "compressor_gate",
+        implementation: ["transformers.DeepseekV4CSACompressor.gate_proj", "vLLM.DeepseekCompressor.gate_proj"],
+      }, { input: dims.hidden, output: [-1, -1, compressorWidth] }),
+      operatorSpec(`${compressorId}.position_bias`, "compressor position bias", "identity", {
+        checkpoint_module: true,
+        semantic_role: "compressor_position_bias",
+        position_bias_shape: [ratio, compressorWidth],
+        weightMatrices: [weightMatrixDecl("replicated", {
+          shape: [ratio, compressorWidth], quantizable: false, param_dtype: "compressor_ape",
+        })],
+      }, { input: [ratio, compressorWidth], output: [ratio, compressorWidth] }),
+      operatorSpec(`${compressorId}.kv_norm`, "compressor latent RMSNorm", "rmsnorm",
         { ...shapeFlow(`[batch, compressed sequence=⌊sequence/${ratio}⌋, head dimension=${headDim}]`,
           `[batch, compressed sequence=⌊sequence/${ratio}⌋, head dimension=${headDim}]`),
-          compression_output_ratio: ratio },
-        { input: [-1, -1, headDim], output: [-1, -1, headDim] }));
+          compression_output_ratio: ratio,
+          implementation: ["transformers.DeepseekV4CSACompressor.kv_norm", "vLLM.DeepseekCompressor.kv_norm"] },
+        { input: [-1, -1, headDim], output: [-1, -1, headDim] }),
+      operatorSpec(`${compressorId}.rotary_emb`, "compressor rotary position embedding", "identity", {
+        checkpoint_module: true,
+        semantic_role: "compressor_rope",
+        position_encoding: "compress_rope",
+        implementation: ["transformers.DeepseekV4CSACompressor.rotary_emb"],
+      }, { input: [-1, -1, headDim], output: [-1, -1, headDim] }),
+    ];
+    const compressorEdges = [
+      ["kv_proj", "kv_norm"], ["gate_proj", "kv_norm"], ["position_bias", "gate_proj"],
+      ["kv_norm", "rotary_emb"],
+    ];
+    if (hasCompressorApe && emitIndexer) {
+      // In published V4, the C4 indexer is a child of the CSA compressor, not a
+      // sibling of it. Its own module declares the projection/compression path.
+      const indexerId = `${compressorId}.indexer`;
+      const indexerWidth = 2 * (indexDim || 0);
+      const indexerFormula = formulaForOperator("dsv4_indexer");
+      const scorerId = `${indexerId}.scorer`;
+      const indexerChildren = [
+        operatorSpec(`${indexerId}.kv_proj`, "indexer KV projection", "linear", {
+          ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, indexer width=${indexerWidth}]`),
+          projection_role: "indexer_kv",
+          implementation: ["transformers.DeepseekV4Indexer.kv_proj"],
+        }, { input: dims.hidden, output: [-1, -1, indexerWidth] }),
+        operatorSpec(`${indexerId}.gate_proj`, "indexer gate projection", "linear", {
+          ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, indexer width=${indexerWidth}]`),
+          projection_role: "indexer_gate",
+          implementation: ["transformers.DeepseekV4Indexer.gate_proj"],
+        }, { input: dims.hidden, output: [-1, -1, indexerWidth] }),
+        operatorSpec(`${indexerId}.position_bias`, "indexer position bias", "identity", {
+          checkpoint_module: true,
+          semantic_role: "indexer_position_bias",
+          position_bias_shape: [4, indexerWidth],
+          weightMatrices: [weightMatrixDecl("replicated", {
+            shape: [4, indexerWidth], quantizable: false, param_dtype: "compressor_ape",
+          })],
+        }, { input: [4, indexerWidth], output: [4, indexerWidth] }),
+        operatorSpec(`${indexerId}.kv_norm`, "indexer latent RMSNorm", "rmsnorm", {
+          ...shapeFlow(`[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`,
+            `[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`),
+          compression_output_ratio: 4,
+          implementation: ["transformers.DeepseekV4Indexer.kv_norm"],
+        }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
+        operatorSpec(`${indexerId}.q_b_proj`, "indexer query projection", "linear", {
+          ...shapeFlow(qLatent, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
+          projection_role: "indexer_q_b",
+          implementation: ["transformers.DeepseekV4Indexer.q_b_proj"],
+        }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }),
+        operatorSpec(`${indexerId}.rotary_emb`, "indexer rotary position embedding", "identity", {
+          checkpoint_module: true,
+          semantic_role: "indexer_rope",
+          position_encoding: "compress_rope",
+          implementation: ["transformers.DeepseekV4Indexer.rotary_emb"],
+        }, { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }),
+        withShapeDims(moduleSpec(scorerId, "indexer scorer", "module", {
+          semantic_role: "indexer_scorer",
+          dataflow_edges: [["weights_proj", scorerId]],
+          implementation: ["transformers.DeepseekV4IndexerScorer"],
+        }, [
+          operatorSpec(`${scorerId}.weights_proj`, "indexer weight projection", "linear", {
+            ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, index heads=${indexHeads}]`),
+            projection_role: "indexer_weights",
+            implementation: ["transformers.DeepseekV4IndexerScorer.weights_proj"],
+          }, { input: dims.hidden, output: [-1, -1, indexHeads] }),
+        ]), dims.hidden, indexHeads),
+      ];
+      indexerChildren.forEach((child) => {
+        child.attributes = { ...(child.attributes || {}), cost_owner: indexerId };
+      });
+      const indexer = withShapeDims(moduleSpec(indexerId, "DeepSeek V4 C4 sparse indexer", "indexer", {
+        operator_id: "dsv4_indexer",
+        formula: indexerFormula?.formula,
+        explanation: indexerFormula?.explanation,
+        inputs: indexerFormula?.inputs,
+        outputs: indexerFormula?.outputs,
+        ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, selected=${budget}]`),
+        indexer_heads: indexHeads,
+        indexer_head_dim: indexDim,
+        budget,
+        compress_ratio: ratio,
+        implementation: ["transformers.DeepseekV4Indexer", "vLLM.DeepseekV4Indexer"],
+        dataflow_edges: [
+          ["kv_proj", "kv_norm"], ["gate_proj", "kv_norm"], ["position_bias", "gate_proj"],
+          ["kv_norm", "rotary_emb"], ["q_b_proj", "rotary_emb"],
+          ["rotary_emb", scorerId], ["scorer", indexerId],
+        ],
+      }, indexerChildren), dims.hidden, budget);
+      compressorChildren.push(indexer);
+      compressorEdges.push(["indexer", "rotary_emb"]);
+    }
+    specs.push(withShapeDims(moduleSpec(compressorId, "compressed KV/state compressor", "compressor", {
+      operator_id: "mla_kv_compress",
+      formula: compressorFormula?.formula,
+      explanation: compressorFormula?.explanation,
+      inputs: compressorFormula?.inputs,
+      outputs: compressorFormula?.outputs,
+      ...shapeFlow(shapesForHidden(normalized), `[compressed sequence=ceil(sequence/${ratio}), state dimension]`),
+      compress_ratio: ratio,
+      implementation: ["transformers.DeepseekV4CSACompressor", "vLLM.DeepseekCompressor"],
+      cache_role: "compressed_kv_and_score_state",
+      dataflow_edges: compressorEdges,
+    }, compressorChildren), dims.hidden, [-1, -1, 2 * compressorWidth]));
     }
   }
 
   if (emitIndexer) {
-    specs.push(operatorSpec(`${prefix}.indexer.weights_proj`, "indexer weight projection", "linear", {
-      ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, index heads=${indexHeads}]`),
-      implementation: ["vLLM.DeepseekV4Indexer.weights_proj", "SGLang.C4Indexer"],
-    }, { input: dims.hidden, output: [-1, -1, indexHeads] }));
-    specs.push(operatorSpec(`${prefix}.indexer.q_proj`, "indexer query projection", "linear", {
-      ...shapeFlow(qLatent, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
-      implementation: ["vLLM.DeepseekV4Indexer.wq_b", "SGLang.C4Indexer"],
-    }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }));
-    // indexer 内嵌 Compressor（SGLang indexer.py:1115，ratio=4/overlap→coff=2）：wkv_gate 投影 +
-    // norm(RMSNorm index_head_dim) + ape。checkpoint attn.indexer.compressor.{wkv,wgate,norm,ape}。
-    if (hasCompressorApe) {
-      specs.push(operatorSpec(`${prefix}.indexer.compressor.wkv_gate`, "indexer compressor wkv/gate projection", "linear", {
-        ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, ${2 * 2 * (indexDim || 0)}]`),
-        implementation: ["SGLang.C4Indexer.compressor.wkv_gate"],
-      }, { input: dims.hidden, output: [-1, -1, 2 * 2 * (indexDim || 0)] }));
-      specs.push(operatorSpec(`${prefix}.indexer.compressor.norm`, "indexer compressor RMSNorm", "rmsnorm",
-        { ...shapeFlow(`[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`,
-          `[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`),
-          compression_output_ratio: 4 },
-        { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }));
+    if (!hasCompressorApe) {
+      specs.push(operatorSpec(`${prefix}.indexer.weights_proj`, "indexer weight projection", "linear", {
+        ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, index heads=${indexHeads}]`),
+        implementation: ["vLLM.DeepseekV4Indexer.weights_proj", "SGLang.C4Indexer"],
+      }, { input: dims.hidden, output: [-1, -1, indexHeads] }));
+      specs.push(operatorSpec(`${prefix}.indexer.q_proj`, "indexer query projection", "linear", {
+        ...shapeFlow(qLatent, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
+        implementation: ["vLLM.DeepseekV4Indexer.wq_b", "SGLang.C4Indexer"],
+      }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }));
+      specs.push(operatorSpec(`${prefix}.indexer`, "DeepSeek V4.1 sparse indexer", "dsv4_indexer", {
+        ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, selected=${budget}]`),
+        indexer_heads: indexHeads,
+        indexer_head_dim: indexDim,
+        budget,
+        compress_ratio: ratio,
+        implementation: ["vLLM.DeepseekV4Indexer", "SGLang.C4Indexer"],
+      }, { input: dims.hidden, output: [-1, -1, budget] }));
     }
-    specs.push(operatorSpec(`${prefix}.indexer`, "DeepSeek V4 C4 sparse indexer", "dsv4_indexer", {
-      ...shapeFlow(shapesForHidden(normalized), `[batch, sequence, selected=${budget}]`),
-      indexer_heads: indexHeads,
-      indexer_head_dim: indexDim,
-      budget,
-      compress_ratio: ratio,
-      implementation: ["vLLM.DeepseekV4Indexer", "SGLang.C4Indexer"],
-      // indexer 内嵌 compressor 的 ape（SGLang indexer.py:1115 nested Compressor，ratio=4/overlap）。
-      ...(hasCompressorApe ? { weightMatrices: [weightMatrixDecl("replicated", { shape: [4, 2 * (indexDim || 0)], quantizable: false, param_dtype: "compressor_ape" })] } : {}),
-    }, { input: dims.hidden, output: [-1, -1, budget] }));
   }
 
   if (isSparse) {

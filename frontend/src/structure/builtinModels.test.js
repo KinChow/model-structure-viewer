@@ -185,7 +185,7 @@ test("checkpoint 叶对账：attn_sink / e_score_correction_bias / bias_vl 命�
     assert.equal(hasParam(nodes, "router_bias_vl"), Boolean(normalized.routerBiasVl),
       `${entry.model_id}: bias_vl 存在性应与 routerBiasVl(${Boolean(normalized.routerBiasVl)}) 一致`);
     // compressor ape（checkpoint position_bias）：仅 DeepSeek-V4 嵌套 compressor 架构有，V4.1 flat 无。
-    const hasCompressor = nodes.some((n) => n.type === "operator" && n.attributes.operator_id === "mla_kv_compress");
+    const hasCompressor = nodes.some((n) => n.attributes.operator_id === "mla_kv_compress");
     const expectApe = resolved.architecture === "DeepseekV4ForCausalLM" && hasCompressor;
     assert.equal(hasParam(nodes, "compressor_ape"), expectApe,
       `${entry.model_id}: compressor_ape 存在性应与「DeepseekV4 嵌套 compressor」(${expectApe}) 一致`);

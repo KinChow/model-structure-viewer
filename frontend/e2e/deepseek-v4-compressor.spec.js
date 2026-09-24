@@ -31,14 +31,16 @@ for (const variant of variants) {
     expect(compressor).toBeTruthy();
     const prefix = compressor.canonical_id.replace(/\.compressor$/, "");
     const indexer = graph.nodes.find(n =>
-      n.attributes?.operator_id === "dsv4_indexer" && /\.self_attn\.indexer$/.test(n.canonical_id || ""));
+      n.attributes?.operator_id === "dsv4_indexer" &&
+      /\.self_attn\.compressor\.indexer$/.test(n.canonical_id || ""));
     const pairs = variant.includes("V4.1")
       ? [[`${prefix}.compressor`, `${prefix}.attention`]]
       : [
-        [`${prefix}.compressor.norm`, `${prefix}.compressor`],
+        [`${prefix}.compressor.kv_norm`, `${prefix}.compressor.rotary_emb`],
         [`${prefix}.compressor`, `${prefix}.attention`],
-        [`${indexer.canonical_id}.compressor.wkv_gate`, `${indexer.canonical_id}.compressor.norm`],
-        [`${indexer.canonical_id}.compressor.norm`, indexer.canonical_id],
+        [`${indexer.canonical_id}.kv_norm`, `${indexer.canonical_id}.rotary_emb`],
+        [`${indexer.canonical_id}.rotary_emb`, `${indexer.canonical_id}.scorer`],
+        [`${indexer.canonical_id}.scorer.weights_proj`, `${indexer.canonical_id}.scorer`],
       ];
     for (const [from, to] of pairs) {
       const edge = graph.edges.find(e => e.source_canonical_id === from && e.target_canonical_id === to);

@@ -64,6 +64,11 @@ export const ARCH_RECIPES = {
     visionFusion: "placeholder_expand",
     visionProjectorPath: "mm_projector",
     visionProjectorKind: "patchmerger",
+    // K2.5/K2.6/K2.7 publish MoonViT tensors under
+    // vision_tower.encoder.blocks.* (wqkv/wo/norm0/norm1/fc0/fc1).
+    // The generic vision recipe used vision_tower.0 with a different
+    // checkpoint layout, which left full production headers in checkpoint_gaps.
+    visionTowerLayout: "encoder_blocks_fused",
     linearAttentionMode: "kimi",
     visionAttr: "vision_tower",
     moeClass: "DeepseekV3MoE",

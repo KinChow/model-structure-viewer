@@ -1,0 +1,41 @@
+{
+  "checked_at": "2026-09-24",
+  "sources": [
+    {
+      "kind": "official_model_card",
+      "url": "https://huggingface.co/zai-org/GLM-5.2/raw/main/README.md",
+      "sha256": "7ba22185651d8f69fbf6227ee718eb680fd834ec8e79ba78df6fa54896614b3d",
+      "anchor": "Improved Architecture: IndexShare reuses the same indexer across every four sparse attention layers"
+    },
+    {
+      "kind": "official_model_card",
+      "url": "https://huggingface.co/zai-org/GLM-5.3/raw/main/README.md",
+      "sha256": "ed1c0a4563c437f32f8953d637a1db9bd831de1b24bd3062a5ace9e04340b1cf",
+      "anchor": "GLM-5.3 release variant identification"
+    },
+    {
+      "kind": "primary_research",
+      "url": "https://arxiv.org/html/2603.12201",
+      "sha256": "83cc704501eaf36f8f739f72d3e31c824caa50889c7e28e294a0862a1487f163",
+      "anchor": "IndexCache algorithm: Full layers compute top-k; Shared layers reuse nearest preceding Full"
+    },
+    {
+      "kind": "framework_forward_reference",
+      "url": "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/glm_moe_dsa/modeling_glm_moe_dsa.py",
+      "sha256": "d5b7d7c109496086b62e85cb06a33075c140a98e0693f110a4cc0808fcf4096d",
+      "anchor": "GlmMoeDsaIndexer.__init__/forward and GlmMoeDsaAttention skip_topk"
+    },
+    {
+      "kind": "published_checkpoint_weight_map",
+      "url": "https://huggingface.co/zai-org/GLM-5.2/raw/main/model.safetensors.index.json",
+      "sha256": "5fd47a926aefce0f2c917f42523e5e0f3c87e23e389e767c3681536a62f5cf5e",
+      "anchor": "model.layers.{0,1,2,6,10,...,74}.self_attn.indexer.{wq_b,wk,k_norm,weights_proj}"
+    },
+    {
+      "kind": "published_checkpoint_weight_map",
+      "url": "https://huggingface.co/zai-org/GLM-5.3/resolve/main/model.safetensors.index.json",
+      "sha256": "e0fe7f28c1f853d4824e4d796374e3dacf1fe470988773952c79b063768134bf",
+      "anchor": "full-layer indexer modules only, with FP8 weight_scale_inv tensors"
+    }
+  ]
+}

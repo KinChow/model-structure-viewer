@@ -524,7 +524,6 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // independently enter SDPA. Explicit dimensions are checked in kimiMla.test.
   "kv_b_proj -> sdpa": "slice",
   "kv_split -> sdpa": "concat",
-  "wk_weights_proj -> k_norm": "slice",
   "qkv_projection -> short_conv": "slice",
   "compressor -> attention": "slice",
   // KDA 融合投影里的 f_a / g_a / g（全秩门）切片，宽度都是 head_dim 或 projection
@@ -532,6 +531,9 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "qkv_projection -> g_b_proj": "slice",
   "qkv_projection -> output_gate_norm": "slice",
   // fused-in：子算子汇入融合父节点，父节点入口是整个模块的输入
+  "wq_b -> indexer": "fused-in",
+  // DeepSeek V4 的独立 C4Indexer 仍使用 q_proj；它不是此处
+  // DSA/IndexCache 所对应的 checkpoint wq_b 命名。
   "q_proj -> indexer": "fused-in",
   "k_norm -> indexer": "fused-in",
   // dsv4 C4 indexer 的逐头权重投影（weights_proj）汇入 indexer 融合父节点。

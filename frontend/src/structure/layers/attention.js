@@ -72,7 +72,9 @@ const ATTENTION_COMPONENTS = [
         ];
         return shared
           ? [...common, ["rope", "sparse_attention"], ["index_reuse", "sparse_attention"], ["sparse_attention", "o_proj"]]
-          : [...common, ["q_a_norm", "q_proj"], ["q_proj", "indexer"], ["wk_weights_proj", "k_norm"], ["k_norm", "indexer"], ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
+          : [...common, ["q_a_norm", "wq_b"], ["wq_b", "indexer"],
+            ["wk", "k_norm"], ["k_norm", "indexer"], ["weights_proj", "indexer"],
+            ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
       }
       if (recipeLinearAttentionMode(normalized) === "qwen4_exp" || normalized.qsaIndexerHeads) {
         return [["q_proj", "q_gate_split"], ["q_gate_split", "q_norm"], ["q_gate_split", "output_gate"],

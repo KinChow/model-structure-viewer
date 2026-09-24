@@ -1295,15 +1295,22 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
           implementation: ["transformers.GlmMoeDsaAttention.prev_topk_indices"],
         }, { input: [-1, -1, budget], output: [-1, -1, budget] })]
       : [
-          operatorSpec(`${prefix}.indexer.q_proj`, "indexer query projection", "linear", {
+          // DSA published modules use physical checkpoint paths wq_b / wk /
+          // weights_proj (Transformers GlmMoeDsaIndexer and DeepseekV32Indexer).
+          // Keep those canonical IDs instead of the generic q_proj alias so
+          // production skeleton truth binds the real tensors exactly once.
+          operatorSpec(`${prefix}.indexer.wq_b`, "indexer query projection", "linear", {
             ...shapeFlow(qLatentShape, `[batch, sequence, index heads=${indexHeads}, index head dimension=${indexDim}]`),
             implementation: ["vLLM.Indexer.wq_b", "SGLang.Indexer.wq_b"],
           }, { input: [-1, -1, qRank], output: [-1, -1, indexHeads, indexDim] }),
-          operatorSpec(`${prefix}.indexer.wk_weights_proj`, "indexer key and weight projection", "linear", {
-            ...shapeFlow(shapes.hidden, `[batch, sequence, index head dimension=${indexDim}] + [batch, sequence, index heads=${indexHeads}]`),
-            projection_layout: ["wk", "weights"],
-            implementation: ["vLLM.Indexer.wk_weights_proj", "SGLang.Indexer.wk_weights_proj"],
-          }, { input: dims.hidden, output: [-1, -1, indexDim + indexHeads] }),
+          operatorSpec(`${prefix}.indexer.wk`, "indexer key projection", "linear", {
+            ...shapeFlow(shapes.hidden, `[batch, sequence, index head dimension=${indexDim}]`),
+            implementation: ["Transformers.GlmMoeDsaIndexer.wk", "SGLang.Indexer.wk"],
+          }, { input: dims.hidden, output: [-1, -1, indexDim] }),
+          operatorSpec(`${prefix}.indexer.weights_proj`, "indexer head-weight projection", "linear", {
+            ...shapeFlow(shapes.hidden, `[batch, sequence, index heads=${indexHeads}]`),
+            implementation: ["Transformers.GlmMoeDsaIndexer.weights_proj", "SGLang.Indexer.weights_proj"],
+          }, { input: dims.hidden, output: [-1, -1, indexHeads] }),
           operatorSpec(`${prefix}.indexer.k_norm`, "indexer key LayerNorm", "rmsnorm", {
             ...shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
             affine_bias: true,

@@ -37,6 +37,15 @@ for (const loading of ["config", "artifacts"]) {
         : buildStructureFromArtifacts(artifactsFor(modelId));
       const graph = structure.graph;
       const normalized = normalizeConfig(read(new URL(`${modelId}/config.json`, modelsRoot)));
+      const position = graph.nodes.find(node => node.canonical_id === "visual.pos_embed");
+      assert.equal(position.attributes.interpolation, "bilinear");
+      assert.equal(position.attributes.interpolation_align_corners, true);
+      assert.equal(position.attributes.position_grid_source, "grid_thw");
+      const visionScores = graph.nodes.find(node => node.canonical_id === "visual.blocks.0.sdpa.scores");
+      assert.equal(visionScores.attributes.packed_variable_length, true);
+      assert.equal(visionScores.attributes.attention_sequence_source, "grid_thw");
+      const mergerNorm = graph.nodes.find(node => node.canonical_id === "visual.merger.norm");
+      assert.equal(mergerNorm.attributes.norm_stage, "pre_shuffle");
       const indexers = qsaNodes(graph);
       const attentions = qsaAttentionNodes(graph);
       assert.equal(indexers.length, 12, `${modelId}: QSA layer count`);

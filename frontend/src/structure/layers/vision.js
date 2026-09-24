@@ -246,7 +246,16 @@ function miniMaxNativeVitTowerModule(normalized) {
       attentionQuery: d.q, attentionKey: d.q, attentionValue: d.q,
       attentionScores: d.scores, attentionProbabilities: d.scores, attentionContext: d.context,
     }, {
-      scores: { attention_kind: "vision" }, context: { attention_kind: "vision" },
+      scores: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
+      context: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
       modality: "vision", attention_mask_kind: "bidirectional",
       vision_token_source: "patch_tokens",
     }),
@@ -381,7 +390,16 @@ function specializedVisionTowerModule(normalized) {
       attentionQuery: d.q, attentionKey: d.q, attentionValue: d.q,
       attentionScores: d.scores, attentionProbabilities: d.scores, attentionContext: d.context,
     }, {
-      scores: { attention_kind: "vision" }, context: { attention_kind: "vision" },
+      scores: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
+      context: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
       modality: "vision", vision_token_source: "patch_tokens",
       attention_mask_kind: "bidirectional",
     }),
@@ -535,7 +553,16 @@ function encoderBlocksVitTowerModule(normalized) {
       attentionQuery: d.q, attentionKey: d.q, attentionValue: d.q,
       attentionScores: d.scores, attentionProbabilities: d.scores, attentionContext: d.context,
     }, {
-      scores: { attention_kind: "vision" }, context: { attention_kind: "vision" },
+      scores: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
+      context: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
       modality: "vision", attention_mask_kind: "bidirectional",
       vision_token_source: "patch_tokens",
     }),
@@ -669,7 +696,16 @@ function blocksVisionTowerModule(normalized) {
       attentionQuery: d.q, attentionKey: d.q, attentionValue: d.q,
       attentionScores: d.scores, attentionProbabilities: d.scores, attentionContext: d.context,
     }, {
-      scores: { attention_kind: "vision" }, context: { attention_kind: "vision" },
+      scores: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
+      context: {
+        attention_kind: "vision",
+        packed_variable_length: recipeFlag(normalized, "visionPackedAttention"),
+        attention_sequence_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
+      },
       modality: "vision", attention_mask_kind: "bidirectional",
       vision_token_source: "patch_tokens",
     }),
@@ -723,6 +759,9 @@ function blocksVisionTowerModule(normalized) {
   const position = operatorSpec(`${id}.pos_embed`, "vision learned position embedding", "vision_position", {
     ...shapeFlow(visual, visual), modality: "vision", vision_token_source: "patch_tokens",
     position_encoding: "learned_absolute",
+    interpolation: recipeValue(normalized, "visionPositionInterpolation"),
+    interpolation_align_corners: recipeFlag(normalized, "visionPositionAlignCorners"),
+    position_grid_source: recipeFlag(normalized, "visionPackedAttention") ? "grid_thw" : undefined,
     weightMatrices: positionCount > 0
       ? [{ class: "replicated", shape: [positionCount, d.hidden],
         out: positionCount, in: d.hidden, quantizable: false }]
@@ -748,6 +787,7 @@ function blocksVisionTowerModule(normalized) {
     operatorSpec(`${mergerId}.norm`, "vision merger LayerNorm", "rmsnorm", {
       ...shapeFlow(visual, visual), modality: "vision", vision_stage: "merger",
       affine_bias: true,
+      norm_stage: recipeFlag(normalized, "visionMergerPostshuffleNorm") ? "post_shuffle" : "pre_shuffle",
     }, { input: d.visual, output: d.visual }),
     operatorSpec(`${mergerId}.patch_merge`, "vision patch merge", "vision_merge", {
       ...shapeFlow(visual, mergedShape), modality: "vision", vision_stage: "merger",

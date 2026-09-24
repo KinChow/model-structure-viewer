@@ -43,7 +43,8 @@ export function nativeVitTowerModule(normalized) {
     }, {
       attentionQuery: d.q, attentionKey: d.q, attentionValue: d.q,
       attentionScores: d.scores, attentionProbabilities: d.scores, attentionContext: d.context,
-    }, { scores: { attention_kind: "vision" }, context: { attention_kind: "vision" }, modality: "vision" }),
+    }, { scores: { attention_kind: "vision" }, context: { attention_kind: "vision" },
+      modality: "vision", attention_mask_kind: "bidirectional" }),
     op("attn.context_merge", "merge vision attention heads", "identity",
       [q, d.context], visual, { checkpoint_module: false, view_transform: "transpose_reshape" }),
     op("attn.wo", "vision output projection", "linear", visual, visual,

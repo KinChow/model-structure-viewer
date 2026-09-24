@@ -1734,9 +1734,9 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
-| `fused_moe_mlp` | 8.622e+13 | 41.18% | 5.860e+13 | 96.64% |
-| `linear` | 1.168e+14 | 55.80% | 1.686e+12 | 2.78% |
-| `sdpa_attention` | 2.850e+12 | 1.36% | 1.955e+10 | 0.03% |
+| `fused_moe_mlp` | 8.622e+13 | 41.17% | 5.860e+13 | 96.64% |
+| `linear` | 1.168e+14 | 55.79% | 1.686e+12 | 2.78% |
+| `sdpa_attention` | 2.889e+12 | 1.38% | 1.955e+10 | 0.03% |
 | `mla_query_compress` | 1.665e+12 | 0.80% | 2.844e+10 | 0.05% |
 | `mla_kv_compress` | 8.285e+11 | 0.40% | 1.549e+10 | 0.03% |
 | `gated_delta_attention` | 4.641e+11 | 0.22% | 1.008e+10 | 0.02% |
@@ -1750,7 +1750,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mhc_pre` | 2.429e+10 | 0.01% | 6.689e+9 | 0.01% |
 | `residual_add` | 0.000e+0 | 0.00% | 2.715e+10 | 0.04% |
 
-合计：matrix 2.0937e+14 MACs · bytes unknown；已知部分 6.0639e+13，上表百分比仅以已知部分为分母（仅列前 15 名）
+合计：matrix 2.0941e+14 MACs · bytes unknown；已知部分 6.0639e+13，上表百分比仅以已知部分为分母（仅列前 15 名）
 
 ## 算力/访存占比（decode，T=1 S=4096，59 模型实例加权求和）
 
@@ -2565,7 +2565,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mhc_pre` | decode | 45/43 | 1.691e+7 | 1.085e+6 | 3.798e+5 | 6.799e+7 | 3.029e+6 | 1.165e+6 | 0.23 | memory | — | — | — |
 | `rope` | prefill | 91/118 | 0 | 1.766e+10 | 0 | 0 | 2.355e+10 | 1.177e+10 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 91/118 | 0 | 8.586e+6 | 0 | 0 | 1.145e+7 | 5.724e+6 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `sdpa_attention` | prefill | 1/32 | 4.844e+9 | 1.514e+8 | 7.569e+7 | 0 | 7.550e+7 | 7.550e+7 | 32.08 | memory | — | — | — |
+| `sdpa_attention` | prefill | 1/32 | 9.664e+9 | 3.020e+8 | 1.510e+8 | 0 | 7.550e+7 | 7.550e+7 | 64.00 | memory | — | — | — |
 | `sdpa_attention` | decode | 1/32 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `moe_combine` | prefill | 45/43 | 0 | 4.329e+9 | 0 | 0 | 4.330e+9 | 7.214e+8 | 0.00 | memory | — | — | — |
 | `moe_combine` | decode | 45/43 | 0 | 2.114e+6 | 0 | 0 | 2.114e+6 | 3.523e+5 | 0.00 | memory | — | — | — |

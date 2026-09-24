@@ -155,7 +155,7 @@ function gatedDeltaStateCtx(config, options, bytesPerElement, modelKind = "", ge
   };
 }
 
-function attentionKvCtx({ config, vision, kind, tokens, options, bytesPerElement }) {
+function attentionKvCtx({ node, config, vision, kind, tokens, options, bytesPerElement }) {
   const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
   const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
   const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
@@ -165,7 +165,8 @@ function attentionKvCtx({ config, vision, kind, tokens, options, bytesPerElement
   const kvHeads = vision ? heads : (latentShared ? 1 : (config?.kvHeads || heads));
   const kReadWidth = latentShared ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
   const vReadWidth = latentShared ? (config?.kvLoraRank || 0) : valueDim;
-  return { heads, headDim, valueDim, queryTokens, keyTokens, latentShared, kvHeads, kReadWidth, vReadWidth, bytesPerElement };
+  return { heads, headDim, valueDim, queryTokens, keyTokens, latentShared, kvHeads, kReadWidth, vReadWidth, bytesPerElement,
+    causal: node?.attributes?.attention_mask_kind !== "bidirectional" };
 }
 // ---------- 旧链镜像结束 ----------
 const FROM_NODE = {
@@ -196,10 +197,10 @@ const FROM_NODE = {
             : patterns.scores.some((pattern) => shapeMatchesPattern(output, pattern)) ? "scores"
             : null;
           if (!part) return null;
-          return { part, phase, ...attentionKvCtx({ config, vision, kind, tokens, options, bytesPerElement }) };
+          return { part, phase, ...attentionKvCtx({ node, config, vision, kind, tokens, options, bytesPerElement }) };
   },
-  sdpa_attention: ({ config, options, bytesPerElement, kind, vision, tokens, phase }) => ({
-          phase, ...attentionKvCtx({ config, vision, kind, tokens, options, bytesPerElement }),
+  sdpa_attention: ({ node, config, options, bytesPerElement, kind, vision, tokens, phase }) => ({
+          phase, ...attentionKvCtx({ node, config, vision, kind, tokens, options, bytesPerElement }),
   }),
   qsa_sparse_attention: ({ config, options, bytesPerElement, operatorId, kind, vision, tokens, phase }) => {
           const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
@@ -285,10 +286,11 @@ const FROM_NODE = {
             windowTokens: Math.min(sequence, slidingWindow || 128),
           };
   },
-  softmax: ({ config, options, bytesPerElement, vision, tokens, phase }) => {
+  softmax: ({ node, config, options, bytesPerElement, vision, tokens, phase }) => {
           const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
           const keyTokens = vision ? config?.visionTokens || 1 : options.sequence ?? 1;
-          return { elements: heads * scoredPairs({ phase, queryTokens: tokens, keyTokens }), bytesPerElement };
+          return { elements: heads * scoredPairs({ phase, queryTokens: tokens, keyTokens,
+            causal: node?.attributes?.attention_mask_kind !== "bidirectional" }), bytesPerElement };
   },
   rope: ({ node, config, bytesPerElement, vision, tokens }) => {
           const factor = node?.attributes?.partial_rotary_factor ?? config?.partialRotaryFactor ?? 1;

@@ -27,16 +27,17 @@ import { paramBytes } from "./paramDtypes.js";
  * 手算校验见 __tests__/counts.test.js「因果对数解析检查」（对小尺寸逐 token
  * 暴力求和比对，避免期望侧与实现侧抄同一假设的同义重复）。
  */
-export function scoredPairs({ phase, queryTokens, keyTokens }) {
+export function scoredPairs({ phase, queryTokens, keyTokens, causal = true }) {
+  if (!causal) return queryTokens * keyTokens;
   if (phase === "decode") return queryTokens * keyTokens;
   const t = Math.min(queryTokens, keyTokens);
   return (t * (t + 1)) / 2 + queryTokens * Math.max(keyTokens - t, 0);
 }
 
 /** 因果/稀疏密度 = 实际打分对数 / 稠密对数。喂给 atoms.matmul 的 density。 */
-export function causalDensity({ phase, queryTokens, keyTokens }) {
+export function causalDensity({ phase, queryTokens, keyTokens, causal = true }) {
   const dense = queryTokens * keyTokens;
-  return dense > 0 ? scoredPairs({ phase, queryTokens, keyTokens }) / dense : 0;
+  return dense > 0 ? scoredPairs({ phase, queryTokens, keyTokens, causal }) / dense : 0;
 }
 
 
@@ -80,11 +81,11 @@ export function linearCounts({ logicalShape, tokens, bytesPerElement, weightByte
  * 新算 K/V 写回 cache（kvHeads·T·(D+dv)：prefill 全量、decode 1 token）、
  * scores/probs 写+读（heads）、输出写。
  */
-export function attentionCounts({ heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement, kvHeads = heads, phase = "prefill" }) {
+export function attentionCounts({ heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement, kvHeads = heads, phase = "prefill", causal = true }) {
   const q = heads * queryTokens * headDim;
   const k = kvHeads * keyTokens * headDim;
   const v = kvHeads * keyTokens * valueDim;
-  const scores = heads * scoredPairs({ phase, queryTokens, keyTokens });
+  const scores = heads * scoredPairs({ phase, queryTokens, keyTokens, causal });
   const context = heads * queryTokens * valueDim;
   const kvWrite = kvHeads * queryTokens * (headDim + valueDim);
   return {
@@ -438,12 +439,12 @@ export function embedGatherCounts({ tokens, hidden, bytesPerElement }) {
  */
 export function matmulPartCounts({
   part, heads = 1, queryTokens = 1, keyTokens = 1, headDim = 1, valueDim = 1, bytesPerElement = 1,
-  kvHeads, kReadWidth, vReadWidth, latentShared = false, phase = "prefill",
+  kvHeads, kReadWidth, vReadWidth, latentShared = false, phase = "prefill", causal = true,
 }) {
   kvHeads ??= heads;
   kReadWidth ??= headDim;
   vReadWidth ??= valueDim;
-  const pairs = heads * scoredPairs({ phase, queryTokens, keyTokens });
+  const pairs = heads * scoredPairs({ phase, queryTokens, keyTokens, causal });
   if (part === "scores") {
     const kvRead = keyTokens * kvHeads * kReadWidth * bytesPerElement;
     return {
@@ -481,13 +482,13 @@ export function matmulPartCounts({
  */
 export function sdpaAttentionCounts({
   heads = 1, queryTokens = 1, keyTokens = 1, headDim = 1, valueDim = 1, bytesPerElement = 1,
-  kvHeads, phase = "prefill", kReadWidth, vReadWidth, latentShared = false,
+  kvHeads, phase = "prefill", kReadWidth, vReadWidth, latentShared = false, causal = true,
 }) {
   kvHeads ??= heads;
   kReadWidth ??= headDim;
   vReadWidth ??= valueDim;
   const fused = attentionCounts({
-    heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement, kvHeads, phase,
+    heads, queryTokens, keyTokens, headDim, valueDim, bytesPerElement, kvHeads, phase, causal,
   });
   const q = heads * queryTokens * headDim;
   const kRead = kvHeads * keyTokens * kReadWidth;

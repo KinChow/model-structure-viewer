@@ -136,7 +136,14 @@ function visionExpectedSide(graph, normalized, V) {
   const blocks = normalized.visionLayers || 0;
   const heads = normalized.visionAttentionHeads || 0;
   const dim = normalized.visionHeadDim || 0;
-  const visionPairs = scoredPairs({ phase: "prefill", queryTokens: V, keyTokens: V });
+  // Frozen release forward oracle: DeepSeek V4/V4.1 inference/vision.py ViT
+  // invokes scaled_dot_product_attention without a causal mask.
+  const fullImageAttention = new Set(["DeepseekV4ForCausalLM", "DeepseekV41ForCausalLM"])
+    .has(normalized.architecture);
+  const visionPairs = scoredPairs({
+    phase: "prefill", queryTokens: V, keyTokens: V,
+    causal: !fullImageAttention,
+  });
   return parts.vision * V + blocks * heads * visionPairs * 2 * dim;
 }
 

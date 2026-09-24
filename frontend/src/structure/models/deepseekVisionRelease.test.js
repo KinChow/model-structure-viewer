@@ -4,7 +4,7 @@ import test from "node:test";
 import { buildStructureFromArtifacts, buildStructureFromConfig } from "../buildStructure.js";
 import { buildSkeleton } from "../truth/skeleton.js";
 import { normalizeConfig } from "../config/normalize.js";
-import { isVisionPath } from "../operators/formulas/extractor.js";
+import { countsForNode, isVisionPath } from "../operators/formulas/extractor.js";
 import { walkStructure } from "../../cost/traverse.js";
 
 const root = new URL("../../../../models/", import.meta.url);
@@ -42,6 +42,19 @@ for (const released of fixture.models) {
     assert.deepEqual(node("vision.blocks.0.mlp.w2").attributes.weightMatrices[0].shape, [1024, 2816]);
     assert.equal(node("vision.blocks.0.attn.rope").attributes.position_encoding, "rope_2d");
     assert.equal(normalizeConfig(config).visionTokens > 0, true);
+    const smallVision = { ...normalizeConfig(config), visionTokens: 4 };
+    const sdpa = node("vision.blocks.0.attn.sdpa");
+    const counts = countsForNode(sdpa, { config: smallVision, options: { phase: "prefill" } });
+    // Inference ViT.forward calls SDPA without an is_causal mask. Four visual
+    // patches attend to all four positions: 16 pairs/head, not 10 causal pairs.
+    assert.equal(sdpa.attributes.attention_mask_kind, "bidirectional");
+    assert.equal(counts.matrix, 16 * 16 * (64 + 64));
+    const scoreLeaf = node("vision.blocks.0.attn.sdpa.scores");
+    const contextLeaf = node("vision.blocks.0.attn.sdpa.context");
+    const scoreCounts = countsForNode(scoreLeaf, { config: smallVision, options: { phase: "prefill" } });
+    const contextCounts = countsForNode(contextLeaf, { config: smallVision, options: { phase: "prefill" } });
+    assert.equal(scoreCounts.matrix + contextCounts.matrix, counts.matrix,
+      "explanatory leaves and billed SDPA parent must agree without duplicate total charges");
     // One released block: 2 RMS scales + QKV/WO (with biases) + SwiGLU
     // W1(2*2816,1024), W2(1024,2816). 32 independent copies plus patch
     // Linear(1024,588) with bias and final RMSNorm.

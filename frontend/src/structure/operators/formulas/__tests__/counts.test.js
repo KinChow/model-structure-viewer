@@ -215,7 +215,7 @@ test("复合节点：mla_query_compress 只计 q_a 投影（norm 与 q_b 都是�
     qa: { logicalShape: [16, 32], tokens: 2, bytesPerElement: B },
   });
   assert.equal(c.matrix, 2 * 16 * 32);
-  // q_a_layernorm 是独立的 `q_a_norm` 叶（结构树实证 decoder.N.self_attn.q_a_norm），
+  // q_a_layernorm 是独立的 Graph IR 叶，与发布 checkpoint 的模块路径相同；
   // q_b_proj 是独立 linear 叶；算进本叶就是双计。norm 那份由 2026-09-09 的
   // 权重字节逐层归因抓出（Kimi-K2 每层 +1,536，61 层 = 93,696）。
   assert.equal(c.vector, 0);

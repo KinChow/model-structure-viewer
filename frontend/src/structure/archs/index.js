@@ -324,6 +324,9 @@ export function recipeValue(config, key) {
 
 // Canonical checkpoint names, shared by node emission and edge declarations.
 export function mlaPaths(config) {
-  return { qNorm: "q_a_norm", kvProjection: "kv_a_proj", kvNorm: "kv_a_norm",
+  // DeepSeekV3Attention and its Kimi/GLM descendants publish these exact
+  // Module attributes.  Keep Graph IR canonical IDs aligned with checkpoint
+  // paths; "q_a_norm"/"kv_a_norm" were display aliases, not real weights.
+  return { qNorm: "q_a_layernorm", kvProjection: "kv_a_proj_with_mqa", kvNorm: "kv_a_layernorm",
     ...recipeValue(config, "mlaPaths") };
 }

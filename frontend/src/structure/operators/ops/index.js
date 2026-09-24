@@ -1446,6 +1446,7 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized, { fused = tr
 // DeepSeek V3.2/GLM DSA 共用一份 MLA + indexer 语义；vLLM/SGLang 的融合方式只记录在 implementation。
 function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
   const { shapes, dims } = shapesAndDims(normalized);
+  const paths = mlaPaths(normalized);
   const heads = normalized.attentionHeads || 0;
   const qRank = normalized.qLoraRank || 0;
   const kvRank = normalized.kvLoraRank || 0;
@@ -1476,12 +1477,12 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
         weightMatrixDecl("tp", { shape: [qRank, dimWidth(dims.hidden)], split: "output" }),
       ],
     }, { input: dims.hidden, output: [-1, -1, qRank] }),
-    operatorSpec(`${prefix}.q_a_norm`, "query latent RMSNorm", "rmsnorm", shapeFlow(qLatentShape, qLatentShape), { input: [-1, -1, qRank], output: [-1, -1, qRank] }),
+    operatorSpec(`${prefix}.${paths.qNorm}`, "query latent RMSNorm", "rmsnorm", shapeFlow(qLatentShape, qLatentShape), { input: [-1, -1, qRank], output: [-1, -1, qRank] }),
     operatorSpec(`${prefix}.q_b_proj`, "query up projection", "linear", {
       ...shapeFlow(qLatentShape, qShape),
       implementation: ["vLLM.q_b_proj", "SGLang.q_b_proj"],
     }, { input: [-1, -1, qRank], output: [-1, -1, heads, qkDim] }),
-    operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", {
+    operatorSpec(`${prefix}.${paths.kvProjection}`, "KV compression projection", "mla_kv_compress", {
       ...shapeFlow(shapes.hidden, kvLatentShape),
       implementation: ["vLLM.kv_a_proj_with_mqa", "SGLang.kv_a_proj_with_mqa"],
       kv_lora_rank: kvRank,
@@ -1492,7 +1493,7 @@ function dsaAttentionOperatorSpecs(prefix, normalized, layerIndex) {
       ...shapeFlow(kvLatentShape, `[batch, sequence, kv latent=${kvRank}], [batch, sequence, rope=${ropeDim}]`),
       split_sizes: [kvRank, ropeDim],
     }, { input: [-1, -1, kvRank + ropeDim], output: [-1, -1, kvRank] }),
-    operatorSpec(`${prefix}.kv_a_norm`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${kvRank}]`, `[batch, sequence, kv latent=${kvRank}]`), { input: [-1, -1, kvRank], output: [-1, -1, kvRank] }),
+    operatorSpec(`${prefix}.${paths.kvNorm}`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${kvRank}]`, `[batch, sequence, kv latent=${kvRank}]`), { input: [-1, -1, kvRank], output: [-1, -1, kvRank] }),
     operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", {
       ...shapeFlow(`[batch, sequence, kv latent=${kvRank}]`, `${kShape}, ${vShape}`),
       implementation: ["vLLM.kv_b_proj", "SGLang.kv_b_proj"],

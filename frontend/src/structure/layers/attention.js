@@ -71,14 +71,15 @@ const ATTENTION_COMPONENTS = [
       // DSA over MLA：有 kv_lora_rank。逐头 QSA：没有。
       if ((normalized.kvLoraRank || 0) > 0) {
         const shared = isIndexShareConfig(normalized) && indexerScheduleOf(normalized)?.[layerIndex] === "reuse";
+        const paths = mlaPaths(normalized);
         const common = [
-          ["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"],
-          ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"],
+          ["q_a_proj", paths.qNorm], [paths.qNorm, "q_b_proj"], [paths.kvProjection, "kv_split"],
+          ["kv_split", paths.kvNorm], [paths.kvNorm, "kv_b_proj"], ["q_b_proj", "rope"],
           ["kv_b_proj", "rope"],
         ];
         return shared
           ? [...common, ["rope", "sparse_attention"], ["index_reuse", "sparse_attention"], ["sparse_attention", "o_proj"]]
-          : [...common, ["q_a_norm", "wq_b"], ["wq_b", "indexer"],
+          : [...common, [paths.qNorm, "wq_b"], ["wq_b", "indexer"],
             ["wk", "k_norm"], ["k_norm", "indexer"], ["weights_proj", "indexer"],
             ["indexer", "sparse_attention"], ["rope", "sparse_attention"], ["sparse_attention", "o_proj"]];
       }

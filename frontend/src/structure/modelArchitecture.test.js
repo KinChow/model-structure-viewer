@@ -872,9 +872,31 @@ test("maps Kimi K2 family MLA latent norms and shared expert branch", () => {
     "KV expansion projection",
     "rotary position embedding",
   ]);
+  assert.ok(attention.children.some((node) => node.id.endsWith(".q_a_layernorm")));
+  assert.ok(attention.children.some((node) => node.id.endsWith(".kv_a_layernorm")));
+  assert.ok(attention.children.some((node) => node.id.endsWith(".kv_a_proj_with_mqa")));
   const moeLayer = decoder.children.find((node) => node.children?.some((child) => child.type === "moe"));
   const moe = moeLayer.children.find((node) => node.type === "moe");
   assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
+});
+
+test("DeepSeek V3 MLA canonical IDs follow published module attributes", () => {
+  for (const modelId of ["deepseek-ai/DeepSeek-R1", "deepseek-ai/DeepSeek-V3.1"]) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", modelId, "config.json")));
+    const normalized = normalizeConfig(config);
+    const resolved = resolveArchitecture(normalized, { modelId });
+    const structure = materializeModelStructure(createStructureIr({
+      network: buildNetwork(resolved, normalized),
+      normalized,
+      resolved,
+    }));
+    const prefix = structure.graph.nodes.find(node => node.canonical_id === "layers.0.self_attn");
+    const children = structure.graph.nodes.filter(node => node.parent_id === prefix.id);
+    assert.ok(children.some(node => node.canonical_id === "layers.0.self_attn.q_a_layernorm"), modelId);
+    assert.ok(children.some(node => node.canonical_id === "layers.0.self_attn.kv_a_layernorm"), modelId);
+    assert.ok(children.some(node => node.canonical_id === "layers.0.self_attn.kv_a_proj_with_mqa"), modelId);
+    assert.equal(children.some(node => node.canonical_id.endsWith(".q_a_norm")), false, modelId);
+  }
 });
 
 test("maps GLM4.7 separate QKV, QK norm, partial RoPE, and shared MoE", () => {

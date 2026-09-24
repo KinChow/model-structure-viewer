@@ -43,7 +43,7 @@ for (const modelId of variants) {
       assert.ok(edge("wq_b", prefix));
       assert.ok(edge("weights_proj", prefix));
       assert.ok(graph.edges.some(e =>
-        e.source_canonical_id === `${prefix.slice(0, -".indexer".length)}.q_a_norm`
+        e.source_canonical_id === `${prefix.slice(0, -".indexer".length)}.q_a_layernorm`
         && e.target_canonical_id === `${prefix}.wq_b`));
       const count = suffix => countsForNode(get(suffix), {
         config: norm, options: { batch: 2, sequence: 5, phase: "prefill" }, bytesPerElement: 2,

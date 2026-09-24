@@ -39,8 +39,9 @@ attributes.class = compressed KV/state compressor
   `bound=6798`、`unmatched=41113`。新增的发布子模块使 V4 的精确路径可绑定；
   unmatched 总量上升是因为图中同时物化了更多真实节点，不能单看总数判断变差。
 
-`unmatched` 仍然存在是预期的审计信号：当前模板没有为每个发布模块都物化
-独立 graph node，尤其是已知 DeepSeek-V4 compressor/indexer 内部的
-`kv_proj`、`gate_proj`、`kv_norm`、`rotary_emb`、`q_b_proj` 和 `scorer`。
-这部分不能用“source-ref 已有绑定”掩盖，下一批需要按 Transformers 发布路径
-扩展真实内部节点并继续做 checkpoint 对账。
+`unmatched` 仍然存在是预期的审计信号，不能直接解释为缺少真实模块：
+图中还包含聚合父节点、视图层语义节点、控制边端点和当前发布实现没有
+独立 checkpoint 模块的融合步骤。DeepSeek-V4 已物化并绑定本批核对的
+`kv_proj`、`gate_proj`、`kv_norm`、`rotary_emb`、`q_b_proj` 和
+`scorer.weights_proj` 路径；后续应按 unmatched 的节点类别继续逐模块
+checkpoint 对账，而不是再用总 unmatched 数量驱动盲目扩图。

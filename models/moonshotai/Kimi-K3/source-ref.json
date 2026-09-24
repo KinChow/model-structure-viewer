@@ -18,16 +18,72 @@
     },
     {
       "module_path": "root.mm_projector",
-      "class_name": "PatchMergerMLP",
+      "class_name": "PatchMergerMLPV2",
       "has_params": true,
       "source_ref": {
         "framework": "model-repo",
-        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.PatchMergerMLP",
-        "class_name": "PatchMergerMLP",
+        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.PatchMergerMLPV2",
+        "class_name": "PatchMergerMLPV2",
         "file": "modeling_kimi_k3.py",
-        "line": 756,
+        "line": 783,
         "version": "f831ab66814297da540d832a5235f8e904f29d06",
-        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L756"
+        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L783"
+      }
+    },
+    {
+      "module_path": "root.mm_projector.proj.0",
+      "class_name": "Linear",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.PatchMergerMLPV2",
+        "class_name": "PatchMergerMLPV2",
+        "file": "modeling_kimi_k3.py",
+        "line": 795,
+        "version": "f831ab66814297da540d832a5235f8e904f29d06",
+        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L795"
+      }
+    },
+    {
+      "module_path": "root.mm_projector.proj.1",
+      "class_name": "GELU",
+      "has_params": false,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.PatchMergerMLPV2",
+        "class_name": "PatchMergerMLPV2",
+        "file": "modeling_kimi_k3.py",
+        "line": 795,
+        "version": "f831ab66814297da540d832a5235f8e904f29d06",
+        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L795"
+      }
+    },
+    {
+      "module_path": "root.mm_projector.proj.2",
+      "class_name": "Linear",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.PatchMergerMLPV2",
+        "class_name": "PatchMergerMLPV2",
+        "file": "modeling_kimi_k3.py",
+        "line": 795,
+        "version": "f831ab66814297da540d832a5235f8e904f29d06",
+        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L795"
+      }
+    },
+    {
+      "module_path": "root.mm_projector.post_norm",
+      "class_name": "RMSNorm",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.PatchMergerMLPV2",
+        "class_name": "PatchMergerMLPV2",
+        "file": "modeling_kimi_k3.py",
+        "line": 795,
+        "version": "f831ab66814297da540d832a5235f8e904f29d06",
+        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L795"
       }
     }
   ]

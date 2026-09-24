@@ -109,39 +109,44 @@ export function projectorModule(normalized = null) {
     return [first, merge];
   }
 
-  if (projectorKind === "patchmerger" && mergedWidth > 0) {
+  if (projectorKind.startsWith("patchmerger") && mergedWidth > 0) {
+    const v2 = projectorKind === "patchmergerv2";
     const mergedShape = `[batch, merged visual tokens, merged width=${mergedWidth}]`;
     const patchChildren = baseId === "mm_projector"
       ? { norm: "pre_norm", fc1: "proj.0", activation: "proj.1", fc2: "proj.2" }
       : { norm: "pre_norm", fc1: "fc1", activation: "activation", fc2: "fc2" };
     const children = [
-      operatorSpec(child(patchChildren.norm), "projector LayerNorm", "rmsnorm", {
+      ...(!v2 ? [operatorSpec(child(patchChildren.norm), "projector LayerNorm", "rmsnorm", {
         ...shapeFlow(`[batch, visual tokens, mm hidden=${mmHidden}]`, `[batch, visual tokens, mm hidden=${mmHidden}]`),
         modality: "vision", affine_bias: true,
-      }, { input: [-1, -1, mmHidden], output: [-1, -1, mmHidden] }),
+      }, { input: [-1, -1, mmHidden], output: [-1, -1, mmHidden] })] : []),
       operatorSpec(child(patchChildren.fc1), "projector first projection", "linear", {
-        ...shapeFlow(mergedShape, mergedShape), modality: "vision", bias: true,
+        ...shapeFlow(mergedShape, mergedShape), modality: "vision", bias: !v2,
       }, { input: [-1, -1, mergedWidth], output: [-1, -1, mergedWidth] }),
       operatorSpec(child(patchChildren.activation), "projector GELU", "vision_activation", {
         ...shapeFlow(mergedShape, mergedShape), modality: "vision",
       }, { input: [-1, -1, mergedWidth], output: [-1, -1, mergedWidth] }),
       operatorSpec(child(patchChildren.fc2), "vision-text projection", "linear", {
         ...shapeFlow(mergedShape, shapes ? shapes.hidden : `[batch, tokens, hidden=${textHidden}]`),
-        modality: "vision", bias: true,
+        modality: "vision", bias: !v2,
       }, { input: [-1, -1, mergedWidth], output: dims?.hidden }),
+      ...(v2 ? [operatorSpec(child("post_norm"), "projector output RMSNorm", "rmsnorm", {
+        ...shapeFlow(shapes?.hidden, shapes?.hidden), modality: "vision",
+      }, { input: dims?.hidden, output: dims?.hidden })] : []),
     ];
     return withShapeDims(moduleSpec(baseId, "Multi-modal Projector", "projector", {
-      class: "PatchMergerMLP",
+      class: v2 ? "PatchMergerMLPV2" : "PatchMergerMLP",
       mm_hidden_size: mmHidden,
       merge_kernel_size: mergeSize,
       merged_width: mergedWidth,
       // 出处见文件头注释（MoonViT 的 PatchMergerMLP）。这里只留类名，不写家族名 ——
       // §8.1：家族名不得出现在非注释代码里。
-      implementation: ["PatchMergerMLP"],
+      implementation: [v2 ? "PatchMergerMLPV2" : "PatchMergerMLP"],
       dataflow_edges: [
-        [child(patchChildren.norm), child(patchChildren.fc1)],
+        ...(!v2 ? [[child(patchChildren.norm), child(patchChildren.fc1)]] : []),
         [child(patchChildren.fc1), child(patchChildren.activation)],
         [child(patchChildren.activation), child(patchChildren.fc2)],
+        ...(v2 ? [[child(patchChildren.fc2), child("post_norm")]] : []),
       ],
       ...flow,
     }, children), dims?.visionOutput, dims?.hidden);

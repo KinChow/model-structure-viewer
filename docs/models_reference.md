@@ -87,7 +87,7 @@
 | `moonshotai/Kimi-K2.5` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,874,320,384（1.03T） | 有 | 2026-01-25 |
 | `moonshotai/Kimi-K2.6` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,874,320,384（1.03T） | 有 | 2026-04-17 |
 | `moonshotai/Kimi-K2.7-Code` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,874,320,384（1.03T） | 有 | 2026-06-12 |
-| `moonshotai/Kimi-K3` | `kimi_k3` | `KimiK3ForConditionalGeneration` | 2,779,927,645,792（2.78T） | manifest | 2026-07-27 |
+| `moonshotai/Kimi-K3` | `kimi_k3` | `KimiK3ForConditionalGeneration` | 2,779,927,639,648（2.78T） | manifest | 2026-07-27 |
 | `zai-org/GLM-4.7` | `glm4_moe` | `Glm4MoeForCausalLM` | 357,561,845,056（357.6B） | 有 | 2025-12-22 |
 | `zai-org/GLM-5` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-02-11 |
 | `zai-org/GLM-5.1` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-04-03 |

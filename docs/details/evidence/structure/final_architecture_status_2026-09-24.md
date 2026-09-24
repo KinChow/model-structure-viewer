@@ -24,7 +24,7 @@
 | `deepseek_v41` | 1 | 已修复/有边界 | CED、CSA2 Full/Reuse、DSpark、MTP 抑制基线 | 完整权重/GPU 行为和视觉融合物化仍未证明 |
 | `kimi_k2` | 4 | 基线/证据不足 | 保留 MLA/MoE；未因 README 缺少 MTP 就伪造结论 | Thinking QAT、MTP 和逐模块 checkpoint 审计 |
 | `kimi_k25` | 3 | 已修复/有边界 | 视觉/文本两路融合入口 | 各变体视觉 projector 和 checkpoint 逐模块审计 |
-| `kimi_k3` | 1 | 已修复/有边界 | AttnRes、NoPE、SiTU、Gated MLA、视觉 RoPE、LatentMoE | 局部 header 不是全模型 truth；视觉生命周期仍保留边界 |
+| `kimi_k3` | 1 | 已修复/有边界 | AttnRes、NoPE、SiTU、Gated MLA、视觉 RoPE、LatentMoE；发布 `PatchMergerMLPV2` 无 bias 且后置 RMSNorm | 局部 header 不是全模型 truth；视觉生命周期仍保留边界 |
 | `qwen3_5` | 15 | 已修复/有边界 | Gated Attention / GDN 必需 fan-in；多模态入口 | 量化/Base 变体 packed layout 和视觉 truth |
 | `qwen3_5_moe` | 12 | 已修复/有边界 | Gated Attention / GDN fan-in、MoE 路径和融合入口 | 量化/Base 变体逐模块实装证据 |
 | `qwen3_5_moe_text` | 2 | 已修复/有边界 | text-only 混合主干；未误加视觉塔；门控输入修复 | 量化变体 checkpoint/activation quantization 细节 |

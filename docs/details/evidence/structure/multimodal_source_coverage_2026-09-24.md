@@ -6,8 +6,8 @@
 ## 结果
 
 - 有视觉 source-ref 模块的多模态条目：**39**
-- source-ref 中的视觉塔/projector/patch-merge 模块记录：**788**
-- 能由 Graph IR canonical ID 精确或折叠祖先表示：**788/788**
+- source-ref 中的视觉塔/projector/patch-merge 模块记录：**792**
+- 能由 Graph IR canonical ID 精确或折叠祖先表示：**792/792**
 - 当前 source-ref sidecar 缺口：**0**
 
 DeepSeek 两个条目的视觉 forward 已由固定 revision 的 `inference/vision.py`

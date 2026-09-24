@@ -72,7 +72,7 @@ export const ARCH_RECIPES = {
   KimiK3ForConditionalGeneration: {
     visionFusion: "placeholder_expand",
     visionProjectorPath: "mm_projector",
-    visionProjectorKind: "patchmerger",
+    visionProjectorKind: "patchmergerv2",
     linearAttentionMode: "kimi_k3",
     mlaPaths: { qNorm: "q_a_layernorm", kvProjection: "kv_a_proj_with_mqa", kvNorm: "kv_a_layernorm" },
     visionRope2d: true,

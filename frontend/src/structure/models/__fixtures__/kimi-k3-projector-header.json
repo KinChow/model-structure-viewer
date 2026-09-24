@@ -1,0 +1,32 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+  "index_sha256": "a1c5210650ce71d2d3ae9ec5a101ac4afd3cf4b10091be589853437eb967febd",
+  "source": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/model-00095-of-000096.safetensors",
+  "note": "Published shard 95 header, HTTP Range fetched 2026-09-24; three projector tensors, no pre_norm and no linear bias.",
+  "tensors": [
+    {
+      "name": "mm_projector.post_norm.weight",
+      "shape": [
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "mm_projector.proj.0.weight",
+      "shape": [
+        4096,
+        4096
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "mm_projector.proj.2.weight",
+      "shape": [
+        7168,
+        4096
+      ],
+      "dtype": "BF16"
+    }
+  ]
+}

@@ -19,7 +19,9 @@
   后接独立的 `patch_merge_mlp.linear_1/2`；两者之间还有 patch regroup。
   较新的 Transformers 合并类把后者命名为 `merge_linear_1/2`，但该路径
   **不存在于这两个发布版本的权重索引**；
-- Kimi PatchMerger 使用 `pre_norm`、`proj.0/1/2`；
+- Kimi K2.5 PatchMerger 使用 `pre_norm`、`proj.0/1/2`；Kimi K3 的
+  发布权重和 forward 则使用无 bias 的 `proj.0/1/2`、`post_norm`，
+  **没有** `pre_norm`（详见 `kimi_k3_projector_v2_repair.md`）；
 - DeepSeek Aligner 使用 `w1 → GELU → w2`。
 
 如果仅把节点显示名改成对应术语而不改变 canonical path，真实 projector
@@ -33,7 +35,8 @@
 
 ```text
 MiniMax M3        multi_modal_projector → patch_merge_mlp
-Kimi K2/K3        mm_projector + PatchMergerMLP paths
+Kimi K2.5         mm_projector + PatchMergerMLP (pre_norm)
+Kimi K3           mm_projector + PatchMergerMLPV2 (post_norm)
 DeepSeek V4/V4.1  aligner + w1/GELU/w2
 ```
 
@@ -46,7 +49,8 @@ DeepSeek V4/V4.1  aligner + w1/GELU/w2
 `multimodalEntry.test.js` 验证五个代表条目的精确 canonical IDs：
 
 - MiniMax M3 的两个物理模块与各自的 `linear_1/2`；
-- Kimi-K2.5、Kimi-K3 的 `mm_projector.proj.0/1/2`；
+- Kimi-K2.5 的 `mm_projector.pre_norm/proj.0/1/2` 和
+  Kimi-K3 的 `mm_projector.proj.0/1/2/post_norm`；
 - DeepSeek-V4 Vision、V4.1 的 `aligner.w1/activation/w2`。
 
 `multimodalSourceCoverage.test.js` 继续以 source-ref 为期望，验证所有视觉塔

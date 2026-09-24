@@ -69,7 +69,7 @@ test("multimodal source-ref visual modules are represented by Graph IR", () => {
 
   assert.deepEqual(new Set(visualModuleGaps), new Set());
   assert.equal(checkedModels.length, 39);
-  assert.equal(sourceModules, 788);
+  assert.equal(sourceModules, 792);
 
   const visualEvidence = JSON.parse(fs.readFileSync(
     path.join(

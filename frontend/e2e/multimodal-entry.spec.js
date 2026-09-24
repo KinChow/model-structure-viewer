@@ -60,6 +60,17 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
     await expect(tile(fusion).locator(".rf-model-node")).toHaveAttribute("aria-selected", "true");
     await search.fill("");
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    if (entry.model_id === "moonshotai/Kimi-K3") {
+      const postNorm = get("mm_projector.post_norm");
+      expect(postNorm).toBeTruthy();
+      expect(get("mm_projector.pre_norm")).toBeFalsy();
+      await expect(tile(postNorm)).toHaveCount(1);
+      const projection = get("mm_projector.proj.2");
+      const edge = graph.edges.find(e => e.source === projection.id && e.target === postNorm.id);
+      expect(edge).toBeTruthy();
+      await expect(page.locator(`.react-flow__edge[data-id="${edge.id}"] path.react-flow__edge-path`))
+        .toHaveAttribute("d", /^M/, { timeout: 30000 });
+    }
     await expect(page.locator(".react-flow__edge title").filter({ hasText: "visual features" }).first()).toHaveCount(1);
     await expect(page.locator(".react-flow__edge title").filter({ hasText: "placeholder positions" }).first()).toHaveCount(1);
     await tile(fusion).locator(".rf-model-node").focus();
@@ -102,6 +113,12 @@ test("desktop MiniMax released projector and patch merge remain separate visible
   test.skip(testInfo.project.name !== "desktop-chrome");
   test.setTimeout(150_000);
   await openAndCheck(page, entries.find(entry => entry.model_id === "MiniMaxAI/MiniMax-M3"), testInfo, true);
+});
+
+test("desktop Kimi-K3 V2 projector ends at post-norm", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chrome");
+  test.setTimeout(150_000);
+  await openAndCheck(page, entries.find(entry => entry.model_id === "moonshotai/Kimi-K3"), testInfo, true);
 });
 
 for (const entry of families) {

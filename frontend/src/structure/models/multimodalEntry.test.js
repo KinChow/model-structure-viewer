@@ -121,8 +121,8 @@ test("multimodal projector canonical IDs follow published module paths", () => {
       "mm_projector.proj.1", "mm_projector.proj.2",
     ]],
     ["moonshotai/Kimi-K3", [
-      "mm_projector", "mm_projector.pre_norm", "mm_projector.proj.0",
-      "mm_projector.proj.1", "mm_projector.proj.2",
+      "mm_projector", "mm_projector.proj.0",
+      "mm_projector.proj.1", "mm_projector.proj.2", "mm_projector.post_norm",
     ]],
     ["deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", [
       "aligner", "aligner.w1", "aligner.activation", "aligner.w2",

@@ -495,11 +495,21 @@ const FROM_NODE = {
           phase,
           b: bytesPerElement,
         }),
-  dsv4_indexer: ({ config, options, bytesPerElement, tokens, phase }) => ({
+  dsv4_indexer: ({ node, config, options, bytesPerElement, tokens, phase }) => ({
+          // Only the published nested V4 C4 indexer declares compressed
+          // index keys. V4.1 flat approximations retain their existing domain.
+          ...(node?.attributes?.index_key_domain === "compressed_window" ? {
+            keyTokens: Math.floor((options.sequence ?? 1) /
+              Math.max(Number(node.attributes?.compress_ratio ?? 1), 1)),
+            denseScores: node.attributes?.score_mask_stage === "after_dense_scores",
+            keyWriteTokens: compressedOutputTokens({
+              batch: options.batch ?? 1, sequence: options.sequence ?? 1,
+              phase, ratio: Math.max(Number(node.attributes?.compress_ratio ?? 1), 1),
+            }),
+          } : { keyTokens: options.sequence ?? 1 }),
           heads: config?.dsaIndexHeads ?? 0,
           dim: config?.dsaIndexHeadDim ?? 0,
           queryTokens: tokens,
-          keyTokens: options.sequence ?? 1,
           budget: config?.dsaIndexTopk ?? 0,
           pool: 1,
           poolStage: "none",

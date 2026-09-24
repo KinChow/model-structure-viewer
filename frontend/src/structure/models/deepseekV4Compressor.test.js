@@ -179,3 +179,50 @@ test("V4 compressor RMSNorm executes on emitted compressed blocks, not every raw
     }
   }
 });
+
+test("V4 C4 indexer scores compressed keys, not raw sequence positions", () => {
+  const config = read("DeepSeek-V4-Flash/config.json");
+  const normalized = normalizeConfig(config);
+  const structure = buildStructureFromConfig(config);
+  const indexer = structure.graph.nodes.find(n =>
+    n.attributes?.operator_id === "dsv4_indexer" &&
+    n.attributes?.compress_ratio === 4);
+  assert.ok(indexer);
+  assert.equal(indexer.attributes.index_key_domain, "compressed_window");
+  assert.equal(indexer.attributes.score_mask_stage, "after_dense_scores");
+  const count = sequence => countsForNode(indexer, {
+    config: normalized,
+    options: { batch: 1, sequence, phase: "decode" },
+    bytesPerElement: 2,
+  });
+  const short = count(4);
+  const long = count(4096);
+  // The published indexer compresses each complete C4 window before scoring;
+  // indexRead is therefore sequence/4 * index_dim * bytes, not sequence * ...
+  assert.equal(short.bytes.indexRead, 1 * normalized.dsaIndexHeadDim * 2);
+  assert.equal(long.bytes.indexRead, 1024 * normalized.dsaIndexHeadDim * 2);
+  assert.equal(long.bytes.indexRead / short.bytes.indexRead, 1024);
+  assert.equal(short.matrix, normalized.dsaIndexHeads * normalized.dsaIndexHeadDim);
+  assert.equal(long.matrix, normalized.dsaIndexHeads * 1024 * normalized.dsaIndexHeadDim);
+  assert.equal(short.bytes.actOut - count(5).bytes.actOut,
+    normalized.dsaIndexHeadDim * 2,
+    "a non-boundary decode step must not write another compressed index key");
+  const prefill = countsForNode(indexer, {
+    config: normalized,
+    options: { batch: 1, sequence: 8, phase: "prefill" },
+    bytesPerElement: 2,
+  });
+  assert.equal(prefill.matrix, normalized.dsaIndexHeads * 8 * 2 * normalized.dsaIndexHeadDim,
+    "reference scorer does the dense Q×compressed-K matmul before masking invalid blocks");
+  const production = buildStructureFromArtifacts({
+    config, modelId: "deepseek-ai/DeepSeek-V4-Flash",
+    checkpointTruth: read("DeepSeek-V4-Flash/header-truth.json"),
+    sourceRef: read("DeepSeek-V4-Flash/source-ref.json"),
+  }).graph.nodes.find(n => n.canonical_id === indexer.canonical_id);
+  assert.ok(production);
+  assert.equal(countsForNode(production, {
+    config: normalized,
+    options: { batch: 1, sequence: 4096, phase: "decode" },
+    bytesPerElement: 2,
+  }).bytes.indexRead, long.bytes.indexRead, "production artifacts use the same compressed-key geometry");
+});

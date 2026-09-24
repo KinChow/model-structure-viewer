@@ -889,6 +889,8 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
         indexer_head_dim: indexDim,
         budget,
         compress_ratio: ratio,
+        index_key_domain: "compressed_window",
+        score_mask_stage: "after_dense_scores",
         implementation: ["transformers.DeepseekV4Indexer", "vLLM.DeepseekV4Indexer"],
         dataflow_edges: [
           ["kv_proj", "window_reduce"], ["gate_proj", "window_reduce"], ["position_bias", "window_reduce"],

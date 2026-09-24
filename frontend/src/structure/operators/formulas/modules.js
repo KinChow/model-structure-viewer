@@ -669,8 +669,9 @@ function indexerDecomposition(p) {
   const stage = p.poolStage ?? "none";
   const scored = stage === "key" ? Math.ceil(p.keyTokens / pool) : p.keyTokens;
   const candidates = stage === "none" ? p.keyTokens : Math.ceil(p.keyTokens / pool);
-  const density = scoreDensity(p.phase, p.queryTokens, scored);
-  const pairs = p.heads * scorePairs(p.phase, p.queryTokens, scored);
+  const density = p.denseScores ? 1 : scoreDensity(p.phase, p.queryTokens, scored);
+  const pairs = p.heads * (p.denseScores
+    ? p.queryTokens * scored : scorePairs(p.phase, p.queryTokens, scored));
   const scoreBytes = p.scoreBytes ?? 4; // fp32
   const msa = stage === "score";
   return [
@@ -693,7 +694,7 @@ function indexerDecomposition(p) {
     { atom: "topk", args: { rows: msa ? p.heads * p.queryTokens : p.queryTokens,
       candidates, k: Math.ceil(p.budget / (stage === "none" ? 1 : pool)), bytesPerElement: scoreBytes } },
     // index k cache 写（新 token 的 index key）
-    { atom: "scatter", args: { rows: p.queryTokens, width: p.dim, bytesPerElement: p.b, readIn: false } },
+    { atom: "scatter", args: { rows: p.keyWriteTokens ?? p.queryTokens, width: p.dim, bytesPerElement: p.b, readIn: false } },
   ];
 }
 
@@ -701,7 +702,8 @@ function indexerResident(p) {
   const pool = Math.max(p.pool ?? 1, 1);
   const stage = p.poolStage ?? "none";
   const scored = stage === "key" ? Math.ceil(p.keyTokens / pool) : p.keyTokens;
-  const pairs = p.heads * scorePairs(p.phase, p.queryTokens, scored);
+  const pairs = p.heads * (p.denseScores
+    ? p.queryTokens * scored : scorePairs(p.phase, p.queryTokens, scored));
   return [
     { name: "逐头打分 scores（fp32，不落 HBM）", elements: pairs, bytesPerElement: p.scoreBytes ?? 4 },
     ...((stage === "score") ? [] : [{ name: "ReLU 后的打分", elements: pairs, bytesPerElement: p.scoreBytes ?? 4 }]),

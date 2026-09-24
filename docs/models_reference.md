@@ -37,9 +37,9 @@
 
 | 模型 ID | family（model_type） | architectures[0] | 参数量级（图声明） | 证据库 | release_time |
 |---|---|---|---|---|---|
-| `MiniMaxAI/MiniMax-M2.7` | `minimax_m2` | `MiniMaxM2ForCausalLM` | 241,595,912,704（241.6B） | 有 | 2026-04-09 |
-| `MiniMaxAI/MiniMax-M3` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 435,760,915,968（435.8B） | manifest | 2026-06-02 |
-| `MiniMaxAI/MiniMax-M3-MXFP8` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 435,760,915,968（435.8B） | 有 | 2026-06-02 |
+| `MiniMaxAI/MiniMax-M2.7` | `minimax_m2` | `MiniMaxM2ForCausalLM` | 243,439,702,528（243.4B） | 有 | 2026-04-09 |
+| `MiniMaxAI/MiniMax-M3` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 436,990,109,184（437.0B） | manifest | 2026-06-02 |
+| `MiniMaxAI/MiniMax-M3-MXFP8` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 436,990,109,184（437.0B） | 有 | 2026-06-02 |
 | `Qwen/Qwen3.5-0.8B` | `qwen3_5` | `Qwen3_5ForConditionalGeneration` | 873,438,784（873.4M） | 有 | 2026-03-01 |
 | `Qwen/Qwen3.5-0.8B-Base` | `qwen3_5` | `Qwen3_5ForConditionalGeneration` | 873,438,784（873.4M） | 有 | 2026-03-01 |
 | `Qwen/Qwen3.5-122B-A10B` | `qwen3_5_moe` | `Qwen3_5MoeForConditionalGeneration` | 125,086,346,480（125.1B） | 有 | 2026-02-24 |
@@ -71,9 +71,9 @@
 | `Qwen/Qwen3.8-27B-FP8` | `qwen3_5` | `Qwen3_5ForConditionalGeneration` | 27,781,427,952（27.8B） | 有 | 2026-08-13 |
 | `Qwen/Qwen3.8-Flash-Next` | `qwen4_exp` | `Qwen4ExpForConditionalGeneration` | 179,999,855,984（180.0B） | manifest | 2026-08-24 |
 | `Qwen/Qwen3.8-Flash-Next-FP8` | `qwen4_exp` | `Qwen4ExpForConditionalGeneration` | 179,999,855,984（180.0B） | 有 | 2026-08-24 |
-| `deepseek-ai/DeepSeek-R1` | `deepseek_v3` | `DeepseekV3ForCausalLM` | 683,563,166,464（683.6B） | 有 | 2025-01-20 |
-| `deepseek-ai/DeepSeek-V3.1` | `deepseek_v3` | `DeepseekV3ForCausalLM` | 683,563,166,464（683.6B） | 有 | 2025-08-21 |
-| `deepseek-ai/DeepSeek-V3.2` | `deepseek_v32` | `DeepseekV32ForCausalLM` | 684,428,650,752（684.4B） | 有 | 2025-12-01 |
+| `deepseek-ai/DeepSeek-R1` | `deepseek_v3` | `DeepseekV3ForCausalLM` | 684,489,845,504（684.5B） | 有 | 2025-01-20 |
+| `deepseek-ai/DeepSeek-V3.1` | `deepseek_v3` | `DeepseekV3ForCausalLM` | 684,489,845,504（684.5B） | 有 | 2025-08-21 |
+| `deepseek-ai/DeepSeek-V3.2` | `deepseek_v32` | `DeepseekV32ForCausalLM` | 685,355,329,792（685.4B） | 有 | 2025-12-01 |
 | `deepseek-ai/DeepSeek-V4-Flash` | `deepseek_v4` | `DeepseekV4ForCausalLM` | 291,468,608,973（291.5B） | manifest | 2026-04-22 |
 | `deepseek-ai/DeepSeek-V4-Flash-0731` | `deepseek_v4` | `DeepseekV4ForCausalLM` | 304,174,880,185（304.2B） | 有 | 2026-07-31 |
 | `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` | `deepseek_v4` | `DeepseekV4ForCausalLM` | 304,641,267,897（304.6B） | 有 | 2026-08-31 |
@@ -88,15 +88,15 @@
 | `moonshotai/Kimi-K2.6` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,879,040,128（1.03T） | 有 | 2026-04-17 |
 | `moonshotai/Kimi-K2.7-Code` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,879,040,128（1.03T） | 有 | 2026-06-12 |
 | `moonshotai/Kimi-K3` | `kimi_k3` | `KimiK3ForConditionalGeneration` | 2,779,931,834,976（2.78T） | manifest | 2026-07-27 |
-| `zai-org/GLM-4.7` | `glm4_moe` | `Glm4MoeForCausalLM` | 357,561,845,056（357.6B） | 有 | 2025-12-22 |
-| `zai-org/GLM-5` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-02-11 |
-| `zai-org/GLM-5.1` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-04-03 |
-| `zai-org/GLM-5.2` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-06-16 |
-| `zai-org/GLM-5.2-FP8` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-06-16 |
-| `zai-org/GLM-5.3` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-08-25 |
-| `zai-org/GLM-5.3-BF16` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-08-25 |
-| `zai-org/GLM-5.3-Flash` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,951,908,756（322.0B） | manifest | 2026-08-25 |
-| `zai-org/GLM-5.3-Flash-BF16` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,951,908,756（322.0B） | 有 | 2026-08-25 |
+| `zai-org/GLM-4.7` | `glm4_moe` | `Glm4MoeForCausalLM` | 358,337,791,296（358.3B） | 有 | 2025-12-22 |
+| `zai-org/GLM-5` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,767,304,448（755.8B） | 有 | 2026-02-11 |
+| `zai-org/GLM-5.1` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,767,304,448（755.8B） | 有 | 2026-04-03 |
+| `zai-org/GLM-5.2` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,233,105,920（755.2B） | 有 | 2026-06-16 |
+| `zai-org/GLM-5.2-FP8` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,233,105,920（755.2B） | 有 | 2026-06-16 |
+| `zai-org/GLM-5.3` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,233,105,920（755.2B） | 有 | 2026-08-25 |
+| `zai-org/GLM-5.3-BF16` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 755,233,105,920（755.2B） | 有 | 2026-08-25 |
+| `zai-org/GLM-5.3-Flash` | `glm5_next` | `Glm5NextForConditionalGeneration` | 322,586,297,236（322.6B） | manifest | 2026-08-25 |
+| `zai-org/GLM-5.3-Flash-BF16` | `glm5_next` | `Glm5NextForConditionalGeneration` | 322,586,297,236（322.6B） | 有 | 2026-08-25 |
 
 ## 按 architectures[0] 汇总（生成物）
 

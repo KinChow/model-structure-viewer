@@ -29,9 +29,9 @@
 | `qwen3_5_moe` | 12 | 已修复/有边界 | Gated Attention / GDN fan-in、MoE 路径和融合入口 | 量化/Base 变体逐模块实装证据 |
 | `qwen3_5_moe_text` | 2 | 已修复/有边界 | text-only 混合主干；未误加视觉塔；门控输入修复 | 量化变体 checkpoint/activation quantization 细节 |
 | `qwen4_exp` | 2 | 已修复/有边界 | QSA 微块、尾部 token、PLE、第 2 层位置、四路 gated residual；视觉 packed attention、grid_thw 位置插值、pre-shuffle merger norm | 融合搬运 unknown；GPU packed-attention 性能未实测 |
-| `minimax_m2` | 1 | 已修复/有边界 | 按随附 Transformers/source-ref 修正为独立 Q/K/V projection、Q/K RMSNorm、partial RoPE；保留 GQA/MoE，生产 header 仍抑制未落地 MTP | 融合搬运、量化 scale traffic、完整 GPU 行为仍 unknown |
+| `minimax_m2` | 1 | 已修复/有边界 | 按随附 Transformers/source-ref 修正为独立 Q/K/V projection、Q/K RMSNorm、partial RoPE；保留 GQA/MoE；index manifest/header 均确认 config 声明的 MTP 未落地 | 融合搬运、量化 scale traffic、完整 GPU 行为仍 unknown |
 | `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block；发布权重的 `multi_modal_projector → patch_merge_mlp` 双模块路径；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
-| `glm4_moe` | 1 | 已修复/有边界 | 对照 GLM-4.7 source-ref 修正独立 Q/K/V、Q/K RMSNorm、partial RoPE 和 attention bias；未把 GLM-5 DSA 外推到 GLM-4.7 | 完整逐模块 truth、量化 scale 和 GPU fused kernel 仍 unknown |
+| `glm4_moe` | 1 | 已修复/有边界 | 对照 GLM-4.7 source-ref 修正独立 Q/K/V、Q/K RMSNorm、partial RoPE 和 attention bias；index manifest/header 确认 shared-head MTP；未把 GLM-5 DSA 外推到 GLM-4.7 | 完整逐模块 truth、量化 scale 和 GPU fused kernel 仍 unknown |
 | `glm_moe_dsa` | 6 | 已修复/有边界 | IndexShare source/reuse schedule、真实 `wq_b/wk/k_norm/weights_proj` 路径 | 完整 checkpoint truth 与量化 scale 归属 |
 | `glm5_next` | 2 | 已修复/有边界 | KDA/DSA 混合、四路 mHC/GR、GLM-5.3-Flash 独立视觉塔；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
 

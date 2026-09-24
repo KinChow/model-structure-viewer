@@ -1,6 +1,7 @@
 # Kimi-K3 SiTU-GLU：公式、三条 FFN 路径与动作计数
 
-日期：2026-09-24。基线 `6a1782f`，本地 `main`。C1 的 SiTU 子批次；不代表 AttnRes 已修复。
+日期：2026-09-24。基线 `6a1782f`，本地 `main`。C1 的 SiTU 子批次；
+AttnRes 已由独立批次修复，本页只记录 SiTU 费用与公式。
 
 ## 外部证据
 
@@ -129,7 +130,9 @@ prefill 融合入口的流量仍保留 unknown，没有为了对账改成零。
 
 ## 未完成项
 
-- K3 **AttnRes** 仍未修复，不能将 K3 整体标记为架构验收通过。
+- AttnRes 不属于本页的 SiTU 子批次，已由
+  `kimi_k3_attnres_repair.md` 独立修复并回归；本页不重复描述其历史 bank
+  和聚合边界。
 - K3 生产目录没有 header/skeleton sidecar，生产离线加载仍 config-backed；
   本批 header fixture 是局部实装证据，不是全模型参数真值。
 - routed packed 权重、视觉生命周期、其他激活变体的费用精化及全量 60/16 浏览器验收

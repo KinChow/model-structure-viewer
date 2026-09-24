@@ -91,7 +91,10 @@ SDPA 继续沿用现有复合父算子计费，展开的 score/softmax/context �
 
 ## 仍未完成 / 不得外推
 
-1. **AttnRes 与 SiTU 未由本批修复**：当前历史 bank、双聚合、末端输出、折叠边界及动作数仍需下一批处理。K3 整体不能标记“架构验证通过”。
+1. **本批不覆盖 AttnRes 与 SiTU**：两者已分别由
+   `kimi_k3_attnres_repair.md` 和 `kimi_k3_situ_repair.md` 独立修复并回归；
+   本页仍只对 MLA、NoPE、输出门和视觉 RoPE 负责，不把其他子批次的证据
+   重复计入本页。
 2. K3 生产目录当前没有 `header-truth.json` / `skeleton-truth.json` / `source-ref.json`，所以离线生产加载仍是 config-backed。本批额外实测真实局部 header 的 tensor/skeleton 两种绑定，不能把它说成全权重审计。
 3. 8 个 header 张量只证明第 3 层 MLA 的实装；其余层使用发布配置、报告和前向机制。全模型 packed MoE 参数及 KDA 路径不在这份 header 证明范围内。
 4. 现有成本模型在 decode 仍计整个视觉塔；本批保留其工作负载约定，未声称这是“视觉已缓存的实际 decode”。需要公共视觉执行生命周期专项核验，不能用新增 RoPE 数字冒充性能提升或退化。

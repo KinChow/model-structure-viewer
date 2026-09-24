@@ -1768,11 +1768,11 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `gated_delta_attention` | 3.625e+9 | 0.02% | 5.043e+9 | 0.16% |
 | `dsa_indexer` | 6.073e+9 | 0.03% | 1.188e+9 | 0.04% |
 | `dsv4_indexer` | 4.261e+9 | 0.02% | 7.438e+8 | 0.02% |
-| `minimax_sparse_attention` | 4.064e+9 | 0.02% | 6.390e+8 | 0.02% |
+| `minimax_sparse_attention` | 3.825e+9 | 0.02% | 6.017e+8 | 0.02% |
 | `hyper_connection` | 1.279e+9 | 0.01% | 2.576e+9 | 0.08% |
 | `mhc_fused_post_pre` | 1.897e+8 | 0.00% | 8.171e+8 | 0.03% |
 
-合计：matrix 2.2617e+13 MACs · bytes unknown；已知部分 3.0630e+12，上表百分比仅以已知部分为分母（仅列前 15 名）
+合计：matrix 2.2617e+13 MACs · bytes unknown；已知部分 3.0629e+12，上表百分比仅以已知部分为分母（仅列前 15 名）
 
 ## 注册表 ↔ 触发面对账（生成物）
 
@@ -2347,11 +2347,11 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `fused_moe_mlp` | prefill | 2/57 | 2.644e+13 | 2.869e+9 | 2.869e+9 | 8.262e+11 | 5.738e+9 | 2.869e+9 | 31.67 | memory | — | — | — |
 | `fused_moe_mlp` | decode | 2/57 | 1.291e+10 | 1.401e+6 | 1.401e+6 | 2.582e+10 | 2.802e+6 | 1.401e+6 | 0.50 | memory | — | — | — |
 | `minimax_sparse_attention` | prefill | 2/57 | 1.959e+12 | 0 | 0 | 0 | 3.277e+10 | 3.277e+10 | 29.90 | memory | — | — | — |
-| `minimax_sparse_attention` | decode | 2/57 | 2.032e+9 | 0 | 0 | 0 | 2.867e+8 | 3.280e+7 | 6.36 | memory | — | — | — |
+| `minimax_sparse_attention` | decode | 2/57 | 1.913e+9 | 0 | 0 | 0 | 2.699e+8 | 3.094e+7 | 6.36 | memory | — | — | — |
 | `sdpa_attention` | prefill | 2/35 | 1.204e+12 | 2.914e+10 | 1.457e+10 | 0 | 1.387e+9 | 1.387e+9 | 433.98 | matrix | — | — | — |
 | `sdpa_attention` | decode | 2/35 | 2.202e+12 | 5.504e+10 | 2.752e+10 | 0 | 1.299e+9 | 1.274e+9 | 855.59 | matrix | — | — | — |
-| `minimax_sparse_indexer` | prefill | 2/57 | 6.123e+10 | 1.435e+9 | 0 | 0 | 3.027e+9 | 1.965e+9 | 12.27 | memory | 计算✓ 字节✓ | 1.343e+8 | 0 |
-| `minimax_sparse_indexer` | decode | 2/57 | 1.195e+8 | 2.802e+6 | 0 | 0 | 6.450e+7 | 2.831e+6 | 1.78 | memory | 计算✓ 字节✓ | 2.621e+5 | 0 |
+| `minimax_sparse_indexer` | prefill | 2/57 | 6.123e+10 | 1.435e+9 | 0 | 0 | 4.005e+9 | 1.076e+9 | 12.05 | memory | 计算✓ 字节✓ | 6.714e+7 | 0 |
+| `minimax_sparse_indexer` | decode | 2/57 | 1.195e+8 | 1.868e+6 | 0 | 0 | 6.359e+7 | 1.941e+6 | 1.82 | memory | 计算✓ 字节✓ | 1.311e+5 | 0 |
 | `residual_add` | prefill | 6/120 | 0 | 1.510e+9 | 0 | 0 | 6.040e+9 | 3.020e+9 | 0.00 | memory | — | — | — |
 | `residual_add` | decode | 6/120 | 0 | 7.373e+5 | 0 | 0 | 2.949e+6 | 1.475e+6 | 0.00 | memory | — | — | — |
 | `moe_combine` | prefill | 2/57 | 0 | 5.738e+9 | 0 | 0 | 5.739e+9 | 1.434e+9 | 0.00 | memory | — | — | — |

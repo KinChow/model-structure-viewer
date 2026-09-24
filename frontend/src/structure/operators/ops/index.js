@@ -3,7 +3,7 @@ import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
 import { indexerScheduleOf, indexShareSourceLayerOf, isIndexShareConfig } from "../../layers/schedule.js";
 import { mlaPaths, recipeAttentionOutputGate, recipeFlag, recipeLinearAttentionMode, recipeValue } from "../../archs/index.js";
-import { moduleSpec } from "../../layers/base.js";
+import { moduleSpec, withShapeDims } from "../../layers/base.js";
 
 function cleanAttributes(attributes) {
   return Object.fromEntries(
@@ -1024,6 +1024,7 @@ export function qsaAttentionOperatorSpecs(prefix, normalized, layerIndex = 0) {
 
 function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
   const { shapes, dims } = shapesAndDims(normalized);
+  const indexerFormula = sparse ? formulaForOperator("minimax_sparse_indexer") : null;
   const heads = normalized.attentionHeads || 0;
   const kvHeads = normalized.kvHeads || heads;
   const headDim = normalized.headDim || 0;
@@ -1077,7 +1078,10 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         ...shapeFlow(`${indexShape}, ${indexKvShape}`, `${indexShape}, ${indexKvShape}`),
         partial_rotary_factor: normalized.partialRotaryFactor,
       }, { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, indexDim] }),
-      operatorSpec(`${prefix}.indexer`, "MiniMax M3 block indexer", "minimax_sparse_indexer", {
+      withShapeDims(moduleSpec(`${prefix}.indexer`, "MiniMax M3 block indexer", "indexer", {
+        operator_id: "minimax_sparse_indexer",
+        formula: indexerFormula.formula, explanation: indexerFormula.explanation,
+        inputs: indexerFormula.inputs, outputs: indexerFormula.outputs,
         ...shapeFlow(`${indexShape}, ${indexKvShape}`, `[batch, sequence, selected blocks=${normalized.sparseTopkBlocks}]`),
         index_heads: indexHeads,
         index_head_dim: indexDim,
@@ -1087,8 +1091,48 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         local_blocks: normalized.sparseLocalBlock,
         score_type: normalized.sparseScoreType || "max",
         disable_index_value: disableIndexValue,
+        index_selection_scope: "gqa_group",
+        index_group_count: kvHeads,
+        query_heads_per_group: heads / kvHeads,
+        selection_shared_by_query_heads: true,
+        index_key_heads: 1,
+        block_score_reduction: "max",
+        local_block_always_included: true,
+        selection_budget_includes_local: true,
+        index_value_path: disableIndexValue ? "disabled" : "enabled",
+        dataflow_edges: [
+          ["group_scores", "block_max"], ["block_max", "local_boost"],
+          ["local_boost", "group_topk"], ["group_topk", "valid_block_ids"],
+        ],
         implementation: ["vLLM.MiniMaxM3Indexer", "SGLang.Minimax sparse indexer"],
-      }, { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, normalized.sparseTopkBlocks] }),
+      }, [
+        operatorSpec(`${prefix}.indexer.group_scores`, "per-GQA-group token scores", "identity", {
+          checkpoint_module: false, semantic_role: "msa_group_scores",
+          activation_materialization: "unknown", index_selection_scope: "gqa_group",
+          formula: "S_r(i,j) = Q_idx,r(i) · K_idx(j) / sqrt(d_idx)",
+        }, { input: [-1, -1, indexHeads, indexDim], output: [-1, -1, indexHeads, -1] }),
+        operatorSpec(`${prefix}.indexer.block_max`, "block max pooling", "identity", {
+          checkpoint_module: false, semantic_role: "msa_block_max",
+          activation_materialization: "unknown", block_reduction: "amax",
+          formula: "M_r(i,b) = max_{j in block b, j<=i} S_r(i,j)",
+        }, { input: [-1, -1, indexHeads, -1], output: [-1, -1, indexHeads, -1] }),
+        operatorSpec(`${prefix}.indexer.local_boost`, "local block inclusion", "identity", {
+          checkpoint_module: false, semantic_role: "msa_local_block",
+          activation_materialization: "unknown", local_block_always_included: true,
+          formula: "boost local blocks before TopK",
+        }, { input: [-1, -1, indexHeads, -1], output: [-1, -1, indexHeads, -1] }),
+        operatorSpec(`${prefix}.indexer.group_topk`, "Top-k blocks per GQA group", "identity", {
+          checkpoint_module: false, semantic_role: "msa_group_topk",
+          activation_materialization: "unknown", selection_shared_by_query_heads: true,
+          formula: "I_i(r) = TopK_b M_r(i,b)",
+        }, { input: [-1, -1, indexHeads, -1], output: [-1, -1, indexHeads, normalized.sparseTopkBlocks] }),
+        operatorSpec(`${prefix}.indexer.valid_block_ids`, "valid selected block ids", "identity", {
+          checkpoint_module: false, semantic_role: "msa_valid_block_ids",
+          activation_materialization: "unknown",
+          formula: "drop future/empty ids; pass group-shared ids to sparse GQA",
+        }, { input: [-1, -1, indexHeads, normalized.sparseTopkBlocks],
+          output: [-1, -1, indexHeads, normalized.sparseTopkBlocks] }),
+      ]), [-1, -1, indexHeads, indexDim], [-1, -1, indexHeads, normalized.sparseTopkBlocks]),
       operatorSpec(`${prefix}.sparse_attention`, "MiniMax M3 block-sparse GQA", "minimax_sparse_attention", {
         ...shapeFlow(`${shapes.attentionQuery}, selected KV blocks`, shapes.attentionContext),
         topk_blocks: normalized.sparseTopkBlocks,
@@ -1096,6 +1140,12 @@ function minimaxAttentionCommon(prefix, normalized, sparse, layerIndex = 0) {
         local_blocks: normalized.sparseLocalBlock,
         init_blocks: normalized.sparseInitBlock,
         disable_index_value: disableIndexValue,
+        selection_scope: "gqa_group",
+        query_heads_per_group: heads / kvHeads,
+        selected_blocks_per_group: normalized.sparseTopkBlocks,
+        block_token_budget: normalized.sparseTopkBlocks * normalized.sparseBlockSize,
+        selection_budget_includes_local: true,
+        index_value_path: disableIndexValue ? "disabled" : "enabled",
         attention_kind: "minimax_m3_sparse_gqa",
         ...cacheResidentDecl({
           kvElements: 2 * kvHeads * (normalized.headDim || 0),

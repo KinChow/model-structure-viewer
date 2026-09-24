@@ -592,6 +592,15 @@ test("W5 恒等式：激活流形状连续性（全 59 模型声明边）", () =
       const inn = lastDim(dst.input_shape);
       if (out == null || inn == null) { noShape += 1; continue; }
       if (out === inn) { matched += 1; continue; }
+      if (src.attributes?.semantic_role === "msa_valid_block_ids") {
+        const config = normalizeConfig(raw);
+        assert.equal(dst.attributes?.attention_kind, "minimax_m3_sparse_gqa");
+        assert.equal(out, config.sparseTopkBlocks);
+        assert.equal(src.output_shape.at(-2), config.kvHeads);
+        assert.equal(dst.attributes?.selection_scope, "gqa_group");
+        matched += 1;
+        continue;
+      }
       if (src.type === "ngram-embedding" && dst.attributes?.semantic_role === "ple_injection") {
         // This edge supplies the PLE lookup vector, not the residual operand.
         // The receiving fused node projects this exact embedding width to its

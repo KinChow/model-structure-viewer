@@ -672,6 +672,7 @@ function indexerDecomposition(p) {
   const density = scoreDensity(p.phase, p.queryTokens, scored);
   const pairs = p.heads * scorePairs(p.phase, p.queryTokens, scored);
   const scoreBytes = p.scoreBytes ?? 4; // fp32
+  const msa = stage === "score";
   return [
     // key 池化（mean / 取块）：只有 key-pool 变体有
     ...(stage === "key" ? [{ atom: "reduce_sum", args: { elements: p.keyTokens * p.dim, groups: scored * p.dim, bytesPerElement: p.b } }] : []),
@@ -683,13 +684,14 @@ function indexerDecomposition(p) {
       outElements: pairs,
     } },
     { atom: "scale", args: { elements: pairs, bytesPerElement: scoreBytes } },
-    { atom: "relu", args: { elements: pairs, bytesPerElement: scoreBytes } },
+    ...(!msa ? [{ atom: "relu", args: { elements: pairs, bytesPerElement: scoreBytes } }] : []),
     // 逐头加权求和（DSA/kpool 有 weights_proj 的权重；QSA 为等权求和）
     ...(p.perHeadWeights ? [{ atom: "mul", args: { elements: pairs, bytesPerElement: scoreBytes } }] : []),
-    { atom: "reduce_sum", args: { elements: pairs, groups: p.queryTokens * scored, bytesPerElement: scoreBytes } },
+    ...(!msa ? [{ atom: "reduce_sum", args: { elements: pairs, groups: p.queryTokens * scored, bytesPerElement: scoreBytes } }] : []),
     // score 池化（MSA 的 amax over block）
-    ...(stage === "score" ? [{ atom: "reduce_max", args: { elements: p.queryTokens * scored, groups: p.queryTokens * candidates, bytesPerElement: scoreBytes } }] : []),
-    { atom: "topk", args: { rows: p.queryTokens, candidates, k: Math.ceil(p.budget / (stage === "none" ? 1 : pool)), bytesPerElement: scoreBytes } },
+    ...(msa ? [{ atom: "reduce_max", args: { elements: p.heads * p.queryTokens * scored, groups: p.heads * p.queryTokens * candidates, bytesPerElement: scoreBytes } }] : []),
+    { atom: "topk", args: { rows: msa ? p.heads * p.queryTokens : p.queryTokens,
+      candidates, k: Math.ceil(p.budget / (stage === "none" ? 1 : pool)), bytesPerElement: scoreBytes } },
     // index k cache 写（新 token 的 index key）
     { atom: "scatter", args: { rows: p.queryTokens, width: p.dim, bytesPerElement: p.b, readIn: false } },
   ];
@@ -702,7 +704,7 @@ function indexerResident(p) {
   const pairs = p.heads * scorePairs(p.phase, p.queryTokens, scored);
   return [
     { name: "逐头打分 scores（fp32，不落 HBM）", elements: pairs, bytesPerElement: p.scoreBytes ?? 4 },
-    { name: "ReLU 后的打分", elements: pairs, bytesPerElement: p.scoreBytes ?? 4 },
+    ...((stage === "score") ? [] : [{ name: "ReLU 后的打分", elements: pairs, bytesPerElement: p.scoreBytes ?? 4 }]),
     ...(stage === "key" ? [{ name: "池化后的 index key", elements: scored * p.dim }] : []),
   ];
 }
@@ -771,7 +773,8 @@ function indexerCompulsory(p) {
   const stage = p.poolStage ?? "none";
   const scored = stage === "key" ? Math.ceil(p.keyTokens / pool) : p.keyTokens;
   const candidates = stage === "none" ? p.keyTokens : Math.ceil(p.keyTokens / pool);
-  const selected = p.queryTokens * Math.min(Math.ceil(p.budget / (stage === "none" ? 1 : pool)), candidates);
+  const selected = p.queryTokens * (stage === "score" ? p.heads : 1) *
+    Math.min(Math.ceil(p.budget / (stage === "none" ? 1 : pool)), candidates);
   const scoreBytes = p.scoreBytes ?? 4;
   return p.queryTokens * p.heads * p.dim * p.b
     + scored * p.dim * p.b

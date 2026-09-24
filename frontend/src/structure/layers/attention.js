@@ -38,7 +38,7 @@ const ATTENTION_COMPONENTS = [
     kind: "sparse",
     match: (normalized) => Boolean(normalized.sparseTopkBlocks),
     ops: (id, normalized, layerIndex) => minimaxSparseAttentionOperatorSpecs(id, normalized, layerIndex),
-    edges: () => [["qkv_index_proj", "qkv_index_split"], ["qkv_index_split", "q_norm"], ["qkv_index_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["qkv_index_split", "index_q_norm"], ["qkv_index_split", "index_k_norm"], ["index_q_norm", "index_rope"], ["index_k_norm", "index_rope"], ["index_rope", "indexer"], ["rope", "sparse_attention"], ["indexer", "sparse_attention"], ["sparse_attention", "o_proj"]],
+    edges: () => [["qkv_index_proj", "qkv_index_split"], ["qkv_index_split", "q_norm"], ["qkv_index_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["qkv_index_split", "index_q_norm"], ["qkv_index_split", "index_k_norm"], ["index_q_norm", "index_rope"], ["index_k_norm", "index_rope"], ["index_rope", "indexer"], ["rope", "sparse_attention"], ["indexer.valid_block_ids", "sparse_attention"], ["sparse_attention", "o_proj"]],
   },
   {
     kind: "gqa",

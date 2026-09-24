@@ -1,0 +1,30 @@
+{
+  "read_at": "2026-09-24T11:44:02.184774+08:00",
+  "model_ids": [
+    "MiniMaxAI/MiniMax-M3",
+    "MiniMaxAI/MiniMax-M3-MXFP8"
+  ],
+  "sources": [
+    {
+      "id": "msa-readme",
+      "url": "https://raw.githubusercontent.com/MiniMax-AI/MSA/main/README.md",
+      "file": "artifacts/architecture-repair/C6-minimax-msa/C6-minimax-msa-paper-readme.md",
+      "sha256": "46a5823defcfde643390176c9a762444a5882bddd717c10e4daddabe8872232c",
+      "status": "fresh source; kernel repository and algorithm paper link"
+    },
+    {
+      "id": "msa-paper",
+      "url": "https://raw.githubusercontent.com/MiniMax-AI/MSA/main/docs/MiniMaxSparseAttention.pdf",
+      "file": "artifacts/architecture-repair/C6-minimax-msa/C6-minimax-msa-paper.pdf",
+      "sha256": "c68e3e1c178a0f2d0e3f4a4aa6a3d6af97499869090ce77f6364870fedf233c9",
+      "status": "fresh source; §2.3 and §3.1 group-shared selection equations"
+    },
+    {
+      "id": "release-forward",
+      "url": "https://raw.githubusercontent.com/huggingface/transformers/main/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+      "file": "models/MiniMaxAI/MiniMax-M3/modeling_minimax_m3_vl.py",
+      "sha256": "2ee877254cc05438a1314b5121da0caccff791c419256cafcf9c8fd0c8454e15",
+      "status": "pinned local forward; source manifest records transformer fallback"
+    }
+  ]
+}

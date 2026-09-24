@@ -609,8 +609,8 @@ export const FORMULAS = {
     //      （models/minimax_m3/common/indexer.py:546）。
     //      W2 改判：与 DSA/QSA 共用一份参数化实现（poolStage="score"），但
     //      operator_id 独立——原理不同不共用条目。
-    formula: "B = topk_blocks(amax_block(ReLU-free scores(Q_i K_i^T)/sqrt(d_i)), topk_blocks) ∪ local",
-    explanation: "MiniMax M3 稀疏层的块 indexer：单头 index key 逐 token 打分，按 128 token 一块取 max 池化后选 topk_blocks 个块，并保留 init/local 块。无 value 通路、无 softmax。",
+    formula: "I_i(r) = TopK_b(max_{j∈block_b,j≤i}(Q^idx_{i,r}·K^idx_j/√d), k); local block boosted within k",
+    explanation: "MiniMax M3 MSA：每个 KV/GQA 组用自己的 index query 与共享单头 index key 对可见 token 打分；每组独立按块 max 池化并选 16 个块，local 块在 Top-k 之前提权，因此占用既有名额，不额外增加预算。组内多个 query heads 复用索引；没有 ReLU、跨组求和或 index value 路径。",
     inputs: ["index_Q", "index_K", "block_size", "topk_blocks"],
     outputs: ["selected block ids"],
     counts: sparseIndexerCounts,
@@ -621,8 +621,8 @@ export const FORMULAS = {
     //      MiniMaxM3VLAttention（:408）+ eager_attention_forward（:340）：主 GQA 只读
     //      选中 KV blocks；paged cache 写回计 kvWrite（模板内无叶承担，与
     //      /tmp/m11-formulas/qsa.md §4.3 同规则）；A2 的 4·scores 记本节点。
-    formula: "O = softmax(Q K_B^T / sqrt(d)) V_B",
-    explanation: "主 GQA 只读取 indexer 选择的 KV blocks；index value/output 分支由配置显式关闭时不参与主输出。",
+    formula: "O_h(i) = softmax(Q_h(i) K_{r,I_i(r)}^T/√d) V_{r,I_i(r)}, h∈GQA_r",
+    explanation: "主 GQA 每个 query head 使用所属 KV/GQA 组的独立块索引，组内共享选块。Top-k 已包含 local 块；关闭 index value 时索引分支不产生主输出。",
     inputs: ["Q", "K_selected blocks", "V_selected blocks", "block ids"],
     outputs: ["O"],
     counts: minimaxSparseAttentionCounts,

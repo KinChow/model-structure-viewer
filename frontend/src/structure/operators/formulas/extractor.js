@@ -241,7 +241,7 @@ const FROM_NODE = {
           const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
           const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
           const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
-          const selectedTokens = (config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0);
+          const selectedTokens = config?.sparseTopkBlocks || 0;
           const size = config?.sparseBlockSize || 1;
           const selected = Math.min(keyTokens, selectedTokens * size);
           return {
@@ -495,7 +495,9 @@ const FROM_NODE = {
           dim: config?.sparseIndexDim || 0,
           queryTokens: tokens,
           keyTokens: options.sequence ?? 1,
-          budget: ((config?.sparseTopkBlocks || 0) + (config?.sparseInitBlock || 0) + (config?.sparseLocalBlock || 0)) * (config?.sparseBlockSize || 1),
+          // MSA boosts local blocks before TopK; local is included in the
+          // configured TopK slots, not an additional selected block.
+          budget: (config?.sparseTopkBlocks || 0) * (config?.sparseBlockSize || 1),
           pool: config?.sparseBlockSize || 1,
           poolStage: "score",
           perHeadWeights: false,

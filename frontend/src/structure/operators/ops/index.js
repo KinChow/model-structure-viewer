@@ -2,7 +2,7 @@ import { formulaForOperator } from "../formulas/index.js";
 import { shapeFlow, shapesAndDims } from "../shapes.js";
 import { tensorDims } from "../../config/dims.js";
 import { indexerScheduleOf, indexShareSourceLayerOf, isIndexShareConfig } from "../../layers/schedule.js";
-import { recipeAttentionOutputGate, recipeFlag, recipeLinearAttentionMode, recipeValue } from "../../archs/index.js";
+import { mlaPaths, recipeAttentionOutputGate, recipeFlag, recipeLinearAttentionMode, recipeValue } from "../../archs/index.js";
 import { moduleSpec } from "../../layers/base.js";
 
 function cleanAttributes(attributes) {
@@ -269,13 +269,13 @@ export function sdpaAttentionModule(prefix, shapes, dims, { scoresName = "attent
 //   preOutput: 插在 SDPA 核与 o_proj 之间的节点（MLA 的 g_proj）
 //   before: 插在 tail 之前的节点（minimax sparse 的 indexer 链）
 // 真语义不同的变体（dsa、dsv4、qsa）不并入本 helper。
-function scaledDotProductTail(prefix, shapes, dims, { ropeName = "rotary position embedding", rope = {}, scoresName = "attention scores", scores = {}, context = {}, preOutput = [], before = [], cacheResident } = {}) {
+function scaledDotProductTail(prefix, shapes, dims, { useRope = true, ropeName = "rotary position embedding", rope = {}, scoresName = "attention scores", scores = {}, context = {}, preOutput = [], before = [], cacheResident } = {}) {
   return [
     ...before,
-    operatorSpec(`${prefix}.rope`, ropeName, "rope", {
+    ...(useRope ? [operatorSpec(`${prefix}.rope`, ropeName, "rope", {
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}`, `${shapes.attentionQuery}, ${shapes.attentionKey}`),
       ...rope,
-    }, { input: dims.attentionQuery, output: dims.attentionQuery }),
+    }, { input: dims.attentionQuery, output: dims.attentionQuery })] : []),
     sdpaAttentionModule(prefix, shapes, dims, { scoresName, scores: { ...scores, cacheResident }, context }),
     ...preOutput,
     operatorSpec(`${prefix}.o_proj`, "output projection", "linear", {
@@ -586,6 +586,7 @@ export function qwen35FullAttentionOperatorSpecs(prefix, normalized) {
 
 export function mlaAttentionOperatorSpecs(prefix, normalized) {
   const { shapes, dims } = shapesAndDims(normalized);
+  const paths = mlaPaths(normalized);
   const specs = [];
   if (normalized.qLoraRank != null) {
     // P4-2：q_a + q_a_norm 的组成与 extractor mla_query_compress ctx 同源。
@@ -595,42 +596,56 @@ export function mlaAttentionOperatorSpecs(prefix, normalized) {
         weightMatrixDecl("tp", { shape: [normalized.qLoraRank, dimWidth(dims.hidden)], split: "output" }),
       ],
     }, { input: dims.hidden, output: [-1, -1, normalized.qLoraRank] }));
-    specs.push(operatorSpec(`${prefix}.q_a_norm`, "query latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: [-1, -1, normalized.qLoraRank], output: [-1, -1, normalized.qLoraRank] }));
+    specs.push(operatorSpec(`${prefix}.${paths.qNorm}`, "query latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, `[batch, sequence, q latent=${normalized.qLoraRank}]`), { input: [-1, -1, normalized.qLoraRank], output: [-1, -1, normalized.qLoraRank] }));
     specs.push(operatorSpec(`${prefix}.q_b_proj`, "query up projection", "linear", shapeFlow(`[batch, sequence, q latent=${normalized.qLoraRank}]`, shapes.attentionQuery), { input: [-1, -1, normalized.qLoraRank], output: dims.attentionQuery }));
   } else {
     specs.push(operatorSpec(`${prefix}.q_proj`, "q projection", "linear", shapeFlow(shapes.hidden, shapes.attentionQuery), { input: dims.hidden, output: dims.attentionQuery }));
   }
   // P4-2：extractor mla_kv_compress ctx 只有一个 proj 项（out 取叶 output 宽）。
-  specs.push(operatorSpec(`${prefix}.kv_a_proj`, "KV compression projection", "mla_kv_compress", {
+  specs.push(operatorSpec(`${prefix}.${paths.kvProjection}`, "KV compression projection", "mla_kv_compress", {
+    ...(normalized.mlaUseNope ? { position_encoding: "none", explanation: "KV latent and shared key channels; no positional rotation is applied." } : {}),
     ...shapeFlow(shapes.hidden, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"} + rope=${normalized.qkRopeHeadDim ?? "unknown"}]`),
     weightMatrices: [weightMatrixDecl("tp", { shape: [(normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0), dimWidth(dims.hidden)], split: "output" })],
   }, { input: dims.hidden, output: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)] }));
-  specs.push(operatorSpec(`${prefix}.kv_split`, "KV latent and rope split", "mla_kv_split", {
+  specs.push(operatorSpec(`${prefix}.kv_split`, normalized.mlaUseNope ? "KV latent and shared key split" : "KV latent and rope split", "mla_kv_split", {
     ...shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"} + rope=${normalized.qkRopeHeadDim ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}], [batch, sequence, rope=${normalized.qkRopeHeadDim ?? "unknown"}]`),
     split_sizes: [normalized.kvLoraRank, normalized.qkRopeHeadDim],
+    ...(normalized.mlaUseNope ? {
+      position_encoding: "none", checkpoint_module: false,
+      formula: "[c_KV, k_shared] = split(z); K = concat(K_content, broadcast(k_shared))",
+      explanation: "The shared key channels bypass latent normalization and expansion. They are broadcast and concatenated to content keys without RoPE; V comes from the latent expansion.",
+    } : {}),
   }, { input: [-1, -1, (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0)], output: [-1, -1, normalized.kvLoraRank] }));
-  specs.push(operatorSpec(`${prefix}.kv_a_norm`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`), { input: [-1, -1, normalized.kvLoraRank], output: [-1, -1, normalized.kvLoraRank] }));
+  specs.push(operatorSpec(`${prefix}.${paths.kvNorm}`, "KV latent RMSNorm", "rmsnorm", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`), { input: [-1, -1, normalized.kvLoraRank], output: [-1, -1, normalized.kvLoraRank] }));
   // kv_b 真值输出宽 = qk_nope + v_head_dim（128+128=256），非 headDim（nope+rope=192）
   // ——R1 逐项对账审计登记残差（details/cost_counts.md），2026-09-08 修复。
   specs.push(operatorSpec(`${prefix}.kv_b_proj`, "KV expansion projection", "linear", shapeFlow(`[batch, sequence, kv latent=${normalized.kvLoraRank ?? "unknown"}]`, `[batch, sequence, kv heads=${normalized.kvHeads ?? "unknown"}, kv expansion=${(normalized.qkNopeHeadDim || 0) + (normalized.valueHeadDim || normalized.headDim || 0)}]`), { input: [-1, -1, normalized.kvLoraRank], output: [-1, -1, normalized.kvHeads, (normalized.qkNopeHeadDim || 0) + (normalized.valueHeadDim || normalized.headDim || 0)] }));
   specs.push(...scaledDotProductTail(prefix, shapes, dims, {
+    useRope: !normalized.mlaUseNope,
     rope: {
       query_shape: shapes.attentionQuery,
       key_shape: shapes.attentionKey,
     },
     scoresName: "latent attention scores",
     scores: {
-      formula: "S = Q K^T / sqrt(d_rope)",
+      formula: "S = Q K^T / sqrt(d_qk)",
       attention_kind: "mla",
     },
     context: { attention_kind: "mla" },
-    cacheResident: cacheResidentDecl({ kvElements: (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0) }),    preOutput: [
+    cacheResident: cacheResidentDecl({ kvElements: (normalized.kvLoraRank || 0) + (normalized.qkRopeHeadDim || 0) }),
+    preOutput: [
       ...(normalized.mlaUseOutputGate
-        ? [operatorSpec(`${prefix}.g_proj`, "MLA output gate", "mla_output_gate", shapeFlow(shapes.hidden, shapes.attentionContext), { input: dims.hidden, output: dims.attentionContext })]
-        : []),
-      // M8-V2：kimi_k3 MLA 的 full-rank 输出门（index.json 实锤 88.1M/层）
-      ...(recipeLinearAttentionMode(normalized) === "kimi_k3"
-        ? [operatorSpec(`${prefix}.mla_gate`, "MLA full-rank output gate", "linear", { ...shapeFlow(shapes.hidden, shapes.attentionQuery), semantic_role: "attention_output_gate" }, { input: dims.hidden, output: dims.attentionQuery })]
+        ? [
+          operatorSpec(`${prefix}.g_proj`, "MLA gate projection", "linear", {
+            ...shapeFlow(shapes.hidden, shapes.attentionContext),
+            semantic_role: "attention_output_gate_projection",
+            weightMatrices: [weightMatrixDecl("tp", { shape: [dimWidth(dims.attentionContext), dimWidth(dims.hidden)], split: "output" })],
+          }, { input: dims.hidden, output: dims.attentionContext }),
+          operatorSpec(`${prefix}.output_gate`, "MLA output gate", "mla_output_gate", {
+            ...shapeFlow(`${shapes.attentionContext}, ${shapes.attentionContext}`, shapes.attentionContext),
+            checkpoint_module: false,
+          }, { input: dims.attentionContext, output: dims.attentionContext }),
+        ]
         : []),
     ],
   }));

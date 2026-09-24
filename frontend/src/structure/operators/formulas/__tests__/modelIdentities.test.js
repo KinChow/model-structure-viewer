@@ -518,6 +518,10 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "qkv_index_split -> index_q_norm": "slice",
   "qkv_index_split -> index_k_norm": "slice",
   "kv_b_proj -> rope": "slice",
+  // NoPE MLA: expanded content K/V and the unrotated shared-key slice
+  // independently enter SDPA. Explicit dimensions are checked in kimiMla.test.
+  "kv_b_proj -> sdpa": "slice",
+  "kv_split -> sdpa": "concat",
   "wk_weights_proj -> k_norm": "slice",
   "qkv_projection -> short_conv": "slice",
   "compressor -> attention": "slice",

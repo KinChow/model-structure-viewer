@@ -582,7 +582,7 @@ const FROM_NODE = {
 FROM_NODE.dsa_sparse_mla = FROM_NODE.qsa_sparse_attention;
 FROM_NODE.dsv4_sparse_mla = FROM_NODE.qsa_sparse_attention;
 FROM_NODE.gemma_rmsnorm = FROM_NODE.rmsnorm;
-FROM_NODE.mla_output_gate = FROM_NODE.attention_output_gate;
+FROM_NODE.mla_output_gate = (context) => ({ ...FROM_NODE.attention_output_gate(context), inputCount: 2 });
 FROM_NODE.linear_attention_gate = FROM_NODE.attention_output_gate;
 FROM_NODE.shared_expert_gate = FROM_NODE.attention_output_gate;
 FROM_NODE.mla_kv_split = FROM_NODE.split;

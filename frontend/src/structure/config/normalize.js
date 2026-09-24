@@ -389,6 +389,7 @@ export function normalizeConfig(config) {
     ngramVocabSizeBase: pick(["ngram_vocab_size_base"]),
     makeNgramVocabSizeDivisibleBy: pick(["make_ngram_vocab_size_divisible_by"]),
     attnResBlockSize: pick(["attn_res_block_size"]),
+    mlaUseNope: Boolean(textConfig?.mla_use_nope ?? config?.mla_use_nope),
     mlaUseOutputGate: Boolean(textConfig?.mla_use_output_gate ?? config?.mla_use_output_gate),
     multiHyperConnection: mhcOn,
     mhcNumResidualStreams: mhcStreams,

@@ -1,0 +1,72 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+  "retrieved_at": "2026-09-24T00:18:16.204575+00:00",
+  "source": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/model-00004-of-000096.safetensors",
+  "method": "HTTP Range bytes=0-7 and bytes=8-817615; no tensor data",
+  "header_sha256": "3ff389a539b7408ba7b99e9445efa1bc1e5f4bbba1e9402e2c494015add5a647",
+  "tensors": [
+    {
+      "name": "language_model.model.layers.3.self_attn.g_proj.weight",
+      "shape": [
+        12288,
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attn.kv_a_layernorm.weight",
+      "shape": [
+        512
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attn.kv_a_proj_with_mqa.weight",
+      "shape": [
+        576,
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attn.kv_b_proj.weight",
+      "shape": [
+        24576,
+        512
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attn.o_proj.weight",
+      "shape": [
+        7168,
+        12288
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attn.q_a_layernorm.weight",
+      "shape": [
+        1536
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attn.q_a_proj.weight",
+      "shape": [
+        1536,
+        7168
+      ],
+      "dtype": "BF16"
+    },
+    {
+      "name": "language_model.model.layers.3.self_attn.q_b_proj.weight",
+      "shape": [
+        18432,
+        1536
+      ],
+      "dtype": "BF16"
+    }
+  ]
+}

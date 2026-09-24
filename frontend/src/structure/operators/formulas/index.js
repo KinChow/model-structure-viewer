@@ -390,9 +390,9 @@ export const FORMULAS = {
     // ref: 二等 modeling 对照 models/moonshotai/Kimi-K3/modeling_kimi_linear.py
     //      （:398 mla_use_output_gate、:470 门乘；目录仅 Kimi-K3 发射此叶）；
     //      A5 sigmoid = 2 SFU。
-    formula: "O' = sigmoid(W_g x) * O",
-    explanation: "使用输入相关的门控向量调制 MLA 输出。",
-    inputs: ["x", "W_g", "O"],
+    formula: "O' = sigmoid(G) * O; G = W_g x (separate projection)",
+    explanation: "使用独立投影产生的门控向量调制 MLA 输出；本节点只计算 sigmoid 与逐元素乘法，不重复计投影权重。",
+    inputs: ["G", "O"],
     outputs: ["O'"],
     counts: gateCounts,
   },

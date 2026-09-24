@@ -1,0 +1,55 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "model_revision": "f831ab66814297da540d832a5235f8e904f29d06",
+  "sources": [
+    {
+      "url": "https://sebastianraschka.com/llm-architecture-gallery/",
+      "artifact": "artifacts/architecture-repair/C1-mla/gallery.html",
+      "retrieved_at": "2026-09-24T00:30:08.177823+00:00",
+      "sha256": "84aad6ac80b13cf3054c2b991c10d1e96c5ab889bf836846f1345ef9f47d00d9",
+      "anchor": "card-kimi-k3; discovery/cross-check only"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/MoonshotAI/Kimi-K3/main/k3_tech_report.pdf",
+      "artifact": "artifacts/architecture-repair/C1-mla/report.pdf",
+      "retrieved_at": "2026-09-24T00:30:08.177823+00:00",
+      "sha256": "86fb82a63ced501f0c3f4f404c0c6fa88a7a6cfac17aae81fd1a8f455998067c",
+      "anchor": "section 2.1.2, equation 7, page 5; main URL frozen by SHA256"
+    },
+    {
+      "url": "https://huggingface.co/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_linear.py",
+      "artifact": "artifacts/architecture-repair/C1-mla/modeling_kimi_linear.py",
+      "retrieved_at": "2026-09-24T00:30:08.177823+00:00",
+      "sha256": "9e3564c70ac21854ce5a090cc946c5dc76b70d1050ef50840449181a20fff44a",
+      "anchor": "KimiMLAAttention init/forward lines 347-474"
+    },
+    {
+      "url": "https://huggingface.co/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py",
+      "artifact": "artifacts/architecture-repair/C1-mla/modeling_kimi_k3.py",
+      "retrieved_at": "2026-09-24T00:30:08.177823+00:00",
+      "sha256": "b9171c96726eda55234c92ac8dfae7e24c512fda68968ae8f2c3782b42665ea2",
+      "anchor": "MoonViTEncoderLayer attention_qkvpacked; MoonViT3dEncoder.rope_2d"
+    }
+  ],
+  "header_fixture": "frontend/src/structure/models/__fixtures__/kimi-k3-mla-header.json",
+  "assertions": [
+    {
+      "id": "K3-MLA-NOPE",
+      "status": "confirmed",
+      "assertion": "24 text MLA layers use NoPE, retaining 128+64 query/key width",
+      "tests": "kimiMla.test.js"
+    },
+    {
+      "id": "K3-MLA-GATE",
+      "status": "confirmed",
+      "assertion": "one g_proj [12288,7168], sigmoid times O, followed by o_proj",
+      "tests": "kimiMla.test.js"
+    },
+    {
+      "id": "K3-VISION-ROPE",
+      "status": "confirmed",
+      "assertion": "27 vision layers rotate Q and K in 2D; V bypasses rotation",
+      "tests": "kimiMla.test.js"
+    }
+  ]
+}

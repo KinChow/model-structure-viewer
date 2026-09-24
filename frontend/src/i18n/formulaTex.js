@@ -36,7 +36,7 @@ export const FORMULA_TEX = {
   mla_query_compress: "c^q_t = W_{qa} x_t;\\quad q_t = W_{qb}\\,\\operatorname{RMSNorm}(c^q_t)",
   mla_kv_compress: "[c^{KV}_t, k^R_t] = W_{kv} x_t",
   mla_kv_split: "[c^{KV}, k^R] = \\operatorname{split}(z;\\ \\text{kv\\_lora\\_rank},\\ \\text{rope\\_dim})",
-  mla_output_gate: "O' = \\sigma(W_g x) \\cdot O",
+  mla_output_gate: "O' = \\sigma(G) \\cdot O,\\quad G = W_g x",
   attention_residual: "s_i = \\langle \\operatorname{RMSNorm}(x_i), w\\rangle;\\quad p = \\operatorname{softmax}(s);\\quad y = \\operatorname{RMSNorm}\\!\\Big(\\sum_i p_i x_i\\Big)",
   hyper_connection: "x_n = \\operatorname{GroupedRMSNorm}(H_{hc});\\quad l = \\operatorname{SiLU}(W_{\\text{down}} x_n / hc);\\quad g = \\sigma(W_{\\text{up}} l);\\quad \\text{block\\_input} = \\operatorname{mean}(g \\odot x_n);\\quad H' = H + 2\\sigma(W_{\\text{inj}} x_n / hc) \\odot \\text{block\\_output}",
   ple: "[k, v] = W_{kv} e;\\quad y = \\operatorname{ShortConv}(\\operatorname{GatedNorm}(k, v, \\operatorname{RMSNorm}(H)))",

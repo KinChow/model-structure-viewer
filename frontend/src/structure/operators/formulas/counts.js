@@ -129,14 +129,14 @@ export function rmsnormCounts({ tokens, hidden, bytesPerElement, weightOne = fal
 /**
  * F4 门控乘（sigmoid(G) ⊙ O）。gateProjection = true 时多一个 [W, H] 投影权重。
  */
-export function gateCounts({ tokens, width, bytesPerElement, gateProjection = false, gateProjectionInput = 0 }) {
+export function gateCounts({ tokens, width, bytesPerElement, gateProjection = false, gateProjectionInput = 0, inputCount = 1 }) {
   return {
     matrix: 0,
     vector: tokens * width,
     sfu: 2 * tokens * width, // sigmoid = exp + rcp
     bytes: {
       weights: gateProjection ? gateProjectionInput * width * bytesPerElement : 0,
-      actIn: (tokens * width + (gateProjection ? tokens * gateProjectionInput : 0)) * bytesPerElement,
+      actIn: (inputCount * tokens * width + (gateProjection ? tokens * gateProjectionInput : 0)) * bytesPerElement,
       actOut: tokens * width * bytesPerElement,
     },
   };

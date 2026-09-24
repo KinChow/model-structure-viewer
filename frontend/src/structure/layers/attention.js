@@ -2,7 +2,7 @@ import { moduleSpec, withShapeDims } from "./base.js";
 import { attentionOperatorSpecs, deepseekV4AttentionOperatorSpecs, linearAttentionOperatorSpecs, minimaxDenseAttentionOperatorSpecs, minimaxM2AttentionOperatorSpecs, minimaxSparseAttentionOperatorSpecs, mlaAttentionOperatorSpecs, qsaAttentionOperatorSpecs, qwen35FullAttentionOperatorSpecs } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { tensorDims } from "../config/dims.js";
-import { hfNamedClass, recipeFlag, recipeLinearAttentionMode } from "../archs/index.js";
+import { hfNamedClass, mlaPaths, recipeFlag, recipeLinearAttentionMode } from "../archs/index.js";
 import { indexerScheduleOf, isIndexShareConfig } from "./schedule.js";
 
 // 组件表：attentionKind × 字段/配方匹配 → { name, ops, edges }。
@@ -112,7 +112,20 @@ const ATTENTION_COMPONENTS = [
   {
     kind: "mla",
     ops: (id, normalized) => mlaAttentionOperatorSpecs(id, normalized),
-    edges: () => [["q_a_proj", "q_a_norm"], ["q_a_norm", "q_b_proj"], ["kv_a_proj", "kv_split"], ["kv_split", "kv_a_norm"], ["kv_a_norm", "kv_b_proj"], ["q_b_proj", "rope"], ["kv_b_proj", "rope"], ["rope", "sdpa"], ["sdpa", "o_proj"]],
+    edges: (normalized) => {
+      const paths = mlaPaths(normalized);
+      const compressedQuery = normalized.qLoraRank != null;
+      return [
+        ...(compressedQuery ? [["q_a_proj", paths.qNorm], [paths.qNorm, "q_b_proj"]] : []),
+        [paths.kvProjection, "kv_split"], ["kv_split", paths.kvNorm], [paths.kvNorm, "kv_b_proj"],
+        ...(normalized.mlaUseNope
+          ? [[compressedQuery ? "q_b_proj" : "q_proj", "sdpa"], ["kv_b_proj", "sdpa"], ["kv_split", "sdpa"]]
+          : [[compressedQuery ? "q_b_proj" : "q_proj", "rope"], ["kv_b_proj", "rope"], ["rope", "sdpa"]]),
+        ...(normalized.mlaUseOutputGate
+          ? [["g_proj", "output_gate"], ["sdpa", "output_gate"], ["output_gate", "o_proj"]]
+          : [["sdpa", "o_proj"]]),
+      ];
+    },
   },
   {
     kind: "gqa",
@@ -147,6 +160,16 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
   const children = component.ops(id, normalized, layerIndex, attentionKind);
   const declaredEdges = component.edges(normalized, layerIndex);
   const edgeRelations = [];
+  if (attentionKind === "mla" && normalized.mlaUseNope) {
+    edgeRelations.push(
+      { from: "kv_split", to: "sdpa", label: "shared key channels (NoPE)" },
+      { from: "kv_b_proj", to: "sdpa", label: "content K, V" },
+    );
+  }
+  if (attentionKind === "mla" && normalized.mlaUseOutputGate) {
+    edgeRelations.push({ from: "g_proj", to: "output_gate", label: "gate logits" },
+      { from: "sdpa", to: "output_gate", label: "attention output" });
+  }
   if (Array.isArray(declaredEdges)) {
     if (declaredEdges.some(([from, to]) => from === "qkvz_split" && to === "short_conv")) {
       edgeRelations.push({ from: "qkvz_split", to: "short_conv", label: "q, k, v" });
@@ -169,6 +192,7 @@ export function attentionModule(id, normalized, attentionKind, layerIndex = 0) {
       class: hfNamedClass(normalized, "attentionClass", "Attention", "Attention", { kind: attentionKind }),
       attention_kind: moduleKind,
       model_variant: normalized.modelType,
+      ...(attentionKind === "mla" ? { position_encoding: normalized.mlaUseNope ? "none" : "rope" } : {}),
       hidden_size: normalized.hiddenSize,
       num_attention_heads: normalized.attentionHeads,
       num_key_value_heads: normalized.kvHeads,

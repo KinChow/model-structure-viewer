@@ -7,6 +7,7 @@ import { foldedLayerName } from "./foldedLayerName.js";
 
 function visionLayerModule(id, normalized) {
   const d = visionDimensions(normalized);
+  const rope2d = recipeFlag(normalized, "visionRope2d");
   const visual = `[batch, visual tokens, vision hidden size=${d.hidden}]`;
   const qkv = `[batch, visual tokens, fused qkv=${3 * d.qkvHiddenSize}]`;
   const q = `[batch, visual tokens, vision heads=${d.heads}, head dimension=${d.headDim}]`;
@@ -23,6 +24,12 @@ function visionLayerModule(id, normalized) {
       split_sizes: [d.heads * d.headDim, d.heads * d.headDim, d.heads * d.headDim],
       modality: "vision",
     }, { input: d.qkv, output: d.q }),
+    ...(rope2d ? [operatorSpec(`${id}.rope`, "vision 2D rotary position embedding", "rope", {
+      ...shapeFlow(`${q}, ${q}`, `${q}, ${q}`),
+      modality: "vision", position_encoding: "rope_2d", checkpoint_module: false,
+      partial_rotary_factor: 1,
+      semantic_role: "vision_query_key_rotation",
+    }, { input: d.q, output: d.q })] : []),
     sdpaAttentionModule(id, {
       attentionQuery: q,
       attentionKey: q,
@@ -72,10 +79,15 @@ function visionLayerModule(id, normalized) {
     intermediate_size: d.intermediate,
     modality: "vision",
     dataflow_edges: [
-      ["input_norm", "qkv_proj"], ["qkv_proj", "qkv_split"], ["qkv_split", "sdpa"],
+      ["input_norm", "qkv_proj"], ["qkv_proj", "qkv_split"],
+      ...(rope2d ? [["qkv_split", "rope"], ["rope", "sdpa"], ["qkv_split", "sdpa"]] : [["qkv_split", "sdpa"]]),
       ["sdpa", "out_proj"],
       ["out_proj", "post_norm"], ...mlpEdges,
     ],
+    ...(rope2d ? { dataflow_edge_relations: [
+      { from: "qkv_split", to: "rope", label: "Q, K" },
+      { from: "qkv_split", to: "sdpa", label: "V (unrotated)" },
+    ] } : {}),
   }, children), d.visual, d.visual);
 }
 

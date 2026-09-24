@@ -61,6 +61,8 @@ export const ARCH_RECIPES = {
   KimiK3ForConditionalGeneration: {
     visionFusion: "placeholder_expand",
     linearAttentionMode: "kimi_k3",
+    mlaPaths: { qNorm: "q_a_layernorm", kvProjection: "kv_a_proj_with_mqa", kvNorm: "kv_a_layernorm" },
+    visionRope2d: true,
     sharedExpertsAreFused: true,
     ffn: { moe: "block_sparse_moe" },
     moeClass: "KimiSparseMoeBlock",
@@ -250,4 +252,10 @@ export function recipeFlag(config, key) {
 
 export function recipeValue(config, key) {
   return recipeOf(config)[key];
+}
+
+// Canonical checkpoint names, shared by node emission and edge declarations.
+export function mlaPaths(config) {
+  return { qNorm: "q_a_norm", kvProjection: "kv_a_proj", kvNorm: "kv_a_norm",
+    ...recipeValue(config, "mlaPaths") };
 }

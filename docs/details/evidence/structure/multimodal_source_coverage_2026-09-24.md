@@ -14,6 +14,10 @@
   - `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` 的 sidecar 存在，但没有
     `visual/vision` 模块记录。
 
+DeepSeek 两个条目的视觉 forward 已由固定 revision 的 `inference/vision.py`
+补充取证，具体 SHA、类和行号见 `deepseek_v4_vision_sources.json`。这补齐了
+外部 forward 证据，但没有把它冒充成 source-ref checkpoint 绑定。
+
 匹配允许两种发布到图的合法表示：
 
 1. source-ref 模块对应一个同名 canonical 节点；
@@ -37,6 +41,5 @@
 - decode 时视觉 tower 一定不会执行；
 - 获得了 GPU 或推理框架实测性能结论。
 
-后续仍需为两个缺少 source-ref 的条目补齐固定版本来源，补齐
-`DeepSeek-V4-Flash-Vision-Exp` 的视觉模块 source-ref，并对 39 个多模态
-条目的 projector/merger checkpoint tensor map 做逐模块审计。
+后续仍需为两个缺少 source-ref 的条目补齐可持久化的模块映射，及对
+39 个多模态条目的 projector/merger checkpoint tensor map 做逐模块审计。

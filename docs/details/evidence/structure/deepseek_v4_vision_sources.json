@@ -1,0 +1,46 @@
+{
+  "read_at": "2026-09-24",
+  "purpose": "Pin the visual forward source for the two DeepSeek V4 vision entries whose local source-ref sidecars do not expose visual modules.",
+  "sources": [
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "revision": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+      "forward_url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/raw/6821d6ad3681a4b137b066b76094fa82ebd0a380/inference/model.py",
+      "forward_sha256": "ae8de79223d53c16edc7fa67af124ddd0212f27bddd3207bdd4cb05b48a0a1a7",
+      "vision_url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/raw/6821d6ad3681a4b137b066b76094fa82ebd0a380/inference/vision.py",
+      "vision_sha256": "a4f089069310398d42ca17fd4496cec82da64cbbfde9b0230679ce1537cc0bb1",
+      "anchors": {
+        "forward_model_vision": "927-973",
+        "patch_embed": "37-44",
+        "attention": "46-61",
+        "mlp": "63-72",
+        "block": "74-85",
+        "vit": "87-103",
+        "aligner": "105-113"
+      }
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "revision": "dba1be0a40aa45a94ad051997016db3960a90277",
+      "forward_url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4.1-Flash/raw/dba1be0a40aa45a94ad051997016db3960a90277/inference/model.py",
+      "forward_sha256": "4e9ae23620edc8028ccc5d5fef552ab7fdc7dcd6f79608754fe9f67644056f65",
+      "vision_url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4.1-Flash/raw/dba1be0a40aa45a94ad051997016db3960a90277/inference/vision.py",
+      "vision_sha256": "5d49edc196a4ef22384abe76d35a40098cbe1e74b586c8f66a2edff4f076b26c",
+      "anchors": {
+        "forward_model_vision": "1183-1226",
+        "patch_embed": "37-44",
+        "attention": "46-61",
+        "mlp": "63-72",
+        "block": "74-85",
+        "vit": "87-104",
+        "aligner": "106-114"
+      }
+    }
+  ],
+  "semantic_summary": {
+    "vision": "PatchEmbed -> repeated Vision Block -> ViT output",
+    "block": "RMSNorm -> QKV attention with 2D rotary position -> output projection -> RMSNorm -> MLP",
+    "fusion": "ViT output -> Aligner -> language-side multimodal fusion",
+    "evidence_boundary": "This pins the published visual forward source; it does not by itself prove every visual checkpoint tensor is bound to a graph node."
+  }
+}

@@ -81,6 +81,28 @@ test("multimodal source-ref visual modules are represented by Graph IR", () => {
   assert.deepEqual(new Set(visualModuleGaps), EXPECTED_VISUAL_MODULE_GAPS);
   assert.equal(checkedModels.length, 36);
   assert.equal(sourceModules, 752);
+
+  const visualEvidence = JSON.parse(fs.readFileSync(
+    path.join(
+      repoRoot,
+      "docs/details/evidence/structure/deepseek_v4_vision_sources.json",
+    ),
+    "utf8",
+  ));
+  assert.deepEqual(
+    new Set(visualEvidence.sources.map((source) => source.model_id)),
+    new Set([
+      "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+    ]),
+  );
+  for (const source of visualEvidence.sources) {
+    assert.match(source.forward_url, /\/inference\/model\.py$/);
+    assert.match(source.vision_url, /\/inference\/vision\.py$/);
+    assert.match(source.forward_sha256, /^[0-9a-f]{64}$/);
+    assert.match(source.vision_sha256, /^[0-9a-f]{64}$/);
+    assert.ok(source.anchors.vit && source.anchors.aligner);
+  }
 });
 
 function structureHasVision(modelId) {

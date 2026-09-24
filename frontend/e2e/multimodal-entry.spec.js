@@ -33,6 +33,18 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
     await expect(page.locator(`.react-flow__edge[data-id="${edge.id}"] path.react-flow__edge-path`))
       .toHaveAttribute("d", /^M/, { timeout: 30000 });
   }
+  if (entry.model_id.startsWith("MiniMaxAI/MiniMax-M3")) {
+    const first = get("multi_modal_projector"), merge = get("patch_merge_mlp");
+    expect(first).toBeTruthy(); expect(merge).toBeTruthy();
+    const link = graph.edges.find(e => e.source === first.id && e.target === merge.id);
+    expect(link).toBeTruthy();
+    await expect(page.locator(`.react-flow__edge[data-id="${link.id}"] path.react-flow__edge-path`))
+      .toHaveAttribute("d", /^M/, { timeout: 30000 });
+    const f = await tile(first).boundingBox(), m = await tile(merge).boundingBox();
+    expect(f).toBeTruthy(); expect(m).toBeTruthy();
+    expect(f.x < m.x + m.width && f.x + f.width > m.x && f.y < m.y + m.height && f.y + f.height > m.y,
+      "the separate patch merge stage must not overlap the projector").toBe(false);
+  }
   const e = await tile(embed).boundingBox(), v = await tile(vision).boundingBox();
   expect(e).toBeTruthy(); expect(v).toBeTruthy();
   const intersects = e.x < v.x + v.width && e.x + e.width > v.x && e.y < v.y + v.height && e.y + e.height > v.y;
@@ -84,6 +96,12 @@ test("desktop final unknown-traffic and fusion-search presentation", async ({ pa
   test.skip(testInfo.project.name !== "desktop-chrome");
   test.setTimeout(150_000);
   await openAndCheck(page, entries.find(entry => entry.model_id === "Qwen/Qwen3.5-0.8B"), testInfo, true);
+});
+
+test("desktop MiniMax released projector and patch merge remain separate visible stages", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chrome");
+  test.setTimeout(150_000);
+  await openAndCheck(page, entries.find(entry => entry.model_id === "MiniMaxAI/MiniMax-M3"), testInfo, true);
 });
 
 for (const entry of families) {

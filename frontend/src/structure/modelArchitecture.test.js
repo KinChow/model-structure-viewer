@@ -141,8 +141,9 @@ test("selects dedicated model builders by canonical architecture", () => {
   const resolved = resolveArchitecture(normalized, { modelId: "MiniMaxAI/MiniMax-M3" });
   const network = buildNetwork(resolved, normalized);
 
-  assert.deepEqual(network.children.slice(0, 7).map(child => child.id),
-    ["image_input", "vision_tower", "multi_modal_projector", "text_input", "embed_tokens", "multimodal_fusion", "language_model.layers"]);
+  assert.deepEqual(network.children.slice(0, 8).map(child => child.id),
+    ["image_input", "vision_tower", "multi_modal_projector", "patch_merge_mlp",
+      "text_input", "embed_tokens", "multimodal_fusion", "language_model.layers"]);
   assert.equal(network.children.find(child => child.id === "language_model.layers").attributes.class, "MiniMaxM3VLTextModel");
 });
 

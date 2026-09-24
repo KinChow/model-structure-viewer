@@ -1,0 +1,77 @@
+{
+  "model_id": "MiniMaxAI/MiniMax-M3",
+  "revision": "f0e1c1e04d40177e4673a22097036854f536e9c0",
+  "index_sha256": "54dbde502126d07f6999077437a06b5df1f71e317518956d0aad1c8197df524e",
+  "source": "https://huggingface.co/MiniMaxAI/MiniMax-M3/resolve/f0e1c1e04d40177e4673a22097036854f536e9c0/model.safetensors.index.json",
+  "note": "8 exact projector and patch-merge tensors; shapes/dtypes from safetensors headers of shards 26 and 59, fetched via HTTP Range on 2026-09-24. Index proves no merge_linear_* checkpoint keys.",
+  "tensors": [
+    {
+      "name": "multi_modal_projector.linear_1.bias",
+      "dtype": "BF16",
+      "shape": [
+        6144
+      ],
+      "shard": "model-00059-of-00059.safetensors"
+    },
+    {
+      "name": "multi_modal_projector.linear_1.weight",
+      "dtype": "BF16",
+      "shape": [
+        6144,
+        1280
+      ],
+      "shard": "model-00026-of-00059.safetensors"
+    },
+    {
+      "name": "multi_modal_projector.linear_2.bias",
+      "dtype": "BF16",
+      "shape": [
+        6144
+      ],
+      "shard": "model-00026-of-00059.safetensors"
+    },
+    {
+      "name": "multi_modal_projector.linear_2.weight",
+      "dtype": "BF16",
+      "shape": [
+        6144,
+        6144
+      ],
+      "shard": "model-00026-of-00059.safetensors"
+    },
+    {
+      "name": "patch_merge_mlp.linear_1.bias",
+      "dtype": "BF16",
+      "shape": [
+        6144
+      ],
+      "shard": "model-00026-of-00059.safetensors"
+    },
+    {
+      "name": "patch_merge_mlp.linear_1.weight",
+      "dtype": "BF16",
+      "shape": [
+        6144,
+        24576
+      ],
+      "shard": "model-00026-of-00059.safetensors"
+    },
+    {
+      "name": "patch_merge_mlp.linear_2.bias",
+      "dtype": "BF16",
+      "shape": [
+        6144
+      ],
+      "shard": "model-00026-of-00059.safetensors"
+    },
+    {
+      "name": "patch_merge_mlp.linear_2.weight",
+      "dtype": "BF16",
+      "shape": [
+        6144,
+        6144
+      ],
+      "shard": "model-00026-of-00059.safetensors"
+    }
+  ]
+}

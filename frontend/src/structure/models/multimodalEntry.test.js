@@ -7,6 +7,7 @@ import { countsForNode } from "../operators/formulas/extractor.js";
 import { aggregateCost } from "../../cost/aggregate.js";
 import { actionsByFormulaGroup } from "../../cost/ui.js";
 import { buildNodeLens } from "../../diagram/lens.js";
+import { buildSkeleton } from "../truth/skeleton.js";
 
 const root = new URL("../../../../models/", import.meta.url);
 const read = url => fs.existsSync(url) ? JSON.parse(fs.readFileSync(url, "utf8")) : null;
@@ -112,8 +113,8 @@ test("multimodal projector canonical IDs follow published module paths", () => {
     ["MiniMaxAI/MiniMax-M3", [
       "multi_modal_projector", "multi_modal_projector.linear_1",
       "multi_modal_projector.act", "multi_modal_projector.linear_2",
-      "multi_modal_projector.merge_linear_1", "multi_modal_projector.merge_act",
-      "multi_modal_projector.merge_linear_2",
+      "patch_merge_mlp", "patch_merge_mlp.linear_1",
+      "patch_merge_mlp.act", "patch_merge_mlp.linear_2",
     ]],
     ["moonshotai/Kimi-K2.5", [
       "mm_projector", "mm_projector.pre_norm", "mm_projector.proj.0",
@@ -135,5 +136,58 @@ test("multimodal projector canonical IDs follow published module paths", () => {
     const structure = buildStructureFromConfig(config, { modelId });
     const ids = new Set(structure.graph.nodes.map((node) => node.canonical_id));
     for (const path of paths) assert.ok(ids.has(path), `${modelId}: missing ${path}`);
+  }
+});
+
+test("released MiniMax-M3 tensors split projection and patch merge into independent modules", () => {
+  const fixture = read(new URL("../models/__fixtures__/minimax-m3-projector-header.json", import.meta.url));
+  const config = read(new URL("MiniMaxAI/MiniMax-M3/config.json", root));
+  const structure = buildStructureFromArtifacts({
+    config, modelId: fixture.model_id, revision: fixture.revision,
+    checkpointTruth: { skeleton: buildSkeleton(fixture.tensors), tensor_count: fixture.tensors.length },
+  });
+  const graph = structure.graph;
+  const byCanonical = new Map(graph.nodes.map(node => [node.canonical_id, node]));
+  const expected = ["multi_modal_projector.linear_1", "multi_modal_projector.linear_2",
+    "patch_merge_mlp.linear_1", "patch_merge_mlp.linear_2"];
+  for (const path of expected) assert.ok(byCanonical.has(path), `missing released module ${path}`);
+  for (const tensor of fixture.tensors) {
+    const owner = graph.nodes.filter(node => node.tensor_names?.includes(tensor.name));
+    assert.equal(owner.length, 1, `${tensor.name}: exactly one weight owner`);
+    assert.equal(owner[0].canonical_id, tensor.name.replace(/\.(weight|bias)$/, ""));
+    assert.equal(owner[0].value_source, "checkpoint");
+    assert.ok(Object.values(owner[0].weight_shapes || {}).some(shape => shape.join(",") === tensor.shape.join(",")),
+      `${tensor.name}: released shape must be bound`);
+  }
+  const expectedElements = fixture.tensors.reduce((sum, tensor) =>
+    sum + tensor.shape.reduce((size, dim) => size * dim, 1), 0);
+  const projected = graph.nodes.filter(node => /^(multi_modal_projector|patch_merge_mlp)\./.test(node.canonical_id));
+  const declaredElements = projected.flatMap(node => node.attributes.weightMatrices || [])
+    .reduce((sum, matrix) => sum + matrix.shape.reduce((size, dim) => size * dim, 1), 0);
+  assert.equal(declaredElements, expectedElements, "released projector tensors and graph capacity reconcile exactly");
+  assert.equal(projected.filter(node => node.tensor_names?.length)
+    .reduce((sum, node) => sum + node.params, 0), expectedElements);
+  assert.equal(graph.nodes.some(node => node.canonical_id?.includes("merge_linear_")), false,
+    "the fused library class is not the released checkpoint's module layout");
+  assert.ok(graph.edges.some(edge => edge.source_canonical_id === "multi_modal_projector"
+    && edge.target_canonical_id === "patch_merge_mlp"));
+  assert.ok(graph.edges.some(edge => edge.source_canonical_id === "patch_merge_mlp"
+    && edge.target_canonical_id === "multimodal_fusion"));
+});
+
+test("both published MiniMax-M3 indexes have the same split projector keys", () => {
+  const published = read(new URL("../models/__fixtures__/minimax-m3-published-projector-index.json", import.meta.url));
+  assert.equal(published.models.length, 2);
+  for (const variant of published.models) {
+    assert.match(variant.index_sha256, /^[0-9a-f]{64}$/);
+    assert.equal(variant.tensor_names.length, 8);
+    assert.ok(variant.tensor_names.every(name => /^(multi_modal_projector|patch_merge_mlp)\.linear_[12]\.(weight|bias)$/.test(name)));
+    const config = read(new URL(`${variant.model_id}/config.json`, root));
+    const graph = buildStructureFromConfig(config, { modelId: variant.model_id }).graph;
+    for (const name of variant.tensor_names) {
+      assert.ok(graph.nodes.some(node => node.canonical_id === name.replace(/\.(weight|bias)$/, "")),
+        `${variant.model_id}: missing released weight path ${name}`);
+    }
+    assert.equal(graph.nodes.some(node => node.canonical_id?.includes("merge_linear_")), false);
   }
 });

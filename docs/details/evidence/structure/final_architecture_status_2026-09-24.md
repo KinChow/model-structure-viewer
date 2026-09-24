@@ -30,7 +30,7 @@
 | `qwen3_5_moe_text` | 2 | 已修复/有边界 | text-only 混合主干；未误加视觉塔；门控输入修复 | 量化变体 checkpoint/activation quantization 细节 |
 | `qwen4_exp` | 2 | 已修复/有边界 | QSA 微块、尾部 token、PLE、第 2 层位置、四路 gated residual | 融合搬运 unknown、变体 forward/header 审计 |
 | `minimax_m2` | 1 | 基线/证据不足 | 保留当前 GQA/MoE/MTP 结构 | 官方公开资料不足，需继续保持 unknown |
-| `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block | 两变体完整 checkpoint 逐模块审计、视觉物化 |
+| `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block；发布权重的 `multi_modal_projector → patch_merge_mlp` 双模块路径 | 两变体完整 checkpoint 逐模块审计、视觉物化 |
 | `glm4_moe` | 1 | 基线/证据不足 | 保留 GQA/MoE，不从 GLM-5 DSA 规则外推 | 官方结构细节不足 |
 | `glm_moe_dsa` | 6 | 已修复/有边界 | IndexShare source/reuse schedule、真实 `wq_b/wk/k_norm/weights_proj` 路径 | 完整 checkpoint truth 与量化 scale 归属 |
 | `glm5_next` | 2 | 已修复/有边界 | KDA/DSA 混合、四路 mHC/GR、视觉入口 | Flash 的独立 k-pool、变体 truth 与融合物化 |

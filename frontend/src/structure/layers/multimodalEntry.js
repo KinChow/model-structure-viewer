@@ -11,8 +11,10 @@ import { tensorDims } from "../config/dims.js";
 export function multimodalEntry(normalized) {
   const dims = tensorDims(normalized);
   const vision = visionTowerModule(normalized);
-  const projector = normalized.hasVisionProjector && !recipeVisionInternalMerger(normalized)
+  const projectorSpec = normalized.hasVisionProjector && !recipeVisionInternalMerger(normalized)
     ? projectorModule(normalized) : null;
+  const projectors = projectorSpec ? (Array.isArray(projectorSpec) ? projectorSpec : [projectorSpec]) : [];
+  const visualOutput = projectors.at(-1) || vision;
   const image = operatorSpec("image_input", "image / video input", "identity", {
     external_input: true, checkpoint_module: false, activation_materialization: "unknown",
   }, { input: [-1, -1, -1, -1, -1], output: [-1, -1, -1, -1, -1] });
@@ -31,13 +33,15 @@ export function multimodalEntry(normalized) {
     input_shape: "[text embeddings, projected visual features, placeholder positions]",
     output_shape: `[batch, post-fusion sequence, hidden=${normalized.hiddenSize}]`,
   }, { input: dims.hidden, output: dims.hidden });
-  const children = [image, vision, ...(projector ? [projector] : []), text, embed, fusion];
-  const edges = [[image.id, vision.id], ...(projector ? [[vision.id, projector.id]] : []),
-    [text.id, embed.id], [embed.id, fusion.id], [(projector || vision).id, fusion.id],
+  const children = [image, vision, ...projectors, text, embed, fusion];
+  const visualChain = [vision, ...projectors];
+  const edges = [[image.id, vision.id],
+    ...visualChain.slice(1).map((stage, i) => [visualChain[i].id, stage.id]),
+    [text.id, embed.id], [embed.id, fusion.id], [visualOutput.id, fusion.id],
     [text.id, fusion.id]];
   const relations = [
     { from: embed.id, to: fusion.id, label: "text embeddings" },
-    { from: (projector || vision).id, to: fusion.id, label: "visual features" },
+    { from: visualOutput.id, to: fusion.id, label: "visual features" },
     { from: text.id, to: fusion.id, relation: "index-control", label: "placeholder positions" },
   ];
   return { children, edges, relations, branchIds: new Set(children.filter(child => child !== fusion).map(child => child.id)) };

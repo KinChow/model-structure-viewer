@@ -39,7 +39,7 @@ test("multimodal source-ref visual modules are represented by Graph IR", () => {
 
     const sourceRef = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
     const visualModules = (sourceRef.modules || []).filter((module) =>
-      /visual|vision|projector/i.test(module.module_path || ""));
+      /visual|vision|projector|patch_merge_mlp/i.test(module.module_path || ""));
     if (!visualModules.length) {
       if (structureHasVision(entry.model_id)) visualModuleGaps.push(entry.model_id);
       continue;

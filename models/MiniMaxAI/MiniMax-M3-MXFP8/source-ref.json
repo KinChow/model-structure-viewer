@@ -317,7 +317,7 @@
       "has_params": true
     },
     {
-      "module_path": "root.multi_modal_projector.merge_linear_1",
+      "module_path": "root.patch_merge_mlp.linear_1",
       "class_name": "Linear",
       "source_ref": {
         "framework": "torch",
@@ -331,7 +331,7 @@
       "has_params": true
     },
     {
-      "module_path": "root.multi_modal_projector.merge_act",
+      "module_path": "root.patch_merge_mlp.act",
       "class_name": "GELUActivation",
       "source_ref": {
         "framework": "transformers",
@@ -345,7 +345,7 @@
       "has_params": false
     },
     {
-      "module_path": "root.multi_modal_projector.merge_linear_2",
+      "module_path": "root.patch_merge_mlp.linear_2",
       "class_name": "Linear",
       "source_ref": {
         "framework": "torch",

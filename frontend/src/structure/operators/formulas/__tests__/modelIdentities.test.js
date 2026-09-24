@@ -526,8 +526,6 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "kv_split -> sdpa": "concat",
   "qkv_projection -> short_conv": "slice",
   "compressor -> attention": "slice",
-  // Multimodal projector reshapes visual patches before the next MLP stage.
-  "linear_2 -> merge_linear_1": "regroup",
   // Kimi PatchMerger normalizes per patch, then groups spatial patches into
   // the wider merger input before its first projection.
   "pre_norm -> 0": "regroup",

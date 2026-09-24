@@ -66,7 +66,7 @@ export function projectorModule(normalized = null) {
     const minimaxMergedWidth = textHidden * mergeSize * mergeSize;
     const mergedShape = `[batch, merged visual tokens, merged width=${minimaxMergedWidth}]`;
     const projectedShape = `[batch, visual tokens, projector hidden=${projectorHidden}]`;
-    const children = [
+    const firstChildren = [
       operatorSpec(child("linear_1"), "projector first projection", "linear", {
         ...shapeFlow(`[batch, visual tokens, vision hidden=${mmHidden}]`, projectedShape),
         modality: "vision", bias: true,
@@ -78,27 +78,35 @@ export function projectorModule(normalized = null) {
         ...shapeFlow(projectedShape, `[batch, visual tokens, hidden=${textHidden}]`),
         modality: "vision", bias: true,
       }, { input: [-1, -1, projectorHidden], output: dims?.hidden }),
-      operatorSpec(child("merge_linear_1"), "projector merge projection", "linear", {
+    ];
+    const mergeBaseId = recipeValue(normalized, "visionProjectorMergePath") || "patch_merge_mlp";
+    const mergeChild = suffix => `${mergeBaseId}.${suffix}`;
+    const mergeChildren = [
+      operatorSpec(mergeChild("linear_1"), "patch merge projection", "linear", {
         ...shapeFlow(mergedShape, projectedShape), modality: "vision", bias: true,
       }, { input: [-1, -1, minimaxMergedWidth], output: [-1, -1, projectorHidden] }),
-      operatorSpec(child("merge_act"), "projector merge GELU", "vision_activation", {
+      operatorSpec(mergeChild("act"), "patch merge GELU", "vision_activation", {
         ...shapeFlow(projectedShape, projectedShape), modality: "vision",
       }, { input: [-1, -1, projectorHidden], output: [-1, -1, projectorHidden] }),
-      operatorSpec(child("merge_linear_2"), "projector merge output projection", "linear", {
+      operatorSpec(mergeChild("linear_2"), "patch merge output projection", "linear", {
         ...shapeFlow(projectedShape, `[batch, merged visual tokens, hidden=${textHidden}]`),
         modality: "vision", bias: true,
       }, { input: [-1, -1, projectorHidden], output: dims?.hidden }),
     ];
-    return withShapeDims(moduleSpec(baseId, "Multi-modal Projector", "projector", {
-      dataflow_edges: [
-        [child("linear_1"), child("act")], [child("act"), child("linear_2")],
-        [child("linear_2"), child("merge_linear_1")],
-        [child("merge_linear_1"), child("merge_act")], [child("merge_act"), child("merge_linear_2")],
-      ],
-      class: recipeValue(normalized, "visionProjectorClass") || "Projector",
-      implementation: [recipeValue(normalized, "visionProjectorImplementation") || "Projector"],
+    const first = withShapeDims(moduleSpec(baseId, "Multi-modal Projector", "projector-stage", {
+      checkpoint_layout: "separate_patch_merge_mlp",
+      dataflow_edges: [[child("linear_1"), child("act")], [child("act"), child("linear_2")]],
       ...flow,
-    }, children), dims?.visionOutput, dims?.hidden);
+    }, firstChildren), dims?.visionOutput, dims?.hidden);
+    const merge = withShapeDims(moduleSpec(mergeBaseId, "Patch Merge MLP", "projector", {
+      checkpoint_layout: "separate_patch_merge_mlp",
+      dataflow_edges: [
+        [mergeChild("linear_1"), mergeChild("act")],
+        [mergeChild("act"), mergeChild("linear_2")],
+      ],
+      ...shapeFlow(`[batch, visual tokens, hidden=${textHidden}]`, `[batch, merged visual tokens, hidden=${textHidden}]`),
+    }, mergeChildren), [-1, -1, textHidden], dims?.hidden);
+    return [first, merge];
   }
 
   if (projectorKind === "patchmerger" && mergedWidth > 0) {

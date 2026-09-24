@@ -1,0 +1,37 @@
+{
+  "retrieved": "2026-09-24",
+  "models": [
+    {
+      "model_id": "MiniMaxAI/MiniMax-M3",
+      "revision": "f0e1c1e04d40177e4673a22097036854f536e9c0",
+      "index_sha256": "54dbde502126d07f6999077437a06b5df1f71e317518956d0aad1c8197df524e",
+      "index_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3/resolve/f0e1c1e04d40177e4673a22097036854f536e9c0/model.safetensors.index.json",
+      "tensor_names": [
+        "multi_modal_projector.linear_1.bias",
+        "multi_modal_projector.linear_1.weight",
+        "multi_modal_projector.linear_2.bias",
+        "multi_modal_projector.linear_2.weight",
+        "patch_merge_mlp.linear_1.bias",
+        "patch_merge_mlp.linear_1.weight",
+        "patch_merge_mlp.linear_2.bias",
+        "patch_merge_mlp.linear_2.weight"
+      ]
+    },
+    {
+      "model_id": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "revision": "c5454eb03678d8710e54a4e0fc681b9f3b4a3dba",
+      "index_sha256": "41126751cfdb44c2fb33522bcaaa6f6ca057462838b3493a347678e6e1ca24ee",
+      "index_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3-MXFP8/resolve/c5454eb03678d8710e54a4e0fc681b9f3b4a3dba/model.safetensors.index.json",
+      "tensor_names": [
+        "multi_modal_projector.linear_1.bias",
+        "multi_modal_projector.linear_1.weight",
+        "multi_modal_projector.linear_2.bias",
+        "multi_modal_projector.linear_2.weight",
+        "patch_merge_mlp.linear_1.bias",
+        "patch_merge_mlp.linear_1.weight",
+        "patch_merge_mlp.linear_2.bias",
+        "patch_merge_mlp.linear_2.weight"
+      ]
+    }
+  ]
+}

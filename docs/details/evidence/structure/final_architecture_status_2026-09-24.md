@@ -18,8 +18,8 @@
 
 | model_type | 条目数 | 当前状态 | 已完成的结构工作 | 剩余边界 |
 |---|---:|---|---|---|
-| `deepseek_v3` | 2 | 已修复/有边界 | 对照发布 `DeepseekV3Attention` 修正 MLA 的真实 `q_a_layernorm`、`kv_a_proj_with_mqa`、`kv_a_layernorm` 路径；保留前三层 dense、后续 MoE；index manifest 确认 `shared_head.norm/head` 两个 MTP 权重 | 完整逐张量 truth、量化 scale 归属、MTP 内部完整绑定和 GPU fused kernel 仍 unknown |
-| `deepseek_v32` | 1 | 已修复/已回归 | DSA indexer 的物理路径、主 sparse MLA 与真实 source-ref | 完整权重逐模块 truth 未完成 |
+| `deepseek_v3` | 2 | 已修复/有边界 | 对照发布 `DeepseekV3Attention` 修正 MLA 的真实 `q_a_layernorm`、`kv_a_proj_with_mqa`、`kv_a_layernorm` 路径；保留前三层 dense、后续 MoE；MTP 尾层 61 的 `embed_tokens/eh_proj/shared_head` 路径已绑定到草稿分支 | 完整逐张量 truth、量化 scale 归属、MTP experts 逐张量绑定和 GPU fused kernel 仍 unknown |
+| `deepseek_v32` | 1 | 已修复/已回归 | DSA indexer 的物理路径、主 sparse MLA 与真实 source-ref；DeepSeek-style MTP 尾层路径复用绑定规则 | 完整权重逐模块 truth、MTP experts 逐张量绑定未完成 |
 | `deepseek_v4` | 5 | 已修复/有边界 | compressor、C4 indexer、norm/gate/APE 依赖；按 ratio 和变体区分；C4 首窗口 overlap 成本已按 pinned forward 修正 | GPU fused kernel、量化 scale 交通、跨请求 cache 追加 prefill 仍 unknown |
 | `deepseek_v41` | 1 | 已修复/有边界 | CED、CSA2 Full/Reuse、DSpark、MTP 抑制基线 | 完整权重/GPU 行为和视觉融合物化仍未证明 |
 | `kimi_k2` | 4 | 已修复/有边界 | 对照 Kimi 发布 `DeepseekV3` 实现修正 MLA 精确模块路径；Base/Thinking 的 index manifest 与 header 均确认无 MTP，不生成 MTP | Thinking QAT、完整逐模块 checkpoint truth、量化 scale 和 GPU 行为仍 unknown |
@@ -31,7 +31,7 @@
 | `qwen4_exp` | 2 | 已修复/有边界 | QSA 微块、尾部 token、PLE、第 2 层位置、四路 gated residual；视觉 packed attention、grid_thw 位置插值、pre-shuffle merger norm | 融合搬运 unknown；GPU packed-attention 性能未实测 |
 | `minimax_m2` | 1 | 已修复/有边界 | 按随附 Transformers/source-ref 修正为独立 Q/K/V projection、Q/K RMSNorm、partial RoPE；保留 GQA/MoE；index manifest/header 均确认 config 声明的 MTP 未落地 | 融合搬运、量化 scale traffic、完整 GPU 行为仍 unknown |
 | `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block；发布权重的 `multi_modal_projector → patch_merge_mlp` 双模块路径；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
-| `glm4_moe` | 1 | 已修复/有边界 | 对照 GLM-4.7 source-ref 修正独立 Q/K/V、Q/K RMSNorm、partial RoPE 和 attention bias；index manifest/header 确认 shared-head MTP；未把 GLM-5 DSA 外推到 GLM-4.7 | 完整逐模块 truth、量化 scale 和 GPU fused kernel 仍 unknown |
+| `glm4_moe` | 1 | 已修复/有边界 | 对照 GLM-4.7 source-ref 修正独立 Q/K/V、Q/K RMSNorm、partial RoPE 和 attention bias；MTP 尾层 92 的 `embed_tokens/eh_proj/shared_head` 路径已绑定；未把 GLM-5 DSA 外推到 GLM-4.7 | 完整逐模块 truth、量化 scale 和 GPU fused kernel 仍 unknown |
 | `glm_moe_dsa` | 6 | 已修复/有边界 | IndexShare source/reuse schedule、真实 `wq_b/wk/k_norm/weights_proj` 路径 | 完整 checkpoint truth 与量化 scale 归属 |
 | `glm5_next` | 2 | 已修复/有边界 | KDA/DSA 混合、四路 mHC/GR、GLM-5.3-Flash 独立视觉塔；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
 

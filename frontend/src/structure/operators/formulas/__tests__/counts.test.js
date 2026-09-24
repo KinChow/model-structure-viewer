@@ -8,7 +8,7 @@ import {
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts,
   moeDispatchCounts, moeCombineCounts, addCounts, hashRouteCounts,
   rearrangeCounts, softmaxCounts, scoredPairs, causalDensity, fusedMoeMlpCounts,
-  dsv4VisibleKeys, embedGatherCounts,
+  dsv4VisibleKeys, dsv4WindowReduceCounts, embedGatherCounts,
 } from "../counts.js";
 
 const B = 2; // bf16 每元素 2 字节
@@ -250,6 +250,20 @@ test("DSV4 可见 key：SWA 夹窗、C4 压缩+窗、C128 只压缩", () => {
   // C128：ceil(128/128) = 1
   assert.equal(dsv4VisibleKeys({ sequence: 128, ratio: 128 }), 1);
   assert.equal(dsv4VisibleKeys({ sequence: 128, phase: "decode", ratio: 128 }), 1);
+});
+
+test("DSV4 C4 window reduction: first window has no prior overlap half", () => {
+  const base = { batch: 1, ratio: 4, width: 8, bytesPerElement: 2, overlap: true };
+  const firstPrefill = dsv4WindowReduceCounts({ ...base, sequence: 4, phase: "prefill" });
+  const laterPrefill = dsv4WindowReduceCounts({ ...base, sequence: 8, phase: "prefill" });
+  const firstDecode = dsv4WindowReduceCounts({ ...base, sequence: 4, phase: "decode" });
+  const laterDecode = dsv4WindowReduceCounts({ ...base, sequence: 8, phase: "decode" });
+  assert.equal(firstPrefill.sfu, 2 * 4 * 8);
+  assert.equal(laterPrefill.sfu, 2 * (4 + 8) * 8);
+  assert.equal(firstDecode.sfu, 2 * 4 * 8);
+  assert.equal(laterDecode.sfu, 2 * 8 * 8);
+  assert.equal(firstPrefill.bytes.actIn, 2 * 4 * 8 * 2);
+  assert.equal(laterPrefill.bytes.actIn, 2 * (4 + 8) * 8 * 2);
 });
 
 test("F2 分相位：prefill 因果三角、decode 全长", () => {

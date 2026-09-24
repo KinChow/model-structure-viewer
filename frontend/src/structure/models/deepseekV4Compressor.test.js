@@ -257,3 +257,23 @@ test("V4 compressor execution is owned by real children, not a duplicate parent 
   assert.equal(score.actions.bytes.indexRead, 2 * 2 * normalized.dsaIndexHeadDim,
     "two closed C4 windows produce two index-key cache rows");
 });
+
+test("V4 C4 reduction does not charge an unavailable prior-window half", () => {
+  const config = read("DeepSeek-V4-Flash/config.json");
+  const normalized = normalizeConfig(config);
+  const graph = buildStructureFromConfig(config).graph;
+  const reducer = graph.nodes.find(node =>
+    node.attributes?.operator_id === "dsv4_window_reduce"
+    && node.attributes?.compress_ratio === 4);
+  assert.ok(reducer);
+  const first = sequence => countsForNode(reducer, {
+    config: normalized,
+    options: { batch: 1, sequence, phase: "prefill" },
+    path: reducer.id,
+    bytesPerElement: 2,
+  });
+  const firstWindow = first(4);
+  const twoWindows = first(8);
+  assert.equal(firstWindow.sfu, 2 * 4 * reducer.attributes.reduction_width);
+  assert.equal(twoWindows.sfu, 2 * (4 + 8) * reducer.attributes.reduction_width);
+});

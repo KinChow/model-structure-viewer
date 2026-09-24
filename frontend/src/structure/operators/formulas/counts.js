@@ -147,9 +147,20 @@ export function dsv4WindowReduceCounts({
   batch = 1, sequence = 1, phase = "prefill", ratio = 1, width = 1,
   overlap = false, bytesPerElement = 1,
 }) {
-  const outputs = compressedOutputTokens({ batch, sequence, phase, ratio });
-  const slots = ratio * (overlap ? 2 : 1);
-  const logits = outputs * slots * width;
+  const outputsPerBatch = compressedOutputTokens({ batch: 1, sequence, phase, ratio });
+  const outputs = batch * outputsPerBatch;
+  // C4's overlap window is not full-width on the first emission of each
+  // sequence: the previous-window Ca half is initialized to -inf and has
+  // zero softmax mass until a prior window exists.  The pinned
+  // DeepseekV4CSACompressor/Indexer forward materializes [2r] slots for
+  // later windows but only [r] effective slots for the first one.
+  const firstWindows = overlap
+    ? (phase === "prefill"
+      ? (outputsPerBatch > 0 ? batch : 0)
+      : (outputsPerBatch > 0 && sequence === ratio ? batch : 0))
+    : 0;
+  const effectiveSlots = ratio * (outputs + (overlap ? outputs - firstWindows : 0));
+  const logits = effectiveSlots * width;
   const reduced = outputs * width;
   return {
     matrix: 0,

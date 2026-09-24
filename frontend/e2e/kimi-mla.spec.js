@@ -22,9 +22,9 @@ test("K3 NoPE, gate fan-in and vision 2D RoPE render in the production view", as
     [`${prefix}.output_gate`, `${prefix}.o_proj`],
     [`${prefix}.kv_split`, `${prefix}.sdpa`],
     [`${prefix}.kv_b_proj`, `${prefix}.sdpa`],
-    ["vision_tower.0.qkv_split", "vision_tower.0.rope"],
-    ["vision_tower.0.rope", "vision_tower.0.sdpa"],
-    ["vision_tower.0.qkv_split", "vision_tower.0.sdpa"],
+    ["vision_tower.encoder.blocks.0.qkv_reshape", "vision_tower.encoder.blocks.0.rope"],
+    ["vision_tower.encoder.blocks.0.rope", "vision_tower.encoder.blocks.0.sdpa"],
+    ["vision_tower.encoder.blocks.0.qkv_reshape", "vision_tower.encoder.blocks.0.sdpa"],
   ];
   const checkEdges = async () => {
     for (const [from, to] of pairs) {

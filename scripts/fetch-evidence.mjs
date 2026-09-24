@@ -102,7 +102,19 @@ if (process.argv.includes("--headers")) {
   }
   // 折叠：直接复用前端 skeleton 构建器（folded tree，体积小几个数量级）
   const { buildSkeleton } = await import("../frontend/src/structure/truth/skeleton.js");
-  const skeleton = buildSkeleton(tensors, { preserveExpandedTruth: true });
+  // 仅为显式的尾部 MTP/MoE experts 保留重复段的完整 tensor inventory。
+  // 普通 layers/experts 仍只保存代表节点，避免把轻量 skeleton 重新膨胀成
+  // 全量逐专家清单。当前发布模型的 MTP expert 路径以最大 layer index
+  // 识别；缺少该模式时不额外保存 expanded truth。
+  const expertPaths = tensors
+    .map(({ name }) => name.match(/^(.*layers\.(\d+)\.mlp\.experts)(?:\.\d+)(?:\.|$)/))
+    .filter(Boolean)
+    .map(([, prefix, layer]) => ({ prefix, layer: Number(layer) }));
+  const maxExpertLayer = expertPaths.reduce((max, item) => Math.max(max, item.layer), -1);
+  const preserveExpandedTruthPaths = [...new Set(
+    expertPaths.filter((item) => item.layer === maxExpertLayer).map((item) => item.prefix),
+  )];
+  const skeleton = buildSkeleton(tensors, { preserveExpandedTruthPaths });
   const parameterTotal = tensors.reduce((sum, t) => sum + t.shape.reduce((a, b) => a * b, 1), 0);
   fs.writeFileSync(path.join(outDir, "skeleton-truth.json"), JSON.stringify({
     generated: "safetensors headers (fetch-evidence --headers)",

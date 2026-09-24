@@ -148,17 +148,18 @@ test("GLM-5.3-Flash preserves folded MTP expert tensor truth", () => {
     [`${prefix}.1.up_proj.weight`, [config.text_config.moe_intermediate_size, config.text_config.hidden_size]],
     [`${prefix}.1.down_proj.weight`, [config.text_config.hidden_size, config.text_config.moe_intermediate_size]],
   ].map(([name, shape]) => ({ name, shape, dtype: "BF16" }));
-  const structure = buildStructureFromArtifacts({
-    config,
-    modelId,
-    checkpointTruth: {
-      skeleton: buildSkeleton(tensors, { preserveExpandedTruth: true }),
+  for (const checkpointTruth of [
+    { tensors, mtp_tensor_count: tensors.length },
+    {
+      skeleton: buildSkeleton(tensors, { preserveExpandedTruthPaths: [prefix] }),
       mtp_tensor_count: tensors.length,
     },
-  });
-  const expert = structure.graph.nodes.find(node => node.canonical_id === "mtp.layer.mlp.expert_mlp");
-  assert.ok(expert);
-  assert.deepEqual(structure.source.diagnostics.template_gaps, []);
-  assert.deepEqual(expert.tensor_names.sort(), tensors.map(tensor => tensor.name).sort());
-  assert.equal(expert.params, tensors.reduce((sum, tensor) => sum + tensor.shape.reduce((a, b) => a * b, 1), 0));
+  ]) {
+    const structure = buildStructureFromArtifacts({ config, modelId, checkpointTruth });
+    const expert = structure.graph.nodes.find(node => node.canonical_id === "mtp.layer.mlp.expert_mlp");
+    assert.ok(expert);
+    assert.deepEqual(structure.source.diagnostics.template_gaps, []);
+    assert.deepEqual(expert.tensor_names.sort(), tensors.map(tensor => tensor.name).sort());
+    assert.equal(expert.params, tensors.reduce((sum, tensor) => sum + tensor.shape.reduce((a, b) => a * b, 1), 0));
+  }
 });

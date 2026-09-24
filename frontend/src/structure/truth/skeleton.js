@@ -142,6 +142,15 @@ function expandedMetadataForFoldedSegment(trieNode, path, childKeys) {
   };
 }
 
+function shouldPreserveExpandedTruth(path, options) {
+  if (options.preserveExpandedTruth === true) return true;
+  const prefixes = options.preserveExpandedTruthPaths;
+  if (!Array.isArray(prefixes) || prefixes.length === 0) return false;
+  return prefixes.some((prefix) =>
+    path === prefix || path.startsWith(`${prefix}.`)
+    || path.endsWith(`.${prefix}`) || path.includes(`.${prefix}.`));
+}
+
 function convertNode(trieNode, path, options = {}) {
   const id = path.join(".");
   const name = path[path.length - 1] ?? "root";
@@ -164,7 +173,7 @@ function convertNode(trieNode, path, options = {}) {
       weight_dtypes: {},
       dtype: null,
       tensor_names: [],
-      ...(options.preserveExpandedTruth
+      ...(shouldPreserveExpandedTruth(id, options)
         ? expandedMetadataForFoldedSegment(trieNode, path, childKeys)
         : {}),
       children: [repNode],

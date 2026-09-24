@@ -305,6 +305,9 @@ export function appendGraphGaps(graph, skeleton, usedTruthIds) {
 export function enrichGraphWithTruth(graph, truth, {
   hasBuilder, modelName, architecture, truthPathAliases = [],
 }) {
+  const truthAggregatePaths = [...new Set((graph?.nodes || [])
+    .map((node) => node.attributes?.truth_path_prefix)
+    .filter(Boolean))];
   // 离线证据文件形态：truth.skeleton 是**已折叠**的 SkeletonNode（由
   // fetch-evidence --headers 从 safetensors 头部构建后入库，K3 原始张量
   // 表 59.7MB 折叠后小几个数量级，符合「仅轻量元数据入库」纪律）。
@@ -352,7 +355,9 @@ export function enrichGraphWithTruth(graph, truth, {
     }
     return { graph, diagnostics: { strategy: "no-truth" } };
   }
-  const skeleton = buildSkeleton(truth.tensors, { preserveExpandedTruth: true });
+  const skeleton = buildSkeleton(truth.tensors, {
+    preserveExpandedTruthPaths: truthAggregatePaths,
+  });
   const truthGraph = skeletonTruthGraph(skeleton);
   if (!hasBuilder) {
     const root = truthGraph.nodes.find((node) => node.id === truthGraph.root_id);

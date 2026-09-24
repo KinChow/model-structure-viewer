@@ -20,6 +20,7 @@ model.language_model.layers.45.mlp.experts.<expert>.(gate_proj|up_proj|down_proj
 ## 修复
 
 - 给 MTP fused expert leaf 增加 `truth_path_prefix`；
+- skeleton 折叠时可按需保留重复段的完整 tensor names、shape、dtype 和元素总量；
 - truth binder 支持把指定 prefix 下的多个 checkpoint module 聚合到一个
   Graph IR 权重叶；
 - 保留每个真实 tensor name、shape、dtype 和总参数元素；
@@ -38,9 +39,12 @@ model.language_model.layers.45.mlp.experts.<expert>.(gate_proj|up_proj|down_proj
 - 三个 MTP expert tensor 聚合到唯一 `mtp.layer.mlp.expert_mlp`；
 - 聚合节点保留全部 tensor names；
 - 聚合参数元素总量闭合；
+- 经过 `truth.skeleton` 折叠的两个 expert 仍保留 6 个 tensor names，
+  不把代表 expert 0 误当成完整 checkpoint；
 - 普通 DeepSeek/GLM MTP 的精确路径绑定不回归；
 - truth graph 单元测试继续通过。
 
 真实 GLM-5.3-Flash index manifest 已确认尾层包含 288 个 routed experts；
+两种发布变体的 folded truth 模拟分别保留 1728/864 个 expert tensor names。
 本修复只改变 truth 归属，不把 expert 逐个展开成新的展示层，也不声称
 GPU fused kernel 的实际物化方式已经测得。

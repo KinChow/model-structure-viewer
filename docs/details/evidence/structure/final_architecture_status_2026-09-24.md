@@ -33,7 +33,7 @@
 | `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block；发布权重的 `multi_modal_projector → patch_merge_mlp` 双模块路径；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
 | `glm4_moe` | 1 | 已修复/有边界 | 对照 GLM-4.7 source-ref 修正独立 Q/K/V、Q/K RMSNorm、partial RoPE 和 attention bias；MTP 尾层 92 的 `embed_tokens/eh_proj/shared_head` 路径已绑定；未把 GLM-5 DSA 外推到 GLM-4.7 | 完整逐模块 truth、量化 scale 和 GPU fused kernel 仍 unknown |
 | `glm_moe_dsa` | 6 | 已修复/有边界 | IndexShare source/reuse schedule、真实 `wq_b/wk/k_norm/weights_proj` 路径 | 完整 checkpoint truth 与量化 scale 归属 |
-| `glm5_next` | 2 | 已修复/有边界 | KDA/DSA 混合、四路 mHC/GR、GLM-5.3-Flash 独立视觉塔；两变体视觉 header/source audit 已通过；MTP 尾层 45 按发布 manifest 绑定为标准 decoder，不误继承主干 mHC，且不虚构本地 embedding/shared-head projection；MTP routed expert tensor 已聚合绑定到 fused expert leaf | 融合搬运 unknown；MTP expert 的 GPU fused 物化、GPU/视觉物化未实测 |
+| `glm5_next` | 2 | 已修复/有边界 | KDA/DSA 混合、四路 mHC/GR、GLM-5.3-Flash 独立视觉塔；两变体视觉 header/source audit 已通过；MTP 尾层 45 按发布 manifest 绑定为标准 decoder，不误继承主干 mHC，且不虚构本地 embedding/shared-head projection；MTP routed expert tensor 已按 288 个 folded expert 的完整 manifest 聚合绑定到 fused expert leaf | 融合搬运 unknown；MTP expert 的 GPU fused 物化、GPU/视觉物化未实测 |
 
 ## 60 个条目覆盖清单
 
@@ -108,7 +108,7 @@ node scripts/verify-builtin-models.mjs
   `*_repair.md` 与 `*_sources.json`。
 - config-only 与 production artifacts：由各家族机制测试分别加载；
   不用总参数量替代逐模块绑定。
-- 全量门禁：前端 597/597、后端 184/184、内置模型 60/60；
+- 全量门禁：前端 608/608、后端 184/184、内置模型 60/60；
   Kimi-K3 MLA/AttnRes 与 39 条多模态入口的机制测试通过；Chrome
   全量展示巡检覆盖 60/60。视觉模型的 roofline `unknown` 是融合搬运
   未知的显式结果，不是空图或页面错误。

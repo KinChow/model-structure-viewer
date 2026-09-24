@@ -98,6 +98,7 @@ export const ARCH_RECIPES = {
     visionProjectorPath: "multi_modal_projector",
     visionProjectorKind: "two_stage_patch_merge",
     visionProjectorMergePath: "patch_merge_mlp",
+    visionNativeMiniMax: true,
     normMode: "gemma_rmsnorm",
     moeClass: "MiniMaxM3VLSparseMoeBlock",
     mlpClass: "MiniMaxM3VLDenseMLP",

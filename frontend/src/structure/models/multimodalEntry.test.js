@@ -8,6 +8,7 @@ import { aggregateCost } from "../../cost/aggregate.js";
 import { actionsByFormulaGroup } from "../../cost/ui.js";
 import { buildNodeLens } from "../../diagram/lens.js";
 import { buildSkeleton } from "../truth/skeleton.js";
+import { walkStructure } from "../../cost/traverse.js";
 
 const root = new URL("../../../../models/", import.meta.url);
 const read = url => fs.existsSync(url) ? JSON.parse(fs.readFileSync(url, "utf8")) : null;
@@ -191,3 +192,59 @@ test("both published MiniMax-M3 indexes have the same split projector keys", () 
     assert.equal(graph.nodes.some(node => node.canonical_id?.includes("merge_linear_")), false);
   }
 });
+
+for (const variant of ["MiniMax-M3", "MiniMax-M3-MXFP8"]) {
+  test(`${variant} vision tower follows the published separate-QKV CLIP path`, () => {
+    const config = read(new URL(`MiniMaxAI/${variant}/config.json`, root));
+    const sourceRef = read(new URL(`MiniMaxAI/${variant}/source-ref.json`, root));
+    const graph = buildStructureFromArtifacts({
+      modelId: `MiniMaxAI/${variant}`,
+      config,
+      sourceRef,
+      checkpointTruth: read(new URL(`MiniMaxAI/${variant}/header-truth.json`, root)),
+    }).graph;
+    const ids = new Set(graph.nodes.map(node => node.canonical_id));
+    for (const id of [
+      "vision_tower.embeddings.proj",
+      "vision_tower.pre_layrnorm",
+      "vision_tower.layers.0.self_attn.q_proj",
+      "vision_tower.layers.0.self_attn.k_proj",
+      "vision_tower.layers.0.self_attn.v_proj",
+      "vision_tower.layers.0.self_attn.out_proj",
+      "vision_tower.layers.0.layer_norm1",
+      "vision_tower.layers.0.layer_norm2",
+      "vision_tower.layers.0.mlp.fc1",
+      "vision_tower.layers.0.mlp.fc2",
+      "vision_tower.rotary_emb",
+    ]) assert.ok(ids.has(id), `${variant}: missing ${id}`);
+    assert.equal([...ids].some(id => id === "vision_tower.layers.0.qkv_proj"), false);
+    assert.equal([...ids].some(id => id === "vision_tower.layers.0.self_attn.qkv_proj"), false);
+    const node = id => graph.nodes.find(candidate => candidate.canonical_id === id);
+    assert.equal(node("vision_tower.layers.0.layer_norm1").attributes.affine_bias, true);
+    assert.equal(node("vision_tower.layers.0.self_attn.q_proj").attributes.bias, true);
+    assert.equal(normalizeConfig(config).visionTemporalPatchSize, 2,
+      "published Conv3d kernel is temporal 2 × spatial 14², not a single frame");
+    assert.deepEqual(node("vision_tower.embeddings.proj").attributes.weightMatrices[0].shape,
+      [1280, 3 * 2 * 14 * 14]);
+    // Published Conv3d + pre-LN + 32 independent CLIP blocks. The source
+    // defines four biased attention linears, two affine LayerNorms and two
+    // biased GELU-MLP linears per block; no learned absolute position table.
+    let visualParams = 0;
+    walkStructure(graph, ({ node: part, multiplier }) => {
+      if (!part.id.startsWith("vision_tower.")) return;
+      for (const group of part.attributes?.weightMatrices || []) {
+        visualParams += group.shape.reduce((product, dim) => product * dim, 1)
+          * (group.count || 1) * (group.matrices || 1) * multiplier;
+      }
+    });
+    assert.equal(visualParams, 631185920);
+    assert.equal(node("vision_tower.layers.0.self_attn.rope").attributes.position_encoding, "rope_axial_3d");
+    assert.equal(node("vision_tower.layers.0.self_attn.sdpa").attributes.attention_mask_kind, "bidirectional");
+    assert.ok(graph.edges.some(edge =>
+      edge.source_canonical_id === "vision_tower.layers.0.self_attn.q_proj"
+      && edge.target_canonical_id === "vision_tower.layers.0.self_attn.q_reshape"));
+    assert.ok(graph.edges.some(edge =>
+      edge.source_canonical_id === "vision_tower.layers.0.self_attn.v_reshape"
+      && edge.target_canonical_id === "vision_tower.layers.0.self_attn.sdpa"));
+  });
+}

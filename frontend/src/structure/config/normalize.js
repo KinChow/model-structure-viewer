@@ -332,7 +332,10 @@ export function normalizeConfig(config) {
       : undefined,
     visionIntermediateSize: visionConfig ? firstNumber(visionConfig, ["intermediate_size", "vt_intermediate_size"]) : undefined,
     visionPatchSize: visionConfig ? firstNumber(visionConfig, ["patch_size"]) : undefined,
-    visionTemporalPatchSize: visionConfig ? firstNumber(visionConfig, ["temporal_patch_size"]) : undefined,
+    visionTemporalPatchSize: visionConfig
+      ? firstNumber(visionConfig, ["temporal_patch_size"])
+        ?? firstNumber(visionConfig?.img_token_compression_config, ["temporal_patch_size"])
+      : undefined,
     visionChannels: visionConfig ? firstNumber(visionConfig, ["in_channels", "num_channels"]) : undefined,
     visionImageSize: visionConfig ? firstNumber(visionConfig, ["image_size"]) : undefined,
     visionSpatialMergeSize: visionConfig

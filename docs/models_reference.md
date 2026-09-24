@@ -38,8 +38,8 @@
 | 模型 ID | family（model_type） | architectures[0] | 参数量级（图声明） | 证据库 | release_time |
 |---|---|---|---|---|---|
 | `MiniMaxAI/MiniMax-M2.7` | `minimax_m2` | `MiniMaxM2ForCausalLM` | 241,595,912,704（241.6B） | 有 | 2026-04-09 |
-| `MiniMaxAI/MiniMax-M3` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 435,759,710,208（435.8B） | manifest | 2026-06-02 |
-| `MiniMaxAI/MiniMax-M3-MXFP8` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 435,759,710,208（435.8B） | 有 | 2026-06-02 |
+| `MiniMaxAI/MiniMax-M3` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 435,760,163,328（435.8B） | manifest | 2026-06-02 |
+| `MiniMaxAI/MiniMax-M3-MXFP8` | `minimax_m3_vl` | `MiniMaxM3SparseForConditionalGeneration` | 435,760,163,328（435.8B） | 有 | 2026-06-02 |
 | `Qwen/Qwen3.5-0.8B` | `qwen3_5` | `Qwen3_5ForConditionalGeneration` | 871,564,608（871.6M） | 有 | 2026-03-01 |
 | `Qwen/Qwen3.5-0.8B-Base` | `qwen3_5` | `Qwen3_5ForConditionalGeneration` | 871,564,608（871.6M） | 有 | 2026-03-01 |
 | `Qwen/Qwen3.5-122B-A10B` | `qwen3_5_moe` | `Qwen3_5MoeForConditionalGeneration` | 125,083,351,808（125.1B） | 有 | 2026-02-24 |

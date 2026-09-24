@@ -328,3 +328,47 @@ test("Kimi-K3 vision tower follows the published MoonViT checkpoint layout", () 
     2048 * 1024 * (3 * 14 * 14));
   assert.equal(halfRow("mm_projector.proj.0").actions.matrix, 512 * 4096 * 4096);
 });
+
+for (const variant of ["Qwen3.8-27B", "Qwen3.8-Flash-Next", "Qwen3.5-122B-A10B"]) {
+  test(`${variant} vision tower follows the published visual.blocks layout`, () => {
+    const modelId = `Qwen/${variant}`;
+    const config = read(new URL(`${modelId}/config.json`, root));
+    const sourceRef = read(new URL(`${modelId}/source-ref.json`, root));
+    const graph = buildStructureFromArtifacts({ modelId, config, sourceRef }).graph;
+    const ids = new Set(graph.nodes.map(node => node.canonical_id));
+    for (const id of [
+      "visual.patch_embed.proj",
+      "visual.pos_embed",
+      "visual.rotary_pos_emb",
+      "visual.blocks.0.norm1",
+      "visual.blocks.0.norm2",
+      "visual.blocks.0.attn.qkv",
+      "visual.blocks.0.attn.proj",
+      "visual.blocks.0.mlp.linear_fc1",
+      "visual.blocks.0.mlp.linear_fc2",
+      "visual.merger.norm",
+      "visual.merger.linear_fc1",
+      "visual.merger.linear_fc2",
+    ]) assert.ok(ids.has(id), `${modelId}: missing ${id}`);
+    assert.equal(ids.has("visual.0.qkv_proj"), false);
+    assert.equal(ids.has("visual.0.qkv_split"), false);
+    const node = id => graph.nodes.find(candidate => candidate.canonical_id === id);
+    const n = normalizeConfig(config);
+    assert.equal(n.visionPatchTokens, n.visionPositionCount);
+    assert.deepEqual(node("visual.pos_embed").attributes.weightMatrices[0].shape,
+      [n.visionPositionCount, n.visionHiddenSize]);
+    assert.deepEqual(node("visual.patch_embed.proj").attributes.weightMatrices[0].shape,
+      [n.visionHiddenSize, 3 * n.visionTemporalPatchSize * n.visionPatchSize * n.visionPatchSize]);
+    assert.equal(node("visual.blocks.0.norm1").attributes.affine_bias, true);
+    assert.equal(node("visual.blocks.0.attn.qkv").attributes.bias, true);
+    assert.equal(node("visual.blocks.0.attn.rope").attributes.position_encoding, "rope_3d");
+    assert.equal(node("visual.blocks.0.sdpa").attributes.attention_mask_kind, "bidirectional");
+    assert.ok(graph.edges.some(edge =>
+      edge.source_canonical_id === "visual.blocks.0.attn.qkv_reshape"
+      && edge.target_canonical_id === "visual.blocks.0.sdpa"));
+    assert.ok(graph.edges.some(edge =>
+      edge.source_canonical_id === "visual.rotary_pos_emb"
+      && edge.target_canonical_id === "visual.blocks.0"
+      && edge.relation === "index-control"));
+  });
+}

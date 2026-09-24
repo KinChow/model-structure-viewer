@@ -1676,11 +1676,11 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 |---|---|---|---|---|---|---|---|---|---|---|
 | `embedding` | embeddings | 0 | 0 | 0 | ✓ | — | 60/60 | 68 | 64 | engram · markov_head · ple_embedding · root |
 | `linear` | gemm | ✓ | ✓ | 0 | ✓ | 一 | 60/60 | 11197 | 29387 | aligner · attn · block_sparse_moe · blocks 等 23 |
-| `residual_add` | elementwise | 0 | ✓ | 0 | ✓ | 一 | 60/60 | 2724 | 6796 | blocks · decoder · encoder · layer 等 6 |
-| `rope` | attention | 0 | ✓ | 0 | ✓ | 三 | 60/60 | 1201 | 2604 | attn · blocks · self_attn |
+| `residual_add` | elementwise | 0 | ✓ | 0 | ✓ | 一 | 60/60 | 2782 | 8278 | blocks · decoder · encoder · layer 等 6 |
+| `rope` | attention | 0 | ✓ | 0 | ✓ | 三 | 60/60 | 1230 | 3345 | attn · blocks · self_attn |
 | `rmsnorm` | layernorm | 0 | ✓ | ✓ | ✓ | 三 | 58/60 | 2393 | 8690 | block_sparse_moe · blocks · compressor · encoder 等 19 |
 | `swiglu` | activation | 0 | ✓ | ✓ | ✓ | 一 | 58/60 | 1324 | 3301 | merger · mlp · shared_experts · visual |
-| `identity` | elementwise | 0 | 0 | 0 | 0 | 一 | 56/60 | 1374 | 3759 | attn · blocks · encoder · layer 等 9 |
+| `identity` | elementwise | 0 | 0 | 0 | 0 | 一 | 56/60 | 1490 | 6011 | attn · blocks · encoder · layer 等 10 |
 | `sdpa_attention` | attention | ✓ | ✓ | ✓ | ✓ | 一 | 49/60 | 474 | 2113 | attn · blocks · self_attn · vision_tower 等 5 |
 | `fused_moe_mlp` | moe | ✓ | ✓ | ✓ | ✓ | 一 | 45/60 | 1036 | 2620 | block_sparse_moe · mlp |
 | `moe_combine` | moe | 0 | ✓ | 0 | ✓ | 三 | 45/60 | 1036 | 2620 | block_sparse_moe · mlp |
@@ -1690,7 +1690,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `attention_qkv_split` | memory | 0 | 0 | 0 | 0 | 二 | 39/60 | 42 | 1115 | attn · blocks · self_attn · vision_tower 等 5 |
 | `multimodal_fusion` | memory | 0 | 0 | 0 | unknown | 二 | 39/60 | 39 | 39 | root |
 | `split` | memory | 0 | 0 | 0 | 0 | 一 | 39/60 | 695 | 790 | self_attn |
-| `vision_activation` | activation | 0 | ✓ | ✓ | ✓ | 一 | 37/60 | 74 | 952 | aligner · merger · mlp · multi_modal_projector 等 8 |
+| `vision_activation` | activation | 0 | ✓ | ✓ | ✓ | 一 | 37/60 | 74 | 952 | aligner · merger · mlp · multi_modal_projector 等 7 |
 | `vision_position` | embeddings | 0 | ✓ | 0 | ✓ | 三 | 35/60 | 35 | 35 | patch_embed · vision_tower · visual |
 | `causal_conv1d` | mamba | ✓ | 0 | 0 | ✓ | 一 | 34/60 | 476 | 1274 | linear_attn · self_attn |
 | `gated_delta_attention` | mamba | ✓ | ✓ | ✓ | ✓ | 二 | 34/60 | 476 | 1274 | linear_attn · self_attn |
@@ -1734,23 +1734,23 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
-| `fused_moe_mlp` | 8.622e+13 | 28.72% | 5.860e+13 | 96.39% |
-| `linear` | 1.377e+14 | 45.85% | 1.736e+12 | 2.86% |
-| `sdpa_attention` | 7.286e+13 | 24.27% | 3.636e+10 | 0.06% |
-| `mla_query_compress` | 1.665e+12 | 0.55% | 2.844e+10 | 0.05% |
-| `mla_kv_compress` | 8.285e+11 | 0.28% | 1.549e+10 | 0.03% |
-| `gated_delta_attention` | 4.641e+11 | 0.15% | 1.008e+10 | 0.02% |
+| `linear` | 1.565e+14 | 47.80% | 1.781e+12 | 2.92% |
+| `fused_moe_mlp` | 8.622e+13 | 26.34% | 5.860e+13 | 96.18% |
+| `sdpa_attention` | 8.114e+13 | 24.79% | 5.362e+10 | 0.09% |
+| `mla_query_compress` | 1.665e+12 | 0.51% | 2.844e+10 | 0.05% |
+| `mla_kv_compress` | 8.285e+11 | 0.25% | 1.549e+10 | 0.03% |
+| `gated_delta_attention` | 4.641e+11 | 0.14% | 1.008e+10 | 0.02% |
 | `hyper_connection` | 1.637e+11 | 0.05% | 4.331e+9 | 0.01% |
 | `dsa_sparse_mla` | 1.268e+11 | 0.04% | 6.618e+9 | 0.01% |
 | `dsv4_sparse_mla` | 1.196e+11 | 0.04% | 4.732e+9 | 0.01% |
-| `rope` | 0.000e+0 | 0.00% | 6.855e+10 | 0.11% |
-| `vision_activation` | 0.000e+0 | 0.00% | 5.784e+10 | 0.10% |
-| `residual_add` | 0.000e+0 | 0.00% | 4.890e+10 | 0.08% |
+| `vision_activation` | 0.000e+0 | 0.00% | 9.039e+10 | 0.15% |
+| `rope` | 0.000e+0 | 0.00% | 7.430e+10 | 0.12% |
+| `residual_add` | 0.000e+0 | 0.00% | 7.190e+10 | 0.12% |
+| `rmsnorm` | 0.000e+0 | 0.00% | 4.326e+10 | 0.07% |
 | `moe_combine` | 0.000e+0 | 0.00% | 3.284e+10 | 0.05% |
 | `moe_dispatch` | 0.000e+0 | 0.00% | 3.284e+10 | 0.05% |
-| `mhc_fused_post_pre` | 2.429e+10 | 0.01% | 7.701e+9 | 0.01% |
 
-合计：matrix 3.0022e+14 MACs · bytes unknown；已知部分 6.0794e+13，上表百分比仅以已知部分为分母（仅列前 15 名）
+合计：matrix 3.2731e+14 MACs · bytes unknown；已知部分 6.0929e+13，上表百分比仅以已知部分为分母（仅列前 15 名）
 
 ## 算力/访存占比（decode，T=1 S=4096，59 模型实例加权求和）
 
@@ -1802,22 +1802,22 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | 算子 | 槽位（节点数） |
 |---|---|
 | `embedding` | `root`(60) · `mtp.markov_head`(4) · `layers.encoder.engram`(2) · `layers.ple.ple_embedding`(2) |
-| `linear` | `layers.self_attn`(2801) · `layers.mlp.shared_experts`(2631) · `layers.mlp`(1947) · `layers.linear_attn`(1532) · `layers.self_attn.indexer`(570) · `layers.block_sparse_moe`(277) · `layers.block_sparse_moe.shared_experts`(276) · `visual`(157) · `layers.self_attn.indexer.compressor`(123) · `mtp.layer.self_attn`(115) · `mtp.layer.mlp.shared_experts`(96) · `mtp.layer.mlp`(77) · `mtp`(66) · `visual.merger`(66) · `lm_head`(60) · `mtp.self_attn`(48) · `layers.decoder.self_attn`(44) · `mtp.mlp.shared_experts`(36) · `layers.decoder.mlp.shared_experts`(33) · `layers.encoder.self_attn`(32) · `mtp.layer.self_attn.indexer`(27) · `layers.encoder.mlp.shared_experts`(24) · `mtp.shared_head`(17) · `vision_tower`(15) · `mtp.mlp`(12) · `layers.decoder.mlp`(11) · `layers.decoder.self_attn.indexer`(10) · `language_model.layers.mlp`(8) · `language_model.layers.self_attn`(8) · `layers.encoder.mlp`(8) · `mm_projector.proj`(8) · `vision_tower.layers.self_attn`(8) · `language_model.layers.mlp.shared_experts`(6) · `layers.encoder.self_attn.indexer`(6) · `aligner`(4) · `mtp.markov_head`(4) · `multi_modal_projector`(4) · `patch_merge_mlp`(4) · `vision_tower.layers.mlp`(4) · `vision.blocks.attn`(4) · `vision.blocks.mlp`(4) · `layers.encoder.engram`(2) · `mtp.self_attn.indexer`(2) · `vision_tower.embeddings`(2) · `vision_tower.encoder.blocks`(2) · `vision_tower.encoder.blocks.mlp`(2) · `vision.patch_embed`(2) · `mtp.layer.block_sparse_moe`(1) · `vision_tower.patch_embed`(1) |
-| `residual_add` | `layers`(2550) · `mtp.layer`(92) · `mtp`(26) · `layers.decoder`(22) · `layers.encoder`(16) · `language_model.layers`(8) · `vision_tower.layers`(4) · `vision.blocks`(4) · `vision_tower.encoder.blocks`(2) |
-| `rope` | `layers.self_attn`(1076) · `mtp.layer.self_attn`(52) · `mtp.self_attn`(24) · `layers.decoder.self_attn`(22) · `layers.encoder.self_attn`(16) · `language_model.layers.self_attn`(6) · `vision_tower.layers.self_attn`(2) · `vision.blocks.attn`(2) · `vision_tower.encoder.blocks`(1) |
-| `rmsnorm` | `layers.self_attn`(950) · `layers.input_layernorm`(276) · `layers.post_attention_layernorm`(276) · `layers.self_attn.compressor`(243) · `layers.self_attn.indexer.compressor`(123) · `layers.self_attn.indexer`(108) · `layers.block_sparse_moe`(92) · `visual`(62) · `visual.merger`(33) · `mtp.layer.self_attn`(30) · `norm`(27) · `mtp.self_attn`(24) · `layers.decoder.self_attn`(22) · `layers.encoder.self_attn`(16) · `mtp.enorm`(15) · `mtp.hnorm`(15) · `mtp.shared_head.norm`(15) · `mtp.layer.input_layernorm`(11) · `mtp.layer.post_attention_layernorm`(11) · `mtp.layer.self_attn.indexer`(9) · `vision_tower`(8) · `mm_projector`(4) · `mtp.main_norm`(4) · `mtp.norm`(4) · `vision_tower.layers`(4) · `vision.blocks`(4) · `mtp.pre_fc_norm_embedding`(2) · `vision`(2) · `vision_tower.encoder.blocks`(2) · `vision_tower.encoder`(1) |
+| `linear` | `layers.self_attn`(2801) · `layers.mlp.shared_experts`(2631) · `layers.mlp`(1947) · `layers.linear_attn`(1532) · `layers.self_attn.indexer`(570) · `layers.block_sparse_moe`(277) · `layers.block_sparse_moe.shared_experts`(276) · `layers.self_attn.indexer.compressor`(123) · `mtp.layer.self_attn`(115) · `mtp.layer.mlp.shared_experts`(96) · `mtp.layer.mlp`(77) · `mtp`(66) · `visual.merger`(66) · `lm_head`(60) · `visual.blocks.attn`(58) · `visual.blocks.mlp`(58) · `mtp.self_attn`(48) · `layers.decoder.self_attn`(44) · `mtp.mlp.shared_experts`(36) · `layers.decoder.mlp.shared_experts`(33) · `layers.encoder.self_attn`(32) · `visual.patch_embed`(29) · `mtp.layer.self_attn.indexer`(27) · `layers.encoder.mlp.shared_experts`(24) · `mtp.shared_head`(17) · `vision_tower`(15) · `mtp.mlp`(12) · `visual`(12) · `layers.decoder.mlp`(11) · `layers.decoder.self_attn.indexer`(10) · `language_model.layers.mlp`(8) · `language_model.layers.self_attn`(8) · `layers.encoder.mlp`(8) · `mm_projector.proj`(8) · `vision_tower.layers.self_attn`(8) · `language_model.layers.mlp.shared_experts`(6) · `layers.encoder.self_attn.indexer`(6) · `aligner`(4) · `mtp.markov_head`(4) · `multi_modal_projector`(4) · `patch_merge_mlp`(4) · `vision_tower.layers.mlp`(4) · `vision.blocks.attn`(4) · `vision.blocks.mlp`(4) · `layers.encoder.engram`(2) · `mtp.self_attn.indexer`(2) · `vision_tower.embeddings`(2) · `vision_tower.encoder.blocks`(2) · `vision_tower.encoder.blocks.mlp`(2) · `vision.patch_embed`(2) · `mtp.layer.block_sparse_moe`(1) · `vision_tower.patch_embed`(1) |
+| `residual_add` | `layers`(2550) · `mtp.layer`(92) · `visual.blocks`(58) · `mtp`(26) · `layers.decoder`(22) · `layers.encoder`(16) · `language_model.layers`(8) · `vision_tower.layers`(4) · `vision.blocks`(4) · `vision_tower.encoder.blocks`(2) |
+| `rope` | `layers.self_attn`(1076) · `mtp.layer.self_attn`(52) · `visual.blocks.attn`(29) · `mtp.self_attn`(24) · `layers.decoder.self_attn`(22) · `layers.encoder.self_attn`(16) · `language_model.layers.self_attn`(6) · `vision_tower.layers.self_attn`(2) · `vision.blocks.attn`(2) · `vision_tower.encoder.blocks`(1) |
+| `rmsnorm` | `layers.self_attn`(950) · `layers.input_layernorm`(276) · `layers.post_attention_layernorm`(276) · `layers.self_attn.compressor`(243) · `layers.self_attn.indexer.compressor`(123) · `layers.self_attn.indexer`(108) · `layers.block_sparse_moe`(92) · `visual.blocks`(58) · `visual.merger`(33) · `mtp.layer.self_attn`(30) · `norm`(27) · `mtp.self_attn`(24) · `layers.decoder.self_attn`(22) · `layers.encoder.self_attn`(16) · `mtp.enorm`(15) · `mtp.hnorm`(15) · `mtp.shared_head.norm`(15) · `mtp.layer.input_layernorm`(11) · `mtp.layer.post_attention_layernorm`(11) · `mtp.layer.self_attn.indexer`(9) · `vision_tower`(8) · `mm_projector`(4) · `mtp.main_norm`(4) · `mtp.norm`(4) · `vision_tower.layers`(4) · `vision.blocks`(4) · `visual`(4) · `mtp.pre_fc_norm_embedding`(2) · `vision`(2) · `vision_tower.encoder.blocks`(2) · `vision_tower.encoder`(1) |
 | `swiglu` | `layers.mlp.shared_experts`(877) · `layers.mlp`(359) · `mtp.layer.mlp.shared_experts`(32) · `mtp.layer.mlp`(15) · `mtp.mlp.shared_experts`(12) · `layers.decoder.mlp.shared_experts`(11) · `layers.encoder.mlp.shared_experts`(8) · `language_model.layers.mlp`(2) · `language_model.layers.mlp.shared_experts`(2) · `vision.blocks.mlp`(2) · `visual`(2) · `visual.merger`(2) |
-| `identity` | `layers`(1224) · `root`(80) · `mtp.layer`(44) · `vision_tower.layers.self_attn`(8) · `language_model.layers`(4) · `vision_tower.encoder.blocks`(3) · `mtp`(2) · `vision_tower`(2) · `vision_tower.layers`(2) · `vision.blocks`(2) · `vision.blocks.attn`(2) · `vision_tower.encoder`(1) |
-| `sdpa_attention` | `layers.self_attn`(400) · `mtp.layer.self_attn`(33) · `visual`(31) · `vision_tower`(3) · `language_model.layers.self_attn`(2) · `vision_tower.layers.self_attn`(2) · `vision.blocks.attn`(2) · `vision_tower.encoder.blocks`(1) |
+| `identity` | `layers`(1224) · `root`(80) · `visual.blocks.attn`(58) · `mtp.layer`(44) · `visual`(29) · `visual.blocks`(29) · `vision_tower.layers.self_attn`(8) · `language_model.layers`(4) · `vision_tower.encoder.blocks`(3) · `mtp`(2) · `vision_tower`(2) · `vision_tower.layers`(2) · `vision.blocks`(2) · `vision.blocks.attn`(2) · `vision_tower.encoder`(1) |
+| `sdpa_attention` | `layers.self_attn`(400) · `mtp.layer.self_attn`(33) · `visual.blocks`(29) · `vision_tower`(3) · `language_model.layers.self_attn`(2) · `vision_tower.layers.self_attn`(2) · `vision.blocks.attn`(2) · `visual`(2) · `vision_tower.encoder.blocks`(1) |
 | `fused_moe_mlp` | `layers.mlp`(877) · `layers.block_sparse_moe`(93) · `mtp.layer.mlp`(32) · `mtp.mlp`(12) · `layers.decoder.mlp`(11) · `layers.encoder.mlp`(8) · `language_model.layers.mlp`(2) · `mtp.layer.block_sparse_moe`(1) |
 | `moe_combine` | `layers.mlp`(877) · `layers.block_sparse_moe`(93) · `mtp.layer.mlp`(32) · `mtp.mlp`(12) · `layers.decoder.mlp`(11) · `layers.encoder.mlp`(8) · `language_model.layers.mlp`(2) · `mtp.layer.block_sparse_moe`(1) |
 | `moe_dispatch` | `layers.mlp`(877) · `layers.block_sparse_moe`(93) · `mtp.layer.mlp`(32) · `mtp.mlp`(12) · `layers.decoder.mlp`(11) · `layers.encoder.mlp`(8) · `language_model.layers.mlp`(2) · `mtp.layer.block_sparse_moe`(1) |
 | `topk` | `layers.mlp`(867) · `layers.block_sparse_moe`(93) · `mtp.layer.mlp`(32) · `mtp.mlp`(12) · `layers.decoder.mlp`(11) · `layers.encoder.mlp`(8) · `language_model.layers.mlp`(2) · `mtp.layer.block_sparse_moe`(1) |
 | `moe_add` | `layers.mlp`(877) · `layers.block_sparse_moe`(92) · `mtp.layer.mlp`(32) · `mtp.mlp`(12) · `layers.decoder.mlp`(11) · `layers.encoder.mlp`(8) · `language_model.layers.mlp`(2) |
-| `attention_qkv_split` | `visual`(31) · `layers.self_attn`(3) · `vision_tower`(3) · `mtp.layer.self_attn`(2) · `vision.blocks.attn`(2) · `vision_tower.encoder.blocks`(1) |
+| `attention_qkv_split` | `visual.blocks.attn`(29) · `layers.self_attn`(3) · `vision_tower`(3) · `mtp.layer.self_attn`(2) · `vision.blocks.attn`(2) · `visual`(2) · `vision_tower.encoder.blocks`(1) |
 | `multimodal_fusion` | `root`(39) |
 | `split` | `layers.self_attn`(625) · `mtp.layer.self_attn`(35) · `mtp.self_attn`(12) · `layers.decoder.self_attn`(11) · `layers.encoder.self_attn`(8) · `language_model.layers.self_attn`(4) |
-| `vision_activation` | `visual`(29) · `visual.merger`(29) · `mm_projector.proj`(4) · `vision_tower`(3) · `aligner`(2) · `multi_modal_projector`(2) · `patch_merge_mlp`(2) · `vision_tower.layers.mlp`(2) · `vision_tower.encoder.blocks.mlp`(1) |
+| `vision_activation` | `visual.blocks.mlp`(29) · `visual.merger`(29) · `mm_projector.proj`(4) · `vision_tower`(3) · `aligner`(2) · `multi_modal_projector`(2) · `patch_merge_mlp`(2) · `vision_tower.layers.mlp`(2) · `vision_tower.encoder.blocks.mlp`(1) |
 | `vision_position` | `visual`(31) · `vision_tower`(3) · `vision_tower.patch_embed`(1) |
 | `causal_conv1d` | `layers.linear_attn`(383) · `layers.self_attn`(93) |
 | `gated_delta_attention` | `layers.linear_attn`(383) · `layers.self_attn`(93) |
@@ -1873,7 +1873,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mtp.self_attn` | `linear` → `split` → `rmsnorm` → `rope` → `dsv4_swa_attention` → `mla_kv_compress` → `dsv4_indexer` |
 | `vision_tower` | `rmsnorm` → `identity` → `linear` → `vision_position` → `attention_qkv_split` → `sdpa_attention` → `vision_activation` |
 | `vision_tower.encoder.blocks` | `identity` → `rmsnorm` → `linear` → `attention_qkv_split` → `rope` → `sdpa_attention` → `residual_add` |
-| `visual` | `linear` → `vision_position` → `rmsnorm` → `attention_qkv_split` → `sdpa_attention` → `vision_activation` → `swiglu` |
+| `visual` | `vision_position` → `identity` → `linear` → `rmsnorm` → `attention_qkv_split` → `sdpa_attention` → `swiglu` |
 | `layers.decoder.mlp` | `linear` → `topk` → `moe_dispatch` → `fused_moe_mlp` → `moe_combine` → `moe_add` |
 | `layers.encoder.mlp` | `linear` → `topk` → `moe_dispatch` → `fused_moe_mlp` → `moe_combine` → `moe_add` |
 | `mtp.mlp` | `linear` → `topk` → `moe_dispatch` → `fused_moe_mlp` → `moe_combine` → `moe_add` |
@@ -1885,6 +1885,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `visual.merger` | `vision_merge` → `rmsnorm` → `linear` → `vision_activation` → `swiglu` |
 | `mtp` | `linear` → `identity` → `residual_add` → `hyper_connection` |
 | `vision_tower.layers.self_attn` | `linear` → `identity` → `rope` → `sdpa_attention` |
+| `visual.blocks` | `identity` → `rmsnorm` → `sdpa_attention` → `residual_add` |
+| `visual.blocks.attn` | `linear` → `attention_qkv_split` → `identity` → `rope` |
 | `layers.encoder.engram` | `embedding` → `linear` → `engram_gate` |
 | `mtp.layer` | `identity` → `residual_add` → `hyper_connection` |
 | `vision_tower.layers` | `identity` → `rmsnorm` → `residual_add` |
@@ -1920,6 +1922,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `vision_tower.layers.mlp` | `linear` → `vision_activation` |
 | `vision_tower.patch_embed` | `linear` → `vision_position` |
 | `vision.blocks.mlp` | `linear` → `swiglu` |
+| `visual.blocks.mlp` | `linear` → `vision_activation` |
 | `language_model.layers.input_layernorm` | `gemma_rmsnorm` |
 | `language_model.layers.post_attention_layernorm` | `gemma_rmsnorm` |
 | `layers.decoder` | `residual_add` |
@@ -1958,6 +1961,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `vision` | `rmsnorm` |
 | `vision_tower.embeddings` | `linear` |
 | `vision.patch_embed` | `linear` |
+| `visual.patch_embed` | `linear` |
 
 ## 模块层分解台账（生成物）
 
@@ -1987,9 +1991,9 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `linear` | prefill | 86/208 | 1.597e+12 | 0 | 0 | 1.701e+9 | 1.094e+9 | 2.756e+9 | 287.62 | matrix | 计算✓ 字节✓ | 0 | 0 |
+| `linear` | prefill | 86/208 | 1.746e+12 | 1.952e+8 | 0 | 1.701e+9 | 1.322e+9 | 3.046e+9 | 287.60 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 86/208 | 7.519e+8 | 0 | 0 | 1.504e+9 | 4.936e+5 | 1.297e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `sdpa_attention` | prefill | 8/18 | 5.768e+10 | 5.940e+8 | 2.970e+8 | 0 | 1.073e+8 | 1.073e+8 | 268.66 | matrix | — | — | — |
+| `sdpa_attention` | prefill | 8/18 | 1.494e+11 | 3.460e+9 | 1.730e+9 | 0 | 2.029e+8 | 2.029e+8 | 368.19 | matrix | — | — | — |
 | `sdpa_attention` | decode | 8/18 | 1.007e+8 | 7.864e+5 | 3.932e+5 | 0 | 5.036e+7 | 3.686e+4 | 2.00 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 6/18 | 2.899e+10 | 1.510e+8 | 2.765e+4 | 2.304e+3 | 3.232e+8 | 3.232e+8 | 44.85 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `gated_delta_attention` | decode | 6/18 | 1.416e+7 | 4.719e+6 | 8.640e+2 | 2.304e+3 | 1.010e+7 | 1.010e+7 | 0.70 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -1997,30 +2001,30 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `causal_conv1d` | decode | 6/18 | 4.424e+5 | 0 | 0 | 8.847e+5 | 8.847e+5 | 8.847e+5 | 0.17 | memory | — | — | — |
 | `swiglu` | prefill | 13/24 | 0 | 3.523e+8 | 3.523e+8 | 0 | 7.046e+8 | 3.523e+8 | 0.00 | memory | 计算✓ 字节✓ | 2.936e+7 | 0 |
 | `swiglu` | decode | 13/24 | 0 | 1.720e+5 | 1.720e+5 | 0 | 3.441e+5 | 1.720e+5 | 0.00 | memory | 计算✓ 字节✓ | 1.434e+4 | 0 |
-| `residual_add` | prefill | 26/48 | 0 | 1.007e+8 | 0 | 0 | 4.027e+8 | 2.013e+8 | 0.00 | memory | — | — | — |
-| `residual_add` | decode | 26/48 | 0 | 4.915e+4 | 0 | 0 | 1.966e+5 | 9.830e+4 | 0.00 | memory | — | — | — |
+| `residual_add` | prefill | 28/72 | 0 | 1.431e+8 | 0 | 0 | 5.725e+8 | 2.863e+8 | 0.00 | memory | — | — | — |
+| `residual_add` | decode | 28/72 | 0 | 4.915e+4 | 0 | 0 | 1.966e+5 | 9.830e+4 | 0.00 | memory | — | — | — |
+| `vision_activation` | prefill | 2/13 | 0 | 1.734e+8 | 1.734e+8 | 0 | 3.468e+8 | 1.734e+8 | 0.00 | memory | — | — | — |
+| `vision_activation` | decode | 2/13 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `gated_rmsnorm` | prefill | 6/18 | 0 | 3.775e+8 | 1.510e+8 | 4.608e+3 | 3.020e+8 | 1.510e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.679e+7 | 0 |
 | `gated_rmsnorm` | decode | 6/18 | 0 | 1.843e+5 | 7.375e+4 | 4.608e+3 | 1.475e+5 | 7.373e+4 | 0.00 | memory | 计算✓ 字节✓ | 8.200e+3 | 0 |
 | `gemma_rmsnorm` | prefill | 44/61 | 0 | 6.710e+8 | 1.249e+5 | 1.065e+5 | 2.684e+8 | 2.684e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.679e+7 | 0 |
 | `gemma_rmsnorm` | decode | 44/61 | 0 | 3.276e+5 | 6.100e+1 | 1.065e+5 | 1.311e+5 | 1.311e+5 | 0.00 | memory | 计算✓ 字节✓ | 8.200e+3 | 0 |
-| `vision_activation` | prefill | 2/13 | 0 | 4.601e+7 | 4.601e+7 | 0 | 9.201e+7 | 4.601e+7 | 0.00 | memory | — | — | — |
-| `vision_activation` | decode | 2/13 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `rmsnorm` | prefill | 3/25 | 0 | 1.769e+8 | 5.587e+4 | 8.602e+4 | 8.847e+7 | 8.847e+7 | 0.00 | memory | 计算✓ 字节✓ | 1.679e+7 | 0 |
+| `rmsnorm` | decode | 3/25 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 8.200e+3 | 0 |
+| `rope` | prefill | 8/18 | 0 | 5.544e+7 | 0 | 0 | 7.392e+7 | 3.696e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `rope` | decode | 8/18 | 0 | 1.152e+4 | 0 | 0 | 1.536e+4 | 7.680e+3 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `attention_output_gate` | prefill | 7/6 | 0 | 2.517e+7 | 5.033e+7 | 0 | 5.033e+7 | 5.033e+7 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | decode | 7/6 | 0 | 1.229e+4 | 2.458e+4 | 0 | 2.458e+4 | 2.458e+4 | 0.00 | memory | — | — | — |
-| `rope` | prefill | 7/6 | 0 | 2.359e+7 | 0 | 0 | 3.146e+7 | 1.573e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `rope` | decode | 7/6 | 0 | 1.152e+4 | 0 | 0 | 1.536e+4 | 7.680e+3 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `rmsnorm` | prefill | 3/25 | 0 | 4.953e+7 | 1.440e+4 | 4.301e+4 | 2.477e+7 | 2.477e+7 | 0.00 | memory | 计算✓ 字节✓ | 1.679e+7 | 0 |
-| `rmsnorm` | decode | 3/25 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 8.200e+3 | 0 |
+| `vision_position` | prefill | 1/1 | 0 | 1.769e+6 | 0 | 3.539e+6 | 7.078e+6 | 3.539e+6 | 0.00 | memory | — | — | — |
+| `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 4.194e+6 | 4.194e+6 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 2.048e+3 | 2.048e+3 | 0.00 | memory | — | — | — |
-| `vision_position` | prefill | 1/1 | 0 | 4.424e+5 | 0 | 0 | 1.769e+6 | 8.847e+5 | 0.00 | memory | — | — | — |
-| `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 8.847e+5 | 8.847e+5 | 0.00 | memory | — | — | — |
 | `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | prefill | 1/12 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/12 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `identity` | prefill | 15/26 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `identity` | decode | 15/26 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `identity` | prefill | 19/63 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `identity` | decode | 19/63 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
 | `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 6/18 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2032,11 +2036,11 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `linear` | prefill | 155/412 | 4.226e+12 | 0 | 0 | 4.764e+9 | 2.863e+9 | 4.115e+9 | 359.87 | matrix | 计算✓ 字节✓ | 0 | 0 |
+| `linear` | prefill | 155/412 | 4.939e+12 | 6.325e+8 | 0 | 4.765e+9 | 3.592e+9 | 5.058e+9 | 368.17 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 155/412 | 1.939e+9 | 0 | 0 | 3.877e+9 | 1.274e+6 | 1.852e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `fused_moe_mlp` | prefill | 21/40 | 2.062e+12 | 6.711e+8 | 6.711e+8 | 6.442e+10 | 1.342e+9 | 6.711e+8 | 31.03 | memory | — | — | — |
 | `fused_moe_mlp` | decode | 21/40 | 1.007e+9 | 3.277e+5 | 3.277e+5 | 2.013e+9 | 6.554e+5 | 3.277e+5 | 0.50 | memory | — | — | — |
-| `sdpa_attention` | prefill | 12/37 | 1.925e+11 | 1.916e+9 | 9.581e+8 | 0 | 3.172e+8 | 3.172e+8 | 303.46 | matrix | — | — | — |
+| `sdpa_attention` | prefill | 12/37 | 5.021e+11 | 1.052e+10 | 5.258e+9 | 0 | 6.397e+8 | 6.397e+8 | 392.46 | matrix | — | — | — |
 | `sdpa_attention` | decode | 12/37 | 3.355e+8 | 2.621e+6 | 1.311e+6 | 0 | 8.397e+7 | 1.024e+5 | 3.99 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 10/30 | 9.664e+10 | 5.033e+8 | 9.216e+4 | 7.680e+3 | 1.054e+9 | 1.054e+9 | 45.85 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `gated_delta_attention` | decode | 10/30 | 4.719e+7 | 1.573e+7 | 2.880e+3 | 7.680e+3 | 3.293e+7 | 3.293e+7 | 0.72 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2044,8 +2048,10 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `causal_conv1d` | decode | 10/30 | 9.830e+5 | 0 | 0 | 1.966e+6 | 1.966e+6 | 1.966e+6 | 0.17 | memory | — | — | — |
 | `moe_combine` | prefill | 21/40 | 0 | 2.684e+9 | 0 | 0 | 2.686e+9 | 3.355e+8 | 0.00 | memory | — | — | — |
 | `moe_combine` | decode | 21/40 | 0 | 1.311e+6 | 0 | 0 | 1.311e+6 | 1.638e+5 | 0.00 | memory | — | — | — |
-| `residual_add` | prefill | 42/80 | 0 | 3.355e+8 | 0 | 0 | 1.342e+9 | 6.711e+8 | 0.00 | memory | — | — | — |
-| `residual_add` | decode | 42/80 | 0 | 1.638e+5 | 0 | 0 | 6.554e+5 | 3.277e+5 | 0.00 | memory | — | — | — |
+| `residual_add` | prefill | 44/134 | 0 | 4.789e+8 | 0 | 0 | 1.915e+9 | 9.577e+8 | 0.00 | memory | — | — | — |
+| `residual_add` | decode | 44/134 | 0 | 1.638e+5 | 0 | 0 | 6.554e+5 | 3.277e+5 | 0.00 | memory | — | — | — |
+| `vision_activation` | prefill | 2/28 | 0 | 5.408e+8 | 5.408e+8 | 0 | 1.082e+9 | 5.408e+8 | 0.00 | memory | — | — | — |
+| `vision_activation` | decode | 2/28 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `gated_rmsnorm` | prefill | 10/30 | 0 | 1.258e+9 | 5.034e+8 | 7.680e+3 | 1.007e+9 | 5.033e+8 | 0.00 | memory | 计算✓ 字节✓ | 3.357e+7 | 0 |
 | `gated_rmsnorm` | decode | 10/30 | 0 | 6.144e+5 | 2.458e+5 | 7.680e+3 | 4.915e+5 | 2.458e+5 | 0.00 | memory | 计算✓ 字节✓ | 1.639e+4 | 0 |
 | `gemma_rmsnorm` | prefill | 68/101 | 0 | 2.170e+9 | 2.068e+5 | 3.420e+5 | 8.682e+8 | 8.682e+8 | 0.00 | memory | 计算✓ 字节✓ | 3.357e+7 | 0 |
@@ -2056,28 +2062,26 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_dispatch` | decode | 21/40 | 0 | 0 | 0 | 0 | 1.638e+5 | 1.311e+6 | 0.00 | memory | — | — | — |
 | `shared_expert_gate` | prefill | 21/40 | 0 | 1.678e+8 | 3.355e+8 | 0 | 3.355e+8 | 3.355e+8 | 0.00 | memory | — | — | — |
 | `shared_expert_gate` | decode | 21/40 | 0 | 8.192e+4 | 1.638e+5 | 0 | 1.638e+5 | 1.638e+5 | 0.00 | memory | — | — | — |
-| `vision_activation` | prefill | 2/28 | 0 | 1.392e+8 | 1.392e+8 | 0 | 2.784e+8 | 1.392e+8 | 0.00 | memory | — | — | — |
-| `vision_activation` | decode | 2/28 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `rmsnorm` | prefill | 3/55 | 0 | 5.838e+8 | 1.250e+5 | 2.673e+5 | 2.920e+8 | 2.920e+8 | 0.00 | memory | 计算✓ 字节✓ | 3.357e+7 | 0 |
+| `rmsnorm` | decode | 3/55 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 1.639e+4 | 0 |
+| `rope` | prefill | 12/37 | 0 | 1.783e+8 | 0 | 0 | 2.377e+8 | 1.188e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `rope` | decode | 12/37 | 0 | 3.456e+4 | 0 | 0 | 4.608e+4 | 2.304e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `attention_output_gate` | prefill | 11/10 | 0 | 8.389e+7 | 1.678e+8 | 0 | 1.678e+8 | 1.678e+8 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | decode | 11/10 | 0 | 4.096e+4 | 8.192e+4 | 0 | 8.192e+4 | 8.192e+4 | 0.00 | memory | — | — | — |
 | `swiglu` | prefill | 21/40 | 0 | 8.389e+7 | 8.389e+7 | 0 | 1.678e+8 | 8.389e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `swiglu` | decode | 21/40 | 0 | 4.096e+4 | 4.096e+4 | 0 | 8.192e+4 | 4.096e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `rope` | prefill | 11/10 | 0 | 7.078e+7 | 0 | 0 | 9.437e+7 | 4.719e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `rope` | decode | 11/10 | 0 | 3.456e+4 | 0 | 0 | 4.608e+4 | 2.304e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `rmsnorm` | prefill | 3/55 | 0 | 1.539e+8 | 3.168e+4 | 1.336e+5 | 7.697e+7 | 7.697e+7 | 0.00 | memory | 计算✓ 字节✓ | 3.357e+7 | 0 |
-| `rmsnorm` | decode | 3/55 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 1.639e+4 | 0 |
 | `topk` | prefill | 21/40 | 0 | 2.154e+7 | 6.554e+5 | 0 | 4.194e+7 | 3.932e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 21/40 | 0 | 1.052e+4 | 3.200e+2 | 0 | 2.048e+4 | 1.920e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
+| `vision_position` | prefill | 1/1 | 0 | 2.654e+6 | 0 | 5.308e+6 | 1.062e+7 | 5.308e+6 | 0.00 | memory | — | — | — |
+| `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 8.389e+6 | 8.389e+6 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 4.096e+3 | 4.096e+3 | 0.00 | memory | — | — | — |
-| `vision_position` | prefill | 1/1 | 0 | 6.636e+5 | 0 | 0 | 2.654e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
-| `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.327e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
 | `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | prefill | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `identity` | prefill | 23/42 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `identity` | decode | 23/42 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `identity` | prefill | 27/124 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `identity` | decode | 27/124 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
 | `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 10/30 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2447,12 +2451,14 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 | 算子 | 相位 | 节点/实例 | matrix | vector | sfu | weights | actIn | actOut | AI | bound | 恒等式 | 融合收益 | 容差 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `linear` | prefill | 226/496 | 7.665e+12 | 0 | 0 | 8.126e+9 | 4.618e+9 | 5.783e+9 | 413.71 | matrix | 计算✓ 字节✓ | 0 | 0 |
+| `linear` | prefill | 226/496 | 8.378e+12 | 6.328e+8 | 0 | 8.127e+9 | 5.347e+9 | 6.726e+9 | 414.76 | matrix | 计算✓ 字节✓ | 0 | 0 |
 | `linear` | decode | 226/496 | 3.617e+9 | 0 | 0 | 7.235e+9 | 2.131e+6 | 2.666e+6 | 0.50 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `fused_moe_mlp` | prefill | 27/48 | 4.832e+12 | 1.258e+9 | 1.258e+9 | 2.416e+11 | 2.517e+9 | 1.258e+9 | 19.69 | memory | — | — | — |
 | `fused_moe_mlp` | decode | 27/48 | 2.359e+9 | 6.144e+5 | 6.144e+5 | 4.719e+9 | 1.229e+6 | 6.144e+5 | 0.50 | memory | — | — | — |
 | `hyper_connection` | prefill | 110/193 | 1.310e+12 | 1.636e+10 | 4.198e+9 | 1.281e+9 | 9.103e+9 | 5.045e+9 | 84.90 | matrix | — | — | — |
 | `hyper_connection` | decode | 110/193 | 6.396e+8 | 8.982e+6 | 2.050e+6 | 1.281e+9 | 4.445e+6 | 2.463e+6 | 0.50 | memory | — | — | — |
+| `sdpa_attention` | prefill | 1/27 | 3.302e+11 | 9.173e+9 | 4.586e+9 | 0 | 4.300e+8 | 4.300e+8 | 384.00 | matrix | — | — | — |
+| `sdpa_attention` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qsa_sparse_attention` | prefill | 13/12 | 3.094e+11 | 2.417e+9 | 1.209e+9 | 0 | 2.870e+9 | 2.769e+9 | 54.86 | memory | — | — | — |
 | `qsa_sparse_attention` | decode | 13/12 | 3.020e+8 | 2.359e+6 | 1.180e+6 | 0 | 5.294e+7 | 2.531e+6 | 5.44 | memory | — | — | — |
 | `gated_delta_attention` | prefill | 14/36 | 1.739e+11 | 9.060e+8 | 1.659e+5 | 1.382e+4 | 1.883e+9 | 1.883e+9 | 46.20 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2461,46 +2467,44 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `ple` | decode | 1/1 | 3.281e+7 | 1.357e+5 | 2.048e+4 | 6.568e+7 | 1.024e+5 | 1.126e+5 | 0.50 | memory | — | — | — |
 | `qsa_indexer` | prefill | 13/12 | 4.348e+10 | 1.265e+8 | 1.044e+5 | 3.933e+7 | 7.534e+8 | 5.507e+8 | 32.37 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `qsa_indexer` | decode | 13/12 | 2.595e+7 | 1.428e+7 | 1.234e+4 | 3.933e+7 | 4.798e+7 | 1.963e+7 | 0.24 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `sdpa_attention` | prefill | 1/27 | 2.064e+10 | 5.733e+8 | 2.867e+8 | 0 | 1.075e+8 | 1.075e+8 | 96.00 | matrix | — | — | — |
-| `sdpa_attention` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `moe_combine` | prefill | 27/48 | 0 | 5.033e+9 | 0 | 0 | 5.035e+9 | 5.033e+8 | 0.00 | memory | — | — | — |
 | `moe_combine` | decode | 27/48 | 0 | 2.458e+6 | 0 | 0 | 2.459e+6 | 2.458e+5 | 0.00 | memory | — | — | — |
 | `causal_conv1d` | prefill | 14/36 | 3.020e+9 | 0 | 0 | 2.949e+6 | 1.510e+9 | 1.510e+9 | 1.00 | memory | — | — | — |
 | `causal_conv1d` | decode | 14/36 | 1.475e+6 | 0 | 0 | 2.949e+6 | 2.949e+6 | 2.949e+6 | 0.17 | memory | — | — | — |
 | `gated_rmsnorm` | prefill | 14/36 | 0 | 2.265e+9 | 9.060e+8 | 9.216e+3 | 1.812e+9 | 9.060e+8 | 0.00 | memory | 计算✓ 字节✓ | 4.196e+7 | 0 |
 | `gated_rmsnorm` | decode | 14/36 | 0 | 1.106e+6 | 4.424e+5 | 9.216e+3 | 8.847e+5 | 4.424e+5 | 0.00 | memory | 计算✓ 字节✓ | 2.049e+4 | 0 |
+| `vision_activation` | prefill | 2/28 | 0 | 5.408e+8 | 5.408e+8 | 0 | 1.082e+9 | 5.408e+8 | 0.00 | memory | — | — | — |
+| `vision_activation` | decode | 2/28 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `moe_add` | prefill | 27/48 | 0 | 2.517e+8 | 0 | 0 | 1.007e+9 | 5.033e+8 | 0.00 | memory | — | — | — |
 | `moe_add` | decode | 27/48 | 0 | 1.229e+5 | 0 | 0 | 4.915e+5 | 2.458e+5 | 0.00 | memory | — | — | — |
+| `residual_add` | prefill | 4/55 | 0 | 1.643e+8 | 0 | 0 | 6.572e+8 | 3.286e+8 | 0.00 | memory | — | — | — |
+| `residual_add` | decode | 4/55 | 0 | 1.024e+4 | 0 | 0 | 4.096e+4 | 2.048e+4 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | prefill | 27/48 | 0 | 0 | 0 | 0 | 5.033e+8 | 5.033e+9 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 27/48 | 0 | 0 | 0 | 0 | 2.458e+5 | 2.458e+6 | 0.00 | memory | — | — | — |
 | `shared_expert_gate` | prefill | 27/48 | 0 | 2.517e+8 | 5.033e+8 | 0 | 5.033e+8 | 5.033e+8 | 0.00 | memory | — | — | — |
 | `shared_expert_gate` | decode | 27/48 | 0 | 1.229e+5 | 2.458e+5 | 0 | 2.458e+5 | 2.458e+5 | 0.00 | memory | — | — | — |
 | `gemma_rmsnorm` | prefill | 27/24 | 0 | 8.178e+8 | 4.915e+4 | 1.229e+4 | 3.272e+8 | 3.272e+8 | 0.00 | memory | 计算✓ 字节✓ | 4.196e+7 | 0 |
 | `gemma_rmsnorm` | decode | 27/24 | 0 | 3.993e+5 | 2.400e+1 | 1.229e+4 | 1.597e+5 | 1.597e+5 | 0.00 | memory | 计算✓ 字节✓ | 2.049e+4 | 0 |
+| `rope` | prefill | 14/39 | 0 | 2.302e+8 | 0 | 0 | 3.069e+8 | 1.535e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
+| `rope` | decode | 14/39 | 0 | 5.990e+4 | 0 | 0 | 7.987e+4 | 3.994e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `attention_output_gate` | prefill | 13/12 | 0 | 1.510e+8 | 3.020e+8 | 0 | 3.020e+8 | 3.020e+8 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | decode | 13/12 | 0 | 7.373e+4 | 1.475e+5 | 0 | 1.475e+5 | 1.475e+5 | 0.00 | memory | — | — | — |
-| `vision_activation` | prefill | 2/28 | 0 | 1.392e+8 | 1.392e+8 | 0 | 2.784e+8 | 1.392e+8 | 0.00 | memory | — | — | — |
-| `vision_activation` | decode | 2/28 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `rmsnorm` | prefill | 4/55 | 0 | 5.838e+8 | 1.250e+5 | 2.673e+5 | 2.920e+8 | 2.920e+8 | 0.00 | memory | 计算✓ 字节✓ | 4.196e+7 | 0 |
+| `rmsnorm` | decode | 4/55 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 2.049e+4 | 0 |
 | `swiglu` | prefill | 27/48 | 0 | 1.258e+8 | 1.258e+8 | 0 | 2.517e+8 | 1.258e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `swiglu` | decode | 27/48 | 0 | 6.144e+4 | 6.144e+4 | 0 | 1.229e+5 | 6.144e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `rope` | prefill | 13/12 | 0 | 1.227e+8 | 0 | 0 | 1.636e+8 | 8.179e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
-| `rope` | decode | 13/12 | 0 | 5.990e+4 | 0 | 0 | 7.987e+4 | 3.994e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `topk` | prefill | 27/48 | 0 | 5.122e+7 | 9.830e+5 | 0 | 1.007e+8 | 5.898e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 27/48 | 0 | 2.501e+4 | 4.800e+2 | 0 | 4.915e+4 | 2.880e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
-| `residual_add` | prefill | 2/1 | 0 | 2.097e+7 | 0 | 0 | 8.389e+7 | 4.194e+7 | 0.00 | memory | — | — | — |
-| `residual_add` | decode | 2/1 | 0 | 1.024e+4 | 0 | 0 | 4.096e+4 | 2.048e+4 | 0.00 | memory | — | — | — |
-| `rmsnorm` | prefill | 4/55 | 0 | 1.539e+8 | 3.168e+4 | 1.336e+5 | 7.697e+7 | 7.697e+7 | 0.00 | memory | 计算✓ 字节✓ | 4.196e+7 | 0 |
-| `rmsnorm` | decode | 4/55 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 2.049e+4 | 0 |
 | `embedding` | prefill | 2/2 | 0 | 0 | 0 | 0 | 2.097e+7 | 2.097e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 2/2 | 0 | 0 | 0 | 0 | 1.024e+4 | 1.024e+4 | 0.00 | memory | — | — | — |
-| `vision_position` | prefill | 1/1 | 0 | 6.636e+5 | 0 | 0 | 2.654e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
+| `vision_position` | prefill | 1/1 | 0 | 2.654e+6 | 0 | 5.308e+6 | 1.062e+7 | 5.308e+6 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.327e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
 | `vision_merge` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | prefill | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `identity` | prefill | 31/51 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `identity` | decode | 31/51 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `identity` | prefill | 35/133 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `identity` | decode | 35/133 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
 | `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 14/36 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |

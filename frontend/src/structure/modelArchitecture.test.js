@@ -177,7 +177,7 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
   assert.equal(resolved.architecture, "Qwen4ExpForConditionalGeneration");
   assert.deepEqual(network.children.map((child) => child.id),
     ["image_input", "visual", "text_input", "embed_tokens", "multimodal_fusion", "layers", "norm", "lm_head"]);
-  assert.equal(treeView(structure).children.find(child => child.id === "visual").attributes.output_shape, "[batch, visual_tokens, vision hidden size=2560]");
+  assert.equal(treeView(structure).children.find(child => child.id === "visual").attributes.output_shape, "[batch, merged visual tokens, vision output=2560]");
   assert.equal(treeView(structure).children.some((node) => node.id === "projector"), false);
   assert.equal(structure.summary.vision_layers, 27);
   assert.equal(structure.summary.vision_output_size, 2560);

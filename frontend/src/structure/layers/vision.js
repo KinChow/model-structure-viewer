@@ -586,18 +586,18 @@ function blocksVisionTowerModule(normalized) {
     class: hfNamedClass(normalized, "patchMergerClass", "VisionPatchMerger"),
     modality: "vision",
     dataflow_edges: [
-      ["patch_merge", "norm"], ["norm", "linear_fc1"],
+      ["norm", "patch_merge"], ["patch_merge", "linear_fc1"],
       ["linear_fc1", "act_fn"], ["act_fn", "linear_fc2"],
     ],
   }, [
+    operatorSpec(`${mergerId}.norm`, "vision merger LayerNorm", "rmsnorm", {
+      ...shapeFlow(visual, visual), modality: "vision", vision_stage: "merger",
+      affine_bias: true,
+    }, { input: d.visual, output: d.visual }),
     operatorSpec(`${mergerId}.patch_merge`, "vision patch merge", "vision_merge", {
       ...shapeFlow(visual, mergedShape), modality: "vision", vision_stage: "merger",
       checkpoint_module: false, merge_size: d.mergeSize,
     }, { input: d.visual, output: [-1, -1, mergedWidth] }),
-    operatorSpec(`${mergerId}.norm`, "vision merger LayerNorm", "rmsnorm", {
-      ...shapeFlow(mergedShape, mergedShape), modality: "vision", vision_stage: "merger",
-      affine_bias: true,
-    }, { input: [-1, -1, mergedWidth], output: [-1, -1, mergedWidth] }),
     operatorSpec(`${mergerId}.linear_fc1`, "vision merger projection", "linear", {
       ...shapeFlow(mergedShape, mergedShape), modality: "vision", vision_stage: "merger", bias: true,
     }, { input: [-1, -1, mergedWidth], output: [-1, -1, mergedWidth] }),

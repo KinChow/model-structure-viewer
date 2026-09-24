@@ -43,6 +43,12 @@ embedding、merger 参数和 checkpoint canonical path 无法逐项对账。
   `channels × temporal_patch × patch²`；
 - `visual.pos_embed` 计 learned position table 的驻留和执行读取；
 - merger 使用 `linear_fc1/linear_fc2`，而不是旧的 `fc1/fc2`；
+- 固定版本 `Qwen3_5VisionPatchMerger.forward` 和入库
+  `Qwen4ExpVisionPatchMerger.forward` 均以
+  `use_postshuffle_norm=False` 构造：先在 `hidden_size` 宽度上执行
+  `merger.norm`，再按 `spatial_merge_size²` 重排为宽向量供
+  `linear_fc1` 消费。因此不能把 `norm` 放在重排后、误计为
+  `4×hidden_size` 的 LayerNorm；
 - Qwen3.5、Qwen4-Exp 和 Flash-Next 共用发布结构，但保留各自的文本主干
   和融合配方，不把视觉结构差异扩散到 Graph IR 协议。
 

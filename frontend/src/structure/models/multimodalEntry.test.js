@@ -363,6 +363,12 @@ for (const variant of ["Qwen3.8-27B", "Qwen3.8-Flash-Next", "Qwen3.5-122B-A10B"]
     assert.equal(node("visual.blocks.0.attn.qkv").attributes.bias, true);
     assert.equal(node("visual.blocks.0.attn.rope").attributes.position_encoding, "rope_3d");
     assert.equal(node("visual.blocks.0.sdpa").attributes.attention_mask_kind, "bidirectional");
+    assert.deepEqual(node("visual.merger.norm").input_shape, [-1, -1, n.visionHiddenSize]);
+    assert.deepEqual(node("visual.merger.patch_merge").output_shape, [-1, -1,
+      n.visionHiddenSize * n.visionMergeSize * n.visionMergeSize]);
+    assert.ok(graph.edges.some(edge =>
+      edge.source_canonical_id === "visual.merger.norm"
+      && edge.target_canonical_id === "visual.merger.patch_merge"));
     assert.ok(graph.edges.some(edge =>
       edge.source_canonical_id === "visual.blocks.0.attn.qkv_reshape"
       && edge.target_canonical_id === "visual.blocks.0.sdpa"));

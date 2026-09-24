@@ -1746,7 +1746,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `vision_activation` | 0.000e+0 | 0.00% | 9.039e+10 | 0.15% |
 | `rope` | 0.000e+0 | 0.00% | 7.430e+10 | 0.12% |
 | `residual_add` | 0.000e+0 | 0.00% | 7.190e+10 | 0.12% |
-| `rmsnorm` | 0.000e+0 | 0.00% | 4.326e+10 | 0.07% |
+| `rmsnorm` | 0.000e+0 | 0.00% | 4.304e+10 | 0.07% |
 | `moe_combine` | 0.000e+0 | 0.00% | 3.284e+10 | 0.05% |
 | `moe_dispatch` | 0.000e+0 | 0.00% | 3.284e+10 | 0.05% |
 
@@ -1882,7 +1882,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `mtp.layer.block_sparse_moe` | `linear` → `topk` → `moe_dispatch` → `fused_moe_mlp` → `moe_combine` |
 | `root` | `embedding` → `identity` → `multimodal_fusion` → `hyper_connection` → `attention_residual` |
 | `vision.blocks.attn` | `linear` → `attention_qkv_split` → `rope` → `sdpa_attention` → `identity` |
-| `visual.merger` | `vision_merge` → `rmsnorm` → `linear` → `vision_activation` → `swiglu` |
+| `visual.merger` | `rmsnorm` → `vision_merge` → `linear` → `vision_activation` → `swiglu` |
 | `mtp` | `linear` → `identity` → `residual_add` → `hyper_connection` |
 | `vision_tower.layers.self_attn` | `linear` → `identity` → `rope` → `sdpa_attention` |
 | `visual.blocks` | `identity` → `rmsnorm` → `sdpa_attention` → `residual_add` |
@@ -2009,7 +2009,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `gated_rmsnorm` | decode | 6/18 | 0 | 1.843e+5 | 7.375e+4 | 4.608e+3 | 1.475e+5 | 7.373e+4 | 0.00 | memory | 计算✓ 字节✓ | 8.200e+3 | 0 |
 | `gemma_rmsnorm` | prefill | 44/61 | 0 | 6.710e+8 | 1.249e+5 | 1.065e+5 | 2.684e+8 | 2.684e+8 | 0.00 | memory | 计算✓ 字节✓ | 1.679e+7 | 0 |
 | `gemma_rmsnorm` | decode | 44/61 | 0 | 3.276e+5 | 6.100e+1 | 1.065e+5 | 1.311e+5 | 1.311e+5 | 0.00 | memory | 计算✓ 字节✓ | 8.200e+3 | 0 |
-| `rmsnorm` | prefill | 3/25 | 0 | 1.769e+8 | 5.587e+4 | 8.602e+4 | 8.847e+7 | 8.847e+7 | 0.00 | memory | 计算✓ 字节✓ | 1.679e+7 | 0 |
+| `rmsnorm` | prefill | 3/25 | 0 | 1.716e+8 | 5.587e+4 | 7.680e+4 | 8.582e+7 | 8.582e+7 | 0.00 | memory | 计算✓ 字节✓ | 1.679e+7 | 0 |
 | `rmsnorm` | decode | 3/25 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 8.200e+3 | 0 |
 | `rope` | prefill | 8/18 | 0 | 5.544e+7 | 0 | 0 | 7.392e+7 | 3.696e+7 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 8/18 | 0 | 1.152e+4 | 0 | 0 | 1.536e+4 | 7.680e+3 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2062,7 +2062,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_dispatch` | decode | 21/40 | 0 | 0 | 0 | 0 | 1.638e+5 | 1.311e+6 | 0.00 | memory | — | — | — |
 | `shared_expert_gate` | prefill | 21/40 | 0 | 1.678e+8 | 3.355e+8 | 0 | 3.355e+8 | 3.355e+8 | 0.00 | memory | — | — | — |
 | `shared_expert_gate` | decode | 21/40 | 0 | 8.192e+4 | 1.638e+5 | 0 | 1.638e+5 | 1.638e+5 | 0.00 | memory | — | — | — |
-| `rmsnorm` | prefill | 3/55 | 0 | 5.838e+8 | 1.250e+5 | 2.673e+5 | 2.920e+8 | 2.920e+8 | 0.00 | memory | 计算✓ 字节✓ | 3.357e+7 | 0 |
+| `rmsnorm` | prefill | 3/55 | 0 | 5.758e+8 | 1.250e+5 | 2.534e+5 | 2.880e+8 | 2.880e+8 | 0.00 | memory | 计算✓ 字节✓ | 3.357e+7 | 0 |
 | `rmsnorm` | decode | 3/55 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 1.639e+4 | 0 |
 | `rope` | prefill | 12/37 | 0 | 1.783e+8 | 0 | 0 | 2.377e+8 | 1.188e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `rope` | decode | 12/37 | 0 | 3.456e+4 | 0 | 0 | 4.608e+4 | 2.304e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2489,7 +2489,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `rope` | decode | 14/39 | 0 | 5.990e+4 | 0 | 0 | 7.987e+4 | 3.994e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `attention_output_gate` | prefill | 13/12 | 0 | 1.510e+8 | 3.020e+8 | 0 | 3.020e+8 | 3.020e+8 | 0.00 | memory | — | — | — |
 | `attention_output_gate` | decode | 13/12 | 0 | 7.373e+4 | 1.475e+5 | 0 | 1.475e+5 | 1.475e+5 | 0.00 | memory | — | — | — |
-| `rmsnorm` | prefill | 4/55 | 0 | 5.838e+8 | 1.250e+5 | 2.673e+5 | 2.920e+8 | 2.920e+8 | 0.00 | memory | 计算✓ 字节✓ | 4.196e+7 | 0 |
+| `rmsnorm` | prefill | 4/55 | 0 | 5.758e+8 | 1.250e+5 | 2.534e+5 | 2.880e+8 | 2.880e+8 | 0.00 | memory | 计算✓ 字节✓ | 4.196e+7 | 0 |
 | `rmsnorm` | decode | 4/55 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | 计算✓ 字节✓ | 2.049e+4 | 0 |
 | `swiglu` | prefill | 27/48 | 0 | 1.258e+8 | 1.258e+8 | 0 | 2.517e+8 | 1.258e+8 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `swiglu` | decode | 27/48 | 0 | 6.144e+4 | 6.144e+4 | 0 | 1.229e+5 | 6.144e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |

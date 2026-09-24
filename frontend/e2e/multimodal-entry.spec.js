@@ -20,7 +20,8 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
   const graph = structure.graph;
   const get = canonical => graph.nodes.find(node => node.canonical_id === canonical);
   const embed = get("embed_tokens"), fusion = get("multimodal_fusion");
-  const vision = get("projector") || graph.nodes.find(node => node.type === "vision-encoder");
+  const vision = graph.nodes.find(node => node.type === "projector")
+    || graph.nodes.find(node => node.type === "vision-encoder");
   await page.goto("/");
   await page.getByLabel("model id").fill(entry.model_id);
   await page.getByRole("button", { name: "打开模型", exact: true }).click();

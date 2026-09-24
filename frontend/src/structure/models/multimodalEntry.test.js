@@ -43,7 +43,7 @@ for (const loading of ["config", "artifacts"]) {
       assert.equal(fusion.attributes.sequence_policy, "workload_is_post_fusion");
       const embed = g.nodes.find(node => node.canonical_id === "embed_tokens");
       const vision = g.nodes.find(node => node.type === "vision-encoder");
-      const projector = g.nodes.find(node => node.canonical_id === "projector");
+      const projector = g.nodes.find(node => node.type === "projector");
       const imageInput = g.nodes.find(node => node.canonical_id === "image_input");
       const textInput = g.nodes.find(node => node.canonical_id === "text_input");
       const incoming = target => g.edges.filter(e => e.target === target.id).map(e => e.source);
@@ -105,4 +105,35 @@ test("semantic fusion cannot bind a checkpoint module with a coincidentally matc
   assert.ok(!fusion.tensor_names?.length);
   assert.equal(s.graph.nodes.filter(node => node.tensor_names?.includes(truth.tensors[0].name)).length, 1,
     "unmatched checkpoint fact must survive as a gap, not be discarded");
+});
+
+test("multimodal projector canonical IDs follow published module paths", () => {
+  const expected = [
+    ["MiniMaxAI/MiniMax-M3", [
+      "multi_modal_projector", "multi_modal_projector.linear_1",
+      "multi_modal_projector.act", "multi_modal_projector.linear_2",
+      "multi_modal_projector.merge_linear_1", "multi_modal_projector.merge_act",
+      "multi_modal_projector.merge_linear_2",
+    ]],
+    ["moonshotai/Kimi-K2.5", [
+      "mm_projector", "mm_projector.pre_norm", "mm_projector.proj.0",
+      "mm_projector.proj.1", "mm_projector.proj.2",
+    ]],
+    ["moonshotai/Kimi-K3", [
+      "mm_projector", "mm_projector.pre_norm", "mm_projector.proj.0",
+      "mm_projector.proj.1", "mm_projector.proj.2",
+    ]],
+    ["deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", [
+      "aligner", "aligner.w1", "aligner.activation", "aligner.w2",
+    ]],
+    ["deepseek-ai/DeepSeek-V4.1-Flash", [
+      "aligner", "aligner.w1", "aligner.activation", "aligner.w2",
+    ]],
+  ];
+  for (const [modelId, paths] of expected) {
+    const config = read(new URL(`${modelId}/config.json`, root));
+    const structure = buildStructureFromConfig(config, { modelId });
+    const ids = new Set(structure.graph.nodes.map((node) => node.canonical_id));
+    for (const path of paths) assert.ok(ids.has(path), `${modelId}: missing ${path}`);
+  }
 });

@@ -526,6 +526,11 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   "kv_split -> sdpa": "concat",
   "qkv_projection -> short_conv": "slice",
   "compressor -> attention": "slice",
+  // Multimodal projector reshapes visual patches before the next MLP stage.
+  "linear_2 -> merge_linear_1": "regroup",
+  // Kimi PatchMerger normalizes per patch, then groups spatial patches into
+  // the wider merger input before its first projection.
+  "pre_norm -> 0": "regroup",
   // KDA 融合投影里的 f_a / g_a / g（全秩门）切片，宽度都是 head_dim 或 projection
   "qkv_projection -> f_b_proj": "slice",
   "qkv_projection -> g_b_proj": "slice",

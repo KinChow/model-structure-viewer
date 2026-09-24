@@ -324,6 +324,8 @@ export function normalizeConfig(config) {
     // vt_hidden_size=1024），注意力头维 = qkv_hidden_size/heads，不能用 hidden/heads。
     visionQkvHiddenSize: visionConfig ? firstNumber(visionConfig, ["qkv_hidden_size"]) : undefined,
     visionProjectorType: visionConfig?.mm_projector_type || visionConfig?.projector_type || undefined,
+    visionDownsampleRatio: firstNumber(visionConfig, ["downsample_ratio"])
+      ?? firstNumber(config, ["vision_downsample_ratio"]),
     visionHeadDim: visionConfig
       ? firstNumber(visionConfig, ["head_dim", "attention_head_dim"])
         ?? derivedHeadDim(firstNumber(visionConfig, ["qkv_hidden_size"]) ?? firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]), firstNumber(visionConfig, ["num_heads", "num_attention_heads", "vt_num_attention_heads"]))

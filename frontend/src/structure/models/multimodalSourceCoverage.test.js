@@ -9,18 +9,10 @@ import { normalizeConfig } from "../config/normalize.js";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
 
-// These two custom/pinned entries intentionally do not have a local source-ref
-// sidecar yet. Keep the gap explicit instead of silently treating it as coverage.
-const EXPECTED_SOURCE_REF_GAPS = new Set([
-  "deepseek-ai/DeepSeek-V4.1-Flash",
-  "moonshotai/Kimi-K3",
-]);
-const EXPECTED_VISUAL_MODULE_GAPS = new Set([
-  "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
-]);
-
-function readModelFile(modelId, file) {
-  return JSON.parse(fs.readFileSync(path.join(repoRoot, "models", modelId, file), "utf8"));
+function readModelFile(modelId, file, { optional = false } = {}) {
+  const filePath = path.join(repoRoot, "models", modelId, file);
+  if (optional && !fs.existsSync(filePath)) return null;
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
 function canonicalWithoutRoot(modulePath) {
@@ -34,7 +26,6 @@ function graphRepresentsModule(graphIds, modulePath) {
 }
 
 test("multimodal source-ref visual modules are represented by Graph IR", () => {
-  const sourceRefGaps = [];
   const visualModuleGaps = [];
   const checkedModels = [];
   let sourceModules = 0;
@@ -43,13 +34,12 @@ test("multimodal source-ref visual modules are represented by Graph IR", () => {
     const modelDir = path.join(repoRoot, "models", entry.model_id);
     const sourcePath = path.join(modelDir, "source-ref.json");
     if (!fs.existsSync(sourcePath)) {
-      sourceRefGaps.push(entry.model_id);
-      continue;
+      assert.fail(`${entry.model_id}: source-ref sidecar is missing`);
     }
 
     const sourceRef = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
     const visualModules = (sourceRef.modules || []).filter((module) =>
-      /visual|vision/i.test(module.module_path || ""));
+      /visual|vision|projector/i.test(module.module_path || ""));
     if (!visualModules.length) {
       if (structureHasVision(entry.model_id)) visualModuleGaps.push(entry.model_id);
       continue;
@@ -58,7 +48,7 @@ test("multimodal source-ref visual modules are represented by Graph IR", () => {
     const structure = buildStructureFromArtifacts({
       modelId: entry.model_id,
       config: readModelFile(entry.model_id, "config.json"),
-      checkpointTruth: readModelFile(entry.model_id, "header-truth.json"),
+      checkpointTruth: readModelFile(entry.model_id, "header-truth.json", { optional: true }),
       sourceRef,
     });
     const graphIds = new Set(
@@ -77,10 +67,9 @@ test("multimodal source-ref visual modules are represented by Graph IR", () => {
     checkedModels.push(entry.model_id);
   }
 
-  assert.deepEqual(new Set(sourceRefGaps), EXPECTED_SOURCE_REF_GAPS);
-  assert.deepEqual(new Set(visualModuleGaps), EXPECTED_VISUAL_MODULE_GAPS);
-  assert.equal(checkedModels.length, 36);
-  assert.equal(sourceModules, 752);
+  assert.deepEqual(new Set(visualModuleGaps), new Set());
+  assert.equal(checkedModels.length, 39);
+  assert.equal(sourceModules, 788);
 
   const visualEvidence = JSON.parse(fs.readFileSync(
     path.join(

@@ -142,7 +142,7 @@ test("selects dedicated model builders by canonical architecture", () => {
   const network = buildNetwork(resolved, normalized);
 
   assert.deepEqual(network.children.slice(0, 7).map(child => child.id),
-    ["image_input", "vision_tower", "projector", "text_input", "embed_tokens", "multimodal_fusion", "language_model.layers"]);
+    ["image_input", "vision_tower", "multi_modal_projector", "text_input", "embed_tokens", "multimodal_fusion", "language_model.layers"]);
   assert.equal(network.children.find(child => child.id === "language_model.layers").attributes.class, "MiniMaxM3VLTextModel");
 });
 
@@ -201,7 +201,7 @@ test("maps real Qwen, Kimi, and DeepSeek vision configs to multimodal networks",
     assert.equal(normalized.hasVision, true, modelId);
     assert.equal(resolved.architecture, architecture, modelId);
     assert.equal(network.children.some((node) => ["visual", "vision_tower"].includes(node.id)), true, modelId);
-    assert.equal(network.children.some((node) => node.id === "projector"), hasProjector, modelId);
+    assert.equal(network.children.some((node) => node.type === "projector"), hasProjector, modelId);
     assert.equal(network.children.find((node) => ["visual", "vision_tower"].includes(node.id)).children.length > 0, true, modelId);
     if (modelId.startsWith("Qwen/")) {
       assert.equal(network.children.find((node) => ["visual", "vision_tower"].includes(node.id)).children.some((node) => node.name === "Vision Merger"), true, modelId);

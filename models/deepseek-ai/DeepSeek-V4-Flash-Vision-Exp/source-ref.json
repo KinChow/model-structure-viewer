@@ -455,6 +455,34 @@
         "url": "https://github.com/huggingface/transformers/blob/v5.16.1/src/transformers/models/deepseek_v4/modeling_deepseek_v4.py#L66"
       },
       "has_params": false
+    },
+    {
+      "module_path": "root.visual",
+      "class_name": "ViT",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "inference.vision.ViT",
+        "class_name": "ViT",
+        "file": "inference/vision.py",
+        "line": 87,
+        "version": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+        "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/raw/6821d6ad3681a4b137b066b76094fa82ebd0a380/inference/vision.py#L87"
+      }
+    },
+    {
+      "module_path": "root.aligner",
+      "class_name": "Aligner",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "inference.vision.Aligner",
+        "class_name": "Aligner",
+        "file": "inference/vision.py",
+        "line": 105,
+        "version": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+        "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/raw/6821d6ad3681a4b137b066b76094fa82ebd0a380/inference/vision.py#L105"
+      }
     }
   ]
 }

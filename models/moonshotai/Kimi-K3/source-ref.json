@@ -1,0 +1,34 @@
+{
+  "model_id": "moonshotai/Kimi-K3",
+  "transformers_version": null,
+  "modules": [
+    {
+      "module_path": "root.vision_tower",
+      "class_name": "MoonViT3dPretrainedModel",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.MoonViT3dPretrainedModel",
+        "class_name": "MoonViT3dPretrainedModel",
+        "file": "modeling_kimi_k3.py",
+        "line": 649,
+        "version": "f831ab66814297da540d832a5235f8e904f29d06",
+        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L649"
+      }
+    },
+    {
+      "module_path": "root.mm_projector",
+      "class_name": "PatchMergerMLP",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "transformers_modules.Kimi_hyphen_K3.modeling_kimi_k3.PatchMergerMLP",
+        "class_name": "PatchMergerMLP",
+        "file": "modeling_kimi_k3.py",
+        "line": 756,
+        "version": "f831ab66814297da540d832a5235f8e904f29d06",
+        "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py#L756"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+  "transformers_version": null,
+  "modules": [
+    {
+      "module_path": "root.visual",
+      "class_name": "ViT",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "inference.vision.ViT",
+        "class_name": "ViT",
+        "file": "inference/vision.py",
+        "line": 87,
+        "version": "dba1be0a40aa45a94ad051997016db3960a90277",
+        "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4.1-Flash/raw/dba1be0a40aa45a94ad051997016db3960a90277/inference/vision.py#L87"
+      }
+    },
+    {
+      "module_path": "root.aligner",
+      "class_name": "Aligner",
+      "has_params": true,
+      "source_ref": {
+        "framework": "model-repo",
+        "module_path": "inference.vision.Aligner",
+        "class_name": "Aligner",
+        "file": "inference/vision.py",
+        "line": 106,
+        "version": "dba1be0a40aa45a94ad051997016db3960a90277",
+        "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4.1-Flash/raw/dba1be0a40aa45a94ad051997016db3960a90277/inference/vision.py#L106"
+      }
+    }
+  ]
+}

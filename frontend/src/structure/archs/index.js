@@ -22,7 +22,14 @@
 //（Attention / MLP / MoE），不从 architectures[0] 剥前缀再拼。vLLM/SGLang 每个
 // 模型文件手写 class Foo，没有这套构词器。attn/ffn 变体清单不进本表。
 export const ARCH_RECIPES = {
-  DeepseekV4ForCausalLM: { visionFusion: "image_span_overwrite", moeClass: "DeepseekV4SparseMoeBlock", hashMoE: true, compressorApe: true },
+  DeepseekV4ForCausalLM: {
+    visionFusion: "image_span_overwrite",
+    visionProjectorPath: "aligner",
+    visionProjectorKind: "deepseek_aligner",
+    moeClass: "DeepseekV4SparseMoeBlock",
+    hashMoE: true,
+    compressorApe: true,
+  },
   // DeepSeek V4.1：与 V4 同族（sqrtsoftplus/noaux_tc 路由、o_lora 分组输出投影、
   // 逐层 compress_ratios、MHC、DSpark 投机头、视觉塔）。差异 = 无 hash 层
   // （config 无 num_hash_layers → numHashLayers=0，moe.js 的 isHashMoe 恒 false，
@@ -30,6 +37,8 @@ export const ARCH_RECIPES = {
   // 见 decoderLayer.js）。类名取自随附 model.py 原生实现（Block/Transformer/MoE）。
   DeepseekV41ForCausalLM: {
     visionFusion: "image_span_overwrite",
+    visionProjectorPath: "aligner",
+    visionProjectorKind: "deepseek_aligner",
     hashMoE: true,
     moeClass: "MoE",
     decoderLayerClass: "Block",
@@ -49,6 +58,8 @@ export const ARCH_RECIPES = {
   },
   KimiK25ForConditionalGeneration: {
     visionFusion: "placeholder_expand",
+    visionProjectorPath: "mm_projector",
+    visionProjectorKind: "patchmerger",
     linearAttentionMode: "kimi",
     visionAttr: "vision_tower",
     moeClass: "DeepseekV3MoE",
@@ -60,6 +71,8 @@ export const ARCH_RECIPES = {
   },
   KimiK3ForConditionalGeneration: {
     visionFusion: "placeholder_expand",
+    visionProjectorPath: "mm_projector",
+    visionProjectorKind: "patchmerger",
     linearAttentionMode: "kimi_k3",
     mlaPaths: { qNorm: "q_a_layernorm", kvProjection: "kv_a_proj_with_mqa", kvNorm: "kv_a_layernorm" },
     visionRope2d: true,
@@ -78,6 +91,10 @@ export const ARCH_RECIPES = {
   Glm4MoeForCausalLM: { fusedQkv: true, sigmoidRouter: true },
   MiniMaxM3SparseForConditionalGeneration: {
     visionFusion: "placeholder_scatter",
+    visionProjectorPath: "multi_modal_projector",
+    visionProjectorKind: "two_stage_patch_merge",
+    visionProjectorClass: "MiniMaxM3VLMultiModalProjector",
+    visionProjectorImplementation: "MiniMaxM3VLMultiModalProjector",
     normMode: "gemma_rmsnorm",
     moeClass: "MiniMaxM3VLSparseMoeBlock",
     mlpClass: "MiniMaxM3VLDenseMLP",

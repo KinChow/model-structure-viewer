@@ -5,26 +5,24 @@
 
 ## 结果
 
-- 有视觉 source-ref 模块的多模态条目：**36**
-- source-ref 中的视觉/视觉塔模块记录：**752**
-- 能由 Graph IR canonical ID 精确或折叠祖先表示：**752/752**
-- 当前明确的 source-ref 证据缺口：
-  - `deepseek-ai/DeepSeek-V4.1-Flash`
-  - `moonshotai/Kimi-K3`
-  - `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` 的 sidecar 存在，但没有
-    `visual/vision` 模块记录。
+- 有视觉 source-ref 模块的多模态条目：**39**
+- source-ref 中的视觉塔/projector 模块记录：**788**
+- 能由 Graph IR canonical ID 精确或折叠祖先表示：**788/788**
+- 当前 source-ref sidecar 缺口：**0**
 
 DeepSeek 两个条目的视觉 forward 已由固定 revision 的 `inference/vision.py`
-补充取证，具体 SHA、类和行号见 `deepseek_v4_vision_sources.json`。这补齐了
-外部 forward 证据，但没有把它冒充成 source-ref checkpoint 绑定。
+补充取证，具体 SHA、类和行号见 `deepseek_v4_vision_sources.json`；Kimi-K3
+则使用固定 revision 的发布 `modeling_kimi_k3.py`。这些 source-ref 行只补齐
+模块定义来源，没有把它们冒充成 checkpoint 逐张量绑定。
 
 匹配允许两种发布到图的合法表示：
 
 1. source-ref 模块对应一个同名 canonical 节点；
 2. 同构视觉层被折叠时，由包含该路径的折叠节点表示。
 
-不允许只因为模型是多模态就把视觉模块视为已覆盖；缺少 source-ref 的两个条目
-被显式列为 gap，并由测试固定为已知缺口。
+不允许只因为模型是多模态就把视觉模块视为已覆盖；每个多模态条目现在都有
+至少一个固定 revision 的视觉 tower/projector source-ref 行，并由测试检查其
+canonical ID 表示。
 
 ## 独立测试
 
@@ -41,5 +39,5 @@ DeepSeek 两个条目的视觉 forward 已由固定 revision 的 `inference/visi
 - decode 时视觉 tower 一定不会执行；
 - 获得了 GPU 或推理框架实测性能结论。
 
-后续仍需为两个缺少 source-ref 的条目补齐可持久化的模块映射，及对
-39 个多模态条目的 projector/merger checkpoint tensor map 做逐模块审计。
+后续仍需对 39 个多模态条目的 projector/merger checkpoint tensor map 做逐模块
+审计；source-ref 覆盖本身不等于 checkpoint 绑定完成。

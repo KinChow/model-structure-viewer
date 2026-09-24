@@ -1364,17 +1364,26 @@ export function minimaxM2AttentionOperatorSpecs(prefix, normalized, { fused = tr
       operatorSpec(`${prefix}.q_proj`, "q projection", "linear", {
         ...shapeFlow(shapes.hidden, shapes.attentionQuery),
         bias: normalized.attentionBias,
-        weightMatrices: [weightMatrixDecl("tp", { shape: [qProjection, dimWidth(dims.hidden)], split: "output" })],
+        weightMatrices: [
+          weightMatrixDecl("tp", { shape: [qProjection, dimWidth(dims.hidden)], split: "output" }),
+          ...(normalized.attentionBias ? [weightMatrixDecl("tp", { shape: [qProjection], quantizable: false })] : []),
+        ],
       }, { input: dims.hidden, output: dims.attentionQuery }),
       operatorSpec(`${prefix}.k_proj`, "k projection", "linear", {
         ...shapeFlow(shapes.hidden, shapes.attentionKey),
         bias: normalized.attentionBias,
-        weightMatrices: [weightMatrixDecl("tp", { shape: [kvProjection, dimWidth(dims.hidden)], split: "output" })],
+        weightMatrices: [
+          weightMatrixDecl("tp", { shape: [kvProjection, dimWidth(dims.hidden)], split: "output" }),
+          ...(normalized.attentionBias ? [weightMatrixDecl("tp", { shape: [kvProjection], quantizable: false })] : []),
+        ],
       }, { input: dims.hidden, output: dims.attentionKey }),
       operatorSpec(`${prefix}.v_proj`, "v projection", "linear", {
         ...shapeFlow(shapes.hidden, shapes.attentionValue),
         bias: normalized.attentionBias,
-        weightMatrices: [weightMatrixDecl("tp", { shape: [kvProjection, dimWidth(dims.hidden)], split: "output" })],
+        weightMatrices: [
+          weightMatrixDecl("tp", { shape: [kvProjection, dimWidth(dims.hidden)], split: "output" }),
+          ...(normalized.attentionBias ? [weightMatrixDecl("tp", { shape: [kvProjection], quantizable: false })] : []),
+        ],
       }, { input: dims.hidden, output: dims.attentionValue }),
       operatorSpec(`${prefix}.q_norm`, "Q RMSNorm", "rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), {
         input: dims.attentionQuery,

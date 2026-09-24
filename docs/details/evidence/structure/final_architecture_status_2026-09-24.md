@@ -28,7 +28,7 @@
 | `qwen3_5` | 15 | 已修复/有边界 | Gated Attention / GDN 必需 fan-in；多模态入口 | 量化/Base 变体 packed layout 和视觉 truth |
 | `qwen3_5_moe` | 12 | 已修复/有边界 | Gated Attention / GDN fan-in、MoE 路径和融合入口 | 量化/Base 变体逐模块实装证据 |
 | `qwen3_5_moe_text` | 2 | 已修复/有边界 | text-only 混合主干；未误加视觉塔；门控输入修复 | 量化变体 checkpoint/activation quantization 细节 |
-| `qwen4_exp` | 2 | 已修复/有边界 | QSA 微块、尾部 token、PLE、第 2 层位置、四路 gated residual | 融合搬运 unknown、变体 forward/header 审计 |
+| `qwen4_exp` | 2 | 已修复/有边界 | QSA 微块、尾部 token、PLE、第 2 层位置、四路 gated residual；视觉 packed attention、grid_thw 位置插值、pre-shuffle merger norm | 融合搬运 unknown；GPU packed-attention 性能未实测 |
 | `minimax_m2` | 1 | 基线/证据不足 | 保留当前 GQA/MoE/MTP 结构 | 官方公开资料不足，需继续保持 unknown |
 | `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block；发布权重的 `multi_modal_projector → patch_merge_mlp` 双模块路径 | 两变体完整 checkpoint 逐模块审计、视觉物化 |
 | `glm4_moe` | 1 | 基线/证据不足 | 保留 GQA/MoE，不从 GLM-5 DSA 规则外推 | 官方结构细节不足 |

@@ -1,0 +1,301 @@
+{
+  "checked_at": "2026-09-24T13:13:12.004473+08:00",
+  "catalog_baseline": "1a5fd34",
+  "count": 23,
+  "method": "Pinned official HF model cards + local config contrast; release checkpoints/forward required for architecture verification.",
+  "models": [
+    {
+      "model_id": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "base_comparison": "MiniMaxAI/MiniMax-M3",
+      "variant_kind": "quantized",
+      "revision": "c5454eb03678d8710e54a4e0fc681b9f3b4a3dba",
+      "card_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3-MXFP8/raw/c5454eb03678d8710e54a4e0fc681b9f3b4a3dba/README.md",
+      "card_sha256": "0768cf0b6255623139565a270f2dfaebf67bb6d364ef205487f35fb6960fdf51",
+      "card_bytes": 5097,
+      "config_non_dtype_diff_paths": [
+        "text_config.num_mtp_modules",
+        "text_config.num_nextn_predict_layers"
+      ],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": [
+        "Config MTP keys differ from base (['text_config.num_mtp_modules', 'text_config.num_nextn_predict_layers']); production header mtp_tensor_count=0, so no released MTP node should be materialized."
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-0.8B-Base",
+      "base_comparison": "Qwen/Qwen3.5-0.8B",
+      "variant_kind": "base_or_instruct",
+      "revision": "dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-0.8B-Base/raw/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/README.md",
+      "card_sha256": "3cff39d2674e28b95e2df75cdb2d7a687ec391931065b05df83dbae12b447b11",
+      "card_bytes": 3727,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": [
+        "Card describes the Qwen3.5 family with generic sparse-MoE marketing; this is not evidence that this particular dense/base variant has MoE."
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-122B-A10B-FP8",
+      "base_comparison": "Qwen/Qwen3.5-122B-A10B",
+      "variant_kind": "quantized",
+      "revision": "a099dee70ccfcd8d5dda56aaa0b60cb8ecadabc9",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-122B-A10B-FP8/raw/a099dee70ccfcd8d5dda56aaa0b60cb8ecadabc9/README.md",
+      "card_sha256": "bca4fee86199cb783e95c20f8fc7542ac5517d3f143b4dbc05b26e97e410fd4d",
+      "card_bytes": 92914,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+      "base_comparison": "Qwen/Qwen3.5-122B-A10B",
+      "variant_kind": "quantized",
+      "revision": "30cd92cba9707a9aba09d1e490ed4b66b78e9606",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-122B-A10B-GPTQ-Int4/raw/30cd92cba9707a9aba09d1e490ed4b66b78e9606/README.md",
+      "card_sha256": "3eaf34dc6653aa6d7106fdf3381bd468244378666ee67f8e0ab7a50a711aed88",
+      "card_bytes": 92257,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-27B-FP8",
+      "base_comparison": "Qwen/Qwen3.5-27B",
+      "variant_kind": "quantized",
+      "revision": "97f5941bf617e31c5e237364a8602ce3f03a551a",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-27B-FP8/raw/97f5941bf617e31c5e237364a8602ce3f03a551a/README.md",
+      "card_sha256": "c0d0fdb510cbf32ca9043d391fcf33d4c3ff2215e4235128823c9722ab3dece4",
+      "card_bytes": 92691,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-27B-GPTQ-Int4",
+      "base_comparison": "Qwen/Qwen3.5-27B",
+      "variant_kind": "quantized",
+      "revision": "8f0c09f227ae570e79617c6d9172b59df9c16081",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-27B-GPTQ-Int4/raw/8f0c09f227ae570e79617c6d9172b59df9c16081/README.md",
+      "card_sha256": "0f9e794f6a0f6d3fcc9b050a522d52d7498080b082a6100814d6e8605c904b95",
+      "card_bytes": 92793,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-2B-Base",
+      "base_comparison": "Qwen/Qwen3.5-2B",
+      "variant_kind": "base_or_instruct",
+      "revision": "b1485b2fa6dfa1287294f269f5fb618e03d52d7c",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-2B-Base/raw/b1485b2fa6dfa1287294f269f5fb618e03d52d7c/README.md",
+      "card_sha256": "50ca45b87d976d9850de95ad00e76fba77e105c2cdef1093b8e3bb261d9a1787",
+      "card_bytes": 3721,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": [
+        "Card describes the Qwen3.5 family with generic sparse-MoE marketing; this is not evidence that this particular dense/base variant has MoE."
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-35B-A3B-Base",
+      "base_comparison": "Qwen/Qwen3.5-35B-A3B",
+      "variant_kind": "base_or_instruct",
+      "revision": "0f0813072d2358973511097385626f21fcb6d422",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B-Base/raw/0f0813072d2358973511097385626f21fcb6d422/README.md",
+      "card_sha256": "60d1e23113fb47e636b3e205fb18e722eddbda152da4301ba7fd9b4395184a4c",
+      "card_bytes": 3822,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": [
+        "Card describes the Qwen3.5 family with generic sparse-MoE marketing; this is not evidence that this particular dense/base variant has MoE."
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-35B-A3B-FP8",
+      "base_comparison": "Qwen/Qwen3.5-35B-A3B",
+      "variant_kind": "quantized",
+      "revision": "9d1823d2dee688a6b25e77009dc727688c44936e",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B-FP8/raw/9d1823d2dee688a6b25e77009dc727688c44936e/README.md",
+      "card_sha256": "2e09fd9d54bd1854b1be9e161fe65002493e025812a2447399e8eeea6b90bbfc",
+      "card_bytes": 93391,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4",
+      "base_comparison": "Qwen/Qwen3.5-35B-A3B",
+      "variant_kind": "quantized",
+      "revision": "3af5ca2972faf6de1fd6f4efc4d8d319ca751e8b",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B-GPTQ-Int4/raw/3af5ca2972faf6de1fd6f4efc4d8d319ca751e8b/README.md",
+      "card_sha256": "544cae9538cdd6d0c7f33ec98073c6d72081f3a5657fcfa55e163391649e2ca3",
+      "card_bytes": 92782,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "base_comparison": "Qwen/Qwen3.5-397B-A17B",
+      "variant_kind": "quantized",
+      "revision": "ea5b4f81096f3901c91dea97f81324302495781d",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-397B-A17B-FP8/raw/ea5b4f81096f3901c91dea97f81324302495781d/README.md",
+      "card_sha256": "7cbdae1578ba8ededfd20cd99320dd8b1bd846d64d7b6b49711842a9cebfbe70",
+      "card_bytes": 93918,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4",
+      "base_comparison": "Qwen/Qwen3.5-397B-A17B",
+      "variant_kind": "quantized",
+      "revision": "df333de344e06b492063d1ca04e2d4ee878f7595",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-397B-A17B-GPTQ-Int4/raw/df333de344e06b492063d1ca04e2d4ee878f7595/README.md",
+      "card_sha256": "cac618bf44d636ed51cfe32d2bb8992774cbb08e352afdd8f379a1d685c3bc86",
+      "card_bytes": 94454,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-4B-Base",
+      "base_comparison": "Qwen/Qwen3.5-4B",
+      "variant_kind": "base_or_instruct",
+      "revision": "1001bb4d826a52d1f399e183466143f4da7b741b",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-4B-Base/raw/1001bb4d826a52d1f399e183466143f4da7b741b/README.md",
+      "card_sha256": "76ead24ea3de5a52610c755ffa0b6e7cb51e3c413f124a3776bc6f16b694474e",
+      "card_bytes": 3722,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": [
+        "Card describes the Qwen3.5 family with generic sparse-MoE marketing; this is not evidence that this particular dense/base variant has MoE."
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-9B-Base",
+      "base_comparison": "Qwen/Qwen3.5-9B",
+      "variant_kind": "base_or_instruct",
+      "revision": "68c46c4b3498877f3ef123c856ecfde50c39f404",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.5-9B-Base/raw/68c46c4b3498877f3ef123c856ecfde50c39f404/README.md",
+      "card_sha256": "e5fb9a49c5b5eea08839180eef484c97743be241189ccb4a1f4d830514c1f0cb",
+      "card_bytes": 3705,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": [
+        "Card describes the Qwen3.5 family with generic sparse-MoE marketing; this is not evidence that this particular dense/base variant has MoE."
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3.6-27B-FP8",
+      "base_comparison": "Qwen/Qwen3.6-27B",
+      "variant_kind": "quantized",
+      "revision": "e89b16ebf1988b3d6befa7de50abc2d76f26eb09",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.6-27B-FP8/raw/e89b16ebf1988b3d6befa7de50abc2d76f26eb09/README.md",
+      "card_sha256": "1d812aa4505b65e4893130b61d8e60498f15f751ed180e60dab0650823f2dced",
+      "card_bytes": 62868,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.6-35B-A3B-FP8",
+      "base_comparison": "Qwen/Qwen3.6-35B-A3B",
+      "variant_kind": "quantized",
+      "revision": "95a723d08a9490559dae23d0cff1d9466213d989",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B-FP8/raw/95a723d08a9490559dae23d0cff1d9466213d989/README.md",
+      "card_sha256": "24c5494fb559cdfda44abe396f71c18975fec69745aae4a94679316e6e80dbdb",
+      "card_bytes": 64855,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-2.4T-A95B-FP8",
+      "base_comparison": "Qwen/Qwen3.8-2.4T-A95B",
+      "variant_kind": "quantized",
+      "revision": "d2dc35658bcf77e66643428cb52e774cc3b5bd29",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B-FP8/raw/d2dc35658bcf77e66643428cb52e774cc3b5bd29/README.md",
+      "card_sha256": "efc54a1b85afe95cb1bdf00ed1106bf82bf6b91af4f7e546a6f47df868ff446c",
+      "card_bytes": 35980,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-27B-FP8",
+      "base_comparison": "Qwen/Qwen3.8-27B",
+      "variant_kind": "quantized",
+      "revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.8-27B-FP8/raw/017b9c7af6b5689d5dd426a76e0bc077eb5ca20a/README.md",
+      "card_sha256": "a247d876f5398eed9ae898f32a984083552de57237b5e20714657e1675e26d2e",
+      "card_bytes": 65249,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "base_comparison": "Qwen/Qwen3.8-Flash-Next",
+      "variant_kind": "quantized",
+      "revision": "236dfdf285828023ca3bcd3f37366c58a3469b13",
+      "card_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/raw/236dfdf285828023ca3bcd3f37366c58a3469b13/README.md",
+      "card_sha256": "3c5fcfaf37c4415dbabdbd25eaa7a17ed42f8e63fead97b8644053b1d60ea43f",
+      "card_bytes": 65400,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2-Instruct",
+      "base_comparison": "moonshotai/Kimi-K2-Base",
+      "variant_kind": "base_or_instruct",
+      "revision": "fd1984e2b7a3350dbf7305fe73a4ede25c14de50",
+      "card_url": "https://huggingface.co/moonshotai/Kimi-K2-Instruct/raw/fd1984e2b7a3350dbf7305fe73a4ede25c14de50/README.md",
+      "card_sha256": "72e2785dbd9ada9355ea3a812d2a9da606f1ae07feea7a0f7e18b8111deb8837",
+      "card_bytes": 25517,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": [
+        "Card alone does not establish a distinct decoder topology relative to K2 Base."
+      ]
+    },
+    {
+      "model_id": "zai-org/GLM-5.2-FP8",
+      "base_comparison": "zai-org/GLM-5.2",
+      "variant_kind": "quantized",
+      "revision": "f33c6dc501ee5a2c7e35155653b1b1abbc320951",
+      "card_url": "https://huggingface.co/zai-org/GLM-5.2-FP8/raw/f33c6dc501ee5a2c7e35155653b1b1abbc320951/README.md",
+      "card_sha256": "522afffe4e9bb3b3054a68df39b1796417a745aaed689511e7c0a11b449c4e9d",
+      "card_bytes": 10938,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "zai-org/GLM-5.3-BF16",
+      "base_comparison": "zai-org/GLM-5.3",
+      "variant_kind": "bf16",
+      "revision": "9d2398f478cab2de883137db3a36ad2c96205e24",
+      "card_url": "https://huggingface.co/zai-org/GLM-5.3-BF16/raw/9d2398f478cab2de883137db3a36ad2c96205e24/README.md",
+      "card_sha256": "9bdaa8b83a653f3ccac2a140d1c3880929d6f16e4a2b38d03e358b9fad0ee95f",
+      "card_bytes": 14214,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    },
+    {
+      "model_id": "zai-org/GLM-5.3-Flash-BF16",
+      "base_comparison": "zai-org/GLM-5.3-Flash",
+      "variant_kind": "bf16",
+      "revision": "a5b45eb41df6402735dedc900be14a42e8d5e538",
+      "card_url": "https://huggingface.co/zai-org/GLM-5.3-Flash-BF16/raw/a5b45eb41df6402735dedc900be14a42e8d5e538/README.md",
+      "card_sha256": "5c48ce1a84c5901ab96d602333e9201fa385a73e9c298fab3467183b8b95a549",
+      "card_bytes": 8033,
+      "config_non_dtype_diff_paths": [],
+      "evidence_status": "release_card_read_topology_not_proven",
+      "notes": []
+    }
+  ]
+}

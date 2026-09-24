@@ -225,6 +225,17 @@ test("DSA 默认 KV fallback 控件不覆盖显式 dtype", async ({ page }) => {
   await expect(kv).toHaveAttribute("data-bytes", before);
 });
 
+test("视觉模型文本 Decode 不再出现 prefill 融合流量 unknown", async ({ page }, testInfo) => {
+  const cost = await openCost(page, "Qwen/Qwen3.5-0.8B");
+  await expect(cost.locator('.cost-domain-item[data-group="memory"] b')).toHaveText(/未知|unknown/i);
+  await cost.getByRole("button", { name: "PD 分离", exact: true }).click();
+  await cost.getByRole("button", { name: "Decode", exact: true }).click();
+  await expect(cost.locator('[data-bound]')).not.toHaveAttribute("data-bound", "unknown");
+  await expect(cost.locator('.cost-domain-item[data-group="memory"] b')).not.toHaveText(/未知|unknown/i);
+  await expect(cost.locator(".cost-metrics")).not.toContainText(/NaN|Infinity|undefined/);
+  await cost.screenshot({ path: testInfo.outputPath("vision-text-decode-cost.png") });
+});
+
 // 每个用例处理 10 个模型，限制慢机器上的失败/重试范围；两个 Chrome 项目
 // 仍覆盖全部 60 个模型，不是抽样。
 for (let batchIndex = 0; batchIndex < 6; batchIndex += 1) {

@@ -23,7 +23,7 @@ for (const loading of ["config", "artifacts"]) {
     const get = suffix => graph.nodes.find(n => n.canonical_id === `layers.3.self_attn.${suffix}`);
     assert.equal(get("rope"), undefined);
     assert.equal(get("mla_gate"), undefined);
-    const visualRope = graph.nodes.find(n => n.canonical_id === "vision_tower.0.rope");
+    const visualRope = graph.nodes.find(n => n.canonical_id === "vision_tower.encoder.blocks.0.rope");
     assert.equal(visualRope?.attributes.position_encoding, "rope_2d");
     assert.deepEqual(get("q_b_proj").output_shape, [-1, -1, 96, 192]);
     assert.deepEqual(get("kv_a_proj_with_mqa").attributes.weightMatrices[0].shape, [576, 7168]);
@@ -49,8 +49,8 @@ for (const loading of ["config", "artifacts"]) {
     const vision = countsForNode(visualRope, ctx);
     assert.equal(vision.matrix, 0);
     assert.equal(vision.bytes.weights, 0);
-    // 2 batch * 1024 visual tokens * (Q+K) * 12 heads * 128 dims * 3 FLOPs.
-    assert.equal(vision.vector, 2 * 1024 * 2 * 12 * 128 * 3);
+    // 2 batch * 4096 patch tokens * (Q+K) * 12 heads * 128 dims * 3 FLOPs.
+    assert.equal(vision.vector, 2 * 4096 * 2 * 12 * 128 * 3);
   });
 }
 

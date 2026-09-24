@@ -122,7 +122,13 @@ export const FORMULAS = {
     explanation: "将空间或时空位置编码加入视觉 patch token；具体实现由视觉塔配置决定。",
     inputs: ["patch tokens", "position"],
     outputs: ["position-aware tokens"],
-    counts: addCounts,
+    counts: (ctx) => {
+      const base = addCounts(ctx);
+      return {
+        ...base,
+        bytes: { ...base.bytes, weights: (ctx.weightElements || 0) * ctx.bytesPerElement },
+      };
+    },
   },
   vision_merge: {
     title: "Vision Patch Merge",

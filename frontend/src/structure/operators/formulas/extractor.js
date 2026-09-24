@@ -31,6 +31,12 @@ export function tokensFor({ batch = 1, sequence = 1, phase = "prefill", vision =
   return batch * (vision ? visionTokens : phase === "decode" ? 1 : sequence);
 }
 
+function visionTokensForNode(node, config) {
+  return node?.attributes?.vision_token_source === "patch_tokens"
+    ? config?.visionPatchTokens || config?.visionTokens || 1
+    : config?.visionTokens || 1;
+}
+
 export function layerIndexOf(path) {
   const match = String(path || "").match(LAYER_INDEX_RE);
   return match ? Number(match[1]) : null;
@@ -160,7 +166,7 @@ function attentionKvCtx({ node, config, vision, kind, tokens, options, bytesPerE
   const headDim = vision ? config?.visionHeadDim || 0 : config?.headDim || 0;
   const valueDim = vision ? headDim : config?.valueHeadDim || headDim;
   const queryTokens = tokens;
-  const keyTokens = vision ? config?.visionTokens || 1 : options.sequence || 1;
+  const keyTokens = vision ? visionTokensForNode(node, config) : options.sequence || 1;
   const latentShared = !vision && kind.includes("mla") && (config?.kvLoraRank || 0) > 0;
   const kvHeads = vision ? heads : (latentShared ? 1 : (config?.kvHeads || heads));
   const kReadWidth = latentShared ? (config?.kvLoraRank || 0) + (config?.qkRopeHeadDim || 0) : headDim;
@@ -288,7 +294,7 @@ const FROM_NODE = {
   },
   softmax: ({ node, config, options, bytesPerElement, vision, tokens, phase }) => {
           const heads = vision ? config?.visionAttentionHeads || 0 : config?.attentionHeads || 0;
-          const keyTokens = vision ? config?.visionTokens || 1 : options.sequence ?? 1;
+          const keyTokens = vision ? visionTokensForNode(node, config) : options.sequence ?? 1;
           return { elements: heads * scoredPairs({ phase, queryTokens: tokens, keyTokens,
             causal: node?.attributes?.attention_mask_kind !== "bidirectional" }), bytesPerElement };
   },
@@ -318,6 +324,7 @@ const FROM_NODE = {
   }),
   vision_position: ({ node, bytesPerElement, tokens }) => ({
     tokens, hidden: staticWidth(node?.output_shape) || 0, bytesPerElement,
+    weightElements: node?.attributes?.position_weight_elements || 0,
   }),
   vision_merge: ({ node, config, bytesPerElement, tokens }) => {
           const inWidth = staticWidth(node?.input_shape) || 0;
@@ -612,7 +619,9 @@ export function countsForNode(node, env = {}) {
     sequence: options.sequence ?? 1,
     phase,
     vision,
-    visionTokens: config?.visionTokens || 1,
+    visionTokens: node?.attributes?.vision_token_source === "patch_tokens"
+      ? config?.visionPatchTokens || config?.visionTokens || 1
+      : config?.visionTokens || 1,
   });
 
   // type=attention 是 nn.Module 容器（§2.4：不该挂融合 counts）。打分核在
@@ -629,7 +638,7 @@ export function countsForNode(node, env = {}) {
   // 旧 isLinear 等价：无 operatorId 但 weight_shapes 含 ≥2 维形状的节点按 linear 计
   // （checkpoint 绑定叶的常见形态）；embed 排除以结构化路径判断（§3.2）。
   const isLinearNode = operatorId === "linear"
-    || (Object.values(node?.weight_shapes || {}).some((shape) => Array.isArray(shape) && shape.length >= 2)
+    || (!operatorId && Object.values(node?.weight_shapes || {}).some((shape) => Array.isArray(shape) && shape.length >= 2)
       && !/(^|\.)(patch_)?embed/.test(String(node?.id || path)));
   const effectiveOperatorId = isLinearNode ? "linear" : operatorId;
 

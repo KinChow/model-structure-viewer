@@ -80,6 +80,8 @@ export const ARCH_RECIPES = {
     linearAttentionMode: "kimi_k3",
     mlaPaths: { qNorm: "q_a_layernorm", kvProjection: "kv_a_proj_with_mqa", kvNorm: "kv_a_layernorm" },
     visionRope2d: true,
+    visionTowerLayout: "encoder_blocks_fused",
+    visionModelClass: "MoonViT3dPretrainedModel",
     sharedExpertsAreFused: true,
     ffn: { moe: "block_sparse_moe" },
     moeClass: "KimiSparseMoeBlock",

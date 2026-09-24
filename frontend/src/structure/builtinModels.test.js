@@ -47,7 +47,8 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
       const visionLayer0 = visionChildren.find((node) => (node.canonical_id || "").endsWith(".0"));
       assert.ok(childrenOf(structure.graph, visionLayer0?.id).length >= 8, `${entry.model_id}: vision layer has no operator detail`);
       assert.ok(structure.graph.edges.some((edge) =>
-        ["visual.patch_embed", "vision_tower.patch_embed", "vision_tower.embeddings.proj", "vision.patch_embed.proj"].includes(edge.source_canonical_id)),
+        ["visual.patch_embed", "vision_tower.patch_embed", "vision_tower.embeddings.proj",
+          "vision_tower.patch_embed.proj", "vision.patch_embed.proj"].includes(edge.source_canonical_id)),
       `${entry.model_id}: vision patch edge missing`);
     }
     for (const node of structure.graph.nodes) {

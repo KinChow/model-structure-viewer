@@ -14,7 +14,12 @@ function countsFor(node, config, options = {}) {
   // extractor 公式（tokensFor/keyTokens）当前从 config 读 visionTokens，
   // 用户显式输入时需以覆盖后的 config 传入才能生效；未输入时 config 原样透传。
   const effectiveConfig = vision && options.visionTokens != null && config
-    ? { ...config, visionTokens: options.visionTokens }
+    ? {
+      ...config, visionTokens: options.visionTokens,
+      visionPatchTokens: config.visionTokens && config.visionPatchTokens
+        ? options.visionTokens * config.visionPatchTokens / config.visionTokens
+        : config.visionPatchTokens,
+    }
     : config;
   return countsForNode(node, {
     config: effectiveConfig,

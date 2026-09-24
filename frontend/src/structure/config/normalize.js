@@ -345,6 +345,8 @@ export function normalizeConfig(config) {
       : undefined,
     visionTokens: visionConfig ? visionTokenCount(visionConfig) : undefined,
     visionPatchTokens: visionConfig ? visionPatchTokenCount(visionConfig) : undefined,
+    visionPositionHeight: visionConfig ? firstNumber(visionConfig, ["init_pos_emb_height"]) : undefined,
+    visionPositionWidth: visionConfig ? firstNumber(visionConfig, ["init_pos_emb_width"]) : undefined,
     visionMergeSize: visionConfig ? visionMergeSize(visionConfig) : 1,
     visionMergerIntermediateSize: visionConfig ? firstNumber(visionConfig, ["projection_intermediate_size"]) : undefined,
     // gated vision MLP = SwiGLU。判据是 vision hidden_act（silu/swish），

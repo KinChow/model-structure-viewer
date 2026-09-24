@@ -48,6 +48,7 @@ const REGISTERED = {};
 function declaredElementsByDomain(graph) {
   let text = 0;
   let vision = 0;
+  let visionTower = 0;
   let embedding = 0;
   let mtp = 0;
   let norm = 0;
@@ -65,13 +66,20 @@ function declaredElementsByDomain(graph) {
     const op = String(node?.attributes?.operator_id || node?.type || "");
     const elements = n * resident;
     if (/(^|\.)embed(_tokens)?$/.test(id) || node?.type === "embedding") embedding += elements;
-    else if (isVisionPath(id) || node?.attributes?.modality === "vision") vision += elements;
+    else if (isVisionPath(id) || node?.attributes?.modality === "vision") {
+      // Learned visual position tables are read and added, never multiplied
+      // by a dense matrix. Their capacity belongs to the weight ledger, not
+      // to the expected MAC coefficient.
+      if (op === "vision_position") return;
+      vision += elements;
+      if (node?.attributes?.vision_token_source === "patch_tokens") visionTower += elements;
+    }
     else if (/(^|\.)mtp(\.|$)/.test(id)) mtp += elements;
     else if (/norm/.test(op) || /norm/.test(id)) norm += elements;
     else if (ROUTED_EXPERT_RE.test(id) || op === "fused_moe_mlp") routed += elements;
     else text += elements;
   });
-  return { text, vision, embedding, mtp, norm, routed };
+  return { text, vision, visionTower, embedding, mtp, norm, routed };
 }
 
 function extraMatmulWithoutWeights(normalized, T) {
@@ -136,14 +144,15 @@ function visionExpectedSide(graph, normalized, V) {
   const blocks = normalized.visionLayers || 0;
   const heads = normalized.visionAttentionHeads || 0;
   const dim = normalized.visionHeadDim || 0;
-  const visionPairs = scoredPairs({
-    phase: "prefill", queryTokens: V, keyTokens: V,
-    // Vision encoders in the audited releases use bidirectional attention:
-    // MiniMax M3, Kimi MoonViT, Qwen4Exp and GLM5Next explicitly set
-    // is_causal/causal=False; DeepSeek V4/V4.1 call SDPA without a causal mask.
-    causal: false,
+  const hasPatchTokenTower = graph.nodes.some(node =>
+    node.attributes?.vision_token_source === "patch_tokens");
+  const towerTokens = hasPatchTokenTower ? (normalized.visionPatchTokens || V) : V;
+  const towerPairs = scoredPairs({
+    phase: "prefill", queryTokens: towerTokens, keyTokens: towerTokens, causal: false,
   });
-  return parts.vision * V + blocks * heads * visionPairs * 2 * dim;
+  return parts.visionTower * towerTokens
+    + (parts.vision - parts.visionTower) * V
+    + blocks * heads * towerPairs * 2 * dim;
 }
 
 test("T4 整模型恒等式：全模型容差断言（超差仅限已登记建模边界）", async () => {

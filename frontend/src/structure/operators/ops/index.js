@@ -216,6 +216,7 @@ export function linearStateResidentDecl(normalized) {
 
 export function sdpaAttentionModule(prefix, shapes, dims, {
   scoresName = "attention scores", scores = {}, context = {}, modality, attention_mask_kind,
+  vision_token_source,
 } = {}) {
   const sdpaId = `${prefix}.sdpa`;
   const formula = formulaForOperator("sdpa_attention");
@@ -225,6 +226,7 @@ export function sdpaAttentionModule(prefix, shapes, dims, {
       formula: "S = Q K^T / sqrt(d)",
       modality,
       attention_mask_kind,
+      vision_token_source,
       ...scores,
     }, { input: dims.attentionQuery, output: dims.attentionScores }),
     operatorSpec(`${sdpaId}.softmax`, "attention probabilities", "softmax", {
@@ -237,6 +239,7 @@ export function sdpaAttentionModule(prefix, shapes, dims, {
       formula: "O = P V",
       modality,
       attention_mask_kind,
+      vision_token_source,
       ...context,
     }, { input: dims.attentionProbabilities, output: dims.attentionContext }),
   ];
@@ -258,6 +261,7 @@ export function sdpaAttentionModule(prefix, shapes, dims, {
       implementation: ["vLLM.Attention", "SGLang.FlashAttentionBackend", "TRT-LLM.GPTAttention"],
       dataflow_edges: [["scores", "softmax"], ["softmax", "context"]],
       modality,
+      vision_token_source,
       ...shapeFlow(`${shapes.attentionQuery}, ${shapes.attentionKey}, ${shapes.attentionValue}`, shapes.attentionContext),
     }),
     children,

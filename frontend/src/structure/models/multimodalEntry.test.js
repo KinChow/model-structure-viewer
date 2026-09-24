@@ -9,6 +9,7 @@ import { actionsByFormulaGroup } from "../../cost/ui.js";
 import { buildNodeLens } from "../../diagram/lens.js";
 import { buildSkeleton } from "../truth/skeleton.js";
 import { walkStructure } from "../../cost/traverse.js";
+import { computeNodeCosts } from "../../cost/compute.js";
 
 const root = new URL("../../../../models/", import.meta.url);
 const read = url => fs.existsSync(url) ? JSON.parse(fs.readFileSync(url, "utf8")) : null;
@@ -248,3 +249,82 @@ for (const variant of ["MiniMax-M3", "MiniMax-M3-MXFP8"]) {
       && edge.target_canonical_id === "vision_tower.layers.0.self_attn.sdpa"));
   });
 }
+
+test("Kimi-K3 vision tower follows the published MoonViT checkpoint layout", () => {
+  const config = read(new URL("moonshotai/Kimi-K3/config.json", root));
+  const sourceRef = read(new URL("moonshotai/Kimi-K3/source-ref.json", root));
+  const graph = buildStructureFromArtifacts({
+    modelId: "moonshotai/Kimi-K3",
+    config,
+    sourceRef,
+  }).graph;
+  const ids = new Set(graph.nodes.map(node => node.canonical_id));
+  for (const id of [
+    "vision_tower.patch_embed.proj",
+    "vision_tower.patch_embed.pos_emb",
+    "vision_tower.encoder.blocks.0.wqkv",
+    "vision_tower.encoder.blocks.0.wo",
+    "vision_tower.encoder.blocks.0.norm0",
+    "vision_tower.encoder.blocks.0.norm1",
+    "vision_tower.encoder.blocks.0.mlp.fc0",
+    "vision_tower.encoder.blocks.0.mlp.fc1",
+    "vision_tower.encoder.final_layernorm",
+  ]) assert.ok(ids.has(id), `Kimi-K3: missing ${id}`);
+  assert.equal(ids.has("vision_tower.0.qkv_proj"), false);
+  assert.equal(ids.has("vision_tower.encoder.blocks.0.q_proj"), false);
+  const node = id => graph.nodes.find(candidate => candidate.canonical_id === id);
+  assert.equal(normalizeConfig(config).visionQkvHiddenSize, 1536);
+  assert.equal(normalizeConfig(config).visionPatchTokens, 4096);
+  assert.equal(normalizeConfig(config).visionTokens, 1024);
+  assert.deepEqual(node("vision_tower.patch_embed.proj").attributes.weightMatrices[0].shape,
+    [1024, 3 * 14 * 14]);
+  assert.deepEqual(node("vision_tower.patch_embed.pos_emb").attributes.weightMatrices[0].shape,
+    [64, 64, 1024]);
+  assert.deepEqual(node("vision_tower.encoder.blocks.0.wqkv").attributes.weightMatrices[0].shape,
+    [3 * 1536, 1024]);
+  assert.equal(node("vision_tower.encoder.blocks.0.wqkv").attributes.bias, false);
+  assert.equal(node("vision_tower.encoder.blocks.0.wo").attributes.weightMatrices[0].shape[1], 1536);
+  assert.equal(node("vision_tower.encoder.blocks.0.sdpa").attributes.attention_mask_kind, "bidirectional");
+  assert.equal(node("vision_tower.encoder.blocks.0.rope").attributes.position_encoding, "rope_2d");
+  assert.ok(graph.edges.some(edge =>
+    edge.source_canonical_id === "vision_tower.patch_embed.proj"
+    && edge.target_canonical_id === "vision_tower.patch_embed.pos_emb"));
+  assert.ok(graph.edges.some(edge =>
+    edge.source_canonical_id === "vision_tower.encoder.blocks.0.qkv_reshape"
+    && edge.target_canonical_id === "vision_tower.encoder.blocks.0.sdpa"));
+  assert.ok(graph.edges.some(edge =>
+    edge.source_canonical_id === "vision_tower.encoder.rope_2d"
+    && edge.target_canonical_id === "vision_tower.encoder.blocks.0"
+    && edge.relation === "index-control"));
+  let visionParams = 0;
+  walkStructure(graph, ({ node: part, multiplier }) => {
+    if (!part.id.startsWith("vision_tower.")) return;
+    for (const group of part.attributes?.weightMatrices || []) {
+      visionParams += group.shape.reduce((product, dim) => product * dim, 1)
+        * (group.count || 1) * (group.matrices || 1) * multiplier;
+    }
+  });
+  assert.equal(visionParams, 401214464, "published 27 blocks, patch, position and final norm");
+
+  const rows = computeNodeCosts(graph, normalizeConfig(config), {
+    batch: 1, sequence: 16, visionTokens: 1024, phase: "prefill",
+  });
+  const row = id => rows.find(candidate => candidate.node.id === id);
+  assert.equal(row("vision_tower.patch_embed.proj").actions.matrix,
+    4096 * 1024 * (3 * 14 * 14));
+  assert.equal(row("vision_tower.encoder.blocks.0.wqkv").actions.matrix,
+    27 * 4096 * (3 * 1536) * 1024);
+  assert.equal(row("vision_tower.encoder.blocks.0.sdpa").actions.matrix,
+    27 * 12 * 4096 * 4096 * (128 + 128));
+  assert.equal(row("vision_tower.patch_embed.pos_emb").actions.bytes.weights,
+    64 * 64 * 1024 * 2);
+  assert.equal(row("mm_projector.proj.0").actions.matrix, 1024 * 4096 * 4096,
+    "projector consumes merged tokens, not full 4096 patch positions");
+  const half = computeNodeCosts(graph, normalizeConfig(config), {
+    batch: 1, sequence: 16, visionTokens: 512, phase: "prefill",
+  });
+  const halfRow = id => half.find(candidate => candidate.node.id === id);
+  assert.equal(halfRow("vision_tower.patch_embed.proj").actions.matrix,
+    2048 * 1024 * (3 * 14 * 14));
+  assert.equal(halfRow("mm_projector.proj.0").actions.matrix, 512 * 4096 * 4096);
+});

@@ -596,6 +596,15 @@ export function countsForNode(node, env = {}) {
   const kind = String(node?.attributes?.attention_kind || "").toLowerCase();
   const vision = node?.attributes?.modality === "vision";
   const phase = options.phase ?? "prefill";
+  // Default workload: one image is encoded at prefill; subsequent autoregressive
+  // decode steps consume the language KV/state, not fresh pixels. This applies to
+  // the tower, internal merger and external projector alike. Capacity remains
+  // resident in the separate weight ledger; do not charge execution weights
+  // again in decode. A streaming workload with new frames needs an explicit
+  // per-step image schedule before it can be estimated.
+  if (vision && phase === "decode") {
+    return { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: 0, actOut: 0 } };
+  }
   const tokens = tokensFor({
     batch: options.batch ?? 1,
     sequence: options.sequence ?? 1,

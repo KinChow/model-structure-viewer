@@ -1355,10 +1355,49 @@ export function minimaxSparseAttentionOperatorSpecs(prefix, normalized, layerInd
   return minimaxAttentionCommon(prefix, normalized, true, layerIndex);
 }
 
-export function minimaxM2AttentionOperatorSpecs(prefix, normalized) {
+export function minimaxM2AttentionOperatorSpecs(prefix, normalized, { fused = true } = {}) {
   const { shapes, dims } = shapesAndDims(normalized);
   const qProjection = (normalized.attentionHeads || 0) * (normalized.headDim || 0);
   const kvProjection = (normalized.kvHeads || normalized.attentionHeads || 0) * (normalized.headDim || 0);
+  if (!fused) {
+    return [
+      operatorSpec(`${prefix}.q_proj`, "q projection", "linear", {
+        ...shapeFlow(shapes.hidden, shapes.attentionQuery),
+        bias: normalized.attentionBias,
+        weightMatrices: [weightMatrixDecl("tp", { shape: [qProjection, dimWidth(dims.hidden)], split: "output" })],
+      }, { input: dims.hidden, output: dims.attentionQuery }),
+      operatorSpec(`${prefix}.k_proj`, "k projection", "linear", {
+        ...shapeFlow(shapes.hidden, shapes.attentionKey),
+        bias: normalized.attentionBias,
+        weightMatrices: [weightMatrixDecl("tp", { shape: [kvProjection, dimWidth(dims.hidden)], split: "output" })],
+      }, { input: dims.hidden, output: dims.attentionKey }),
+      operatorSpec(`${prefix}.v_proj`, "v projection", "linear", {
+        ...shapeFlow(shapes.hidden, shapes.attentionValue),
+        bias: normalized.attentionBias,
+        weightMatrices: [weightMatrixDecl("tp", { shape: [kvProjection, dimWidth(dims.hidden)], split: "output" })],
+      }, { input: dims.hidden, output: dims.attentionValue }),
+      operatorSpec(`${prefix}.q_norm`, "Q RMSNorm", "rmsnorm", shapeFlow(shapes.attentionQuery, shapes.attentionQuery), {
+        input: dims.attentionQuery,
+        output: dims.attentionQuery,
+        norm_type: normalized.qkNormType || "per_layer",
+        implementation: ["Transformers QK RMSNorm"],
+      }),
+      operatorSpec(`${prefix}.k_norm`, "K RMSNorm", "rmsnorm", shapeFlow(shapes.attentionKey, shapes.attentionKey), {
+        input: dims.attentionKey,
+        output: dims.attentionKey,
+        norm_type: normalized.qkNormType || "per_layer",
+        implementation: ["Transformers QK RMSNorm"],
+      }),
+      ...scaledDotProductTail(prefix, shapes, dims, {
+        ropeName: "partial rotary position embedding",
+        rope: {
+          rotary_dim: normalized.rotaryDim,
+          partial_rotary_factor: normalized.partialRotaryFactor,
+        },
+        cacheResident: cacheResidentDecl({ kvElements: 2 * kvProjection }),
+      }),
+    ];
+  }
   const fusedWidth = qProjection + 2 * kvProjection;
   const fusedShape = `[batch, sequence, fused qkv=${fusedWidth}]`;
   return [

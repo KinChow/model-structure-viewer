@@ -48,6 +48,12 @@ const ATTENTION_COMPONENTS = [
   },
   {
     kind: "gqa",
+    match: (normalized) => recipeFlag(normalized, "separateQkvQkNorm"),
+    ops: (id, normalized) => minimaxM2AttentionOperatorSpecs(id, normalized, { fused: false }),
+    edges: () => [["q_proj", "q_norm"], ["k_proj", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "sdpa"], ["v_proj", "sdpa"], ["sdpa", "o_proj"]],
+  },
+  {
+    kind: "gqa",
     match: (normalized) => recipeFlag(normalized, "fusedQkv") && !normalized.sparseTopkBlocks,
     ops: (id, normalized) => minimaxM2AttentionOperatorSpecs(id, normalized),
     edges: () => [["qkv_proj", "qkv_split"], ["qkv_split", "q_norm"], ["qkv_split", "k_norm"], ["q_norm", "rope"], ["k_norm", "rope"], ["rope", "sdpa"], ["sdpa", "o_proj"]],

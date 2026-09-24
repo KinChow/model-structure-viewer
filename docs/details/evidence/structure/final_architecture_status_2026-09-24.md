@@ -29,7 +29,7 @@
 | `qwen3_5_moe` | 12 | 已修复/有边界 | Gated Attention / GDN fan-in、MoE 路径和融合入口 | 量化/Base 变体逐模块实装证据 |
 | `qwen3_5_moe_text` | 2 | 已修复/有边界 | text-only 混合主干；未误加视觉塔；门控输入修复 | 量化变体 checkpoint/activation quantization 细节 |
 | `qwen4_exp` | 2 | 已修复/有边界 | QSA 微块、尾部 token、PLE、第 2 层位置、四路 gated residual；视觉 packed attention、grid_thw 位置插值、pre-shuffle merger norm | 融合搬运 unknown；GPU packed-attention 性能未实测 |
-| `minimax_m2` | 1 | 基线/证据不足 | 保留当前 GQA/MoE/MTP 结构 | 官方公开资料不足，需继续保持 unknown |
+| `minimax_m2` | 1 | 已修复/有边界 | 按随附 Transformers/source-ref 修正为独立 Q/K/V projection、Q/K RMSNorm、partial RoPE；保留 GQA/MoE，生产 header 仍抑制未落地 MTP | 融合搬运、量化 scale traffic、完整 GPU 行为仍 unknown |
 | `minimax_m3_vl` | 2 | 已修复/有边界 | MSA 每 GQA group 独立选块、单共享 index key、local block；发布权重的 `multi_modal_projector → patch_merge_mlp` 双模块路径；两变体视觉 header/source audit 已通过 | 融合搬运 unknown；GPU/视觉物化未实测 |
 | `glm4_moe` | 1 | 基线/证据不足 | 保留 GQA/MoE，不从 GLM-5 DSA 规则外推 | 官方结构细节不足 |
 | `glm_moe_dsa` | 6 | 已修复/有边界 | IndexShare source/reuse schedule、真实 `wq_b/wk/k_norm/weights_proj` 路径 | 完整 checkpoint truth 与量化 scale 归属 |
@@ -42,7 +42,7 @@
 
 ### MiniMax（3）
 
-- `MiniMaxAI/MiniMax-M2.7`（基线/证据不足）
+- `MiniMaxAI/MiniMax-M2.7`（已修复/有边界；独立 Q/K/V 路径）
 - `MiniMaxAI/MiniMax-M3`（已修复/有边界）
 - `MiniMaxAI/MiniMax-M3-MXFP8`（已修复/有边界；生产 `mtp_tensor_count=0`）
 

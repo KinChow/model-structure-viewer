@@ -816,7 +816,7 @@ test("maps MiniMax M3 dense/sparse attention and sigmoid-routed shared MoE", () 
   assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
 });
 
-test("maps MiniMax M2 fused QKV, QK norms, and partial RoPE", () => {
+test("maps MiniMax M2 separate QKV, QK norms, and partial RoPE", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/MiniMaxAI/MiniMax-M2.7/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
   assert.equal(normalized.modelType, "minimax_m2");
@@ -831,15 +831,16 @@ test("maps MiniMax M2 fused QKV, QK norms, and partial RoPE", () => {
   const decoder = treeView(structure).children.find((node) => node.id === "layers");
   const attention = decoder.children[0].children.find((node) => node.type === "attention");
   assert.deepEqual(attention.children.map((node) => node.name), [
-    "fused QKV projection",
-    "QKV split",
+    "q projection",
+    "k projection",
+    "v projection",
     "Q RMSNorm",
     "K RMSNorm",
     "partial rotary position embedding",
     "SDPA attention",
     "output projection",
   ]);
-  assert.equal(attention.children.find((node) => node.name === "QKV split").attributes.operator_id, "attention_qkv_split");
+  assert.equal(attention.children.find((node) => node.name === "q projection").attributes.weightMatrices[0].shape[0], 48 * 128);
   const moe = decoder.children[0].children.find((node) => node.type === "moe");
   assert.ok(moe.id.endsWith(".block_sparse_moe"), `MiniMax-M2 HF attr is block_sparse_moe, got ${moe.id}`);
   assert.equal(moe.children.find((node) => node.name === "router logits").attributes.scoring_func, "sigmoid");
@@ -876,7 +877,7 @@ test("maps Kimi K2 family MLA latent norms and shared expert branch", () => {
   assert.ok(moe.children.some((node) => node.name === "shared expert branch add"));
 });
 
-test("maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE", () => {
+test("maps GLM4.7 separate QKV, QK norm, partial RoPE, and shared MoE", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/zai-org/GLM-4.7/config.json"), "utf8"));
   const normalized = normalizeConfig(config);
   assert.equal(normalized.modelType, "glm4_moe");
@@ -893,7 +894,9 @@ test("maps GLM4.7 fused QKV, QK norm, partial RoPE, and shared MoE", () => {
   }));
   const decoder = treeView(structure).children.find((node) => node.id === "layers");
   const attention = decoder.children[0].children.find((node) => node.type === "attention");
-  assert.equal(attention.children[0].name, "fused QKV projection");
+  assert.equal(attention.children[0].name, "q projection");
+  assert.equal(attention.children[1].name, "k projection");
+  assert.equal(attention.children[2].name, "v projection");
   assert.equal(attention.children.find((node) => node.name === "Q RMSNorm").attributes.operator_id, "rmsnorm");
   assert.equal(attention.children.find((node) => node.name === "partial rotary position embedding").attributes.partial_rotary_factor, 0.5);
   const moeLayer = decoder.children.find((node) => node.children?.some((child) => child.type === "moe"));

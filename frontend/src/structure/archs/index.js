@@ -104,8 +104,11 @@ export const ARCH_RECIPES = {
     modelClass: "KimiLinearModel",
     visionAttr: "vision_tower",
   },
-  MiniMaxM2ForCausalLM: { ffn: "block_sparse_moe", moeClass: "MiniMaxM2SparseMoeBlock", fusedQkv: true, sigmoidRouter: true },
-  Glm4MoeForCausalLM: { fusedQkv: true, sigmoidRouter: true },
+  // Transformers' published MiniMax-M2 and GLM-4.7 implementations expose
+  // separate q_proj/k_proj/v_proj leaves.  Do not infer a fused QKV weight
+  // from the runtime's possible kernel fusion.
+  MiniMaxM2ForCausalLM: { ffn: "block_sparse_moe", moeClass: "MiniMaxM2SparseMoeBlock", separateQkvQkNorm: true, sigmoidRouter: true },
+  Glm4MoeForCausalLM: { separateQkvQkNorm: true, sigmoidRouter: true },
   MiniMaxM3SparseForConditionalGeneration: {
     visionFusion: "placeholder_scatter",
     visionProjectorPath: "multi_modal_projector",

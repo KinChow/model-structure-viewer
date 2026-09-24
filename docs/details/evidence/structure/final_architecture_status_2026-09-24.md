@@ -20,7 +20,7 @@
 |---|---:|---|---|---|
 | `deepseek_v3` | 2 | 基线/证据不足 | 保留 MLA、MoE、MTP 现有结构 | R1/V3.1 的逐模块发布差异未完成 |
 | `deepseek_v32` | 1 | 已修复/已回归 | DSA indexer 的物理路径、主 sparse MLA 与真实 source-ref | 完整权重逐模块 truth 未完成 |
-| `deepseek_v4` | 5 | 已修复/有边界 | compressor、C4 indexer、norm/gate/APE 依赖；按 ratio 和变体区分 | C4/C128 fused compression 精确动作成本仍 unknown |
+| `deepseek_v4` | 5 | 已修复/有边界 | compressor、C4 indexer、norm/gate/APE 依赖；按 ratio 和变体区分；C4 首窗口 overlap 成本已按 pinned forward 修正 | GPU fused kernel、量化 scale 交通、跨请求 cache 追加 prefill 仍 unknown |
 | `deepseek_v41` | 1 | 已修复/有边界 | CED、CSA2 Full/Reuse、DSpark、MTP 抑制基线 | 完整权重/GPU 行为和视觉融合物化仍未证明 |
 | `kimi_k2` | 4 | 基线/证据不足 | 保留 MLA/MoE；未因 README 缺少 MTP 就伪造结论 | Thinking QAT、MTP 和逐模块 checkpoint 审计 |
 | `kimi_k25` | 3 | 已修复/有边界 | 视觉/文本两路融合入口；视觉塔、projector 和 3 个变体的 checkpoint header/source audit 已通过 | 融合搬运 unknown；GPU/融合物化未实测 |

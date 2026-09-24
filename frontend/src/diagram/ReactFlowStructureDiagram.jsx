@@ -440,8 +440,10 @@ export default function ReactFlowStructureDiagram(props) {
     // Keep the current compound graph visible while ELK computes the next
     // one. Publishing the provisional graph first creates a visible second
     // layer during expand/collapse because React Flow measures both states.
-    layoutGraphWithElk(baseGraph).then((next) => { if (active) setGraph(next); }).catch(() => {});
+    layoutGraphWithElk(baseGraph).then((next) => {
+      if (active) setGraph({ ...next, layoutSource: baseGraph });
+    }).catch(() => {});
     return () => { active = false; };
   }, [baseGraph]);
-  return <div className="diagram-frame react-flow-diagram" data-graph-version={graph.graphVersion || "legacy"} data-active-lenses={[...props.activeLenses].join(",")}><ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider></div>;
+  return <div className="diagram-frame react-flow-diagram" data-graph-version={graph.graphVersion || "legacy"} data-layout-ready={graph.layoutReady && graph.layoutSource === baseGraph ? "true" : "false"} data-active-lenses={[...props.activeLenses].join(",")}><ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider></div>;
 }

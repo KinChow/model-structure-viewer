@@ -27,7 +27,18 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
   await page.getByRole("button", { name: "打开模型", exact: true }).click();
   await expect(page.locator(".detail-model-id")).toContainText(entry.model_id, { timeout: 30000 });
   await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
+  // 边在同步临时布局中也会出现；真实布局由异步 ELK 完成，不能把 fitView
+  // 的 260ms 过渡帧误判为最终节点重叠或以临时连线冒充浏览器验收。
+  await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-layout-ready", "true", { timeout: 30000 });
   const tile = n => page.locator(`.react-flow__node[data-id="${n.id}"]`);
+  const assertNoOverlap = async (left, right, message) => {
+    await expect.poll(async () => {
+      const a = await tile(left).boundingBox(), b = await tile(right).boundingBox();
+      if (!a || !b) return true;
+      return a.x < b.x + b.width && a.x + a.width > b.x
+        && a.y < b.y + b.height && a.y + a.height > b.y;
+    }, { message, timeout: 10_000, intervals: [100, 200, 300] }).toBe(false);
+  };
   for (const source of [embed, vision]) {
     const edge = graph.edges.find(e => e.source === source.id && e.target === fusion.id);
     await expect(page.locator(`.react-flow__edge[data-id="${edge.id}"] path.react-flow__edge-path`))
@@ -40,15 +51,9 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
     expect(link).toBeTruthy();
     await expect(page.locator(`.react-flow__edge[data-id="${link.id}"] path.react-flow__edge-path`))
       .toHaveAttribute("d", /^M/, { timeout: 30000 });
-    const f = await tile(first).boundingBox(), m = await tile(merge).boundingBox();
-    expect(f).toBeTruthy(); expect(m).toBeTruthy();
-    expect(f.x < m.x + m.width && f.x + f.width > m.x && f.y < m.y + m.height && f.y + f.height > m.y,
-      "the separate patch merge stage must not overlap the projector").toBe(false);
+    await assertNoOverlap(first, merge, "the separate patch merge stage must not overlap the projector");
   }
-  const e = await tile(embed).boundingBox(), v = await tile(vision).boundingBox();
-  expect(e).toBeTruthy(); expect(v).toBeTruthy();
-  const intersects = e.x < v.x + v.width && e.x + e.width > v.x && e.y < v.y + v.height && e.y + e.height > v.y;
-  expect(intersects, `${entry.model_id}: independent branches overlap`).toBe(false);
+  await assertNoOverlap(embed, vision, `${entry.model_id}: independent branches overlap`);
   await page.locator(".detail-cost-toggle > button").click();
   await expect(page.locator(".cost-summary")).not.toContainText(/NaN|undefined/);
   await expect(page.locator('.cost-domain-item[data-group="memory"] b')).toHaveText(/未知|unknown/i);
@@ -60,6 +65,7 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
     await expect(tile(fusion).locator(".rf-model-node")).toHaveAttribute("aria-selected", "true");
     await search.fill("");
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-layout-ready", "true", { timeout: 30000 });
     if (entry.model_id === "moonshotai/Kimi-K3") {
       const postNorm = get("mm_projector.post_norm");
       expect(postNorm).toBeTruthy();
@@ -77,6 +83,7 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
     await page.keyboard.press("Enter");
     await expect(tile(fusion).locator(".rf-model-node")).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "收起全部", exact: true }).click();
+    await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-layout-ready", "true", { timeout: 30000 });
     await expect(tile(fusion)).toHaveCount(1);
     await page.getByRole("button", { name: "中 / EN" }).click();
     await expect(page.locator(".react-flow__edge title").filter({ hasText: "visual features" }).first()).toHaveCount(1);

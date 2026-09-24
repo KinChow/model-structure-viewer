@@ -14,6 +14,7 @@ export const FORMULA_TEX = {
   rope: "q', k' = \\operatorname{rotate}(q, k, \\text{position})",
   vision_position: "x' = x + \\operatorname{position}(\\text{image or video})",
   vision_merge: "y_{i,j} = \\operatorname{concat}\\!\\big(x_{mi+a,\\,mj+b}\\big)_{a,b=0}^{r-1}",
+  vision_downsample: "Y = \operatorname{Conv2d}(X, W;\ \operatorname{stride}=r)",
   vision_activation: "y = \\phi(x)",
   rmsnorm: "y = \\dfrac{x}{\\sqrt{\\operatorname{mean}(x^2) + \\epsilon}} \\cdot w",
   gemma_rmsnorm: "y = \\dfrac{x}{\\sqrt{\\operatorname{mean}(x^2) + \\epsilon}} \\cdot (1 + w)",

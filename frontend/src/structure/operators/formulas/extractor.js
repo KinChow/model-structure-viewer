@@ -345,6 +345,17 @@ const FROM_NODE = {
             bytesPerElement,
           };
   },
+  vision_downsample: ({ node, config, bytesPerElement, tokens }) => {
+    const logical = linearLogicalShape(node) || derivedLinearShape(node);
+    if (!logical) return null;
+    const mergeSize = Math.max(config?.visionMergeSize || 1, 1);
+    return {
+      logicalShape: logical,
+      tokens: Math.max(1, Math.floor(tokens / (mergeSize * mergeSize))),
+      bytesPerElement,
+      bias: node?.attributes?.bias === true,
+    };
+  },
   split: () => ({}),
   attn_res_snapshot: () => ({}),
   swiglu: ({ node, bytesPerElement, tokens }) => ({

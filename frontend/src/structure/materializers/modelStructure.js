@@ -2,6 +2,7 @@ import { hasModelArchitecture } from "../registry/resolveArchitecture.js";
 import { materializeStructureGraph } from "../graph/materializeStructureGraph.js";
 import { enrichGraphWithTruth } from "../truth/graphTruth.js";
 import { bindSourceRefToGraph } from "../source_ref/bindSourceRef.js";
+import { checkpointPathAliases } from "../archs/index.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -78,6 +79,7 @@ export function materializeModelStructure(ir) {
     hasBuilder,
     modelName: network?.name,
     architecture: resolved?.architecture,
+    truthPathAliases: checkpointPathAliases(normalized),
   });
   graph = graphTruth.graph;
   const sourceRefBound = bindSourceRefToGraph(graph, options.sourceRef);

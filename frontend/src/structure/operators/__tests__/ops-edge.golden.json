@@ -46,9 +46,9 @@
  "moonshotai/Kimi-K2-Instruct": "96c300e176fcd004",
  "moonshotai/Kimi-K2-Instruct-0905": "96c300e176fcd004",
  "moonshotai/Kimi-K2-Thinking": "96c300e176fcd004",
- "moonshotai/Kimi-K2.5": "d3c0c013c29f8875",
- "moonshotai/Kimi-K2.6": "d3c0c013c29f8875",
- "moonshotai/Kimi-K2.7-Code": "d3c0c013c29f8875",
+ "moonshotai/Kimi-K2.5": "f6d9175571a8393a",
+ "moonshotai/Kimi-K2.6": "f6d9175571a8393a",
+ "moonshotai/Kimi-K2.7-Code": "f6d9175571a8393a",
  "moonshotai/Kimi-K3": "2c987cf585b1723a",
  "zai-org/GLM-4.7": "b334f5251f8241ba",
  "zai-org/GLM-5": "9cd37d090beb0366",
@@ -57,6 +57,6 @@
  "zai-org/GLM-5.2-FP8": "7e896caaa88e74a1",
  "zai-org/GLM-5.3": "7e896caaa88e74a1",
  "zai-org/GLM-5.3-BF16": "7e896caaa88e74a1",
- "zai-org/GLM-5.3-Flash": "d0631743d06b1196",
- "zai-org/GLM-5.3-Flash-BF16": "d0631743d06b1196"
+ "zai-org/GLM-5.3-Flash": "9f5a50bdf4dd196a",
+ "zai-org/GLM-5.3-Flash-BF16": "9f5a50bdf4dd196a"
 }

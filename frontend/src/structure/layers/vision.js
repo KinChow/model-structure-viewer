@@ -1,5 +1,5 @@
 import { moduleSpec, withShapeDims } from "./base.js";
-import { operatorSpec, sdpaAttentionModule } from "../operators/ops/index.js";
+import { operatorSpec, sdpaAttentionModule, weightMatrixDecl } from "../operators/ops/index.js";
 import { shapeFlow, tensorShapes } from "../operators/shapes.js";
 import { visionDimensions } from "../config/visionDims.js";
 import { hfNamedClass, hfVisionAttr, recipeFlag, recipeValue, recipeVisionInternalMerger } from "../archs/index.js";
@@ -139,6 +139,9 @@ export function visionTowerModule(normalized) {
   }
   if (recipeFlag(normalized, "visionNativeMiniMax")) {
     return miniMaxNativeVitTowerModule(normalized);
+  }
+  if (recipeFlag(normalized, "visionSpecialized")) {
+    return specializedVisionTowerModule(normalized);
   }
   if (recipeValue(normalized, "visionTowerLayout") === "encoder_blocks_fused") {
     return encoderBlocksVitTowerModule(normalized);
@@ -327,6 +330,158 @@ function miniMaxNativeVitTowerModule(normalized) {
     ...shapeFlow(tensorShapes(normalized).visionInput, visual),
   }, [patch, preNorm, rotary, block], normalized.visionLayers),
     [-1, -1, -1, -1, -1], d.visual);
+}
+
+function specializedVisionTowerModule(normalized) {
+  const id = hfVisionAttr(normalized);
+  const d = visionDimensions(normalized);
+  const visual = `[batch, visual tokens, vision hidden size=${d.hidden}]`;
+  const qkv = `[batch, visual tokens, fused qkv=${3 * d.qkvHiddenSize}]`;
+  const q = `[batch, visual tokens, vision heads=${d.heads}, head dimension=${d.headDim}]`;
+  const scores = `[batch, vision heads=${d.heads}, query visual tokens, key visual tokens]`;
+  const context = `[batch, visual tokens, vision heads=${d.heads}, head dimension=${d.headDim}]`;
+  const intermediate = `[batch, visual tokens, vision intermediate=${d.intermediate}]`;
+  const blockId = `${id}.blocks.0`;
+  const visualShape = [-1, -1, d.hidden];
+  const headShape = [-1, -1, d.heads, d.headDim];
+  const op = (suffix, name, kind, input, output, attributes = {}) =>
+    operatorSpec(`${blockId}.${suffix}`, name, kind, {
+      ...shapeFlow(input[0], output[0]), modality: "vision",
+      vision_token_source: "patch_tokens", ...attributes,
+    }, { input: input[1], output: output[1] });
+  const children = [
+    op("block_input", "vision block input", "identity", [visual, visualShape],
+      [visual, visualShape], { checkpoint_module: false }),
+    op("norm1", "vision attention RMSNorm", "rmsnorm",
+      [visual, visualShape], [visual, visualShape]),
+    op("attn.qkv", "vision fused QKV projection", "linear",
+      [visual, visualShape], [qkv, [-1, -1, 3 * d.qkvHiddenSize]],
+      { bias: true, semantic_role: "vision_q_k_v_projection" }),
+    op("attn.qkv_split", "vision QKV split", "attention_qkv_split",
+      [qkv, [-1, -1, 3 * d.qkvHiddenSize]], [`${q}, ${q}, ${q}`, headShape], {
+        checkpoint_module: false,
+        split_sizes: [d.qkvHiddenSize, d.qkvHiddenSize, d.qkvHiddenSize],
+      }),
+    op("attn.qkv_reshape", "reshape vision QKV into heads", "identity",
+      [`${q}, ${q}, ${q}`, headShape], [`${q}, ${q}, ${q}`, headShape],
+      { checkpoint_module: false, view_transform: "reshape_heads" }),
+    op("attn.q_norm", "vision query RMSNorm", "rmsnorm",
+      [q, headShape], [q, headShape], { vision_stage: "attention" }),
+    op("attn.k_norm", "vision key RMSNorm", "rmsnorm",
+      [q, headShape], [q, headShape], { vision_stage: "attention" }),
+    op("attn.rope", "vision rotary position embedding", "rope",
+      [`${q}, ${q}`, headShape], [`${q}, ${q}`, headShape], {
+        checkpoint_module: false, position_encoding: "rope_3d",
+        semantic_role: "vision_query_key_rotation",
+      }),
+    sdpaAttentionModule(`${blockId}.attn`, {
+      attentionQuery: q, attentionKey: q, attentionValue: q,
+      attentionScores: scores, attentionProbabilities: scores, attentionContext: context,
+    }, {
+      attentionQuery: d.q, attentionKey: d.q, attentionValue: d.q,
+      attentionScores: d.scores, attentionProbabilities: d.scores, attentionContext: d.context,
+    }, {
+      scores: { attention_kind: "vision" }, context: { attention_kind: "vision" },
+      modality: "vision", vision_token_source: "patch_tokens",
+      attention_mask_kind: "bidirectional",
+    }),
+    op("attn.context_merge", "merge vision attention heads", "identity",
+      [context, d.context], [visual, visualShape],
+      { checkpoint_module: false, view_transform: "transpose_reshape" }),
+    op("attn.proj", "vision output projection", "linear",
+      [visual, visualShape], [visual, visualShape],
+      { bias: true, semantic_role: "vision_attention_output_projection" }),
+    op("residual_attn", "vision attention residual add", "residual_add",
+      [visual, visualShape], [visual, visualShape], { checkpoint_module: false }),
+    op("norm2", "vision MLP RMSNorm", "rmsnorm",
+      [visual, visualShape], [visual, visualShape]),
+    op("mlp.gate_proj", "vision gate projection", "linear",
+      [visual, visualShape], [intermediate, [-1, -1, d.intermediate]], { bias: true }),
+    op("mlp.up_proj", "vision up projection", "linear",
+      [visual, visualShape], [intermediate, [-1, -1, d.intermediate]], { bias: true }),
+    op("mlp.act_fn", "vision SwiGLU activation", "swiglu",
+      [`${intermediate}, ${intermediate}`, [-1, -1, d.intermediate]],
+      [intermediate, [-1, -1, d.intermediate]], { activation: normalized.visionConfig?.hidden_act }),
+    op("mlp.down_proj", "vision output MLP projection", "linear",
+      [intermediate, [-1, -1, d.intermediate]], [visual, visualShape], { bias: true }),
+    op("residual_mlp", "vision MLP residual add", "residual_add",
+      [visual, visualShape], [visual, visualShape], { checkpoint_module: false }),
+  ];
+  const block = withShapeDims(moduleSpec(blockId,
+    foldedLayerName(0, normalized.visionLayers - 1, "Vision Block"),
+    "vision-block-group", {
+      class: hfNamedClass(normalized, "visionBlockClass", "VisionBlock"),
+      modality: "vision", range: `0..${normalized.visionLayers - 1}`,
+      dataflow_edges: [
+        ["block_input", "norm1"], ["norm1", "attn.qkv"], ["attn.qkv", "attn.qkv_split"],
+        ["attn.qkv_split", "attn.qkv_reshape"],
+        ["attn.qkv_reshape", "attn.q_norm"], ["attn.qkv_reshape", "attn.k_norm"],
+        ["attn.q_norm", "attn.rope"], ["attn.k_norm", "attn.rope"],
+        ["attn.qkv_reshape", "attn.sdpa"], ["attn.rope", "attn.sdpa"],
+        ["attn.sdpa", "attn.context_merge"], ["attn.context_merge", "attn.proj"],
+        ["attn.proj", "residual_attn"], ["block_input", "residual_attn"],
+        ["residual_attn", "norm2"], ["norm2", "mlp.gate_proj"],
+        ["norm2", "mlp.up_proj"], ["mlp.gate_proj", "mlp.act_fn"],
+        ["mlp.up_proj", "mlp.act_fn"], ["mlp.act_fn", "mlp.down_proj"],
+        ["mlp.down_proj", "residual_mlp"], ["residual_attn", "residual_mlp"],
+      ],
+      dataflow_edge_relations: [
+        { from: "attn.qkv_reshape", to: "attn.q_norm", label: "Q" },
+        { from: "attn.qkv_reshape", to: "attn.k_norm", label: "K" },
+        { from: "attn.q_norm", to: "attn.rope", label: "Q" },
+        { from: "attn.k_norm", to: "attn.rope", label: "K" },
+        { from: "attn.qkv_reshape", to: "attn.sdpa", label: "V (unrotated)" },
+        { from: "block_input", to: "residual_attn", label: "residual input" },
+        { from: "residual_attn", to: "residual_mlp", label: "residual input" },
+      ],
+    }, children, normalized.visionLayers), visualShape, visualShape);
+  const patch = operatorSpec(`${id}.patch_embed.proj`, "vision Conv3D patch embedding", "linear", {
+    ...shapeFlow(tensorShapes(normalized).visionInput, visual),
+    modality: "vision", vision_token_source: "patch_tokens",
+    semantic_role: "patch_embedding", bias: true,
+  }, { input: d.patchInput, output: d.visual });
+  const rotary = operatorSpec(`${id}.rotary_pos_emb`, "vision rotary position provider", "identity", {
+    ...shapeFlow(visual, visual), modality: "vision", vision_token_source: "patch_tokens",
+    checkpoint_module: false, position_encoding: "rope_3d", position_provider: true,
+  }, { input: d.visual, output: d.visual });
+  const postLayerNorm = operatorSpec(`${id}.post_layernorm`, "vision post LayerNorm", "rmsnorm", {
+    ...shapeFlow(visual, visual), modality: "vision", vision_stage: "encoder",
+  }, { input: d.visual, output: d.visual });
+  const downsample = operatorSpec(`${id}.downsample`, "vision spatial downsample", "vision_downsample", {
+    ...shapeFlow(
+      `[batch, merged visual tokens, downsample input=${d.hidden * d.mergeSize * d.mergeSize}]`,
+      `[batch, merged visual tokens, downsample output=${normalized.visionOutputSize || d.hidden}]`,
+    ),
+    modality: "vision", vision_stage: "encoder", vision_token_source: "patch_tokens", bias: true,
+    weightMatrices: [weightMatrixDecl("tp", {
+      shape: [normalized.visionOutputSize || d.hidden, d.hidden, d.mergeSize, d.mergeSize],
+      split: "output",
+    }), weightMatrixDecl("tp", {
+      shape: [normalized.visionOutputSize || d.hidden],
+      quantizable: false,
+    })],
+  }, {
+    input: [-1, -1, d.hidden * d.mergeSize * d.mergeSize],
+    output: [-1, -1, normalized.visionOutputSize || d.hidden],
+  });
+  const merger = specializedVisionMergerModule(normalized, `${id}.merger`, d);
+  return withShapeDims(moduleSpec(id, "Vision Tower", "vision-encoder", {
+    class: hfNamedClass(normalized, "visionModelClass", "VisionModel"),
+    modality: "vision", num_hidden_layers: normalized.visionLayers,
+    num_attention_heads: d.heads, hidden_size: d.hidden,
+    dataflow_edges: [
+      ["patch_embed.proj", "blocks.0"],
+      ["rotary_pos_emb", "blocks.0"], ["blocks.0", "post_layernorm"],
+      ["post_layernorm", "downsample"], ["downsample", "merger"],
+    ],
+    dataflow_edge_relations: [
+      { from: "rotary_pos_emb", to: "blocks.0",
+        relation: "index-control", label: "3D rotary frequencies" },
+    ],
+    ...shapeFlow(tensorShapes(normalized).visionInput,
+      `[batch, merged visual tokens, vision output=${normalized.visionOutputSize || d.hidden}]`),
+  }, [patch, rotary, block, postLayerNorm, downsample, merger], normalized.visionLayers),
+    [-1, -1, -1, -1, -1], d.mergedVisual);
 }
 
 // Another published 3D visual tower is different from both the generic
@@ -582,7 +737,7 @@ function blocksVisionTowerModule(normalized) {
   const mergedWidth = d.mergedWidth;
   const mergedShape = `[batch, merged visual tokens, merged width=${mergedWidth}]`;
   const mergedVisual = `[batch, merged visual tokens, vision output=${normalized.visionOutputSize || d.hidden}]`;
-  const merger = moduleSpec(mergerId, "Vision Merger", "vision-merger", {
+  const genericMerger = moduleSpec(mergerId, "Vision Merger", "vision-merger", {
     class: hfNamedClass(normalized, "patchMergerClass", "VisionPatchMerger"),
     modality: "vision",
     dataflow_edges: [
@@ -608,6 +763,7 @@ function blocksVisionTowerModule(normalized) {
       ...shapeFlow(mergedShape, mergedVisual), modality: "vision", vision_stage: "merger", bias: true,
     }, { input: [-1, -1, mergedWidth], output: [-1, -1, normalized.visionOutputSize || d.hidden] }),
   ], undefined);
+  const towerChildren = [patch, position, rotary, block, genericMerger];
   return withShapeDims(moduleSpec(id, "Vision Tower", "vision-encoder", {
     class: hfNamedClass(normalized, "visionModelClass", "VisionModel"),
     modality: "vision", num_hidden_layers: normalized.visionLayers,
@@ -621,6 +777,46 @@ function blocksVisionTowerModule(normalized) {
         relation: "index-control", label: "3D rotary frequencies" },
     ],
     ...shapeFlow(tensorShapes(normalized).visionInput, `[batch, merged visual tokens, vision output=${normalized.visionOutputSize || d.hidden}]`),
-  }, [patch, position, rotary, block, merger], normalized.visionLayers),
+  }, towerChildren, normalized.visionLayers),
     [-1, -1, -1, -1, -1], d.mergedVisual);
+}
+
+function specializedVisionMergerModule(normalized, id, d) {
+  const width = normalized.visionOutputSize || d.hidden;
+  const intermediate = normalized.visionMergerIntermediateSize || d.intermediate;
+  const shape = `[batch, merged visual tokens, vision output=${width}]`;
+  const intermediateShape = `[batch, merged visual tokens, merger intermediate=${intermediate}]`;
+  const children = [
+    operatorSpec(`${id}.proj`, "vision merger projection", "linear", {
+      ...shapeFlow(shape, shape), modality: "vision", vision_stage: "merger", bias: false,
+    }, { input: [-1, -1, width], output: [-1, -1, width] }),
+    operatorSpec(`${id}.post_projection_norm`, "vision merger post projection LayerNorm", "rmsnorm", {
+      ...shapeFlow(shape, shape), modality: "vision", vision_stage: "merger", affine_bias: true,
+    }, { input: [-1, -1, width], output: [-1, -1, width] }),
+    operatorSpec(`${id}.act1`, "vision merger GELU", "vision_activation", {
+      ...shapeFlow(shape, shape), modality: "vision", vision_stage: "merger", activation: "gelu",
+    }, { input: [-1, -1, width], output: [-1, -1, width] }),
+    operatorSpec(`${id}.gate_proj`, "vision merger gate projection", "linear", {
+      ...shapeFlow(shape, intermediateShape), modality: "vision", vision_stage: "merger", bias: false,
+    }, { input: [-1, -1, width], output: [-1, -1, intermediate] }),
+    operatorSpec(`${id}.up_proj`, "vision merger up projection", "linear", {
+      ...shapeFlow(shape, intermediateShape), modality: "vision", vision_stage: "merger", bias: false,
+    }, { input: [-1, -1, width], output: [-1, -1, intermediate] }),
+    operatorSpec(`${id}.act_fn`, "vision merger SwiGLU", "swiglu", {
+      ...shapeFlow(`${intermediateShape}, ${intermediateShape}`, intermediateShape),
+      modality: "vision", vision_stage: "merger", activation: normalized.visionConfig?.hidden_act,
+    }, { input: [-1, -1, intermediate], output: [-1, -1, intermediate] }),
+    operatorSpec(`${id}.down_proj`, "vision merger output projection", "linear", {
+      ...shapeFlow(intermediateShape, shape), modality: "vision", vision_stage: "merger", bias: false,
+    }, { input: [-1, -1, intermediate], output: [-1, -1, width] }),
+  ];
+  return moduleSpec(id, "Vision Merger", "vision-merger", {
+    class: hfNamedClass(normalized, "patchMergerClass", "VisionPatchMerger"),
+    modality: "vision",
+    dataflow_edges: [
+      ["proj", "post_projection_norm"], ["post_projection_norm", "act1"],
+      ["act1", "gate_proj"], ["act1", "up_proj"],
+      ["gate_proj", "act_fn"], ["up_proj", "act_fn"], ["act_fn", "down_proj"],
+    ],
+  }, children);
 }

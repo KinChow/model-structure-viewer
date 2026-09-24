@@ -53,7 +53,13 @@ export const ARCH_RECIPES = {
     linearAttentionMode: "glm5_next",
     visionInternalMerger: true,
     visionMergerMlp: true,
+    visionSpecializedMerger: true,
+    visionBlockClass: "Glm5NextVisionBlock",
+    visionModelClass: "Glm5NextVisionModel",
+    patchMergerClass: "Glm5NextVisionPatchMerger",
     visionAttr: "visual",
+    visionTowerLayout: "blocks",
+    visionSpecialized: true,
     moeClass: "Glm5NextTextMoE",
     decoderLayerClass: "Glm5NextTextDecoderLayer",
     mlpClass: "Glm5NextTextMLP",
@@ -116,6 +122,16 @@ export const ARCH_RECIPES = {
     visionBlockClass: "MiniMaxM3VLVisionEncoderLayer",
     visionModelClass: "MiniMaxM3VLVisionModel",
     visionAttr: "vision_tower",
+    // The forward module is vision_tower.vision_model, while the released
+    // state dict places the same CLIP tower below that wrapper. Keep the
+    // public Graph IR names readable, but bind header truth through these
+    // exact, evidence-backed module aliases.
+    checkpointPathAliases: [
+      { from: "vision_tower.vision_model.embeddings.patch_embedding", to: "vision_tower.embeddings.proj" },
+      { from: "vision_tower.vision_model.encoder.layers", to: "vision_tower.layers" },
+      { from: "vision_tower.vision_model.pre_layrnorm", to: "vision_tower.pre_layrnorm" },
+      { from: "vision_tower.vision_model.rotary_emb", to: "vision_tower.rotary_emb" },
+    ],
     layersAttr: "language_model.layers",
     swigluVariant: "swigluoai",
     sigmoidRouter: true,
@@ -189,6 +205,11 @@ export const ARCH_RECIPES = {
 /** 取某架构的配方；未登记的架构返回空配方（走各位的默认值）。 */
 export function archRecipe(architecture) {
   return ARCH_RECIPES[String(architecture || "")] || {};
+}
+
+/** Explicit checkpoint path aliases for published wrapper/state-dict layouts. */
+export function checkpointPathAliases(normalized) {
+  return archRecipe(normalized?.architecture).checkpointPathAliases || [];
 }
 
 // 类名：配方 *Class 写 HF 全名；没写就用词干。不从 architectures[0] 剥前缀再拼

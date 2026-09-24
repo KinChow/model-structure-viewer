@@ -84,9 +84,9 @@
 | `moonshotai/Kimi-K2-Instruct` | `kimi_k2` | `DeepseekV3ForCausalLM` | 1,026,408,232,448（1.03T） | 有 | 2025-07-11 |
 | `moonshotai/Kimi-K2-Instruct-0905` | `kimi_k2` | `DeepseekV3ForCausalLM` | 1,026,408,232,448（1.03T） | 有 | 2025-09-04 |
 | `moonshotai/Kimi-K2-Thinking` | `kimi_k2` | `DeepseekV3ForCausalLM` | 1,026,408,232,448（1.03T） | 有 | 2025-11-04 |
-| `moonshotai/Kimi-K2.5` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,874,320,384（1.03T） | 有 | 2026-01-25 |
-| `moonshotai/Kimi-K2.6` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,874,320,384（1.03T） | 有 | 2026-04-17 |
-| `moonshotai/Kimi-K2.7-Code` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,874,320,384（1.03T） | 有 | 2026-06-12 |
+| `moonshotai/Kimi-K2.5` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,879,040,128（1.03T） | 有 | 2026-01-25 |
+| `moonshotai/Kimi-K2.6` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,879,040,128（1.03T） | 有 | 2026-04-17 |
+| `moonshotai/Kimi-K2.7-Code` | `kimi_k25` | `KimiK25ForConditionalGeneration` | 1,026,879,040,128（1.03T） | 有 | 2026-06-12 |
 | `moonshotai/Kimi-K3` | `kimi_k3` | `KimiK3ForConditionalGeneration` | 2,779,931,834,976（2.78T） | manifest | 2026-07-27 |
 | `zai-org/GLM-4.7` | `glm4_moe` | `Glm4MoeForCausalLM` | 357,561,845,056（357.6B） | 有 | 2025-12-22 |
 | `zai-org/GLM-5` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,815,721,728（754.8B） | 有 | 2026-02-11 |
@@ -95,8 +95,8 @@
 | `zai-org/GLM-5.2-FP8` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-06-16 |
 | `zai-org/GLM-5.3` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-08-25 |
 | `zai-org/GLM-5.3-BF16` | `glm_moe_dsa` | `GlmMoeDsaForCausalLM` | 754,281,523,200（754.3B） | 有 | 2026-08-25 |
-| `zai-org/GLM-5.3-Flash` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,934,802,836（321.9B） | manifest | 2026-08-25 |
-| `zai-org/GLM-5.3-Flash-BF16` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,934,802,836（321.9B） | 有 | 2026-08-25 |
+| `zai-org/GLM-5.3-Flash` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,951,908,756（322.0B） | manifest | 2026-08-25 |
+| `zai-org/GLM-5.3-Flash-BF16` | `glm5_next` | `Glm5NextForConditionalGeneration` | 321,951,908,756（322.0B） | 有 | 2026-08-25 |
 
 ## 按 architectures[0] 汇总（生成物）
 

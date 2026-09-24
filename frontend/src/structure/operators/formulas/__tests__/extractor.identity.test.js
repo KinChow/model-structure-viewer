@@ -49,6 +49,7 @@ function declaredElementsByDomain(graph) {
   let text = 0;
   let vision = 0;
   let visionTower = 0;
+  let visionDownsample = 0;
   let embedding = 0;
   let mtp = 0;
   let norm = 0;
@@ -73,13 +74,14 @@ function declaredElementsByDomain(graph) {
       if (op === "vision_position") return;
       vision += elements;
       if (node?.attributes?.vision_token_source === "patch_tokens") visionTower += elements;
+      if (op === "vision_downsample") visionDownsample += elements;
     }
     else if (/(^|\.)mtp(\.|$)/.test(id)) mtp += elements;
     else if (/norm/.test(op) || /norm/.test(id)) norm += elements;
     else if (ROUTED_EXPERT_RE.test(id) || op === "fused_moe_mlp") routed += elements;
     else text += elements;
   });
-  return { text, vision, visionTower, embedding, mtp, norm, routed };
+  return { text, vision, visionTower, visionDownsample, embedding, mtp, norm, routed };
 }
 
 function extraMatmulWithoutWeights(normalized, T) {
@@ -150,7 +152,15 @@ function visionExpectedSide(graph, normalized, V) {
   const towerPairs = scoredPairs({
     phase: "prefill", queryTokens: towerTokens, keyTokens: towerTokens, causal: false,
   });
+  // A GLM-5.3-Flash vision downsample stores a 2x2 Conv2d kernel.  Its
+  // parameter declaration contains merge_size² input positions, but the
+  // forward emits one token per spatial merge, so its MACs are weighted by
+  // V / merge_size² rather than by V like ordinary token-wise projections.
+  const mergeSize = Math.max(normalized.visionMergeSize || 1, 1);
+  const downsampleCorrection = parts.visionDownsample * towerTokens
+    * (1 - 1 / (mergeSize * mergeSize));
   return parts.visionTower * towerTokens
+    - downsampleCorrection
     + (parts.vision - parts.visionTower) * V
     + blocks * heads * towerPairs * 2 * dim;
 }

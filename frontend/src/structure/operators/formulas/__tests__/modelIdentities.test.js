@@ -541,6 +541,10 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // Kimi PatchMerger normalizes per patch, then groups spatial patches into
   // the wider merger input before its first projection.
   "pre_norm -> 0": "regroup",
+  // GLM-5.3-Flash reshapes each 2x2 spatial patch group before the
+  // stride-2 Conv2d downsample: H becomes merge_size²*H without changing
+  // the logical number of visual elements.
+  "post_layernorm -> downsample": "regroup",
   // KDA 融合投影里的 f_a / g_a / g（全秩门）切片，宽度都是 head_dim 或 projection
   "qkv_projection -> f_b_proj": "slice",
   "qkv_projection -> g_b_proj": "slice",

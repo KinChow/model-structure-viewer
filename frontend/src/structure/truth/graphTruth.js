@@ -10,8 +10,20 @@ export function canonicalModulePath(value) {
   return parts.join(".");
 }
 
-function pathBindKeys(modulePath) {
-  const path = canonicalModulePath(modulePath);
+function applyPathAliases(path, aliases = []) {
+  const ordered = [...aliases].sort((a, b) => String(b.from || "").length - String(a.from || "").length);
+  for (const alias of ordered) {
+    const from = canonicalModulePath(alias?.from);
+    const to = canonicalModulePath(alias?.to);
+    if (!from || !to) continue;
+    if (path === from) return to;
+    if (path.startsWith(`${from}.`)) return `${to}${path.slice(from.length)}`;
+  }
+  return path;
+}
+
+function pathBindKeys(modulePath, aliases = []) {
+  const path = applyPathAliases(canonicalModulePath(modulePath), aliases);
   return path ? [path] : [];
 }
 
@@ -61,12 +73,12 @@ export function skeletonTruthGraph(skeleton) {
  * 图 id 已是 HF `_modules` 名（layers / visual / vision_tower / language_model）。
  * 多候选记 ambiguous，不静默丢弃。
  */
-export function bindTruthToGraph(graph, truthGraph) {
+export function bindTruthToGraph(graph, truthGraph, { truthPathAliases = [] } = {}) {
   const truthNodes = (truthGraph?.nodes || []).filter((node) => Number(node.params) > 0);
   const truthByPath = new Map();
   for (const node of truthNodes) {
     const truthId = node.canonical_id || node.module_id || node.id;
-    for (const pathKey of pathBindKeys(truthId)) {
+    for (const pathKey of pathBindKeys(truthId, truthPathAliases)) {
       const pathEntries = truthByPath.get(pathKey) || [];
       pathEntries.push(node);
       truthByPath.set(pathKey, pathEntries);
@@ -213,7 +225,9 @@ export function appendGraphGaps(graph, skeleton, usedTruthIds) {
   return { ...graph, nodes, edges };
 }
 
-export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, architecture }) {
+export function enrichGraphWithTruth(graph, truth, {
+  hasBuilder, modelName, architecture, truthPathAliases = [],
+}) {
   // 离线证据文件形态：truth.skeleton 是**已折叠**的 SkeletonNode（由
   // fetch-evidence --headers 从 safetensors 头部构建后入库，K3 原始张量
   // 表 59.7MB 折叠后小几个数量级，符合「仅轻量元数据入库」纪律）。
@@ -234,7 +248,7 @@ export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, arch
         diagnostics: { strategy: "skeleton-truth-file", total_tensors: truth.tensor_count ?? null, parameter_total: truth.parameterTotal ?? null },
       };
     }
-    const bound = bindTruthToGraph(graph, truthGraph);
+    const bound = bindTruthToGraph(graph, truthGraph, { truthPathAliases });
     const enrichedGraph = appendGraphGaps(bound.graph, truth.skeleton, bound.diagnostics.graph_truth_used_ids);
     return {
       graph: enrichedGraph,
@@ -276,7 +290,7 @@ export function enrichGraphWithTruth(graph, truth, { hasBuilder, modelName, arch
       diagnostics: { strategy: "skeleton-truth", total_tensors: truth.tensors.length, parameter_total: truth.parameterTotal ?? null },
     };
   }
-  const bound = bindTruthToGraph(graph, truthGraph);
+  const bound = bindTruthToGraph(graph, truthGraph, { truthPathAliases });
   const enrichedGraph = appendGraphGaps(bound.graph, skeleton, bound.diagnostics.graph_truth_used_ids);
   return {
     graph: enrichedGraph,

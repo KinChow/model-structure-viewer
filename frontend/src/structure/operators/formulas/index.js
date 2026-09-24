@@ -141,6 +141,16 @@ export const FORMULAS = {
     outputs: ["merged visual tokens"],
     counts: (ctx) => rearrangeCounts({ copy: true, ...ctx }),
   },
+  vision_downsample: {
+    title: "Vision Spatial Downsample",
+    // ref: GLM-5.3-Flash vision forward；2x2 空间 patch 先重排到 4H，
+    // 再由带 bias 的 Conv2d(stride=merge_size) 产生合并视觉 token。
+    formula: "Y = Conv2d(X, W, stride=merge_size)",
+    explanation: "按视觉 merge size 做空间下采样；输入的每个 2x2 patch 组在卷积投影中合并为一个视觉 token。",
+    inputs: ["patch tokens", "conv weight", "bias"],
+    outputs: ["merged visual tokens"],
+    counts: (ctx) => linearCounts(ctx),
+  },
   vision_activation: {
     title: "Vision Activation",
     // ref: 一等 aten::gelu / aten::silu 家族（φ 由视觉配置 hidden_act 决定；
@@ -723,7 +733,7 @@ export function formulaForOperator(operatorId) {
 // SGLang kernels/ops 功能域（RFC #29630）。group 是元数据，不改 operator_id。
 // 只抄有对位的组；ple 暂不归组（SGLang qwen4_ple.py 也未进 _GROUPS）。
 export const FORMULA_GROUPS = {
-  gemm: ["linear", "matmul", "mla_query_compress", "mla_kv_compress"],
+  gemm: ["linear", "matmul", "vision_downsample", "mla_query_compress", "mla_kv_compress"],
   attention: [
     "softmax", "sdpa_attention", "rope", "linear_attention_gate",
     "qsa_indexer", "dsa_indexer", "dsa_kpool_indexer", "dsv4_indexer",

@@ -323,7 +323,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 
 > 生成物（`scripts/gen-cost-counts.mjs`，勿手改）：逐条 = FORMULAS 注册表；`分类`/三分量
 > 由单元探针（形状全 1，同 counts.test.js）判定。符号 bytes 公式见上方 F1–F9；复合节点
-> 分解见「复合节点」表。共 **59** 条。
+> 分解见「复合节点」表。共 **60** 条。
 
 | 条目 | group | 分类 | matrix | vector | sfu | bytes |
 |---|---|---|---|---|---|---|
@@ -384,6 +384,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | `swiglu` | activation | 仅访存 | 0 | ✓ | ✓ | ✓ |
 | `topk` | moe | 仅访存 | 0 | ✓ | 0 | ✓ |
 | `vision_activation` | activation | 仅访存 | 0 | ✓ | ✓ | ✓ |
+| `vision_downsample` | gemm | 计算+访存 | ✓ | 0 | 0 | ✓ |
 | `vision_merge` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
 | `vision_position` | embeddings | 仅访存 | 0 | ✓ | 0 | ✓ |
 

@@ -55,7 +55,11 @@ const models = catalog.models.map(entry => {
       .map(node => ({ id: node.canonical_id, output_shape: node.output_shape })),
     attention_residual_incoming: pairs.filter(([, target]) => attnRes.some(node => node.canonical_id === target)),
     folded_attnres_boundary_crossings: crossedAttnResBoundaries,
-    reuse_indexers: indexers.filter(node => node.attributes.indexer_mode === "reuse").length,
+    // `indexers` intentionally contains only physical compute indexer nodes;
+    // IndexShare reuse is represented by a separate `index_reuse` semantic
+    // node. Count that node class directly so this observation does not
+    // silently report zero for a valid cross-layer schedule.
+    reuse_indexers: nodes.filter(node => node.attributes?.semantic_role === "index_reuse").length,
     cross_layer_indexer_edges: pairs.filter(([source, target]) => {
       // IndexShare targets are semantic `index_reuse` nodes, not indexer
       // nodes. The previous predicate required both sides to contain the

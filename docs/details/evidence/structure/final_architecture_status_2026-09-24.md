@@ -108,13 +108,17 @@ node scripts/verify-builtin-models.mjs
   `*_repair.md` 与 `*_sources.json`。
 - config-only 与 production artifacts：由各家族机制测试分别加载；
   不用总参数量替代逐模块绑定。
-- 全量门禁：前端 595/595、后端 184/184、内置模型 60/60；
+- 全量门禁：前端 597/597、后端 184/184、内置模型 60/60；
+  Kimi-K3 MLA/AttnRes 与 39 条多模态入口的机制测试通过；Chrome
+  全量展示巡检覆盖 60/60。视觉模型的 roofline `unknown` 是融合搬运
+  未知的显式结果，不是空图或页面错误。
   这些证明当前代码链路稳定，不等于表中所有“证据不足”项目已经通过。
 
 ## 当前明确未完成项
 
 1. 多模态 39 条目的 projector/merger 与真实 checkpoint 逐模块审计。
-2. DeepSeek-V4 C4/C128 fused compressor 的精确动作与缓存状态成本。
+2. DeepSeek-V4 C4/C128 fused compressor 的 GPU kernel 实测、量化 scale
+   交通与 overlap state 的精确成本。
 3. 所有量化/Base 变体的 packed logical shape、scale 和 activation quantization
    逐模块核对。
 4. 16 个结构家族的最终移动端深展开证据整理。

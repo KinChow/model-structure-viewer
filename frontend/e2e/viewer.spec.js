@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures.js";
 import { readFileSync } from "node:fs";
+import { buildStructureFromConfig } from "../src/structure/buildStructure.js";
 
 // 品牌版本号跟随 package.json，避免每次版本升级都要手改断言。
 const appVersion = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -106,12 +107,24 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       await costToggle.click();
       const costPanel = page.locator(".cost-summary");
       await expect(costPanel.getByText("MACs / forward", { exact: false })).toBeVisible();
-      // 语义断言（M11-P0-1）：内置模型聚合 bound 必须可分类，不得为 unknown
-      // （data-bound 契约，扩展 W6 的 data-evidence 先例）。旧断言
-      // not.toMatch(/unknown/i) 惩罚诚实展示，已废弃。
+      // 语义断言：普通模型必须有可分类 bound；多模态融合的物化流量
+      // 没有由 workload 提供时，unknown 是有意保留的证据状态，不能伪造
+      // 成 memory/compute。用同一生产 builder 检查 unknown 的具体来源，
+      // 防止任意模型借此绕过断言。
       const roofline = costPanel.locator(".cost-metrics [data-bound]");
       await expect(roofline).toBeVisible();
-      expect(await roofline.getAttribute("data-bound")).not.toBe("unknown");
+      const bound = await roofline.getAttribute("data-bound");
+      if (bound === "unknown") {
+        const config = JSON.parse(readFileSync(new URL(`../../models/${modelId}/config.json`, import.meta.url), "utf8"));
+        const graph = buildStructureFromConfig(config, { modelId }).graph;
+        expect(graph.nodes.some(node =>
+          node.canonical_id === "multimodal_fusion"
+          && node.attributes?.traffic_status === "unknown"
+          && node.attributes?.activation_materialization === "unknown",
+        ), `${modelId}: unknown bound must come from declared multimodal traffic uncertainty`).toBe(true);
+      } else {
+        expect(bound).toMatch(/^(compute|matrix|memory|communication|vector|sfu)$/);
+      }
     }
     await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
     await expect(page.getByLabel("model id")).toBeVisible();

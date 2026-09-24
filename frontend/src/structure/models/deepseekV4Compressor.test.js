@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { buildStructureFromArtifacts, buildStructureFromConfig } from "../buildStructure.js";
+import { normalizeConfig } from "../config/normalize.js";
+import { countsForNode } from "../operators/formulas/extractor.js";
 
 const root = new URL("../../../../models/deepseek-ai/", import.meta.url);
 const read = path => JSON.parse(fs.readFileSync(new URL(path, root)));
@@ -94,4 +96,46 @@ test("DeepSeek V4.1 CSA2 does not inherit V4's nested compressor norm", () => {
   assert.ok(structure.graph.edges.some(e =>
     e.source_canonical_id === compressor.canonical_id &&
     e.target_canonical_id === compressor.canonical_id.replace(/\.compressor$/, ".attention")));
+});
+
+test("V4 compressor RMSNorm executes on emitted compressed blocks, not every raw token", () => {
+  // SGLang pinned compressor.py: forward_compress passes compress_forward's
+  // output to fused_norm_rope; c4/c128.cuh decode only compress at ratio boundaries.
+  // The indexer's nested compressor has the same C4 output schedule.
+  for (const modelId of ["DeepSeek-V4-Flash", "DeepSeek-V4-Flash-0731",
+    "DeepSeek-V4-Flash-Vision-Exp", "DeepSeek-V4-Pro", "DeepSeek-V4-Pro-0813"]) {
+    const config = read(`${modelId}/config.json`);
+    const normalized = normalizeConfig(config);
+    const structure = buildStructureFromArtifacts({
+      config, modelId: `deepseek-ai/${modelId}`,
+      checkpointTruth: read(`${modelId}/header-truth.json`),
+      sourceRef: read(`${modelId}/source-ref.json`),
+    });
+    const nodes = structure.graph.nodes;
+    for (const ratio of [4, 128]) {
+      const compressor = nodes.find(n => n.attributes?.operator_id === "mla_kv_compress"
+        && n.attributes?.compress_ratio === ratio);
+      assert.ok(compressor, `${modelId}: missing C${ratio}`);
+      const norm = nodes.find(n => n.canonical_id === `${compressor.canonical_id}.norm`);
+      assert.ok(norm);
+      const related = ratio === 4
+        ? [norm, nodes.find(n => n.canonical_id === compressor.canonical_id.replace(/\.compressor$/, ".indexer.compressor.norm"))]
+        : [norm];
+      for (const leaf of related) {
+        assert.ok(leaf, `${modelId}: missing nested C4 compressor norm`);
+        const count = (sequence, phase = "prefill") => countsForNode(leaf, {
+          config: normalized, options: { batch: 2, sequence, phase }, bytesPerElement: 2,
+        });
+        const width = leaf.output_shape.at(-1);
+        const blocks = Math.floor((ratio + 1) / ratio) * 2;
+        assert.equal(count(ratio + 1).sfu, blocks);
+        assert.equal(count(ratio + 1).vector, blocks * (4 * width - 1));
+        assert.equal(count(ratio + 1).bytes.actOut, blocks * width * 2);
+        assert.equal(count(ratio - 1).sfu, 0);
+        assert.equal(count(ratio - 1).bytes.weights, 0, "no norm kernel reads its scale before a block boundary");
+        assert.equal(count(ratio - 1, "decode").sfu, 0);
+        assert.equal(count(ratio, "decode").sfu, 2);
+      }
+    }
+  }
 });

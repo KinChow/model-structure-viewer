@@ -108,6 +108,9 @@ export function attentionCounts({ heads, queryTokens, keyTokens, headDim, valueD
  * gated = true 为 gated RMSNorm（多一路 sigmoid 门乘）。
  */
 export function rmsnormCounts({ tokens, hidden, bytesPerElement, weightOne = false, gated = false, weightWidth, affineBias = false }) {
+  // 权重仍常驻，但该相位没有调用 norm kernel 时不能虚构一次权重读取。
+  if (tokens <= 0) return { matrix: 0, vector: 0, sfu: 0,
+    bytes: { weights: 0, actIn: 0, actOut: 0 } };
   const gate = gated ? hidden * tokens : 0;
   // 权重宽度默认 = 归一化宽度；**逐头**归一化（q_norm/k_norm/GDN 输出门）必须显式传
   // 最后一维，否则权重被放大 heads 倍（判据见 extractor 的 normWeightWidth 注释）。
@@ -125,6 +128,17 @@ export function rmsnormCounts({ tokens, hidden, bytesPerElement, weightOne = fal
       actOut: hidden * tokens * bytesPerElement,
     },
   };
+}
+
+/**
+ * V4 fused compressor 的输出只在压缩块边界产生；norm/rope kernel 不能按原始
+ * token 数计费。SGLang 的 c4/c128 kernel 明确以 ratio 对齐的 plan 输出
+ * compressed state，再调用 fused_norm_rope_inplace。
+ */
+export function compressedOutputTokens({ batch = 1, sequence = 1, phase = "prefill", ratio = 1 }) {
+  if (ratio <= 1) return batch * (phase === "decode" ? 1 : sequence);
+  if (phase === "decode") return sequence % ratio === 0 ? batch : 0;
+  return batch * Math.floor(sequence / ratio);
 }
 
 /**

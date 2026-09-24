@@ -766,7 +766,9 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
     // SGLang Compressor.norm = RMSNorm(head_dim, fp32)（compressor.py:43）。checkpoint attn.compressor.norm。
     if (hasCompressorApe) {
       specs.push(operatorSpec(`${prefix}.compressor.norm`, "compressor latent RMSNorm", "rmsnorm",
-        shapeFlow(`[batch, sequence, head dimension=${headDim}]`, `[batch, sequence, head dimension=${headDim}]`),
+        { ...shapeFlow(`[batch, compressed sequence=⌊sequence/${ratio}⌋, head dimension=${headDim}]`,
+          `[batch, compressed sequence=⌊sequence/${ratio}⌋, head dimension=${headDim}]`),
+          compression_output_ratio: ratio },
         { input: [-1, -1, headDim], output: [-1, -1, headDim] }));
     }
   }
@@ -788,7 +790,9 @@ export function deepseekV4AttentionOperatorSpecs(prefix, normalized, layerIndex 
         implementation: ["SGLang.C4Indexer.compressor.wkv_gate"],
       }, { input: dims.hidden, output: [-1, -1, 2 * 2 * (indexDim || 0)] }));
       specs.push(operatorSpec(`${prefix}.indexer.compressor.norm`, "indexer compressor RMSNorm", "rmsnorm",
-        shapeFlow(`[batch, sequence, index head dimension=${indexDim}]`, `[batch, sequence, index head dimension=${indexDim}]`),
+        { ...shapeFlow(`[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`,
+          `[batch, compressed sequence=⌊sequence/4⌋, index head dimension=${indexDim}]`),
+          compression_output_ratio: 4 },
         { input: [-1, -1, indexDim], output: [-1, -1, indexDim] }));
     }
     specs.push(operatorSpec(`${prefix}.indexer`, "DeepSeek V4 C4 sparse indexer", "dsv4_indexer", {

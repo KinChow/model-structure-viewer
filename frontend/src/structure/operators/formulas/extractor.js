@@ -10,7 +10,7 @@
 // - 分派：FORMULAS[operator_id].fromNode 抽 ctx，.counts(ctx) 计价（flop_registry）。
 //   type=attention / type=embedding 无 operator_id，仍在 countsForNode 入口处理。
 
-import { scoredPairs, embedGatherCounts } from "./counts.js";
+import { scoredPairs, embedGatherCounts, compressedOutputTokens } from "./counts.js";
 import { paramBytes } from "./paramDtypes.js";
 import { FORMULAS } from "./index.js";
 import { tensorDims } from "../../config/dims.js";
@@ -306,8 +306,16 @@ const FROM_NODE = {
           const ropeDim = (vision ? config?.visionHeadDim || 0 : config?.headDim || 0) * factor;
           return { tokens, ropeDims: ropeHeads * ropeDim, bytesPerElement };
   },
-  rmsnorm: ({ node, bytesPerElement, operatorId, tokens }) => ({
-            tokens, hidden: staticWidth(node?.input_shape) || 0, bytesPerElement,
+  rmsnorm: ({ node, bytesPerElement, operatorId, tokens, options }) => ({
+            tokens: node?.attributes?.compression_output_ratio
+              ? compressedOutputTokens({
+                batch: options?.batch ?? 1,
+                sequence: options?.sequence ?? 1,
+                phase: options?.phase ?? "prefill",
+                ratio: node.attributes.compression_output_ratio,
+              })
+              : tokens,
+            hidden: staticWidth(node?.input_shape) || 0, bytesPerElement,
             weightOne: operatorId === "gemma_rmsnorm",
             weightWidth: normWeightWidth(node?.input_shape) || undefined,
             affineBias: node?.attributes?.affine_bias === true,

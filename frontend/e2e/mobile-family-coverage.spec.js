@@ -51,6 +51,8 @@ test("mobile Chrome renders every built-in architecture family", async ({ page }
         await costToggle.click();
         await expect(page.locator(".cost-summary")).toBeVisible();
       }
+      await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
+      await expect(page.getByLabel("model id")).toBeVisible();
     });
   }
 });

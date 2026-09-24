@@ -136,13 +136,12 @@ function visionExpectedSide(graph, normalized, V) {
   const blocks = normalized.visionLayers || 0;
   const heads = normalized.visionAttentionHeads || 0;
   const dim = normalized.visionHeadDim || 0;
-  // Frozen release forward oracle: DeepSeek V4/V4.1 inference/vision.py ViT
-  // invokes scaled_dot_product_attention without a causal mask.
-  const fullImageAttention = new Set(["DeepseekV4ForCausalLM", "DeepseekV41ForCausalLM"])
-    .has(normalized.architecture);
   const visionPairs = scoredPairs({
     phase: "prefill", queryTokens: V, keyTokens: V,
-    causal: !fullImageAttention,
+    // Vision encoders in the audited releases use bidirectional attention:
+    // MiniMax M3, Kimi MoonViT, Qwen4Exp and GLM5Next explicitly set
+    // is_causal/causal=False; DeepSeek V4/V4.1 call SDPA without a causal mask.
+    causal: false,
   });
   return parts.vision * V + blocks * heads * visionPairs * 2 * dim;
 }

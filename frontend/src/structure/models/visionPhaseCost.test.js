@@ -23,6 +23,11 @@ for (const loading of ["config", "artifacts"]) {
         : buildStructureFromArtifacts({ config, modelId: entry.model_id,
           checkpointTruth: read(new URL("skeleton-truth.json", dir)) || read(new URL("header-truth.json", dir)),
           sourceRef: read(new URL("source-ref.json", dir)) }).graph;
+      const visionSdpa = graph.nodes.filter(node => node.attributes?.modality === "vision"
+        && node.attributes?.operator_id === "sdpa_attention");
+      assert.ok(visionSdpa.length > 0, `${entry.model_id}: visual attention exists`);
+      assert.ok(visionSdpa.every(node => node.attributes.attention_mask_kind === "bidirectional"),
+        `${entry.model_id}: visual attention follows published non-causal encoder mask`);
       const ctx = { graph, config: normalized, batch: 1, sequence: 64 };
       const prefill = aggregateCost({ ...ctx, phase: "prefill" });
       const decode = aggregateCost({ ...ctx, phase: "decode" });

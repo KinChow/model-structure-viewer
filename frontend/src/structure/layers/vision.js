@@ -49,7 +49,7 @@ function visionLayerModule(id, normalized) {
       scoresName: "vision attention scores",
       scores: { attention_kind: "vision" },
       context: { attention_kind: "vision" },
-      modality: "vision",
+      modality: "vision", attention_mask_kind: "bidirectional",
     }),
     operatorSpec(`${id}.out_proj`, "vision output projection", "linear", {
       ...shapeFlow(context, visual), modality: "vision", semantic_role: "vision_attention_output_projection",

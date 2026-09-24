@@ -31,7 +31,12 @@ MTP-like key 的筛选同时覆盖 `mtp`、`nextn` 和 `shared_head`；DeepSeek 
   尾层，且 Transformers forward 将该层列入 unexpected-key 忽略规则；不能把
   主干四路 mHC 结构直接复制到 MTP。当前图将其绑定到标准 decoder MTP，
   不生成本地 embedding 或独立 shared-head projection；
-- 不能仅以 `shared_head` 两个参数推出完整 MTP 内部逐层权重，因此 MTP 子图的完整 checkpoint 绑定仍保留 unknown。
+- DeepSeek/GLM 普通 MTP 的尾层逐路径绑定已通过机制 fixture；GLM-5.3-Flash
+  的 routed experts 通过 `truth_path_prefix` 聚合到单个 fused expert leaf，
+  skeleton 不再把 expert 0 误当作完整 truth。两个 Flash manifest 的 expert
+  tensor 数分别为 1,728/864，均已在 folded-truth fixture 中闭合。
+- 仍不能由 manifest 推导 GPU fused kernel 的实际物化、通信或性能；这些边界
+  继续保持 unknown。
 
 ## 来源
 

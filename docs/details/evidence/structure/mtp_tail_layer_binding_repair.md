@@ -57,4 +57,8 @@ Graph IR 节点，并确认 Flash MTP 不产生 phantom embedding/head/mHC 节�
 - `shared_head.norm`
 - `shared_head.head`
 
-完整 MTP experts 的逐张量绑定仍受当前 aggregate expert 叶设计限制，继续保持 unknown，不把这批测试扩大解释为完整 MTP truth。
+MTP routed experts 使用单个 fused `expert_mlp` 展示叶，不逐个复制 288 个执行
+节点；skeleton truth 在显式 aggregate path 下保留完整重复段 metadata，
+因此两个 GLM-5.3-Flash manifest 分别可聚合绑定 1,728/864 个 expert tensors。
+这证明 checkpoint truth 的归属闭合，不把它扩大解释为 GPU fused kernel 的实际
+物化或性能验证。

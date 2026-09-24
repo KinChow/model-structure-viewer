@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionsByFormulaGroup, costByFormulaGroup, costSummaryModel, diagnosticsModel } from "../ui.js";
+import { actionsByFormulaGroup, costByFormulaGroup, costSummaryModel, diagnosticsModel, stageTimingSummary } from "../ui.js";
+
+test("unknown fusion memory cannot be shown as a zero-ns stage", () => {
+  assert.equal(stageTimingSummary({ bound: "unknown", times: { matrix: 0, vector: 0, sfu: 0, memory: null, comm: 0 } }), null);
+  assert.equal(stageTimingSummary({ bound: "memory", times: { matrix: 1, memory: 2 } }), 2);
+});
 
 test("costSummaryModel：五类时间命名与未知计费计数", () => {
   const model = costSummaryModel(

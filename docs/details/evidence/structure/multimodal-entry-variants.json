@@ -1,0 +1,665 @@
+[
+  {
+    "model_id": "MiniMaxAI/MiniMax-M3",
+    "revision": "f0e1c1e04d40177e4673a22097036854f536e9c0",
+    "url": "https://hf-mirror.com/MiniMaxAI/MiniMax-M3/raw/f0e1c1e04d40177e4673a22097036854f536e9c0/README.md",
+    "read_at": "2026-09-23T23:23:00.281893+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "6148856dbf8be26dcf3f9b913be0252c38454e852108fdab01212fe965f3e327",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      34,
+      37
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "MiniMaxAI/MiniMax-M3-MXFP8",
+    "revision": "c5454eb03678d8710e54a4e0fc681b9f3b4a3dba",
+    "url": "https://hf-mirror.com/MiniMaxAI/MiniMax-M3-MXFP8/raw/c5454eb03678d8710e54a4e0fc681b9f3b4a3dba/README.md",
+    "read_at": "2026-09-23T23:23:00.293458+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "0768cf0b6255623139565a270f2dfaebf67bb6d364ef205487f35fb6960fdf51",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      36,
+      39,
+      43
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-0.8B",
+    "revision": "2fc06364715b967f1860aea9cf38778875588b17",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-0.8B/raw/2fc06364715b967f1860aea9cf38778875588b17/README.md",
+    "read_at": "2026-09-23T23:23:00.432804+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "87a163af54f32fa608a0f8d3ac67945c53dd2b4a7c96740b3d7fdc28e8458864",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      29,
+      44,
+      664,
+      964
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-0.8B-Base",
+    "revision": "dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-0.8B-Base/raw/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/README.md",
+    "read_at": "2026-09-23T23:23:00.144524+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "3cff39d2674e28b95e2df75cdb2d7a687ec391931065b05df83dbae12b447b11",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      29,
+      45,
+      72
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-122B-A10B",
+    "revision": "dc4d348443bc740c68e2d77492492c11606384d5",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-122B-A10B/raw/dc4d348443bc740c68e2d77492492c11606384d5/README.md",
+    "read_at": "2026-09-23T23:23:01.120031+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "1775bb720398d6107cce3da0c3129abfd24ec639fd9853d5134df1e5c6118a4d",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      25,
+      43,
+      970,
+      1345
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-122B-A10B-FP8",
+    "revision": "a099dee70ccfcd8d5dda56aaa0b60cb8ecadabc9",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-122B-A10B-FP8/raw/a099dee70ccfcd8d5dda56aaa0b60cb8ecadabc9/README.md",
+    "read_at": "2026-09-23T23:23:01.347115+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "bca4fee86199cb783e95c20f8fc7542ac5517d3f143b4dbc05b26e97e410fd4d",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      29,
+      47,
+      974,
+      1349
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+    "revision": "30cd92cba9707a9aba09d1e490ed4b66b78e9606",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-122B-A10B-GPTQ-Int4/raw/30cd92cba9707a9aba09d1e490ed4b66b78e9606/README.md",
+    "read_at": "2026-09-23T23:23:01.420153+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "3eaf34dc6653aa6d7106fdf3381bd468244378666ee67f8e0ab7a50a711aed88",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      25,
+      43,
+      971,
+      1333
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-27B",
+    "revision": "fc05daec18b0a78c049392ed2e771dde82bdf654",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-27B/raw/fc05daec18b0a78c049392ed2e771dde82bdf654/README.md",
+    "read_at": "2026-09-23T23:23:01.267959+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "8c6303cd5e89dc378d11fb4b70a0ff9c3cccb55a031133c69d9cbde9481f1a8c",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      24,
+      42,
+      969,
+      1344
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-27B-FP8",
+    "revision": "97f5941bf617e31c5e237364a8602ce3f03a551a",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-27B-FP8/raw/97f5941bf617e31c5e237364a8602ce3f03a551a/README.md",
+    "read_at": "2026-09-23T23:23:02.230995+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "c0d0fdb510cbf32ca9043d391fcf33d4c3ff2215e4235128823c9722ab3dece4",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      28,
+      46,
+      973,
+      1348
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-27B-GPTQ-Int4",
+    "revision": "8f0c09f227ae570e79617c6d9172b59df9c16081",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-27B-GPTQ-Int4/raw/8f0c09f227ae570e79617c6d9172b59df9c16081/README.md",
+    "read_at": "2026-09-23T23:23:02.366778+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "0f9e794f6a0f6d3fcc9b050a522d52d7498080b082a6100814d6e8605c904b95",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      25,
+      43,
+      971,
+      1346
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-2B",
+    "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-2B/raw/15852e8c16360a2fea060d615a32b45270f8a8fc/README.md",
+    "read_at": "2026-09-23T23:23:02.337778+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "c0e83a849c776e6fa843d011f023132d942a0f0140d903205bf1c363adad2275",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      30,
+      45,
+      664,
+      1001
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-2B-Base",
+    "revision": "b1485b2fa6dfa1287294f269f5fb618e03d52d7c",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-2B-Base/raw/b1485b2fa6dfa1287294f269f5fb618e03d52d7c/README.md",
+    "read_at": "2026-09-23T23:23:02.046064+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "50ca45b87d976d9850de95ad00e76fba77e105c2cdef1093b8e3bb261d9a1787",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      29,
+      45,
+      72
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-35B-A3B",
+    "revision": "59d61f3ce65a6d9863b86d2e96597125219dc754",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-35B-A3B/raw/59d61f3ce65a6d9863b86d2e96597125219dc754/README.md",
+    "read_at": "2026-09-23T23:23:03.246763+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "71c3bbc2eadadd5980bbdbb15df958c27d42ede24821015602a021109aacf492",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      33,
+      51,
+      979,
+      1354
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-35B-A3B-Base",
+    "revision": "0f0813072d2358973511097385626f21fcb6d422",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-35B-A3B-Base/raw/0f0813072d2358973511097385626f21fcb6d422/README.md",
+    "read_at": "2026-09-23T23:23:03.354039+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "60d1e23113fb47e636b3e205fb18e722eddbda152da4301ba7fd9b4395184a4c",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      29,
+      45,
+      74
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-35B-A3B-FP8",
+    "revision": "9d1823d2dee688a6b25e77009dc727688c44936e",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-35B-A3B-FP8/raw/9d1823d2dee688a6b25e77009dc727688c44936e/README.md",
+    "read_at": "2026-09-23T23:23:03.552831+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "2e09fd9d54bd1854b1be9e161fe65002493e025812a2447399e8eeea6b90bbfc",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      35,
+      53,
+      981,
+      1356
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4",
+    "revision": "3af5ca2972faf6de1fd6f4efc4d8d319ca751e8b",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-35B-A3B-GPTQ-Int4/raw/3af5ca2972faf6de1fd6f4efc4d8d319ca751e8b/README.md",
+    "read_at": "2026-09-23T23:23:04.005879+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "544cae9538cdd6d0c7f33ec98073c6d72081f3a5657fcfa55e163391649e2ca3",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      33,
+      51,
+      980,
+      1342
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-397B-A17B",
+    "revision": "8472618112abcbd45acbcdc58436aff4233c23f7",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-397B-A17B/raw/8472618112abcbd45acbcdc58436aff4233c23f7/README.md",
+    "read_at": "2026-09-23T23:23:04.691518+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "bda4b24e975f65ac677985306ddbad33362e65064637660654c8bb7dea7edf50",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      31,
+      49,
+      990,
+      1352
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-397B-A17B-FP8",
+    "revision": "ea5b4f81096f3901c91dea97f81324302495781d",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-397B-A17B-FP8/raw/ea5b4f81096f3901c91dea97f81324302495781d/README.md",
+    "read_at": "2026-09-23T23:23:04.970319+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "7cbdae1578ba8ededfd20cd99320dd8b1bd846d64d7b6b49711842a9cebfbe70",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      35,
+      53,
+      994,
+      1339
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4",
+    "revision": "df333de344e06b492063d1ca04e2d4ee878f7595",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-397B-A17B-GPTQ-Int4/raw/df333de344e06b492063d1ca04e2d4ee878f7595/README.md",
+    "read_at": "2026-09-23T23:23:05.270525+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "cac618bf44d636ed51cfe32d2bb8992774cbb08e352afdd8f379a1d685c3bc86",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      33,
+      51,
+      993,
+      1342
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-4B/raw/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a/README.md",
+    "read_at": "2026-09-23T23:23:04.853173+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "1406be1b6b8fd8a6545870da516912804756593628a1d0fb0a7965211e82a7bb",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      27,
+      45,
+      794,
+      1169
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-4B-Base",
+    "revision": "1001bb4d826a52d1f399e183466143f4da7b741b",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-4B-Base/raw/1001bb4d826a52d1f399e183466143f4da7b741b/README.md",
+    "read_at": "2026-09-23T23:23:05.429955+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "76ead24ea3de5a52610c755ffa0b6e7cb51e3c413f124a3776bc6f16b694474e",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      29,
+      45,
+      72
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-9B",
+    "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-9B/raw/c202236235762e1c871ad0ccb60c8ee5ba337b9a/README.md",
+    "read_at": "2026-09-23T23:23:05.749168+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "c5f5a8c2dddab69cfbf05279235aa5fddb137939a06539c4c7637aa900fef6d0",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      27,
+      45,
+      792,
+      1167
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.5-9B-Base",
+    "revision": "68c46c4b3498877f3ef123c856ecfde50c39f404",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.5-9B-Base/raw/68c46c4b3498877f3ef123c856ecfde50c39f404/README.md",
+    "read_at": "2026-09-23T23:23:05.718459+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "e5fb9a49c5b5eea08839180eef484c97743be241189ccb4a1f4d830514c1f0cb",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      29,
+      45,
+      72
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.6-27B",
+    "revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.6-27B/raw/6a9e13bd6fc8f0983b9b99948120bc37f49c13e9/README.md",
+    "read_at": "2026-09-23T23:23:05.986424+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "bb936d6da51014f1edc9aa4cf9abf28d98695b7616ad56adfeeebfa752051d3d",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      34,
+      592
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.6-27B-FP8",
+    "revision": "e89b16ebf1988b3d6befa7de50abc2d76f26eb09",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.6-27B-FP8/raw/e89b16ebf1988b3d6befa7de50abc2d76f26eb09/README.md",
+    "read_at": "2026-09-23T23:23:06.498798+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "1d812aa4505b65e4893130b61d8e60498f15f751ed180e60dab0650823f2dced",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      38,
+      596
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.6-35B-A3B",
+    "revision": "995ad96eacd98c81ed38be0c5b274b04031597b0",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.6-35B-A3B/raw/995ad96eacd98c81ed38be0c5b274b04031597b0/README.md",
+    "read_at": "2026-09-23T23:23:06.983434+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "c4ddaa065649ff6352648f64747a16eda31726f3e34add94ce04abb461c77b75",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      34,
+      620
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.6-35B-A3B-FP8",
+    "revision": "95a723d08a9490559dae23d0cff1d9466213d989",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.6-35B-A3B-FP8/raw/95a723d08a9490559dae23d0cff1d9466213d989/README.md",
+    "read_at": "2026-09-23T23:23:07.503929+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "24c5494fb559cdfda44abe396f71c18975fec69745aae4a94679316e6e80dbdb",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      41,
+      627
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.8-27B",
+    "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.8-27B/raw/1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0/README.md",
+    "read_at": "2026-09-23T23:23:07.152890+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "57e4bdb258ee1a7d2635c5174ebd4e56abe392505cdb5f8bbb356b0dc4293641",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      20,
+      34
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.8-27B-FP8",
+    "revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.8-27B-FP8/raw/017b9c7af6b5689d5dd426a76e0bc077eb5ca20a/README.md",
+    "read_at": "2026-09-23T23:23:08.394330+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "a247d876f5398eed9ae898f32a984083552de57237b5e20714657e1675e26d2e",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      25,
+      39
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.8-Flash-Next",
+    "revision": "de4b8e4d43b917e7706784d8bb445c9af86a3540",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.8-Flash-Next/raw/de4b8e4d43b917e7706784d8bb445c9af86a3540/README.md",
+    "read_at": "2026-09-23T23:23:08.359641+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "35ca37ccc366f1ba478dab33841a2c0c18ce53fd62f291ca05341f7728b225b2",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      43
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "Qwen/Qwen3.8-Flash-Next-FP8",
+    "revision": "236dfdf285828023ca3bcd3f37366c58a3469b13",
+    "url": "https://hf-mirror.com/Qwen/Qwen3.8-Flash-Next-FP8/raw/236dfdf285828023ca3bcd3f37366c58a3469b13/README.md",
+    "read_at": "2026-09-23T23:23:08.650590+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "3c5fcfaf37c4415dbabdbd25eaa7a17ed42f8e63fead97b8644053b1d60ea43f",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      47
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+    "revision": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+    "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/raw/6821d6ad3681a4b137b066b76094fa82ebd0a380/README.md",
+    "read_at": "2026-09-23T23:23:08.640747+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "5e120ab94b1f4c1c4a9096b666b1256e96331142fd2dc649c2a0ae5fc8482606",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      41,
+      75
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+    "revision": "dba1be0a40aa45a94ad051997016db3960a90277",
+    "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4.1-Flash/raw/dba1be0a40aa45a94ad051997016db3960a90277/README.md",
+    "read_at": "2026-09-23T23:23:09.162243+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "347c9db4e5506acb531cbc3b724407ab88e9af8781679152f0823d7bac16d251",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      53
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "moonshotai/Kimi-K2.5",
+    "revision": "4d01dfe0332d63057c186e0b262165819efb6611",
+    "url": "https://hf-mirror.com/moonshotai/Kimi-K2.5/raw/4d01dfe0332d63057c186e0b262165819efb6611/README.md",
+    "read_at": "2026-09-23T23:23:09.346047+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "1b04bed9c6c25894171c0ab5e0b4c4d57667698a654dbfd5a6c1649b922810a5",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      42,
+      45,
+      71,
+      72
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "moonshotai/Kimi-K2.6",
+    "revision": "7eb5002f6aadc958aed6a9177b7ed26bb94011bb",
+    "url": "https://hf-mirror.com/moonshotai/Kimi-K2.6/raw/7eb5002f6aadc958aed6a9177b7ed26bb94011bb/README.md",
+    "read_at": "2026-09-23T23:23:09.562692+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "95db3be1d0473e482c7aa901f237ad7af8bb7929625a777b27428081bb8ea9f7",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      40,
+      70,
+      71
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "moonshotai/Kimi-K2.7-Code",
+    "revision": "74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+    "url": "https://hf-mirror.com/moonshotai/Kimi-K2.7-Code/raw/74797c9c62378b951a1f6fcf5c4631024e9b8bef/README.md",
+    "read_at": "2026-09-23T23:23:09.544701+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "c78bbe5af19636b180eda956abf1f30a79027ec04d6642ebddc44edbc4470879",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      59,
+      60
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "moonshotai/Kimi-K3",
+    "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+    "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/README.md",
+    "read_at": "2026-09-23T23:23:10.264921+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "57de265b5842dfa465c6e73b368b0e15a89b8793b5450528dad577da202cc6fe",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      40,
+      45,
+      46,
+      122,
+      126
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "zai-org/GLM-5.3-Flash",
+    "revision": "eb9eb208eb0d988989d07a6a12d0fdeb5f52574a",
+    "url": "https://hf-mirror.com/zai-org/GLM-5.3-Flash/raw/eb9eb208eb0d988989d07a6a12d0fdeb5f52574a/README.md",
+    "read_at": "2026-09-23T23:23:10.419641+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "e6c5d41400e28f5a89418a0d15b09b9c113314a7553d40d7d4a8a72fcdb87d02",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      25
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  },
+  {
+    "model_id": "zai-org/GLM-5.3-Flash-BF16",
+    "revision": "a5b45eb41df6402735dedc900be14a42e8d5e538",
+    "url": "https://hf-mirror.com/zai-org/GLM-5.3-Flash-BF16/raw/a5b45eb41df6402735dedc900be14a42e8d5e538/README.md",
+    "read_at": "2026-09-23T23:23:10.513981+00:00",
+    "status": "card_read_family_mechanism_reference",
+    "card_sha256": "5c48ce1a84c5901ab96d602333e9201fa385a73e9c298fab3467183b8b95a549",
+    "error": null,
+    "checkpoint_audit": "not_completed",
+    "card_anchors": [
+      25
+    ],
+    "assertion_scope": "independent model card confirms vision capability; family forward establishes fusion mechanism; full checkpoint differences unaudited",
+    "test": "multimodalEntry.test.js / 39 entries config+artifacts"
+  }
+]

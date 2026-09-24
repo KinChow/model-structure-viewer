@@ -542,9 +542,8 @@ const SHAPE_EDGE_REGISTERED = new Map(Object.entries({
   // confidence_head 的是 markov 嵌入（get_prev_embeddings = markov_w1 输出，dim=r），
   // 即 H+r concat 的 r 路贡献。与 hc_head 那路同为 concat 贡献者。
   "markov_head -> confidence_head": "concat",
-  // entry：下游入口不是特征维
-  "visual -> embed_tokens": "entry",
-  "projector -> embed_tokens": "entry",
+  // Placeholder token IDs control replacement/expansion; not hidden features.
+  "text_input -> multimodal_fusion": "control",
   // regroup：同一张量换分组视图（逐头 ↔ 摊平、patch merge 把 merge² 个 token 拼成一行），
   // 元素总数不变、末维按整数倍变化。判据：两端末维互为整数倍。
   "pre_norm -> fc1": "regroup",

@@ -22,19 +22,21 @@
 //（Attention / MLP / MoE），不从 architectures[0] 剥前缀再拼。vLLM/SGLang 每个
 // 模型文件手写 class Foo，没有这套构词器。attn/ffn 变体清单不进本表。
 export const ARCH_RECIPES = {
-  DeepseekV4ForCausalLM: { moeClass: "DeepseekV4SparseMoeBlock", hashMoE: true, compressorApe: true },
+  DeepseekV4ForCausalLM: { visionFusion: "image_span_overwrite", moeClass: "DeepseekV4SparseMoeBlock", hashMoE: true, compressorApe: true },
   // DeepSeek V4.1：与 V4 同族（sqrtsoftplus/noaux_tc 路由、o_lora 分组输出投影、
   // 逐层 compress_ratios、MHC、DSpark 投机头、视觉塔）。差异 = 无 hash 层
   // （config 无 num_hash_layers → numHashLayers=0，moe.js 的 isHashMoe 恒 false，
   // 全部走 sqrtsoftplus routed MoE）+ 每层入口 Engram（engramLayerIds 注入，
   // 见 decoderLayer.js）。类名取自随附 model.py 原生实现（Block/Transformer/MoE）。
   DeepseekV41ForCausalLM: {
+    visionFusion: "image_span_overwrite",
     hashMoE: true,
     moeClass: "MoE",
     decoderLayerClass: "Block",
     modelClass: "Transformer",
   },
   Glm5NextForConditionalGeneration: {
+    visionFusion: "placeholder_scatter",
     linearAttentionMode: "glm5_next",
     visionInternalMerger: true,
     visionMergerMlp: true,
@@ -46,6 +48,7 @@ export const ARCH_RECIPES = {
     attentionClass: { linear: "Glm5NextTextLinearAttention", gqa: "Glm5NextTextAttention", qwen35_full: "Glm5NextTextAttention" },
   },
   KimiK25ForConditionalGeneration: {
+    visionFusion: "placeholder_expand",
     linearAttentionMode: "kimi",
     visionAttr: "vision_tower",
     moeClass: "DeepseekV3MoE",
@@ -56,6 +59,7 @@ export const ARCH_RECIPES = {
     modelClass: "DeepseekV3Model",
   },
   KimiK3ForConditionalGeneration: {
+    visionFusion: "placeholder_expand",
     linearAttentionMode: "kimi_k3",
     sharedExpertsAreFused: true,
     ffn: { moe: "block_sparse_moe" },
@@ -71,6 +75,7 @@ export const ARCH_RECIPES = {
   MiniMaxM2ForCausalLM: { ffn: "block_sparse_moe", moeClass: "MiniMaxM2SparseMoeBlock", fusedQkv: true, sigmoidRouter: true },
   Glm4MoeForCausalLM: { fusedQkv: true, sigmoidRouter: true },
   MiniMaxM3SparseForConditionalGeneration: {
+    visionFusion: "placeholder_scatter",
     normMode: "gemma_rmsnorm",
     moeClass: "MiniMaxM3VLSparseMoeBlock",
     mlpClass: "MiniMaxM3VLDenseMLP",
@@ -86,6 +91,7 @@ export const ARCH_RECIPES = {
     sigmoidRouter: true,
   },
   Qwen3_5ForConditionalGeneration: {
+    visionFusion: "placeholder_scatter",
     normMode: "gemma_rmsnorm",
     linearAttentionMode: "qwen3_5",
     visionInternalMerger: true,
@@ -108,6 +114,7 @@ export const ARCH_RECIPES = {
     rmsNormClass: "Qwen3_5MoeRMSNorm",
   },
   Qwen3_5MoeForConditionalGeneration: {
+    visionFusion: "placeholder_scatter",
     normMode: "gemma_rmsnorm",
     linearAttentionMode: "qwen3_5",
     visionInternalMerger: true,
@@ -121,6 +128,7 @@ export const ARCH_RECIPES = {
     modelClass: "Qwen3_5MoeTextModel",
   },
   Qwen4ExpForConditionalGeneration: {
+    visionFusion: "placeholder_scatter",
     linearAttentionMode: "qwen4_exp",
     visionInternalMerger: true,
     visionAttr: "visual",
@@ -219,6 +227,13 @@ export function recipeVisionInternalMerger(config) {
     || raw?.hasVision
     || (typeof raw?.vision_n_layers === "number");
   return Boolean(hasVision && recipeOf(config).visionInternalMerger);
+}
+
+// Primary forward evidence: Qwen/GLM/MiniMax masked_scatter; Kimi
+// _merge_input_ids_with_image_features; DeepSeek inference merge_image_embeddings.
+// Do not infer an unfamiliar model's fusion mode from its display name or shape.
+export function recipeVisionFusion(config) {
+  return recipeOf(config).visionFusion || "unknown";
 }
 
 export function recipeAttentionOutputGate(config) {

@@ -3,6 +3,7 @@
 // `formula` ASCII 串的**忠实排版转写**（同一数学，仅改成数学式），不重解释语义。
 // 覆盖性由 formulaTex.test.js 双向锁定（每个 FORMULAS 键都要有、且 KaTeX 可解析）。
 export const FORMULA_TEX = {
+  multimodal_fusion: "H = \\operatorname{merge}(E(\\text{input IDs}), V, \\text{placeholder positions})",
   linear: "Y = XW^{\\top} + b",
   matmul: "Y = AB",
   softmax: "\\operatorname{softmax}(x_i) = \\dfrac{\\exp(x_i)}{\\sum_j \\exp(x_j)}",

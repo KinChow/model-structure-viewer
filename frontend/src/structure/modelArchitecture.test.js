@@ -141,11 +141,9 @@ test("selects dedicated model builders by canonical architecture", () => {
   const resolved = resolveArchitecture(normalized, { modelId: "MiniMaxAI/MiniMax-M3" });
   const network = buildNetwork(resolved, normalized);
 
-  assert.equal(network.children[0].id, "vision_tower");
-  assert.equal(network.children[1].id, "projector");
-  assert.equal(network.children[2].id, "embed_tokens");
-  assert.equal(network.children[3].id, "language_model.layers");
-  assert.equal(network.children[3].attributes.class, "MiniMaxM3VLTextModel");
+  assert.deepEqual(network.children.slice(0, 7).map(child => child.id),
+    ["image_input", "vision_tower", "projector", "text_input", "embed_tokens", "multimodal_fusion", "language_model.layers"]);
+  assert.equal(network.children.find(child => child.id === "language_model.layers").attributes.class, "MiniMaxM3VLTextModel");
 });
 
 test("builds Qwen multimodal models with vision tower and projector", () => {
@@ -176,8 +174,9 @@ test("builds Qwen multimodal models with vision tower and projector", () => {
   const structure = materializeModelStructure(createStructureIr({ network, normalized, resolved }));
 
   assert.equal(resolved.architecture, "Qwen4ExpForConditionalGeneration");
-  assert.deepEqual(network.children.map((child) => child.id), ["visual", "embed_tokens", "layers", "norm", "lm_head"]);
-  assert.equal(treeView(structure).children[0].attributes.output_shape, "[batch, visual_tokens, vision hidden size=2560]");
+  assert.deepEqual(network.children.map((child) => child.id),
+    ["image_input", "visual", "text_input", "embed_tokens", "multimodal_fusion", "layers", "norm", "lm_head"]);
+  assert.equal(treeView(structure).children.find(child => child.id === "visual").attributes.output_shape, "[batch, visual_tokens, vision hidden size=2560]");
   assert.equal(treeView(structure).children.some((node) => node.id === "projector"), false);
   assert.equal(structure.summary.vision_layers, 27);
   assert.equal(structure.summary.vision_output_size, 2560);

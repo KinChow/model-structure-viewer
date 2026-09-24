@@ -24,7 +24,9 @@ const VIEW_OPS = new Set(["split", "mla_kv_split", "qwen_qkvz_split", "attention
 // 未建模登记（照 identity REGISTERED 惯例）：新算子接入时允许临时登记，
 // 必须写明跟踪位置并尽快补齐。2026-09-08 方案 A 落地后此前登记的
 // qsa_attention / dsv4_swa / dsv4_compressed 已全部补齐清空。
-const PENDING_UNMODELED = new Set([]);
+// Fusion has known zero arithmetic/weights but unknown prefill movement unless
+// image occupancy and materialization are supplied. Unknown is not free.
+const PENDING_UNMODELED = new Set(["multimodal_fusion"]);
 
 test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁免除外）", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
@@ -43,7 +45,12 @@ test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁
     for (const row of rows) {
       if (!row.actions) continue;
       const op = String(row.node?.attributes?.operator_id || row.node?.type || "").toLowerCase();
-      if (VIEW_OPS.has(op) || PENDING_UNMODELED.has(op)) continue;
+      if (VIEW_OPS.has(op)) continue;
+      if (PENDING_UNMODELED.has(op)) {
+        assert.equal(row.actions.bytes.actIn, null);
+        assert.equal(row.actions.bytes.actOut, null);
+        continue;
+      }
       // W4：乘子为 0 的子树（MTP 在投机解码未启用时 repeat=0，见
       // 各架构文件 draftBilling）本来就该聚合成零，
       // 不是「未建模的零」。判据是显式的 multiplier===0，不是白名单。

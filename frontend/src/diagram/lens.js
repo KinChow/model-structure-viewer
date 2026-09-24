@@ -35,8 +35,8 @@ export function buildNodeLens(structure, chip, {
     };
     const shapeActIn = activationTensorBytes(row.node.input_shape, nodeShapeOptions, bytesPerElement) * row.multiplier;
     const shapeActOut = activationTensorBytes(row.node.output_shape, nodeShapeOptions, bytesPerElement) * row.multiplier;
-    const actInBytes = row.actions?.bytes?.actIn ?? shapeActIn;
-    const actOutBytes = row.actions?.bytes?.actOut ?? shapeActOut;
+    const actInBytes = row.actions ? row.actions.bytes.actIn : shapeActIn;
+    const actOutBytes = row.actions ? row.actions.bytes.actOut : shapeActOut;
     const perCard = nodeCostPerCard({
       macs: row.compute_macs,
       weightBytes: row.weightBytes,

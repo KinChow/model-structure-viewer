@@ -148,8 +148,8 @@ function collectByStructureClass() {
         acc.vector += (a.vector || 0) * multiplier;
         acc.sfu += (a.sfu || 0) * multiplier;
         acc.weights += (a.bytes?.weights || 0) * multiplier;
-        acc.actIn += (a.bytes?.actIn || 0) * multiplier;
-        acc.actOut += (a.bytes?.actOut || 0) * multiplier;
+        acc.actIn = acc.actIn == null || a.bytes?.actIn == null ? null : acc.actIn + a.bytes.actIn * multiplier;
+        acc.actOut = acc.actOut == null || a.bytes?.actOut == null ? null : acc.actOut + a.bytes.actOut * multiplier;
       }
     });
 
@@ -183,6 +183,7 @@ function collectByStructureClass() {
 
 /** AI = matrix(MAC) / bytesMoved。bytesMoved = 0 时无定义。 */
 function arithmeticIntensity(acc) {
+  if (acc.actIn == null || acc.actOut == null) return null;
   const bytes = acc.weights + acc.actIn + acc.actOut;
   return bytes > 0 ? acc.matrix / bytes : null;
 }
@@ -247,11 +248,13 @@ function collect() {
         if (a.matrix > 0) row.nonzero.matrix = true;
         if (a.vector > 0) row.nonzero.vector = true;
         if (a.sfu > 0) row.nonzero.sfu = true;
-        const moved = (a.bytes?.weights || 0) + (a.bytes?.actIn || 0) + (a.bytes?.actOut || 0);
+        const moved = a.bytes?.actIn == null || a.bytes?.actOut == null
+          ? null : (a.bytes?.weights || 0) + a.bytes.actIn + a.bytes.actOut;
+        if (moved == null) row.unknownBytes = true;
         if (moved > 0) row.nonzero.bytes = true;
         // 占比段：按实例数加权累计（乘 multiplier），跨 59 模型求和
         row.matrix[ph.name] += (a.matrix || 0) * multiplier;
-        row.bytes[ph.name] += moved * multiplier;
+        row.bytes[ph.name] = row.bytes[ph.name] == null || moved == null ? null : row.bytes[ph.name] + moved * multiplier;
       }
     });
     // 表 B：槽位内的算子序列按子节点声明顺序取，跨模型做「首次出现即追加」的并集
@@ -297,7 +300,7 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
   for (const [op, r] of rows) {
     const slots = [...r.slots].sort().slice(0, 4).join(" · ") + (r.slots.size > 4 ? ` 等 ${r.slots.size}` : "");
     const group = FORMULAS[op]?.group || (op === "embedding" ? "embeddings" : UNGROUPED_FORMULAS.has(op) ? "—" : "—");
-    out.push(`| \`${op}\` | ${group} | ${mark(r.nonzero.matrix)} | ${mark(r.nonzero.vector)} | ${mark(r.nonzero.sfu)} | ${mark(r.nonzero.bytes)} | ${refOf(op) || "—"} | ${r.models.size}/${total} | ${r.nodes} | ${r.instances} | ${slots} |`);
+    out.push(`| \`${op}\` | ${group} | ${mark(r.nonzero.matrix)} | ${mark(r.nonzero.vector)} | ${mark(r.nonzero.sfu)} | ${r.unknownBytes ? "unknown" : mark(r.nonzero.bytes)} | ${refOf(op) || "—"} | ${r.models.size}/${total} | ${r.nodes} | ${r.instances} | ${slots} |`);
   }
   out.push("");
   out.push(`未识别叶子（无 operator_id 且非 embedding）：**${unknownLeaves}**`);
@@ -307,6 +310,7 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
   const zeroTrigger = registered.filter((op) => !triggered.has(op));
   // ---- 占比段（按实例加权，跨全部模型求和）----
   for (const phase of ["prefill", "decode"]) {
+    const unknownTraffic = rows.some(([, r]) => r.bytes?.[phase] == null);
     const totalMatrix = rows.reduce((sum, [, r]) => sum + (r.matrix?.[phase] || 0), 0);
     const totalBytes = rows.reduce((sum, [, r]) => sum + (r.bytes?.[phase] || 0), 0);
     const ranked = rows
@@ -324,7 +328,7 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
       out.push(`| \`${x.op}\` | ${x.m.toExponential(3)} | ${mp}% | ${x.b.toExponential(3)} | ${bp}% |`);
     }
     out.push("");
-    out.push(`合计：matrix ${totalMatrix.toExponential(4)} MACs · bytes ${totalBytes.toExponential(4)}（前 15 名之外的算子占比均 < 前列末位）`);
+    out.push(`合计：matrix ${totalMatrix.toExponential(4)} MACs · bytes ${unknownTraffic ? `unknown；已知部分 ${totalBytes.toExponential(4)}，上表百分比仅以已知部分为分母` : totalBytes.toExponential(4)}（仅列前 15 名）`);
     out.push("");
   }
 

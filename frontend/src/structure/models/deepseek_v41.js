@@ -17,11 +17,10 @@ import { decoderStackNetwork } from "../layers/decoderStack.js";
 import { embeddingModule } from "../layers/embedding.js";
 import { lmHeadModule } from "../layers/outputHead.js";
 import { rmsNormModule } from "../layers/norm.js";
-import { projectorModule } from "../layers/projector.js";
-import { visionTowerModule } from "../layers/vision.js";
+import { multimodalEntry } from "../layers/multimodalEntry.js";
 import { hyperConnectionModule } from "../layers/hybrid.js";
 import { outputAttentionResidualModule } from "../layers/residual.js";
-import { hfLayersAttr, recipeVisionInternalMerger } from "../archs/index.js";
+import { hfLayersAttr } from "../archs/index.js";
 
 // CED 分界 = 解码器首个 Full 层（candidate_source_layer_id）。需为有效中段切点，
 // 且 config 显式给出 kv_source_layer_ids（否则不是 V4.1 CSA2）。缺证据时返回 null →
@@ -50,11 +49,9 @@ export function assembleDeepseekV41(resolved, normalized) {
   const lastLayer = (normalized.layers || 0) - 1;
   const encoder = decoderStackNetwork(encoderId, normalized, { range: [0, boundary - 1], name: "Causal Encoder", type: "encoder" });
   const decoder = decoderStackNetwork(decoderId, normalized, { range: [boundary, lastLayer], name: "Decoder", type: "decoder" });
-  const showProjector = normalized.hasVision && normalized.hasVisionProjector && !recipeVisionInternalMerger(normalized);
+  const entry = normalized.hasVision ? multimodalEntry(normalized) : null;
   const children = [
-    ...(normalized.hasVision ? [visionTowerModule(normalized)] : []),
-    ...(showProjector ? [projectorModule(normalized)] : []),
-    embeddingModule("embed_tokens", normalized),
+    ...(entry ? entry.children : [embeddingModule("embed_tokens", normalized)]),
     encoder,
     decoder,
     ...(draft ? [draft] : []),
@@ -66,5 +63,5 @@ export function assembleDeepseekV41(resolved, normalized) {
   const architecture = resolved.architecture || normalized.modelType || "Model";
   // CED 关系边：编码器 → 解码器的主干边额外标注"全局 KV 投影"，渲染为虚线并带提示。
   const edgeMeta = { [`${encoderId}=>${decoderId}`]: { relation: "kv-projection" } };
-  return networkSpecWithDraft("model", architecture, architecture, children, draft, edgeMeta);
+  return networkSpecWithDraft("model", architecture, architecture, children, draft, edgeMeta, entry);
 }

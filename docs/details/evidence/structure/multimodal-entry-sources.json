@@ -1,0 +1,85 @@
+{
+  "read_at": "2026-09-24",
+  "sources": [
+    {
+      "model_id": "moonshotai/Kimi-K2.5",
+      "revision": "4d01dfe0332d63057c186e0b262165819efb6611",
+      "url": "https://hf-mirror.com/moonshotai/Kimi-K2.5/raw/4d01dfe0332d63057c186e0b262165819efb6611/modeling_kimi_k25.py",
+      "status": "fetched",
+      "sha256": "ef28f469e7cb5ab91008a52c1b34718ad37de8428e2ed6aadc408d031a38a372",
+      "file": "moonshotai__Kimi-K2.5-forward.py"
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2.6",
+      "revision": "7eb5002f6aadc958aed6a9177b7ed26bb94011bb",
+      "url": "https://hf-mirror.com/moonshotai/Kimi-K2.6/raw/7eb5002f6aadc958aed6a9177b7ed26bb94011bb/modeling_kimi_k25.py",
+      "status": "fetched",
+      "sha256": "ef28f469e7cb5ab91008a52c1b34718ad37de8428e2ed6aadc408d031a38a372",
+      "file": "moonshotai__Kimi-K2.6-forward.py"
+    },
+    {
+      "model_id": "moonshotai/Kimi-K2.7-Code",
+      "revision": "74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+      "url": "https://hf-mirror.com/moonshotai/Kimi-K2.7-Code/raw/74797c9c62378b951a1f6fcf5c4631024e9b8bef/modeling_kimi_k25.py",
+      "status": "fetched",
+      "sha256": "a1594f129ae8dc5fa3c9dbbc24e8e603b30d7caef1226669b4d95dc8f2a3e2dd",
+      "file": "moonshotai__Kimi-K2.7-Code-forward.py"
+    },
+    {
+      "model_id": "moonshotai/Kimi-K3",
+      "revision": "f831ab66814297da540d832a5235f8e904f29d06",
+      "url": "https://hf-mirror.com/moonshotai/Kimi-K3/raw/f831ab66814297da540d832a5235f8e904f29d06/modeling_kimi_k3.py",
+      "status": "fetched",
+      "sha256": "b9171c96726eda55234c92ac8dfae7e24c512fda68968ae8f2c3782b42665ea2",
+      "file": "moonshotai__Kimi-K3-forward.py"
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "revision": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+      "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/raw/6821d6ad3681a4b137b066b76094fa82ebd0a380/inference/model.py",
+      "status": "fetched",
+      "sha256": "ae8de79223d53c16edc7fa67af124ddd0212f27bddd3207bdd4cb05b48a0a1a7",
+      "file": "deepseek-ai__DeepSeek-V4-Flash-Vision-Exp-forward.py"
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "revision": "dba1be0a40aa45a94ad051997016db3960a90277",
+      "url": "https://hf-mirror.com/deepseek-ai/DeepSeek-V4.1-Flash/raw/dba1be0a40aa45a94ad051997016db3960a90277/inference/model.py",
+      "status": "fetched",
+      "sha256": "4e9ae23620edc8028ccc5d5fef552ab7fdc7dcd6f79608754fe9f67644056f65",
+      "file": "deepseek-ai__DeepSeek-V4.1-Flash-forward.py"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/qwen3_5/modeling_qwen3_5.py",
+      "sha256": "788d4bad50a8d39be2fe79125f0f40134773cd23b1791606fb6b3ab0bc6d2263",
+      "file": "modeling_qwen3_5.py",
+      "anchor": "1527-1549",
+      "status": "fetched",
+      "revision": "v5.16.1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/glm5_next/modeling_glm5_next.py",
+      "sha256": "2092bbb4efa2a8087b74f4a4da37635c503fe1df9ae73f1e6e8342af8b4b8e8b",
+      "file": "modeling_glm5_next.py",
+      "anchor": "1963-1971",
+      "status": "fetched",
+      "revision": "v5.16.1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/huggingface/transformers/main/src/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py",
+      "sha256": "b1a5fa7cd912907905d5f7ccf7730765188f8c085cdc41b53db76be6b3a6d45e",
+      "file": "modeling_minimax_m3_vl.py",
+      "anchor": "1423-1425",
+      "status": "fetched",
+      "revision": "main content-addressed snapshot"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/qwen3_5_moe/modeling_qwen3_5_moe.py",
+      "revision": "v5.16.1",
+      "file": "modeling_qwen3_5_moe.py",
+      "status": "fetched",
+      "sha256": "682f99cb07b1df9d57b8a68006cc8e74cb4b1aa5263fd53f5f1bf4b886d6f55e",
+      "anchor": "1643-1654"
+    }
+  ]
+}

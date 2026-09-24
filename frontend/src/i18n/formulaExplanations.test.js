@@ -9,6 +9,7 @@ test("every registered formula has English explanation copy without Han characte
     const explanation = formulaExplanation(id, formula.title);
     assert.ok(explanation, `${id} explanation is empty`);
     assert.doesNotMatch(explanation, han, `${id} explanation contains Han characters`);
+    assert.ok(EXPLANATIONS_EN[id], `${id} must have explicit English copy, not only the fallback`);
   }
-  assert.equal(Object.keys(EXPLANATIONS_EN).length, 52);
+  assert.deepEqual(Object.keys(EXPLANATIONS_EN).sort(), Object.keys(FORMULAS).sort());
 });

@@ -8,10 +8,9 @@ import { embeddingModule } from "../layers/embedding.js";
 import { lmHeadModule } from "../layers/outputHead.js";
 import { rmsNormModule } from "../layers/norm.js";
 import { outputAttentionResidualModule } from "../layers/residual.js";
-import { projectorModule } from "../layers/projector.js";
-import { visionTowerModule } from "../layers/vision.js";
+import { multimodalEntry } from "../layers/multimodalEntry.js";
 import { hyperConnectionModule } from "../layers/hybrid.js";
-import { hfLayersAttr, recipeVisionInternalMerger } from "../archs/index.js";
+import { hfLayersAttr } from "../archs/index.js";
 
 export function networkSpec(id, name, architecture, children, attributes = {}) {
   return {
@@ -37,16 +36,17 @@ export function networkSpec(id, name, architecture, children, attributes = {}) {
  * 链，需显式声明数据流边：主干串行 + 草稿 fan-in，草稿输出为末端不接主干。
  * children 里草稿仍置于 decoder 之后（默认布局顺序），边由 id 声明决定拓扑。
  */
-export function networkSpecWithDraft(id, name, architecture, children, draft, edgeMeta = {}) {
-  // 主干（embed → decoder → final norm → lm_head，含 vision/projector 前置）是真实
-  // 顺序数据流（HF/vLLM forward 逐模块串行），应声明为 declared 实线边。此前无草稿
+export function networkSpecWithDraft(id, name, architecture, children, draft, edgeMeta = {}, entry = null) {
+  // 文本主干（embed/fusion → decoder → final norm → lm_head）声明顺序边。
+  // 多模态入口显式传入独立分支，不能把 vision/projector 串进 embedding lookup。
+  // 此前无草稿
   // 模型走 { sequence: true }，该标记不产出 declared 边，物化时退化成 module-order
   // 虚线，导致「有草稿=实线 / 无草稿=虚线」的顶层连线风格不一致（同一条主干却两种
   // 画法）。统一：无论是否有草稿，主干都显式声明串行边；草稿只是在此基础上追加
   // fan-in / 出口边。
-  const trunk = children.filter((child) => child !== draft);
-  const edges = [];
-  const edgeRelations = [];
+  const trunk = children.filter((child) => child !== draft && !entry?.branchIds.has(child.id));
+  const edges = [...(entry?.edges || [])];
+  const edgeRelations = [...(entry?.relations || [])];
   for (let index = 0; index < trunk.length - 1; index += 1) {
     const from = trunk[index].id;
     const to = trunk[index + 1].id;
@@ -88,10 +88,9 @@ export function textDecoderNetwork(resolved, normalized, { draft } = {}) {
 }
 
 export function multimodalDecoderNetwork(resolved, normalized, { draft } = {}) {
+  const entry = multimodalEntry(normalized);
   const children = [
-    visionTowerModule(normalized),
-    ...(normalized.hasVisionProjector && !recipeVisionInternalMerger(normalized) ? [projectorModule(normalized)] : []),
-    embeddingModule("embed_tokens", normalized),
+    ...entry.children,
     decoderStackNetwork(hfLayersAttr(normalized), normalized),
     ...(draft ? [draft] : []),
     ...(normalized.hyperConnectionCount ? [hyperConnectionModule("hyper_connection_mixer", normalized, "final")] : []),
@@ -99,5 +98,5 @@ export function multimodalDecoderNetwork(resolved, normalized, { draft } = {}) {
     rmsNormModule("norm", "final norm", normalized),
     lmHeadModule("lm_head", normalized),
   ];
-  return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft);
+  return networkSpecWithDraft("model", resolved.architecture || normalized.modelType || "Model", resolved.architecture, children, draft, {}, entry);
 }

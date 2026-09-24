@@ -14,7 +14,7 @@ import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { classifyRoofline } from "../cost/roofline.js";
 import { chipRates } from "../cost/chips/rates.js";
 import { formatBytes, formatMacs, formatRate, formatSeconds } from "../formatters.js";
-import { actionsByFormulaGroup, costByFormulaGroup, costSummaryModel, etaDisclosureModel } from "../cost/ui.js";
+import { actionsByFormulaGroup, costByFormulaGroup, costSummaryModel, etaDisclosureModel, stageTimingSummary } from "../cost/ui.js";
 import { formatIssues, t } from "../i18n/format.js";
 
 const FLOPS_ORDER = ["fp32", "fp16", "bf16", "fp8", "int8"];
@@ -296,8 +296,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     }));
     return [...grouped, ...commOnly].map(({ group, actions }) => {
       const result = classifyRoofline({ actions: { ...actions, commBytes: commByGroup[group]?.bytes || 0, commOps: commByGroup[group]?.ops || 0 } }, machine, opts);
-      const timed = Object.values(result.times).filter((value) => value != null);
-      return { group, seconds: timed.length ? Math.max(...timed) : null, bound: result.bound };
+      return { group, seconds: stageTimingSummary(result), bound: result.bound };
     });
   }, [cost, machine, config, structure, plan, load, phase, frameworkProfile, efficiency, interNode, interNodeOverrideBytesPerSecond, commLatencySeconds]);
   // M11-P1-3：η 披露——vector/SFU 路固定 1.0，滑块不作用于它（见 ui.js 注释）

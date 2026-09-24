@@ -113,8 +113,8 @@ function summarizeActions(nodes, computeComplete) {
     acc.vector += row.actions.vector ?? 0;
     acc.sfu += row.actions.sfu ?? 0;
     acc.weights += row.actions.bytes.weights ?? 0;
-    acc.actIn += row.actions.bytes.actIn ?? 0;
-    acc.actOut += row.actions.bytes.actOut ?? 0;
+    acc.actIn = acc.actIn == null || row.actions.bytes.actIn == null ? null : acc.actIn + row.actions.bytes.actIn;
+    acc.actOut = acc.actOut == null || row.actions.bytes.actOut == null ? null : acc.actOut + row.actions.bytes.actOut;
     acc.kvRead += row.actions.bytes.kvRead ?? 0;
     acc.indexRead += row.actions.bytes.indexRead ?? 0;
     return acc;

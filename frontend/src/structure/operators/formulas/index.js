@@ -29,6 +29,20 @@ const sumCounts = (...parts) => parts.reduce((total, part) => ({
 }));
 
 export const FORMULAS = {
+  multimodal_fusion: {
+    title: "Text / Vision Fusion",
+    // ref: 二等 official forward: Qwen3.5/GLM5Next/MiniMaxM3 masked_scatter;
+    // Kimi _merge_input_ids_with_image_features; DeepSeek merge_image_embeddings.
+    // docs/details/evidence/structure/multimodal_entry_repair.md
+    formula: "H = merge(E(input_ids), visual_features, placeholder_positions)",
+    explanation: "视觉特征在占位位置替换、扩展或写入文本嵌入，不进入 embedding lookup。语言工作负载已包含融合后的序列；无新增GEMM或参数。缺少图像占位数量和物化策略时，prefill搬运流量未知。",
+    inputs: ["text embeddings", "visual features", "placeholder positions"],
+    outputs: ["language hidden sequence"],
+    counts: ({ phase = "prefill" } = {}) => ({
+      matrix: 0, vector: 0, sfu: 0,
+      bytes: { weights: 0, actIn: phase === "decode" ? 0 : null, actOut: phase === "decode" ? 0 : null },
+    }),
+  },
   linear: {
     title: "Linear",
     // ref: 一等 aten::mm；torch mm_flop = m·n·2k FLOPs → matrix 存 MACs（2× 已换算）；
@@ -683,7 +697,7 @@ export const FORMULA_GROUPS = {
     "mhc_pre", "mhc_fused_post_pre", "mhc_post", "mhc_contract",
     "hyper_connection", "attention_residual", "engram_gate",
   ],
-  memory: ["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split", "vision_merge"],
+  memory: ["split", "mla_kv_split", "qwen_qkvz_split", "attention_qkv_split", "vision_merge", "multimodal_fusion"],
   mamba: ["linear_attention", "gated_delta_attention", "causal_conv1d"],
 };
 

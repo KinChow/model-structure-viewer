@@ -52,7 +52,8 @@ function classify(id) {
     : (c.vector || 0) > 0 || (c.sfu || 0) > 0
       ? "仅访存"
       : "仅搬运";
-  return { klass, matrix: tick(c.matrix || 0), vector: tick(c.vector || 0), sfu: tick(c.sfu || 0), bytes: bytesNonzero ? "✓" : "0" };
+  return { klass, matrix: tick(c.matrix || 0), vector: tick(c.vector || 0), sfu: tick(c.sfu || 0),
+    bytes: b.actIn == null || b.actOut == null ? "unknown" : bytesNonzero ? "✓" : "0" };
 }
 
 export function buildCostCountsRoster() {

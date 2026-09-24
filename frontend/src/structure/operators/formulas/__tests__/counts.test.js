@@ -287,6 +287,7 @@ test("注册表完整性：52 个条目全部终止于 counts（无白名单，�
   // 清单必须与 FORMULAS 键集逐键一致（W4 的 residual_add 曾漏登记，此处补齐）。
   const live = ["linear","matmul","softmax","sdpa_attention","split","causal_conv1d","rope","vision_position","vision_merge","vision_activation","rmsnorm","gemma_rmsnorm","swiglu","fused_moe_mlp","topk","moe_dispatch","moe_combine","moe_add","residual_add","identity","index_reuse","linear_attention","linear_attention_gate","gated_delta_attention","gated_rmsnorm","mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","mla_kv_split","mla_output_gate","attention_residual","hyper_connection","ple","shared_expert_gate","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","qsa_sparse_attention","dsa_sparse_mla","dsv4_sparse_mla","qwen_qkvz_split","attention_qkv_split","attention_output_gate","minimax_sparse_indexer","minimax_sparse_attention","dsv4_hash_route","dsv4_swa_attention","dsv4_compressed_attention","engram_gate"];
   // 复合节点的 ctx 是嵌套结构，数值由各自的复合用例覆盖（如 mla_query_compress）
+  live.push("multimodal_fusion");
   const composites = new Set(["mhc_pre","mhc_fused_post_pre","mhc_post","mhc_contract","mla_query_compress","mla_kv_compress","attention_residual","hyper_connection","ple","qsa_indexer","dsa_indexer","dsa_kpool_indexer","dsv4_indexer","minimax_sparse_indexer"]);
   // 防漂移（双向）：本清单与 FORMULAS 键集逐键一致，新增条目必须同步登记。
   assert.deepEqual(Object.keys(FORMULAS).sort(), [...live].sort(), "清单与 FORMULAS 键集不一致：新增/删除条目须同步本清单");
@@ -297,6 +298,9 @@ test("注册表完整性：52 个条目全部终止于 counts（无白名单，�
     if (composites.has(key)) continue;
     const sample = entry.counts({ elements: 1, tokens: 1, hidden: 1, bytesPerElement: 1, width: 1, intermediate: 1, experts: 1, topk: 1, expertHidden: 1, expertIntermediate: 1, keyDim: 1, valueDim: 1, keyTokens: 1, headDim: 1, heads: 1, queryTokens: 1, valueDim2: 1, ropeDims: 1, channels: 1, kernel: 1, tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false, gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false, copy: false, part: "scores", selected: 1, batch: 1, sequence: 1, keyHeads: 1, valueHeads: 1, convKernelSize: 1 });
     assert.ok(Number.isFinite(sample.matrix), `matrix 非有限: ${key}`);
-    assert.ok(Number.isFinite(sample.bytes.actIn), `bytes 非有限: ${key}`);
+    if (key === "multimodal_fusion") {
+      assert.equal(sample.bytes.actIn, null, "unknown image movement is not zero");
+      assert.equal(entry.counts({ phase: "decode" }).bytes.actIn, 0);
+    } else assert.ok(Number.isFinite(sample.bytes.actIn), `bytes 非有限: ${key}`);
   }
 });

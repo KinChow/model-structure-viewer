@@ -76,6 +76,7 @@ export function bindTruthToGraph(graph, truthGraph) {
   const boundIds = [];
   const ambiguous = [];
   const nodes = (graph?.nodes || []).map((node) => {
+    if (node.attributes?.checkpoint_module === false) return node;
     const templateId = node.canonical_id || node.module_id || node.id;
     const seen = new Set();
     const candidates = [];

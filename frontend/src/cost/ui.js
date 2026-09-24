@@ -7,6 +7,12 @@ import { FORMULAS } from "../structure/operators/formulas/index.js";
 const MACS_SOURCE_ORDER = ["formula", "aggregate", "not-compute", "unknown"];
 const UNIT_KEYS = ["matrix", "vector", "sfu", "memory", "comm"];
 
+/** Missing one required timing route cannot become a zero-ns stage total. */
+export function stageTimingSummary(result) {
+  const timed = Object.values(result?.times || {}).filter(value => value != null);
+  return result?.bound === "unknown" || !timed.length ? null : Math.max(...timed);
+}
+
 function lang({ english } = {}) {
   return english ? "en" : "zh";
 }
@@ -64,8 +70,8 @@ export function actionsByFormulaGroup(cost) {
     acc.vector += a.vector ?? 0;
     acc.sfu += a.sfu ?? 0;
     acc.bytes.weights += a.bytes?.weights ?? 0;
-    acc.bytes.actIn += a.bytes?.actIn ?? 0;
-    acc.bytes.actOut += a.bytes?.actOut ?? 0;
+    acc.bytes.actIn = acc.bytes.actIn == null || a.bytes?.actIn == null ? null : acc.bytes.actIn + a.bytes.actIn;
+    acc.bytes.actOut = acc.bytes.actOut == null || a.bytes?.actOut == null ? null : acc.bytes.actOut + a.bytes.actOut;
     acc.bytes.kvRead += a.bytes?.kvRead ?? 0;
     acc.bytes.indexRead += a.bytes?.indexRead ?? 0;
     if (a.computeDtype) {

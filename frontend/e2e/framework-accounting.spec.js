@@ -1,5 +1,12 @@
 import { expect, test } from "./fixtures.js";
 import { writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { normalizeConfig } from "../src/structure/config/normalize.js";
+
+const modelRoot = new URL("../../models/", import.meta.url);
+const builtinCatalog = JSON.parse(readFileSync(new URL("catalog.json", modelRoot), "utf8"));
+const visionById = new Map(builtinCatalog.models.map(entry => [entry.model_id,
+  normalizeConfig(JSON.parse(readFileSync(new URL(entry.config_path, modelRoot), "utf8"))).hasVision]));
 
 // 将冷启动浏览器/Vite 的准备时间纳入多模型场景预算；
 // 只在 test body 中设置会让 beforeEach 仍受 30 秒限制。
@@ -234,7 +241,15 @@ test(`Chrome 全量 60 模型成本与图扫描（桌面和移动） ${batchInde
     await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 30_000 });
     await page.locator(".detail-cost-toggle > button").click();
     const cost = page.locator(".cost-summary");
-    await expect(cost.locator("[data-bound]")).not.toHaveAttribute("data-bound", "unknown");
+    // Image-span/placeholder occupancy and materialization are not implied by
+    // the text sequence length. Preserve an unknown roofline for vision models
+    // rather than inventing zero traffic; text-only models remain classifiable.
+    if (visionById.get(model)) {
+      await expect(cost.locator("[data-bound]")).toHaveAttribute("data-bound", "unknown");
+      await expect(cost.locator('.cost-domain-item[data-group="memory"] b')).toHaveText(/未知|unknown/i);
+    } else {
+      await expect(cost.locator("[data-bound]")).not.toHaveAttribute("data-bound", "unknown");
+    }
     await expect(cost).not.toContainText(/NaN|Infinity|\[object Object\]/);
     await expect(cost.locator(".cost-plan-error")).toHaveCount(0);
     const kv = await cost.locator(".cost-kv-ownership > span").evaluateAll((els) => els.map((el) => Number(el.dataset.bytes)));

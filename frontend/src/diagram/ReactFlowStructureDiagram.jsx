@@ -411,6 +411,7 @@ function ReactFlowCanvas({ graph, props }) {
 export default function ReactFlowStructureDiagram(props) {
   const baseGraph = useMemo(() => layoutGraph(props.structure, props.expandedGroups), [props.structure, props.expandedGroups]);
   const [graph, setGraph] = useState(baseGraph);
+  const [layoutError, setLayoutError] = useState(null);
   const [hoveredPath, setHoveredPath] = useState(null);
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -441,9 +442,17 @@ export default function ReactFlowStructureDiagram(props) {
     // one. Publishing the provisional graph first creates a visible second
     // layer during expand/collapse because React Flow measures both states.
     layoutGraphWithElk(baseGraph).then((next) => {
-      if (active) setGraph({ ...next, layoutSource: baseGraph });
-    }).catch(() => {});
+      if (active) {
+        setGraph({ ...next, layoutSource: baseGraph });
+        setLayoutError(null);
+      }
+    }).catch((error) => {
+      if (active) setLayoutError(String(error?.message || error));
+    });
     return () => { active = false; };
   }, [baseGraph]);
-  return <div className="diagram-frame react-flow-diagram" data-graph-version={graph.graphVersion || "legacy"} data-layout-ready={graph.layoutReady && graph.layoutSource === baseGraph ? "true" : "false"} data-active-lenses={[...props.activeLenses].join(",")}><ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider></div>;
+  return <div className="diagram-frame react-flow-diagram" data-graph-version={graph.graphVersion || "legacy"} data-layout-ready={graph.layoutReady && graph.layoutSource === baseGraph ? "true" : "false"} data-active-lenses={[...props.activeLenses].join(",")}>
+    {layoutError && <div className="diagram-layout-error" role="alert" title={layoutError}>{props.language === "en" ? "Diagram routing failed" : "图连线路由失败"}: {layoutError}</div>}
+    <ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider>
+  </div>;
 }

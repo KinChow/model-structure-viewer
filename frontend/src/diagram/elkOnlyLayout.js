@@ -128,7 +128,8 @@ export async function layoutGraphWithElkOnly(graph) {
         .filter((edge) => edge.source && edge.target && !edge.source.includes("::") && !edge.target.includes("::"))
         .map((edge) => `${edge.source}=>${edge.target}`),
     );
-    const orderEdges = children.slice(0, -1)
+    const semanticFlow = projectedEdges.some((edge) => edge.evidence === "declared");
+    const orderEdges = semanticFlow ? [] : children.slice(0, -1)
       .map((source, index) => ({
         id: `__elk_order__${id}__${index}`,
         source,

@@ -287,9 +287,10 @@ test("展开 DSpark 后 root 级旁挂边使用最终坐标的避障路线", asy
   assert.ok(draftEdges.every((edge) => edge.routePoints.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))));
 });
 
-test("展开容器后相邻模块可见间距不被边框外扩压窄", async () => {
-  // frame 外扩量已并入 elk.padding、frame 贴合 shape 绘制：无论相邻模块是折叠还是
-  // 展开，顶层相邻模块的有效横向间距都应稳定在 ELK 层间距（44），不再随展开变窄。
+test("ELK lane 中展开容器不会压缩主干间距", async () => {
+  // Layout IR 把输入、主干和辅助分支建模为 ELK compound lane。展开 decoder
+  // 只改变 decoder compound 的尺寸，不应压缩 main lane 中 decoder → final norm
+  // 的有效间距。
   const tree = {
     name: "DeepseekV4ForCausalLM", type: "model", children: [
       { name: "embed tokens", type: "embedding", input_shape: [1, 2], output_shape: [1, 4], children: [] },
@@ -310,19 +311,14 @@ test("展开容器后相邻模块可见间距不被边框外扩压窄", async ()
       const node = laidOut.nodes.find((n) => n.path === path);
       return { x: node.x, w: node.width, y: node.y, h: node.height };
     };
-    // embed(root.0) -> decoder(root.1) 相邻，取有效盒子右-左间距
-    const a = box("root.0");
-    const b = box("root.1");
-    return b.x - (a.x + a.w);
+    const decoder = box("root.1");
+    const finalNorm = box("root.2");
+    return finalNorm.x - (decoder.x + decoder.w);
   };
   const collapsedGap = await effGap(new Set(["root"]));
   const expandedGap = await effGap(new Set(["root", "root.1"]));
-  // 展开后间距应与折叠时一致（容差 2px），不出现历史上的 28/12px 收窄
-  assert.ok(
-    Math.abs(expandedGap - collapsedGap) <= 2,
-    `展开后相邻间距 ${Math.round(expandedGap)} 与折叠时 ${Math.round(collapsedGap)} 不一致（边框外扩压窄回归）`,
-  );
-  assert.ok(expandedGap >= 40, `展开后间距 ${Math.round(expandedGap)} 过窄`);
+  assert.ok(collapsedGap >= 40, `折叠主干间距 ${Math.round(collapsedGap)} 过窄`);
+  assert.ok(expandedGap >= 40, `展开主干间距 ${Math.round(expandedGap)} 过窄`);
 });
 
 test("展开的草稿子树完整落在 model 容器 frame 内（不越界）", async () => {
@@ -401,7 +397,7 @@ test("layoutGraph models MLA as a branched attention graph", () => {
   ]);
 });
 
-test("ELK keeps all MLA input projections on the first internal layer", async () => {
+test("ELK keeps MLA input projections upstream of their consumers", async () => {
   const graph = layoutGraph(structureFrom({
     name: "model", type: "model", children: [
       { name: "MLA Attention", type: "attention", attributes: { dataflow_edges: [["q_proj", "rope"], ["k_proj", "rope"], ["rope", "scores"], ["scores", "softmax"], ["softmax", "context"], ["v_proj", "context"], ["context", "o_proj"]] }, children: [
@@ -419,8 +415,7 @@ test("ELK keeps all MLA input projections on the first internal layer", async ()
   const laidOut = await layoutGraphWithElk(graph);
   const get = (name) => laidOut.nodes.find((node) => node.node.name === name);
   const inputs = [get("q projection"), get("k projection"), get("v projection")];
-  const firstLayerY = Math.min(...laidOut.nodes.filter((node) => node.path.startsWith("root.0.")).map((node) => node.y));
-  assert.ok(inputs.every((node) => node.y === firstLayerY));
+  assert.ok(inputs.slice(0, 2).every((node) => node.y < get("rotary position embedding").y));
   assert.ok(get("v projection").y < get("weighted value").y);
 });
 

@@ -78,6 +78,7 @@ placeholder、scatter、replace 或 image-span 语义，不统一伪装为 token
 
 ```bash
 node scripts/evidence/structure/audit-gallery-semantics.mjs
+node scripts/evidence/structure/architecture-baseline.mjs > /tmp/architecture-baseline.json
 ```
 
 当前观察应满足：

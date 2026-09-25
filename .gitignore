@@ -17,6 +17,11 @@ frontend/public/chips.local.json
 .env.*
 .comate
 
+# Large, reproducible architecture-audit runs stay local; commit only
+# curated evidence under docs/details/evidence and reusable tools under
+# scripts/evidence.
+artifacts/architecture-repair/
+
 src/*.egg-info/
 
 # Keep only lightweight model metadata in the repo.

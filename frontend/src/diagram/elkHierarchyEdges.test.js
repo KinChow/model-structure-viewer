@@ -38,3 +38,29 @@ test("edge to its ancestor terminates on the ancestor border port", () => {
   assert.ok(result.portsByNode.get("root.0.0").some((port) => port.direction === "in"));
   assert.ok(result.portsByNode.get("root.0").some((port) => port.direction === "out"));
 });
+
+test("layout projection can route an edge across virtual lanes", () => {
+  const graphValue = graph(
+    ["root", "root.0", "root.1"],
+    [["root.0", "root.1"]],
+  );
+  const parentByPath = new Map([
+    ["root", null],
+    ["root.0", "__layout_root__.input"],
+    ["root.1", "__layout_root__.main"],
+    ["__layout_root__.input", "root"],
+    ["__layout_root__.main", "root"],
+  ]);
+  const result = buildElkHierarchyEdges(graphValue, {
+    layoutParentByPath: parentByPath,
+    virtualNodeIds: ["__layout_root__.input", "__layout_root__.main"],
+  });
+  assert.deepEqual(result.segmentsByEdge.get("edge-0"), [
+    "edge-0::out::__layout_root__.input",
+    "edge-0::core",
+    "edge-0::in::__layout_root__.main",
+  ]);
+  assert.equal(result.partsByOwner.get("root")[0].id, "edge-0::core");
+  assert.equal(result.partsByOwner.get("__layout_root__.input")[0].source, "root.0::out");
+  assert.equal(result.partsByOwner.get("__layout_root__.main")[0].target, "root.1::in");
+});

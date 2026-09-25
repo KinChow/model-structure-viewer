@@ -17,10 +17,13 @@ test("layout projection adds virtual lanes without changing Graph IR paths", () 
   const projection = buildLayoutProjection(graph);
   assert.equal(projection.root_id, VIRTUAL_ROOT);
   assert.deepEqual([...projection.laneIds.keys()], LANES);
-  assert.equal(projection.parentByPath.get("root.0"), projection.laneIds.get("input"));
-  assert.equal(projection.parentByPath.get("root.1"), projection.laneIds.get("main"));
-  assert.equal(projection.parentByPath.get("root.2"), projection.laneIds.get("auxiliary"));
+  assert.equal(projection.layoutParentByPath.get("root.0"), projection.laneIds.get("input"));
+  assert.equal(projection.layoutParentByPath.get("root.1"), projection.laneIds.get("main"));
+  assert.equal(projection.layoutParentByPath.get("root.2"), projection.laneIds.get("auxiliary"));
   assert.equal(projection.laneByPath.get("root.1.0"), "main");
+  assert.equal(projection.layoutParentByPath.get("root.0"), projection.laneIds.get("input"));
+  assert.equal(projection.layoutParentByPath.get(projection.laneIds.get("input")), "root");
+  assert.deepEqual(projection.layoutChildrenByParent.get(projection.laneIds.get("main")), ["root.1"]);
   assert.ok(!graph.nodes.some((node) => node.virtual));
 });
 

@@ -51,6 +51,8 @@ export function buildLayoutProjection(graph) {
     lane: null,
   }];
   const parentByPath = new Map();
+  const layoutParentByPath = new Map();
+  const layoutChildrenByParent = new Map();
   const laneByPath = new Map();
   const laneIds = new Map(LANES.map((lane) => [lane, `${VIRTUAL_ROOT}.${lane}`]));
   for (const lane of LANES) {
@@ -72,8 +74,12 @@ export function buildLayoutProjection(graph) {
     const path = node.path || node.id;
     const lane = laneFor(node);
     laneByPath.set(path, lane);
-    parentByPath.set(path, laneIds.get(lane));
+    layoutParentByPath.set(path, laneIds.get(lane));
   }
+  // The model frame remains the visible owner of the virtual lanes. The
+  // virtual root is only a projection namespace; it is never rendered.
+  for (const lane of LANES) layoutParentByPath.set(laneIds.get(lane), "root");
+  layoutParentByPath.set("root", null);
   // Descendants retain their Graph IR hierarchy. Their top-level ancestor
   // inherits the lane solely for layout constraints and diagnostics.
   for (const node of nodes) {
@@ -82,6 +88,29 @@ export function buildLayoutProjection(graph) {
     let top = path;
     while (top && top.split(".").length > 2) top = parentPath(top);
     if (top && laneByPath.has(top)) laneByPath.set(path, laneByPath.get(top));
+    if (path !== "root" && !layoutParentByPath.has(path)) {
+      layoutParentByPath.set(path, parentPath(path));
+    }
+  }
+  for (const node of topLevel) {
+    const path = node.path || node.id;
+    layoutParentByPath.set(path, laneIds.get(laneByPath.get(path)));
+  }
+  for (const node of nodes) {
+    const path = node.path || node.id;
+    if (path === "root") continue;
+    const parent = layoutParentByPath.get(path);
+    if (!parent) continue;
+    const children = layoutChildrenByParent.get(parent) || [];
+    children.push(path);
+    layoutChildrenByParent.set(parent, children);
+  }
+  for (const lane of LANES) {
+    const laneId = laneIds.get(lane);
+    const rootChildren = layoutChildrenByParent.get("root") || [];
+    if (!rootChildren.includes(laneId)) rootChildren.push(laneId);
+    layoutChildrenByParent.set("root", rootChildren);
+    layoutChildrenByParent.set(laneId, layoutChildrenByParent.get(laneId) || []);
   }
   return {
     version: 1,
@@ -89,6 +118,8 @@ export function buildLayoutProjection(graph) {
     root_id: VIRTUAL_ROOT,
     virtualNodes,
     parentByPath,
+    layoutParentByPath,
+    layoutChildrenByParent,
     laneByPath,
     laneIds,
     nodeByPath,

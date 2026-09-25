@@ -112,7 +112,7 @@ export function materializeModelStructure(ir) {
       // 真值：模型级精确参数量（@huggingface/hub 计算）
       parameters_total: truth?.parameterTotal ?? null,
       parameters_by_dtype: truth?.parameterCount ?? null,
-      gallery_alignment: galleryAlignmentForGraph(graph),
+      gallery_alignment: galleryAlignmentForGraph(graph, resolved.architecture || normalized.architecture),
     },
     source: {
       kind: options.source || "config",

@@ -4,28 +4,19 @@
  * This is deliberately a display-only projection. It does not decide
  * topology, weights, costs, or checkpoint truth; those remain Graph IR facts.
  */
-const ATTENTION_LABELS = {
-  gqa: "GQA",
-  [["qwen", "35", "_full"].join("")]: "Gated Attention",
-  qsa: "QSA",
-  dsv4: "CSA/HCA",
-  sparse: "MiniMax Sparse",
-  mla: "MLA",
-  dsa_sparse_mla: "DSA / MLA",
-  linear: "DeltaNet",
-};
+import { galleryAttentionLabel } from "./archs/index.js";
 
 function addCount(map, label, count) {
   if (!label || !count) return;
   map.set(label, (map.get(label) || 0) + count);
 }
 
-export function galleryAlignmentForGraph(graph) {
+export function galleryAlignmentForGraph(graph, architecture) {
   const counts = new Map();
   const special = new Set();
   for (const node of graph?.nodes || []) {
     const kind = node.attributes?.attention_kind;
-    if (node.type === "attention" && kind) addCount(counts, ATTENTION_LABELS[kind] || String(kind), node.repeat || 1);
+    if (node.type === "attention" && kind) addCount(counts, galleryAttentionLabel(architecture, kind), node.repeat || 1);
     const text = `${node.name || ""} ${node.attributes?.class || ""}`.toLowerCase();
     if (node.attributes?.csa2_mode || text.includes("csa2")) special.add("CSA2");
     if (text.includes("engram") || node.attributes?.operator_id === "engram_gate") special.add("Engram");

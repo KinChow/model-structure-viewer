@@ -228,6 +228,22 @@ export function archRecipe(architecture) {
   return ARCH_RECIPES[String(architecture || "")] || {};
 }
 
+/** Public terminology used by the architecture gallery; display only. */
+export function galleryAttentionLabel(architecture, kind) {
+  const recipe = archRecipe(architecture);
+  if (kind === "linear") return ["kimi_k3", "glm5_next"].includes(recipe.linearAttentionMode) ? "KDA" : "DeltaNet";
+  if (kind === "mla" && recipe.linearAttentionMode === "kimi_k3") return "Gated MLA";
+  if (kind === "qwen35_full") return "Gated Attention";
+  return {
+    gqa: "GQA",
+    qsa: "QSA",
+    dsv4: "CSA/HCA",
+    sparse: "MiniMax Sparse",
+    dsa_sparse_mla: "DSA / MLA",
+    mla: "MLA",
+  }[kind] || String(kind || "Attention");
+}
+
 /** Explicit checkpoint path aliases for published wrapper/state-dict layouts. */
 export function checkpointPathAliases(normalized) {
   const recipe = archRecipe(normalized?.architecture);

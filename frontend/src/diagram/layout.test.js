@@ -40,6 +40,28 @@ test("cross-container dependencies constrain their common ancestor without chang
   assert.ok(graph.nodes.find(n => n.path === "root.1").x < graph.nodes.find(n => n.path === "root.0").x);
   assert.deepEqual(graph.edges.map(e => [e.source, e.target]), [["root.1.0", "root.0.0"]]);
   assert.equal(graph.edges.some(e => e.id.startsWith("__constraint__")), false);
+  assert.ok(graph.edges[0].routePoints?.length >= 2, "展开后的精确跨容器端点应得到完整路线");
+  assert.deepEqual(graph.edges[0].routePoints[0], {
+    x: graph.nodes.find(n => n.path === "root.1.0").x + graph.nodes.find(n => n.path === "root.1.0").width / 2,
+    y: graph.nodes.find(n => n.path === "root.1.0").y + graph.nodes.find(n => n.path === "root.1.0").height,
+  });
+});
+
+test("ELK routes a child-to-ancestor edge through the expanded frame border", async () => {
+  const structure = structureFrom({
+    id: "model", type: "model",
+    children: [{
+      id: "compound", type: "module", attributes: { dataflow_edges: [["leaf", "compound"]] },
+      children: [{ id: "leaf", type: "operator", children: [] }],
+    }],
+  });
+  const view = layoutGraph(structure, new Set(["root", "root.0"]));
+  const graph = await layoutGraphWithElk(view);
+  const edge = graph.edges.find(e => e.source === "root.0.0" && e.target === "root.0");
+  assert.ok(edge?.routePoints?.length >= 2);
+  const frame = graph.containerFrames.find(f => f.id === "root.0");
+  const end = edge.routePoints.at(-1);
+  assert.ok(end.y >= frame.y && end.y <= frame.y + frame.height);
 });
 
 test("layoutGraph exposes independent visible nodes and edges", () => {
@@ -243,7 +265,7 @@ test("多模态输入分支存在时仍保持 decoder 到 lm_head 主干同一�
   assert.ok(y("root.4") > y("root.3"), "DSpark 仍应位于主干下方");
 });
 
-test("展开 DSpark 后 root 级旁挂边使用最终坐标的正交桥接", async () => {
+test("展开 DSpark 后 root 级旁挂边使用最终坐标的避障路线", async () => {
   const graph = layoutGraph(structureFrom({
     name: "DeepseekV41ForCausalLM", type: "model", children: [
       { name: "decoder", type: "decoder", children: [
@@ -261,8 +283,8 @@ test("展开 DSpark 后 root 级旁挂边使用最终坐标的正交桥接", asy
   const rootEdges = laidOut.edges.filter((edge) => edge.source.split(".").length === 2);
   const draftEdges = rootEdges.filter((edge) => edge.source === "root.1" || edge.target === "root.1");
   assert.equal(draftEdges.length, 2);
-  assert.ok(draftEdges.every((edge) => edge.bendPoints?.length >= 2), "旁挂边必须有最终坐标折点");
-  assert.ok(draftEdges.every((edge) => edge.bendPoints.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))));
+  assert.ok(draftEdges.every((edge) => edge.routePoints?.length >= 2), "旁挂边必须有最终坐标路线");
+  assert.ok(draftEdges.every((edge) => edge.routePoints.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))));
 });
 
 test("展开容器后相邻模块可见间距不被边框外扩压窄", async () => {

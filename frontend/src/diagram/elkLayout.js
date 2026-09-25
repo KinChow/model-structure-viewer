@@ -1,4 +1,18 @@
 let elkPromise;
+let avoidPromise;
+import { buildElkHierarchyEdges } from "./elkHierarchyEdges.js";
+
+function getFixedNodeRouter() {
+  if (!avoidPromise) {
+    avoidPromise = import("@mr_mint/elkjs-libavoid").then(async (module) => {
+      if (typeof window !== "undefined") {
+        await module.init(new URL("../../node_modules/@mr_mint/elkjs-libavoid/dist/libavoid.wasm", import.meta.url).href);
+      }
+      return module;
+    });
+  }
+  return avoidPromise;
+}
 
 function getElk() {
   if (!elkPromise) {
@@ -59,6 +73,7 @@ function layoutHeight(node) {
 export async function layoutGraphWithElk(graph) {
   const elk = await getElk();
   const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
+  const hierarchy = buildElkHierarchyEdges(graph);
   // 跨容器真实边只在共同祖先生成布局约束，不改 IR 或可见边的精确端点。
   const directEdges = (path, allowedIds) => {
     const childUnder = endpoint => {
@@ -85,9 +100,9 @@ export async function layoutGraphWithElk(graph) {
     ? { in: "WEST", out: "EAST" }
     : { in: "NORTH", out: "SOUTH" });
   const portId = (path, dir) => `${path}::${dir}`;
-  const elkEdge = (edge) => ({ id: edge.id, sources: [portId(edge.source, "out")], targets: [portId(edge.target, "in")] });
   function attachPorts(shape, childPath, sides) {
     shape.ports = [
+      ...(shape.ports || []),
       { id: portId(childPath, "in"), layoutOptions: { "elk.port.side": sides.in } },
       { id: portId(childPath, "out"), layoutOptions: { "elk.port.side": sides.out } },
     ];
@@ -103,26 +118,35 @@ export async function layoutGraphWithElk(graph) {
     const allChildren = directChildren(node, nodeByPath);
     const children = allChildren;
     const childIds = new Set(children.map((child) => child.path));
-    if (children.length === 0) return { id: node.path, width: node.width, height: layoutHeight(node) };
+    const parentSides = portSides(depth === 1 ? "RIGHT" : "DOWN");
+    const bridgePorts = (hierarchy.portsByNode.get(node.path) || []).map(({ id, direction }) => ({
+      id,
+      layoutOptions: { "elk.port.side": direction === "in" ? parentSides.in : parentSides.out },
+    }));
+    if (children.length === 0) return {
+      id: node.path, width: node.width, height: layoutHeight(node),
+      ...(bridgePorts.length ? {
+        ports: bridgePorts,
+        layoutOptions: { "elk.portConstraints": "FIXED_SIDE" },
+      } : {}),
+    };
     // 语义流布局只信任 builder 声明的边；semantic-flow 已随 legacySemanticEdges 退役。
-    const rawEdges = directEdges(node.path, childIds);
-    const semanticFlow = rawEdges.some(edge => edge.evidence === "declared")
+    const rawEdges = hierarchy.partsByOwner.get(node.path) || [];
+    const projectedEdges = directEdges(node.path, childIds);
+    const semanticFlow = projectedEdges.some(edge => edge.evidence === "declared")
       || Array.isArray(node.node?.attributes?.dataflow_edges);
     const inputIds = new Set(children
-      .filter((child) => !rawEdges.some((edge) => edge.target === child.path))
+      .filter((child) => !projectedEdges.some((edge) => edge.target === child.path))
       .map((child) => child.path));
     const direction = depth === 0 ? "RIGHT" : "DOWN";
     const sides = portSides(direction);
-    // 端口约束只用于**嵌套竖向容器**（模块内部，也是我们消费 ELK 路由的地方）。
-    // 顶层（RIGHT）保留原有无端口布局：其主干含草稿旁挂重排等精细逻辑，且其边不消费
-    // ELK 路由——加端口反而会扰动分层（embed/lm_head 曾因此重叠）。
-    const usePorts = direction === "DOWN";
+    // 每个可见模块都提供稳定的入/出端口；跨容器边再连接到边界端口。
     // 合成顺序边强制相邻子节点竖向排布。但只在**该相邻对没有真实边**时补：
     // 若已有真实内部边（折叠层组间的 module-order 边）还补一条同端点 __order__ 边，
     // ELK 会当两条平行边分别路由——其一绕行，正交消费后成「Z 字」。反过来，module-order
     // 也可能漏边（如 final_norm→lm_head 缺失），此时仍需合成边约束，否则该节点会散落到
     // 第 0 层与他人重叠。故按「缺失的相邻对」精确补齐。
-    const realPairs = new Set(rawEdges.map((edge) => `${edge.source}=>${edge.target}`));
+    const realPairs = new Set(projectedEdges.map((edge) => `${edge.source}=>${edge.target}`));
     const orderRaw = semanticFlow
       ? []
       : children.slice(0, -1)
@@ -134,8 +158,10 @@ export async function layoutGraphWithElk(graph) {
         .filter((edge) => !realPairs.has(`${edge.source}=>${edge.target}`));
     return {
       id: node.path,
+      ...(bridgePorts.length ? { ports: bridgePorts } : {}),
       layoutOptions: {
         ...(semanticFlow ? SEMANTIC_LAYOUT : BASE_LAYOUT),
+        ...(bridgePorts.length ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
         // Keep the model's top-level modules in a readable pipeline. Once a
         // module is opened, its implementation is a vertical sibling flow.
         "elk.direction": direction,
@@ -147,7 +173,7 @@ export async function layoutGraphWithElk(graph) {
       },
       children: children.map((child) => {
         const shape = makeShape(child, depth + 1);
-        if (usePorts) attachPorts(shape, child.path, sides);
+        attachPorts(shape, child.path, sides);
         if (semanticFlow && inputIds.has(child.path)) {
           shape.layoutOptions = {
             ...(shape.layoutOptions || {}),
@@ -158,9 +184,11 @@ export async function layoutGraphWithElk(graph) {
         }
         return shape;
       }),
-      edges: [...rawEdges, ...orderRaw].map((e) => (usePorts
-        ? elkEdge(e)
-        : { id: e.id, sources: [e.source], targets: [e.target] })),
+      edges: [...rawEdges, ...orderRaw].map((e) => ({
+        id: e.id,
+        sources: [e.source.includes("::") ? e.source : portId(e.source, "out")],
+        targets: [e.target.includes("::") ? e.target : portId(e.target, "in")],
+      })),
     };
   }
 
@@ -273,22 +301,31 @@ export async function layoutGraphWithElk(graph) {
   const positions = new Map();
   const dimensions = new Map();
   const groupFrames = [];
-  // ELK 正交路由折点（绝对画布坐标）：edgeId → [{x,y}...]。
-  // root 直属子节点会在 ELK 完成后按“主干 + 旁挂分支”重新定位，因此不能复用
-  // ELK 在旧坐标上算出的 sections；这些边也必须在最终坐标上补一条正交桥接路线，
-  // 否则渲染层会退回长贝塞尔曲线（DSpark/MTP 展开时尤其明显）。
+  // 非 root 容器的 ELK sections 在整体平移后仍有效；root 的边在
+  // 主干/旁挂重排之后交给固定节点路由器处理。
   const edgeBends = new Map();
+  const segmentRoutes = new Map();
+  const portPositions = new Map();
   function walk(shape, offsetX = 0, offsetY = 0) {
     const x = offsetX + (shape.x || 0);
     const y = offsetY + (shape.y || 0);
     if (shape.id !== "__graph_root__") {
       positions.set(shape.id, { x, y });
       dimensions.set(shape.id, { width: shape.width || 0, height: shape.height || 0 });
+      for (const port of shape.ports || []) {
+        portPositions.set(port.id, { x: x + (port.x || 0), y: y + (port.y || 0) });
+      }
     }
     if (shape.id !== "__graph_root__" && shape.id !== "root" && Array.isArray(shape.edges)) {
       for (const edge of shape.edges) {
         if (typeof edge.id !== "string" || edge.id.startsWith("__order__") || edge.id.startsWith("__constraint__")) continue;
         const bends = (edge.sections || []).flatMap((section) => section.bendPoints || []);
+        const points = (edge.sections || []).flatMap((section) => [
+          section.startPoint,
+          ...(section.bendPoints || []),
+          section.endPoint,
+        ].filter(Boolean).map((point) => ({ x: x + point.x, y: y + point.y })));
+        if (points.length > 1) segmentRoutes.set(edge.id, points);
         // sections 坐标相对于边所属容器（= 本 shape）原点，加上容器绝对偏移即画布绝对坐标。
         edgeBends.set(edge.id, bends.map((p) => ({ x: x + p.x, y: y + p.y })));
       }
@@ -315,70 +352,53 @@ export async function layoutGraphWithElk(graph) {
     for (const child of shape.children || []) walk(child, x, y);
   }
   walk(result);
-
-  // Root-level modules use horizontal handles.  After the draft-band
-  // repositioning, route their edges from the final boxes instead of letting
-  // React Flow choose a free-form Bezier path between distant frames.
-  const rootChild = (path) => path?.split(".").length === 2;
-  const rootBox = (path) => {
-    const position = positions.get(path);
-    const size = dimensions.get(path);
-    if (!position || !size) return null;
-    const node = nodeByPath.get(path);
-    const frame = groupFrames.find((candidate) => candidate.id === path);
-    const boxPosition = frame ? { x: frame.x, y: frame.y } : position;
-    const boxSize = frame ? { width: frame.width, height: frame.height } : size;
-    const isExpandedFrame = Boolean(frame);
-    const anchorY = isExpandedFrame && node?.depth === 1
-      ? 70
-      : boxSize.height / 2;
-    return {
-      left: boxPosition.x,
-      right: boxPosition.x + boxSize.width,
-      top: boxPosition.y,
-      bottom: boxPosition.y + boxSize.height,
-      source: { x: boxPosition.x + boxSize.width, y: boxPosition.y + anchorY },
-      target: { x: boxPosition.x, y: boxPosition.y + anchorY },
-    };
-  };
-  for (const edge of graph.edges) {
-    if (edge.kind !== "dataflow" || !rootChild(edge.source) || !rootChild(edge.target)) continue;
-    const source = rootBox(edge.source);
-    const target = rootBox(edge.target);
-    if (!source || !target) continue;
-    const horizontalGap = target.left - source.right;
-    if (horizontalGap >= 0) {
-      // Rightward pipeline: one vertical dogleg in the free space between boxes.
-      const middleX = source.right + horizontalGap / 2;
-      edgeBends.set(edge.id, [
-        { x: middleX, y: source.source.y },
-        { x: middleX, y: target.target.y },
-      ]);
-      continue;
+  // Only the root's immediate children are moved after ELK. Their nested
+  // routes remain valid; root-owned sections do not. Libavoid routes these
+  // few fixed-position bridges around the final top-level compound boxes.
+  const rootParts = hierarchy.partsByOwner.get("root") || [];
+  if (rootParts.length) {
+    const { routeEdges } = await getFixedNodeRouter();
+    const topBoxes = graph.nodes.filter((node) => parentPath(node.path) === "root")
+      .map((node) => {
+        const position = positions.get(node.path);
+        const size = dimensions.get(node.path);
+        return position && size && { id: node.path, x: position.x, y: position.y, width: size.width, height: size.height };
+      }).filter(Boolean);
+    for (const part of rootParts) {
+      const source = portPositions.get(part.source);
+      const target = portPositions.get(part.target);
+      if (!source || !target) continue;
+      const sourceBox = part.source.split("::")[0].split(".").slice(0, 2).join(".");
+      const targetBox = part.target.split("::")[0].split(".").slice(0, 2).join(".");
+      const route = (await routeEdges({
+        id: "__root_routes__",
+        children: [
+          ...topBoxes.filter((box) => box.id !== sourceBox && box.id !== targetBox),
+          { id: "__source__", x: source.x - 1, y: source.y - 1, width: 2, height: 2 },
+          { id: "__target__", x: target.x - 1, y: target.y - 1, width: 2, height: 2 },
+        ],
+        edges: [{ id: part.id, source: "__source__", target: "__target__" }],
+      }, { routingType: "orthogonal", shapeBufferDistance: 8 })).get(part.id);
+      if (route) segmentRoutes.set(part.id, [source, ...(route.bendPoints || []), target]);
     }
-    // A side branch below/above the source cannot approach a left handle by
-    // crossing the target frame.  Go around the target's top/bottom first,
-    // keeping every segment outside both endpoint boxes.
-    const targetBelow = target.top >= source.bottom;
-    const clearance = 24;
-    const outsideSourceX = source.right + clearance;
-    const outsideTargetX = target.left - clearance;
-    const outsideY = targetBelow ? target.top - clearance : target.bottom + clearance;
-    edgeBends.set(edge.id, [
-      { x: outsideSourceX, y: source.source.y },
-      { x: outsideSourceX, y: outsideY },
-      { x: outsideTargetX, y: outsideY },
-      { x: outsideTargetX, y: target.target.y },
-    ]);
+  }
+  const compoundRoutes = new Map();
+  for (const [edgeId, segments] of hierarchy.segmentsByEdge) {
+    const parts = segments.map((segment) => segmentRoutes.get(segment));
+    if (parts.some((part) => !part)) continue;
+    const points = parts.flatMap((part, index) => index ? part.slice(1) : part);
+    compoundRoutes.set(edgeId, points);
   }
 
   return {
     ...graph,
     layoutReady: true,
     nodes: graph.nodes.map((node) => ({ ...node, ...(positions.get(node.path) || {}) })),
-    edges: graph.edges.map((edge) => (
-      edgeBends.has(edge.id) ? { ...edge, bendPoints: edgeBends.get(edge.id) } : { ...edge }
-    )),
+    edges: graph.edges.map((edge) => {
+      const points = compoundRoutes.get(edge.id);
+      if (points) return { ...edge, bendPoints: points.slice(1, -1), routePoints: points };
+      return edgeBends.has(edge.id) ? { ...edge, bendPoints: edgeBends.get(edge.id) } : { ...edge };
+    }),
     containerFrames: groupFrames,
   };
 }

@@ -13,21 +13,30 @@ const catalogPath = path.join(repoRoot, "models/catalog.json");
 const playwright = await import(pathToFileURL(path.join(repoRoot, "frontend/node_modules/playwright/index.mjs")));
 const catalog = JSON.parse(await fs.readFile(catalogPath, "utf8"));
 const baseUrl = process.env.MSV_BASE_URL || "http://127.0.0.1:4173";
-const outputPath = process.argv[2] || path.join(repoRoot, "docs/details/evidence/structure/generated/expanded-edge-occlusion-audit.json");
+const outputPath = process.argv[2] || path.join(repoRoot, "artifacts/architecture-repair/expanded-edge-occlusion-audit.json");
 
 const browser = await playwright.chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
 const findings = [];
+let pageErrors = [];
+page.on("pageerror", (error) => pageErrors.push(String(error)));
 
 for (const entry of catalog.models) {
   const url = `${baseUrl}/?model=${encodeURIComponent(entry.model_id)}&source=builtin`;
   try {
+    pageErrors = [];
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(700);
+    // The built-in config is available immediately, but the artifact/truth
+    // path and ELK worker can replace the initial graph several seconds later.
+    // Never report an empty or intermediate 5-node view as a clean model.
+    await page.locator(".react-flow-diagram[data-layout-ready='true']").waitFor({ timeout: 30_000 });
+    // The artifact/truth path can replace an initial config-only graph.
+    await page.waitForTimeout(2500);
     const expand = page.getByRole("button", { name: "Expand all", exact: true });
     if (await expand.count()) {
       await expand.click();
-      await page.waitForTimeout(600);
+      await page.locator(".react-flow-diagram[data-layout-ready='true']").waitFor({ timeout: 30_000 });
+      await page.waitForFunction(() => document.querySelectorAll(".react-flow__edge").length > 0, null, { timeout: 30_000 });
     }
     const result = await page.evaluate(() => {
       const rect = (element) => {
@@ -78,7 +87,10 @@ for (const entry of catalog.models) {
       }
       return { tileCount: tiles.length, edgeCount: document.querySelectorAll(".react-flow__edge").length, hits };
     });
-    findings.push({ model_id: entry.model_id, ...result });
+    findings.push({
+      model_id: entry.model_id, ...result, pageErrors,
+      incomplete: result.tileCount === 0 || result.edgeCount === 0,
+    });
     console.log(`${entry.model_id}: ${result.hits.length} potential occlusion(s)`);
   } catch (error) {
     findings.push({ model_id: entry.model_id, error: String(error) });
@@ -97,5 +109,6 @@ console.log(JSON.stringify({
   models_with_potential_occlusion: withHits.length,
   potential_occlusions: findings.reduce((sum, item) => sum + (item.hits?.length || 0), 0),
   zero_tile_models: findings.filter((item) => item.tileCount === 0).map((item) => item.model_id),
+  page_errors: findings.reduce((sum, item) => sum + (item.pageErrors?.length || 0), 0),
   output: outputPath,
 }, null, 2));

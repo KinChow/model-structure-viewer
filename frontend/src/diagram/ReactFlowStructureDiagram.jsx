@@ -203,7 +203,7 @@ function roundedOrthoPath(points, radius = 6) {
 }
 
 function MsvRoutedEdge({ id, sourceX, sourceY, targetX, targetY, markerEnd, style, data }) {
-  const points = [{ x: sourceX, y: sourceY }, ...(data?.bendPoints || []), { x: targetX, y: targetY }];
+  const points = data?.routePoints || [{ x: sourceX, y: sourceY }, ...(data?.bendPoints || []), { x: targetX, y: targetY }];
   const path = roundedOrthoPath(points, 6);
   return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle(style, data)} className={edgeClassName(data)} data-evidence={data?.evidence}><title>{data?.hint}</title></BaseEdge>;
 }

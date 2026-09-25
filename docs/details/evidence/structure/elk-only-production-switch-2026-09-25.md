@@ -33,9 +33,10 @@ exist only in Layout IR.
 
 Raw audit: `generated/elk-only-production-expanded-audit-2026-09-25.json`.
 
-## Remaining validation
+## Final gate status
 
-The production switch is complete, but the final gate still requires a fresh full
-unit run after dependency removal and the mobile family E2E matrix. Existing
-compare/layout baseline issues remain out of scope unless reproduced by the new
-ELK-only path.
+- Fresh full frontend unit suite after dependency removal: **619/619 passed**.
+- Mobile Chrome architecture-family matrix: **1/1 passed**, covering all 16
+  structure families.
+- Existing compare/layout baseline issues remain out of scope unless reproduced
+  by the new ELK-only path.

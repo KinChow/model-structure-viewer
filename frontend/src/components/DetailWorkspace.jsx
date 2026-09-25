@@ -43,6 +43,7 @@ function ModelSummaryPanel({ structure, sourceLabel, language, onSelectPath, par
   const english = language === "en";
   const rows = [
     [english ? "Architecture" : "架构", summary.architecture],
+    [english ? "Gallery profile" : "图库对照", summary.gallery_alignment?.attention_mix || summary.gallery_alignment?.decoder_type],
     [english ? "Parameters" : "参数量", parameterTotal.value != null ? `${(parameterTotal.value / 1e9).toFixed(2)}B${parameterTotal.derived ? " · derived" : ""}` : "-"],
     [english ? "Layers" : "层数", summary.text_layers],
     ["Hidden Size", summary.hidden_size],

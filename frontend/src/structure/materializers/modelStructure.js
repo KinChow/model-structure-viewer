@@ -3,6 +3,7 @@ import { materializeStructureGraph } from "../graph/materializeStructureGraph.js
 import { enrichGraphWithTruth } from "../truth/graphTruth.js";
 import { bindSourceRefToGraph } from "../source_ref/bindSourceRef.js";
 import { checkpointPathAliases } from "../archs/index.js";
+import { galleryAlignmentForGraph } from "../galleryAlignment.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -111,6 +112,7 @@ export function materializeModelStructure(ir) {
       // 真值：模型级精确参数量（@huggingface/hub 计算）
       parameters_total: truth?.parameterTotal ?? null,
       parameters_by_dtype: truth?.parameterCount ?? null,
+      gallery_alignment: galleryAlignmentForGraph(graph),
     },
     source: {
       kind: options.source || "config",

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildStructureFromConfig } from "../structure/buildStructure.js";
 import { graphRoot } from "../structure/graph/selectors.js";
 import { layoutGraph } from "./layout.js";
+import { layoutGraphWithElk } from "./elkLayout.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -38,4 +39,28 @@ test("all built-in multi-operator modules use semantic graph edges", async () =>
   }
   assert.equal(catalog.models.length, 60);
   assert.ok(checked.length > 0);
+});
+
+test("all built-in root-level dataflow edges retain a routed path after full expansion", async () => {
+  const catalog = JSON.parse(await fs.readFile(path.join(repoRoot, "models/catalog.json"), "utf8"));
+  let models = 0;
+  let rootEdges = 0;
+  for (const entry of catalog.models) {
+    const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
+    const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "builtin-layout-route-test" });
+    const graph = await layoutGraphWithElk(layoutGraph(structure, expandedPaths(graphRoot(structure.graph))));
+    const siblingEdges = graph.edges.filter((edge) => (
+      edge.kind === "dataflow"
+      && edge.source.split(".").length === 2
+      && edge.target.split(".").length === 2
+    ));
+    assert.ok(
+      siblingEdges.every((edge) => Array.isArray(edge.bendPoints)),
+      `${entry.model_id}: root-level edge lost its final-coordinate route`,
+    );
+    rootEdges += siblingEdges.length;
+    models += 1;
+  }
+  assert.equal(models, catalog.models.length);
+  assert.ok(rootEdges > 0);
 });

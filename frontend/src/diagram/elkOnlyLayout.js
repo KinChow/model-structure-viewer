@@ -42,6 +42,11 @@ function nodeHeight(node) {
   return node.isCollapsible && node.isExpanded ? 28 : node.height;
 }
 
+function isAuxiliaryNode(node) {
+  const type = nodeType(node);
+  return type.includes("mtp") || type.includes("dspark") || type.includes("draft");
+}
+
 /**
  * Production all-ELK layout.
  *
@@ -53,7 +58,7 @@ function nodeHeight(node) {
  */
 export async function layoutGraphWithElkOnly(graph) {
   const elk = await getElk();
-  const projection = buildLayoutProjection(graph);
+  const projection = buildLayoutProjection(graph, { topLevelFlow: "linear" });
   const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
   const virtualById = new Map(projection.virtualNodes.map((node) => [node.id, node]));
   const parentByPath = projection.layoutParentByPath;
@@ -67,7 +72,7 @@ export async function layoutGraphWithElkOnly(graph) {
   const childrenOf = (owner) => childrenByParent.get(owner) || [];
   const isVirtual = (id) => virtualById.has(id);
   const directionOf = (id) => {
-    if (id === "root") return "DOWN";
+    if (id === "root") return "RIGHT";
     if (isVirtual(id)) return "RIGHT";
     return "DOWN";
   };
@@ -146,6 +151,9 @@ export async function layoutGraphWithElkOnly(graph) {
       layoutOptions: {
         ...BASE,
         "elk.direction": direction,
+        ...(id !== "root" && !virtual && rawParent(id) === "root"
+          ? { "elk.partitioning.partition": isAuxiliaryNode(node) ? "1" : "0" }
+          : {}),
         "elk.padding": virtual
           ? "[top=28,left=28,bottom=28,right=28]"
           : "[top=54,left=40,bottom=40,right=40]",
@@ -163,7 +171,13 @@ export async function layoutGraphWithElkOnly(graph) {
   const model = shapeFor("root");
   const result = await elk.layout({
     id: "__elk_only_root__",
-    layoutOptions: { ...BASE, "elk.direction": "DOWN", "elk.padding": "24" },
+    layoutOptions: {
+      ...BASE,
+      "elk.direction": "RIGHT",
+      "elk.partitioning.activate": "true",
+      "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+      "elk.padding": "24",
+    },
     children: [model],
   });
 

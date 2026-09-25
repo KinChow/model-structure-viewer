@@ -12,6 +12,7 @@ import { DEFAULT_EFFICIENCY } from "../cost/efficiency.js";
 import { etaDisclosureModel } from "../cost/ui.js";
 import { formatIssue, formatIssues, issueKey, t } from "../i18n/format.js";
 import { formulaExplanation } from "../i18n/formulaExplanations.js";
+import { focusTopLevelPath } from "../diagram/focusGraph.js";
 
 function downloadSvg(structure) {
   const legacySvg = document.querySelector(".diagram-svg");
@@ -101,6 +102,8 @@ function ArchitectureTab({
     onToggleGroup,
     onExpandAllGroups,
     onCollapseAllGroups,
+    focusPath,
+    onFocusPathChange,
   } = diagram;
   const {
     activeLenses = new Set(["vram"]),
@@ -234,6 +237,8 @@ function ArchitectureTab({
     exportFail: "Export failed",
     expandAll: "Expand all",
     collapseAll: "Collapse all",
+    openModule: "Open module detail",
+    closeModule: "Close module detail",
     base: "Base",
     chipComparison: "Chip comparison",
     planComparison: "Plan comparison",
@@ -266,6 +271,8 @@ function ArchitectureTab({
     exportFail: "导出失败",
     expandAll: "展开全部",
     collapseAll: "收起全部",
+    openModule: "打开模块详情",
+    closeModule: "退出模块详情",
     base: "基准",
     chipComparison: "芯片对比",
     planComparison: "方案对比",
@@ -288,6 +295,8 @@ function ArchitectureTab({
     onExitFocus: () => setCanvasFocus(false),
     scrollSync: { group: compareScrollGroup.current },
     language,
+    focusPath,
+    onFocusPathChange,
   };
   return (
     <section className={`diagram-panel${canvasFocus ? " canvas-focus" : ""}`}>
@@ -300,6 +309,7 @@ function ArchitectureTab({
         </h2>
         <div className="toolbar-actions">
           <button type="button" onClick={() => setCanvasFocus((value) => !value)}>{canvasFocus ? ui.exitFocus : ui.focus}</button>
+          {(focusPath || focusTopLevelPath(selectedPath)) && <button type="button" onClick={() => onFocusPathChange?.(focusPath ? null : focusTopLevelPath(selectedPath))}>{focusPath ? ui.closeModule : ui.openModule}</button>}
           {advancedOpen && <div className="toolbar-analysis" aria-label={ui.analysis}>
           {!compactControls && <label className="lens-control">GPU<select value={chip?.id || ""} onChange={(event) => changeChip(event.target.value)}>{chips.map((entry) => <option key={entry.id} value={entry.id}>{chipOptionText(entry)}</option>)}</select></label>}
           {!compactControls && <>

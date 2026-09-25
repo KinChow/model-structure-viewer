@@ -116,6 +116,10 @@ export default function DetailWorkspace({
   loadingPhase = "reading",
 }) {
   const [auxView, setAuxView] = useState(null);
+  const [focusPath, setFocusPath] = useState(null);
+  useEffect(() => {
+    setFocusPath(null);
+  }, [structure]);
   const auxPanelRef = useRef(null);
   useEffect(() => {
     if (!auxView) return;
@@ -231,7 +235,7 @@ export default function DetailWorkspace({
             chips={chips}
             onAddChip={onAddChip}
             compactControls
-            diagram={{ zoom, fitNonce, onFit, selectedPath, matchedPaths, expandedGroups, searchActive: Boolean(searchTerm.trim()), onSelectNode, onToggleGroup: onToggleLayerPath, onExpandAllGroups: onExpandAllLayers, onCollapseAllGroups: onCollapseAllLayers }}
+            diagram={{ zoom, fitNonce, onFit, selectedPath, matchedPaths, expandedGroups, searchActive: Boolean(searchTerm.trim()), onSelectNode, onToggleGroup: onToggleLayerPath, onExpandAllGroups: onExpandAllLayers, onCollapseAllGroups: onCollapseAllLayers, focusPath, onFocusPathChange: setFocusPath }}
             cost={{ activeLenses, activePhase, onPhaseChange: changeActivePhase, activeMode, activePlans, onPlanChange: setActivePlans, activeNodes, gpusPerNode: activeGpusPerNode, activeMachineId, onMachineChange: setActiveMachineId, activeLoads, nodeLensResult, comparisonMode, onComparisonModeChange: setComparisonMode, compareChipId, onCompareChipIdChange: setCompareChipId, comparePlan, onComparePlanChange: setComparePlan, efficiency, onEfficiencyChange: setEfficiency }}
           />
           {auxView === "export" && <div className="detail-aux-panel" ref={auxPanelRef}><ExportTab format={exporter.format} onFormatChange={exporter.setFormat} text={exporter.text} language={language} /></div>}

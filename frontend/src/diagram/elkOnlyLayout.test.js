@@ -24,7 +24,7 @@ function overlap(a, b) {
   return x > 2 && y > 2;
 }
 
-test("ELK-only layout keeps multimodal and auxiliary lanes in one compound solve", async () => {
+test("ELK-only layout keeps the visible module flow left-to-right", async () => {
   const graph = await layoutGraphWithElkOnly(view({
     id: "model",
     type: "model",
@@ -51,8 +51,9 @@ test("ELK-only layout keeps multimodal and auxiliary lanes in one compound solve
   }, new Set(["root", "root.3", "root.4"])));
   assertFiniteGraph(graph);
   const get = (path) => graph.nodes.find((node) => node.path === path);
-  assert.ok(get("root.4").y > get("root.3").y, "auxiliary lane should be below the main lane");
-  assert.ok(get("root.3").x < get("root.5").x && get("root.5").x < get("root.6").x);
+  assert.ok(get("root.3").x < get("root.5").x && get("root.5").x < get("root.6").x,
+    "decoder, final norm, and output head should follow the input-to-output x order");
+  assert.ok(get("root.4").x > get("root.3").x, "auxiliary DSpark should remain downstream of decoder");
   const siblings = graph.nodes.filter((node) => node.path.split(".").length === 2);
   for (let left = 0; left < siblings.length; left += 1) {
     for (let right = left + 1; right < siblings.length; right += 1) {

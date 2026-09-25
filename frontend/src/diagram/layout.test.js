@@ -207,10 +207,9 @@ test("keeps the output head inside the model compound", async () => {
   assert.ok(lmHead.x <= modelFrame.x + modelFrame.width);
 });
 
-test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", async () => {
-  // DSpark/MTP 与主干共享 decoder 输入却不回流 final norm，ELK 会把草稿排进
-  // final norm / lm_head 所在列。主干拉平 baseline 后，草稿必须落到主干整体下方
-  // 的独立行带，否则与被上移的同列主干节点压在一起（历史 overlap 回归）。
+test("旁挂草稿分支保持独立且不与主干节点重叠", async () => {
+  // 生产布局的顶层语义流统一按输入→输出从左到右；DSpark/MTP 是旁挂
+  // 分支，不要求再强行压到主干下方，但必须保持独立且不能覆盖主干节点。
   const graph = layoutGraph(structureFrom({
     name: "DeepseekV4ForCausalLM", type: "model", children: [
       { name: "embed tokens", type: "embedding", input_shape: [1, 2], output_shape: [1, 4], children: [] },
@@ -230,9 +229,8 @@ test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", as
   const top = laidOut.nodes.filter((node) => node.path.split(".").length === 2);
   const draft = top.find((node) => node.path === "root.2");
   const trunk = top.filter((node) => node.path !== "root.2");
-  // 草稿纵向排在所有主干节点之下
-  const trunkBottom = Math.max(...trunk.map((node) => node.y + node.height));
-  assert.ok(draft.y >= trunkBottom, `draft.y=${draft.y} 应不小于主干底部 ${trunkBottom}`);
+  assert.ok(draft.x > Math.min(...trunk.map((node) => node.x)),
+    "draft branch should remain downstream of the main input");
   // 无任何顶层节点两两重叠
   for (const a of top) {
     for (const b of top) {
@@ -244,7 +242,7 @@ test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", as
   }
 });
 
-test("多模态输入分支存在时仍保持 decoder 到 lm_head 主干同一基线", async () => {
+test("多模态输入分支存在时仍保持 decoder 到 lm_head 左到右主干", async () => {
   const graph = layoutGraph(structureFrom({
     name: "multimodal", type: "model", attributes: {
       dataflow_edges: [["vision", "merge"], ["text", "merge"], ["merge", "decoder"], ["decoder", "final norm"], ["final norm", "lm head"], ["decoder", "dspark"], ["dspark", "lm head"]],
@@ -259,10 +257,10 @@ test("多模态输入分支存在时仍保持 decoder 到 lm_head 主干同一�
     ],
   }), new Set(["root", "root.4"]));
   const laidOut = await layoutGraphWithElk(graph);
-  const y = path => laidOut.nodes.find(node => node.path === path).y;
-  assert.equal(y("root.3"), y("root.5"), "decoder 与 final norm 应在同一主干基线");
-  assert.equal(y("root.5"), y("root.6"), "final norm 与 lm head 应在同一主干基线");
-  assert.ok(y("root.4") > y("root.3"), "DSpark 仍应位于主干下方");
+  const node = path => laidOut.nodes.find(item => item.path === path);
+  assert.ok(node("root.3").x < node("root.5").x, "decoder should precede final norm");
+  assert.ok(node("root.5").x < node("root.6").x, "final norm should precede lm head");
+  assert.ok(node("root.4").x > node("root.3").x, "DSpark should remain downstream of decoder");
 });
 
 test("展开 DSpark 后 root 级旁挂边使用最终坐标的避障路线", async () => {

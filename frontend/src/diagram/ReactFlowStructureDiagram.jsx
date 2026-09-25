@@ -15,8 +15,8 @@ import {
   useStore,
 } from "@xyflow/react";
 import { SmartEdgeProvider, useSmartEdgePath } from "@tisoap/react-flow-smart-edge";
-import { layoutGraph } from "./layout.js";
 import { layoutGraphWithElkOnly } from "./elkOnlyLayout.js";
+import { buildFocusedLayoutGraph, normalizeFocusedElkGraph } from "./focusGraph.js";
 import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgePresentation } from "./edgeStyle.js";
 import { formatBytes, formatMetric } from "../formatters.js";
@@ -409,7 +409,10 @@ function ReactFlowCanvas({ graph, props }) {
 }
 
 export default function ReactFlowStructureDiagram(props) {
-  const baseGraph = useMemo(() => layoutGraph(props.structure, props.expandedGroups), [props.structure, props.expandedGroups]);
+  const baseGraph = useMemo(
+    () => buildFocusedLayoutGraph(props.structure, props.expandedGroups, props.focusPath),
+    [props.structure, props.expandedGroups, props.focusPath],
+  );
   const [graph, setGraph] = useState(baseGraph);
   const [layoutError, setLayoutError] = useState(null);
   const [hoveredPath, setHoveredPath] = useState(null);
@@ -443,7 +446,7 @@ export default function ReactFlowStructureDiagram(props) {
     // layer during expand/collapse because React Flow measures both states.
     layoutGraphWithElkOnly(baseGraph).then((next) => {
       if (active) {
-        setGraph({ ...next, layoutSource: baseGraph });
+        setGraph({ ...normalizeFocusedElkGraph(next), layoutSource: baseGraph });
         setLayoutError(null);
       }
     }).catch((error) => {
@@ -451,7 +454,7 @@ export default function ReactFlowStructureDiagram(props) {
     });
     return () => { active = false; };
   }, [baseGraph]);
-  return <div className="diagram-frame react-flow-diagram" data-graph-version={graph.graphVersion || "legacy"} data-layout-ready={graph.layoutReady && graph.layoutSource === baseGraph ? "true" : "false"} data-active-lenses={[...props.activeLenses].join(",")}>
+  return <div className="diagram-frame react-flow-diagram" data-graph-version={graph.graphVersion || "legacy"} data-layout-ready={graph.layoutReady && graph.layoutSource === baseGraph ? "true" : "false"} data-focus-path={props.focusPath || ""} data-active-lenses={[...props.activeLenses].join(",")}>
     {layoutError && <div className="diagram-layout-error" role="alert" title={layoutError}>{props.language === "en" ? "Diagram routing failed" : "图连线路由失败"}: {layoutError}</div>}
     <ReactFlowProvider><ReactFlowCanvas graph={graph} props={{ ...props, english: props.language === "en", hoveredPath, onHoverPathChange: (path) => { setHoveredPath(path); props.onHoverPathChange?.(path); } }} /></ReactFlowProvider>
   </div>;

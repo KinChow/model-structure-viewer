@@ -38,7 +38,8 @@ function parentPath(path) {
  * `parentByPath` is consumed only by layout construction. `laneByPath` is
  * diagnostic metadata and intentionally does not modify Graph IR nodes.
  */
-export function buildLayoutProjection(graph) {
+export function buildLayoutProjection(graph, options = {}) {
+  const linearTopLevel = options.topLevelFlow === "linear";
   const nodes = graph?.nodes || [];
   const nodeByPath = new Map(nodes.map((node) => [node.path || node.id, node]));
   const topLevel = nodes
@@ -74,7 +75,7 @@ export function buildLayoutProjection(graph) {
     const path = node.path || node.id;
     const lane = laneFor(node);
     laneByPath.set(path, lane);
-    layoutParentByPath.set(path, laneIds.get(lane));
+    layoutParentByPath.set(path, linearTopLevel ? "root" : laneIds.get(lane));
   }
   // The model frame remains the visible owner of the virtual lanes. The
   // virtual root is only a projection namespace; it is never rendered.
@@ -94,7 +95,7 @@ export function buildLayoutProjection(graph) {
   }
   for (const node of topLevel) {
     const path = node.path || node.id;
-    layoutParentByPath.set(path, laneIds.get(laneByPath.get(path)));
+    layoutParentByPath.set(path, linearTopLevel ? "root" : laneIds.get(laneByPath.get(path)));
   }
   for (const node of nodes) {
     const path = node.path || node.id;
@@ -105,10 +106,19 @@ export function buildLayoutProjection(graph) {
     children.push(path);
     layoutChildrenByParent.set(parent, children);
   }
+  if (linearTopLevel) {
+    const rootChildren = layoutChildrenByParent.get("root") || [];
+    rootChildren.sort((left, right) => {
+      const leftAuxiliary = laneByPath.get(left) === "auxiliary" ? 1 : 0;
+      const rightAuxiliary = laneByPath.get(right) === "auxiliary" ? 1 : 0;
+      return leftAuxiliary - rightAuxiliary;
+    });
+    layoutChildrenByParent.set("root", rootChildren);
+  }
   for (const lane of LANES) {
     const laneId = laneIds.get(lane);
     const rootChildren = layoutChildrenByParent.get("root") || [];
-    if (!rootChildren.includes(laneId)) rootChildren.push(laneId);
+    if (!linearTopLevel && !rootChildren.includes(laneId)) rootChildren.push(laneId);
     layoutChildrenByParent.set("root", rootChildren);
     layoutChildrenByParent.set(laneId, layoutChildrenByParent.get(laneId) || []);
   }

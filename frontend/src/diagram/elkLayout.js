@@ -237,15 +237,20 @@ export async function layoutGraphWithElk(graph) {
     modelLayout.height = Math.max(modelLayout.height || 0, childrenBottom + MODEL_BOTTOM_PAD);
   }
   const positions = new Map();
+  const dimensions = new Map();
   const groupFrames = [];
-  // ELK 正交路由折点（绝对画布坐标）：edgeId → [{x,y}...]。仅收集**非 root 容器**内的边——
-  // root 直属子节点的 y 在下方被手动重排（草稿旁挂/主干对齐），其 root 级边的 ELK 路由会失真，
-  // 故这些边回退到渲染层的 smart/贝塞尔；嵌套模块内部边不受重排影响（重排只平移容器整体）。
+  // ELK 正交路由折点（绝对画布坐标）：edgeId → [{x,y}...]。
+  // root 直属子节点会在 ELK 完成后按“主干 + 旁挂分支”重新定位，因此不能复用
+  // ELK 在旧坐标上算出的 sections；这些边也必须在最终坐标上补一条正交桥接路线，
+  // 否则渲染层会退回长贝塞尔曲线（DSpark/MTP 展开时尤其明显）。
   const edgeBends = new Map();
   function walk(shape, offsetX = 0, offsetY = 0) {
     const x = offsetX + (shape.x || 0);
     const y = offsetY + (shape.y || 0);
-    if (shape.id !== "__graph_root__") positions.set(shape.id, { x, y });
+    if (shape.id !== "__graph_root__") {
+      positions.set(shape.id, { x, y });
+      dimensions.set(shape.id, { width: shape.width || 0, height: shape.height || 0 });
+    }
     if (shape.id !== "__graph_root__" && shape.id !== "root" && Array.isArray(shape.edges)) {
       for (const edge of shape.edges) {
         if (typeof edge.id !== "string" || edge.id.startsWith("__order__") || edge.id.startsWith("__constraint__")) continue;
@@ -276,6 +281,62 @@ export async function layoutGraphWithElk(graph) {
     for (const child of shape.children || []) walk(child, x, y);
   }
   walk(result);
+
+  // Root-level modules use horizontal handles.  After the draft-band
+  // repositioning, route their edges from the final boxes instead of letting
+  // React Flow choose a free-form Bezier path between distant frames.
+  const rootChild = (path) => path?.split(".").length === 2;
+  const rootBox = (path) => {
+    const position = positions.get(path);
+    const size = dimensions.get(path);
+    if (!position || !size) return null;
+    const node = nodeByPath.get(path);
+    const frame = groupFrames.find((candidate) => candidate.id === path);
+    const boxPosition = frame ? { x: frame.x, y: frame.y } : position;
+    const boxSize = frame ? { width: frame.width, height: frame.height } : size;
+    const isExpandedFrame = Boolean(frame);
+    const anchorY = isExpandedFrame && node?.depth === 1
+      ? 70
+      : boxSize.height / 2;
+    return {
+      left: boxPosition.x,
+      right: boxPosition.x + boxSize.width,
+      top: boxPosition.y,
+      bottom: boxPosition.y + boxSize.height,
+      source: { x: boxPosition.x + boxSize.width, y: boxPosition.y + anchorY },
+      target: { x: boxPosition.x, y: boxPosition.y + anchorY },
+    };
+  };
+  for (const edge of graph.edges) {
+    if (edge.kind !== "dataflow" || !rootChild(edge.source) || !rootChild(edge.target)) continue;
+    const source = rootBox(edge.source);
+    const target = rootBox(edge.target);
+    if (!source || !target) continue;
+    const horizontalGap = target.left - source.right;
+    if (horizontalGap >= 0) {
+      // Rightward pipeline: one vertical dogleg in the free space between boxes.
+      const middleX = source.right + horizontalGap / 2;
+      edgeBends.set(edge.id, [
+        { x: middleX, y: source.source.y },
+        { x: middleX, y: target.target.y },
+      ]);
+      continue;
+    }
+    // A side branch below/above the source cannot approach a left handle by
+    // crossing the target frame.  Go around the target's top/bottom first,
+    // keeping every segment outside both endpoint boxes.
+    const targetBelow = target.top >= source.bottom;
+    const clearance = 24;
+    const outsideSourceX = source.right + clearance;
+    const outsideTargetX = target.left - clearance;
+    const outsideY = targetBelow ? target.top - clearance : target.bottom + clearance;
+    edgeBends.set(edge.id, [
+      { x: outsideSourceX, y: source.source.y },
+      { x: outsideSourceX, y: outsideY },
+      { x: outsideTargetX, y: outsideY },
+      { x: outsideTargetX, y: target.target.y },
+    ]);
+  }
 
   return {
     ...graph,

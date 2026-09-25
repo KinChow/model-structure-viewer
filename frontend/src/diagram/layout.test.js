@@ -222,6 +222,28 @@ test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", as
   }
 });
 
+test("展开 DSpark 后 root 级旁挂边使用最终坐标的正交桥接", async () => {
+  const graph = layoutGraph(structureFrom({
+    name: "DeepseekV41ForCausalLM", type: "model", children: [
+      { name: "decoder", type: "decoder", children: [
+        { name: "layer", type: "module", children: [] },
+      ] },
+      { name: "dspark", type: "dspark", children: [
+        { name: "main projection", type: "operator", children: [] },
+        { name: "confidence head", type: "operator", children: [] },
+      ] },
+      { name: "final norm", type: "normalization", children: [] },
+      { name: "lm head", type: "output", children: [] },
+    ],
+  }), new Set(["root", "root.0", "root.1"]));
+  const laidOut = await layoutGraphWithElk(graph);
+  const rootEdges = laidOut.edges.filter((edge) => edge.source.split(".").length === 2);
+  const draftEdges = rootEdges.filter((edge) => edge.source === "root.1" || edge.target === "root.1");
+  assert.equal(draftEdges.length, 2);
+  assert.ok(draftEdges.every((edge) => edge.bendPoints?.length >= 2), "旁挂边必须有最终坐标折点");
+  assert.ok(draftEdges.every((edge) => edge.bendPoints.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))));
+});
+
 test("展开容器后相邻模块可见间距不被边框外扩压窄", async () => {
   // frame 外扩量已并入 elk.padding、frame 贴合 shape 绘制：无论相邻模块是折叠还是
   // 展开，顶层相邻模块的有效横向间距都应稳定在 ELK 层间距（44），不再随展开变窄。

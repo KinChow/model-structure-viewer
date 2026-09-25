@@ -16,7 +16,7 @@ import {
 } from "@xyflow/react";
 import { SmartEdgeProvider, useSmartEdgePath } from "@tisoap/react-flow-smart-edge";
 import { layoutGraph } from "./layout.js";
-import { layoutGraphWithElk } from "./elkLayout.js";
+import { layoutGraphWithElkOnly } from "./elkOnlyLayout.js";
 import { isPathRelated, relatedDataflowEdgeIds } from "./hover.js";
 import { edgePresentation } from "./edgeStyle.js";
 import { formatBytes, formatMetric } from "../formatters.js";
@@ -441,7 +441,7 @@ export default function ReactFlowStructureDiagram(props) {
     // Keep the current compound graph visible while ELK computes the next
     // one. Publishing the provisional graph first creates a visible second
     // layer during expand/collapse because React Flow measures both states.
-    layoutGraphWithElk(baseGraph).then((next) => {
+    layoutGraphWithElkOnly(baseGraph).then((next) => {
       if (active) {
         setGraph({ ...next, layoutSource: baseGraph });
         setLayoutError(null);

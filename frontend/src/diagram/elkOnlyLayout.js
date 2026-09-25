@@ -43,12 +43,13 @@ function nodeHeight(node) {
 }
 
 /**
- * Experimental all-ELK layout.
+ * Production all-ELK layout.
  *
- * Unlike the production compatibility layout, this function gives ELK one
+ * This function gives ELK one
  * compound graph containing the visible Graph IR and layout-only lanes. No
  * post-layout coordinate mutation and no secondary router are allowed here.
- * It is intentionally not wired into the UI until its POC gates pass.
+ * The old compatibility layout remains available in elkLayout.js for
+ * comparison and rollback, but is no longer used by the UI.
  */
 export async function layoutGraphWithElkOnly(graph) {
   const elk = await getElk();
@@ -224,6 +225,6 @@ export async function layoutGraphWithElkOnly(graph) {
       return points ? { ...edge, bendPoints: points.slice(1, -1), routePoints: points } : { ...edge };
     }),
     containerFrames: frames,
-    layoutEngine: "elk-only-poc",
+    layoutEngine: "elk-only",
   };
 }

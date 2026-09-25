@@ -9,7 +9,7 @@ function view(tree, expanded = new Set(["root"])) {
 }
 
 function assertFiniteGraph(graph) {
-  assert.equal(graph.layoutEngine, "elk-only-poc");
+  assert.equal(graph.layoutEngine, "elk-only");
   assert.ok(graph.nodes.every((node) =>
     [node.x, node.y, node.width, node.height].every(Number.isFinite),
   ));

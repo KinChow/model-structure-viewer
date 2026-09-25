@@ -68,7 +68,7 @@ export function buildLayoutProjection(graph) {
     const path = node.path || node.id;
     if (path === "root") continue;
     const parent = parentPath(path);
-    if (parent && parent !== "root") parentByPath.set(path, parent);
+    if (parent) parentByPath.set(path, parent);
   }
   for (const node of topLevel) {
     const path = node.path || node.id;

@@ -222,6 +222,27 @@ test("旁挂草稿分支排到主干下方，不与同列主干节点重叠", as
   }
 });
 
+test("多模态输入分支存在时仍保持 decoder 到 lm_head 主干同一基线", async () => {
+  const graph = layoutGraph(structureFrom({
+    name: "multimodal", type: "model", attributes: {
+      dataflow_edges: [["vision", "merge"], ["text", "merge"], ["merge", "decoder"], ["decoder", "final norm"], ["final norm", "lm head"], ["decoder", "dspark"], ["dspark", "lm head"]],
+    }, children: [
+      { id: "vision", name: "vision", type: "vision-encoder", children: [] },
+      { id: "text", name: "text", type: "embedding", children: [] },
+      { id: "merge", name: "merge", type: "operator", children: [] },
+      { id: "decoder", name: "Decoder", type: "decoder", children: [] },
+      { id: "dspark", name: "DSpark", type: "dspark", children: [{ name: "stage", type: "operator", children: [] }] },
+      { id: "final norm", name: "final norm", type: "normalization", children: [] },
+      { id: "lm head", name: "lm head", type: "output", children: [] },
+    ],
+  }), new Set(["root", "root.4"]));
+  const laidOut = await layoutGraphWithElk(graph);
+  const y = path => laidOut.nodes.find(node => node.path === path).y;
+  assert.equal(y("root.3"), y("root.5"), "decoder 与 final norm 应在同一主干基线");
+  assert.equal(y("root.5"), y("root.6"), "final norm 与 lm head 应在同一主干基线");
+  assert.ok(y("root.4") > y("root.3"), "DSpark 仍应位于主干下方");
+});
+
 test("展开 DSpark 后 root 级旁挂边使用最终坐标的正交桥接", async () => {
   const graph = layoutGraph(structureFrom({
     name: "DeepseekV41ForCausalLM", type: "model", children: [

@@ -209,6 +209,40 @@ export async function layoutGraphWithElk(graph) {
         && trunkEdges.filter(e => e.target === child.id).length <= 1)
     );
     if (isLinearTrunk) for (const child of trunk) child.y = baseline;
+    else {
+      // 多模态模型的输入侧允许保留独立分支行，但 decoder → final norm →
+      // lm_head 仍是单一的主干后缀。不能因为上游存在 vision/text 汇合，就让
+      // 展开旁挂分支把 final norm 留在另一条 y 线上；否则主干会出现
+      // decoder 在顶部、final norm 在中间、lm_head 又回到顶部的“折返”。
+      // 仅对从 decoder/layer 类节点开始的唯一后继链做基线对齐，不压平输入分支。
+      const rootNode = child => nodeByPath.get(child.id)?.node;
+      const mainStart = trunk.find(child => {
+        const node = rootNode(child);
+        const type = String(node?.type || "").toLowerCase();
+        const name = String(node?.name || "").toLowerCase();
+        return type === "decoder" || type === "transformer" || name === "decoder";
+      });
+      if (mainStart) {
+        const bySource = new Map();
+        for (const edge of trunkEdges) {
+          const list = bySource.get(edge.source) || [];
+          list.push(edge.target);
+          bySource.set(edge.source, list);
+        }
+        const suffix = [];
+        const seen = new Set();
+        let current = mainStart.id;
+        while (current && !seen.has(current)) {
+          seen.add(current);
+          const shape = modelLayout.children.find(child => child.id === current);
+          if (!shape) break;
+          suffix.push(shape);
+          const next = (bySource.get(current) || []).filter(target => trunkIds.has(target));
+          current = next.length === 1 ? next[0] : null;
+        }
+        if (suffix.length > 1) for (const child of suffix) child.y = mainStart.y;
+      }
+    }
     // 草稿分支（MTP / DSpark）是旁挂节点：ELK 会把它排在与主干同层节点相同的列里
     //（MTP 落 lm_head 列、DSpark 落 final norm 列），纵向本来错开、无重叠。上面把
     // 主干统一拉到 baseline 后，同列的主干节点被上移，若草稿仍停在 ELK 旧 y 就会与

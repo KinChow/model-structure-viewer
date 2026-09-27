@@ -1,0 +1,1616 @@
+{
+  "audit": {
+    "date": "2026-09-26",
+    "browser": "Google Chrome stable via Playwright channel=chrome",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "catalogTotal": 60,
+    "method": "For each model: open builtin route in Chrome, click 展开全部, wait until no real msvNode has aria-label=展开, inspect geometry/overlap/overflow/errors, then click 收起全部 and compare counts."
+  },
+  "summary": {
+    "models": 60,
+    "modelsWithProductLayoutIssues": 0,
+    "modelsWithSharedAssetIssue": 1,
+    "totalInitialNodes": 459,
+    "totalExpandedNodes": 39543,
+    "totalInitialEdges": 488,
+    "totalExpandedEdges": 45745,
+    "allModelsNoRemainingCollapsed": 60,
+    "allModelsCollapseRestored": 60
+  },
+  "sharedIssues": [
+    {
+      "type": "favicon-404",
+      "url": "http://127.0.0.1:4176/favicon.ico",
+      "status": 404,
+      "scope": "shared frontend asset"
+    }
+  ],
+  "modelIssues": [
+    {
+      "model": "moonshotai/Kimi-K3",
+      "issues": [
+        {
+          "type": "console-errors",
+          "values": [
+            "Failed to load resource: the server responded with a status of 404 ()",
+            "Failed to load resource: the server responded with a status of 404 ()"
+          ]
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "models": [
+    {
+      "model": "MiniMaxAI/MiniMax-M2.7",
+      "initial": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 23,
+        "edges": 24,
+        "frames": 10,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1,
+        "collapsedCount": 3
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "MiniMaxAI/MiniMax-M3",
+      "initial": {
+        "nodes": 10,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 83,
+        "edges": 95,
+        "frames": 22,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 10,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 6
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "initial": {
+        "nodes": 10,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 83,
+        "edges": 95,
+        "frames": 22,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 10,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 6
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-0.8B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 270,
+        "edges": 320,
+        "frames": 84,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-0.8B-Base",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 270,
+        "edges": 320,
+        "frames": 84,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-122B-A10B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 661,
+        "edges": 753,
+        "frames": 200,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-122B-A10B-FP8",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 661,
+        "edges": 753,
+        "frames": 200,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 661,
+        "edges": 753,
+        "frames": 200,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-27B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 630,
+        "edges": 750,
+        "frames": 194,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-27B-FP8",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 630,
+        "edges": 750,
+        "frames": 194,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-27B-GPTQ-Int4",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 630,
+        "edges": 750,
+        "frames": 194,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-2B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 270,
+        "edges": 320,
+        "frames": 84,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-2B-Base",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 270,
+        "edges": 320,
+        "frames": 84,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 561,
+        "edges": 639,
+        "frames": 170,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B-Base",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 561,
+        "edges": 639,
+        "frames": 170,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 561,
+        "edges": 639,
+        "frames": 170,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 561,
+        "edges": 639,
+        "frames": 170,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-397B-A17B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 811,
+        "edges": 924,
+        "frames": 245,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-397B-A17B-FP8",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 811,
+        "edges": 924,
+        "frames": 245,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-397B-A17B-GPTQ-Int4",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 811,
+        "edges": 924,
+        "frames": 245,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-4B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 342,
+        "edges": 406,
+        "frames": 106,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-4B-Base",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 342,
+        "edges": 406,
+        "frames": 106,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-9B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 342,
+        "edges": 406,
+        "frames": 106,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.5-9B-Base",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 342,
+        "edges": 406,
+        "frames": 106,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.6-27B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 630,
+        "edges": 750,
+        "frames": 194,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.6-27B-FP8",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 630,
+        "edges": 750,
+        "frames": 194,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 561,
+        "edges": 639,
+        "frames": 170,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 561,
+        "edges": 639,
+        "frames": 170,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.8-2.4T-A95B",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1183,
+        "edges": 1348,
+        "frames": 361,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.8-2.4T-A95B-FP8",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1183,
+        "edges": 1348,
+        "frames": 361,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.8-27B",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 630,
+        "edges": 750,
+        "frames": 194,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.8-27B-FP8",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 630,
+        "edges": 750,
+        "frames": 194,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.8-Flash-Next",
+      "initial": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1329,
+        "edges": 1605,
+        "frames": 216,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "initial": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1329,
+        "edges": 1605,
+        "frames": 216,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-R1",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 84,
+        "edges": 89,
+        "frames": 29,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V3.1",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 84,
+        "edges": 89,
+        "frames": 29,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V3.2",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 93,
+        "edges": 101,
+        "frames": 26,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Flash",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1479,
+        "edges": 1712,
+        "frames": 354,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1527,
+        "edges": 1766,
+        "frames": 365,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "initial": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1551,
+        "edges": 1794,
+        "frames": 369,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1,
+        "collapsedCount": 6
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Pro",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 2106,
+        "edges": 2439,
+        "frames": 499,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 2154,
+        "edges": 2493,
+        "frames": 510,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "initial": {
+        "nodes": 11,
+        "edges": 12,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 604,
+        "edges": 683,
+        "frames": 151,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 11,
+        "edges": 12,
+        "frames": 1,
+        "collapsedCount": 7
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Base",
+      "initial": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 51,
+        "edges": 54,
+        "frames": 17,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1,
+        "collapsedCount": 3
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Instruct",
+      "initial": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 51,
+        "edges": 54,
+        "frames": 17,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1,
+        "collapsedCount": 3
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Instruct-0905",
+      "initial": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 51,
+        "edges": 54,
+        "frames": 17,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1,
+        "collapsedCount": 3
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K2-Thinking",
+      "initial": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 51,
+        "edges": 54,
+        "frames": 17,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 4,
+        "edges": 3,
+        "frames": 1,
+        "collapsedCount": 3
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K2.5",
+      "initial": {
+        "nodes": 9,
+        "edges": 9,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 79,
+        "edges": 86,
+        "frames": 21,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 9,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K2.6",
+      "initial": {
+        "nodes": 9,
+        "edges": 9,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 79,
+        "edges": 86,
+        "frames": 21,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 9,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K2.7-Code",
+      "initial": {
+        "nodes": 9,
+        "edges": 9,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 79,
+        "edges": 86,
+        "frames": 21,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 9,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "moonshotai/Kimi-K3",
+      "initial": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 3543,
+        "edges": 4263,
+        "frames": 776,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 10,
+        "edges": 11,
+        "frames": 1,
+        "collapsedCount": 6
+      },
+      "issues": [
+        {
+          "type": "console-errors",
+          "values": [
+            "Failed to load resource: the server responded with a status of 404 ()",
+            "Failed to load resource: the server responded with a status of 404 ()"
+          ]
+        }
+      ],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-4.7",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 78,
+        "edges": 83,
+        "frames": 29,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 93,
+        "edges": 101,
+        "frames": 26,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5.1",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 93,
+        "edges": 101,
+        "frames": 26,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5.2",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1121,
+        "edges": 1240,
+        "frames": 247,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5.2-FP8",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1121,
+        "edges": 1240,
+        "frames": 247,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5.3",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1121,
+        "edges": 1240,
+        "frames": 247,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5.3-BF16",
+      "initial": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 1121,
+        "edges": 1240,
+        "frames": 247,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 5,
+        "edges": 5,
+        "frames": 1,
+        "collapsedCount": 4
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5.3-Flash",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 638,
+        "edges": 729,
+        "frames": 158,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    },
+    {
+      "model": "zai-org/GLM-5.3-Flash-BF16",
+      "initial": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1
+      },
+      "expanded": {
+        "nodes": 638,
+        "edges": 729,
+        "frames": 158,
+        "collapsedCount": 0,
+        "badGeometry": 0,
+        "overlaps": 0,
+        "overflow": null,
+        "smallControls": 0
+      },
+      "collapsed": {
+        "nodes": 9,
+        "edges": 10,
+        "frames": 1,
+        "collapsedCount": 5
+      },
+      "issues": [],
+      "errors": []
+    }
+  ]
+}

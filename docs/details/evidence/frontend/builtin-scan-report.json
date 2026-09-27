@@ -1,5 +1,5 @@
 {
-  "scannedAt": "2026-09-23T02:12:13.140Z",
+  "scannedAt": "2026-09-27T01:49:34.832Z",
   "total": 60,
   "report": [
     {
@@ -24,6 +24,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -48,6 +49,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -72,6 +74,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -96,6 +99,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -120,6 +124,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -144,6 +149,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -168,6 +174,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -192,6 +199,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -216,6 +224,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -240,6 +249,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -264,6 +274,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -288,6 +299,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -312,6 +324,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -319,23 +332,24 @@
       "zhAnswer": {
         "装得下": "已适配",
         "总显存": "67.07 GiB / 74.51 GiB",
-        "瓶颈": "访存受限",
+        "瓶颈": "算力受限",
         "需要 GPU": "1 / 8"
       },
       "enAnswer": {
         "Fit": "fit",
         "Total VRAM": "67.07 GiB / 74.51 GiB",
-        "Bound": "Memory-bound",
+        "Bound": "Compute-bound",
         "GPUs": "1 / 8"
       },
       "zhCost": {
-        "dataBound": "memory",
-        "rooflineLabel": "访存"
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
       },
       "enCost": {
-        "dataBound": "memory",
-        "rooflineLabel": "memory"
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -343,23 +357,24 @@
       "zhAnswer": {
         "装得下": "已适配",
         "总显存": "67.07 GiB / 74.51 GiB",
-        "瓶颈": "访存受限",
+        "瓶颈": "算力受限",
         "需要 GPU": "1 / 8"
       },
       "enAnswer": {
         "Fit": "fit",
         "Total VRAM": "67.07 GiB / 74.51 GiB",
-        "Bound": "Memory-bound",
+        "Bound": "Compute-bound",
         "GPUs": "1 / 8"
       },
       "zhCost": {
-        "dataBound": "memory",
-        "rooflineLabel": "访存"
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
       },
       "enCost": {
-        "dataBound": "memory",
-        "rooflineLabel": "memory"
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -384,6 +399,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -408,6 +424,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -432,6 +449,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -456,6 +474,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -480,6 +499,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -504,6 +524,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -528,6 +549,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -552,6 +574,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -576,6 +599,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -600,6 +624,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -624,6 +649,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -631,23 +657,24 @@
       "zhAnswer": {
         "装得下": "已适配",
         "总显存": "67.07 GiB / 74.51 GiB",
-        "瓶颈": "访存受限",
+        "瓶颈": "算力受限",
         "需要 GPU": "1 / 8"
       },
       "enAnswer": {
         "Fit": "fit",
         "Total VRAM": "67.07 GiB / 74.51 GiB",
-        "Bound": "Memory-bound",
+        "Bound": "Compute-bound",
         "GPUs": "1 / 8"
       },
       "zhCost": {
-        "dataBound": "memory",
-        "rooflineLabel": "访存"
+        "dataBound": "matrix",
+        "rooflineLabel": "矩阵"
       },
       "enCost": {
-        "dataBound": "memory",
-        "rooflineLabel": "memory"
+        "dataBound": "matrix",
+        "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -672,6 +699,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -696,6 +724,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -720,6 +749,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -744,6 +774,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -768,6 +799,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -792,6 +824,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -816,6 +849,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -840,6 +874,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -864,6 +899,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -888,6 +924,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -912,6 +949,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -936,6 +974,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -960,6 +999,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -984,6 +1024,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1008,6 +1049,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1032,6 +1074,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1056,6 +1099,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1080,6 +1124,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1104,6 +1149,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1128,6 +1174,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1152,6 +1199,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1176,6 +1224,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1200,19 +1249,20 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
       "modelId": "moonshotai/Kimi-K3",
       "zhAnswer": {
         "装得下": "不适配",
-        "总显存": "1448.74 GiB / 74.51 GiB",
+        "总显存": "1446.84 GiB / 74.51 GiB",
         "瓶颈": "算力受限",
         "需要 GPU": "8 / 8"
       },
       "enAnswer": {
         "Fit": "not fit",
-        "Total VRAM": "1448.74 GiB / 74.51 GiB",
+        "Total VRAM": "1446.84 GiB / 74.51 GiB",
         "Bound": "Compute-bound",
         "GPUs": "8 / 8"
       },
@@ -1224,6 +1274,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1248,6 +1299,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1272,6 +1324,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1296,19 +1349,20 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
       "modelId": "zai-org/GLM-5.2",
       "zhAnswer": {
         "装得下": "不适配",
-        "总显存": "1403.38 GiB / 74.51 GiB",
+        "总显存": "1403.37 GiB / 74.51 GiB",
         "瓶颈": "访存受限",
         "需要 GPU": "8 / 8"
       },
       "enAnswer": {
         "Fit": "not fit",
-        "Total VRAM": "1403.38 GiB / 74.51 GiB",
+        "Total VRAM": "1403.37 GiB / 74.51 GiB",
         "Bound": "Memory-bound",
         "GPUs": "8 / 8"
       },
@@ -1320,19 +1374,20 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
       "modelId": "zai-org/GLM-5.2-FP8",
       "zhAnswer": {
         "装得下": "不适配",
-        "总显存": "703.92 GiB / 74.51 GiB",
+        "总显存": "703.90 GiB / 74.51 GiB",
         "瓶颈": "算力受限",
         "需要 GPU": "8 / 8"
       },
       "enAnswer": {
         "Fit": "not fit",
-        "Total VRAM": "703.92 GiB / 74.51 GiB",
+        "Total VRAM": "703.90 GiB / 74.51 GiB",
         "Bound": "Compute-bound",
         "GPUs": "8 / 8"
       },
@@ -1344,19 +1399,20 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
       "modelId": "zai-org/GLM-5.3",
       "zhAnswer": {
         "装得下": "不适配",
-        "总显存": "703.92 GiB / 74.51 GiB",
+        "总显存": "703.90 GiB / 74.51 GiB",
         "瓶颈": "算力受限",
         "需要 GPU": "8 / 8"
       },
       "enAnswer": {
         "Fit": "not fit",
-        "Total VRAM": "703.92 GiB / 74.51 GiB",
+        "Total VRAM": "703.90 GiB / 74.51 GiB",
         "Bound": "Compute-bound",
         "GPUs": "8 / 8"
       },
@@ -1368,19 +1424,20 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
       "modelId": "zai-org/GLM-5.3-BF16",
       "zhAnswer": {
         "装得下": "不适配",
-        "总显存": "1403.38 GiB / 74.51 GiB",
+        "总显存": "1403.37 GiB / 74.51 GiB",
         "瓶颈": "访存受限",
         "需要 GPU": "8 / 8"
       },
       "enAnswer": {
         "Fit": "not fit",
-        "Total VRAM": "1403.38 GiB / 74.51 GiB",
+        "Total VRAM": "1403.37 GiB / 74.51 GiB",
         "Bound": "Memory-bound",
         "GPUs": "8 / 8"
       },
@@ -1392,6 +1449,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1416,6 +1474,7 @@
         "dataBound": "matrix",
         "rooflineLabel": "matrix"
       },
+      "expectedUnknown": null,
       "anomalies": []
     },
     {
@@ -1440,6 +1499,7 @@
         "dataBound": "memory",
         "rooflineLabel": "memory"
       },
+      "expectedUnknown": null,
       "anomalies": []
     }
   ]

@@ -1,0 +1,115 @@
+{
+  "checks": [
+    {
+      "name": "entry light theme",
+      "ok": true
+    },
+    {
+      "name": "entry dark theme restored",
+      "ok": true
+    },
+    {
+      "name": "entry model drawer visible",
+      "ok": true
+    },
+    {
+      "name": "drawer all 60 options",
+      "ok": true,
+      "count": 60
+    },
+    {
+      "name": "drawer model labels no horizontal overflow",
+      "ok": true,
+      "overflow": []
+    },
+    {
+      "name": "builtin verify control absent",
+      "ok": true
+    },
+    {
+      "name": "backend-only UI absent",
+      "ok": true
+    },
+    {
+      "name": "detail light theme",
+      "ok": true
+    },
+    {
+      "name": "formula index visible in light theme",
+      "ok": true
+    },
+    {
+      "name": "formula strip no horizontal overflow",
+      "ok": true,
+      "sw": 1036,
+      "cw": 1036,
+      "h": 126
+    },
+    {
+      "name": "english formula index visible",
+      "ok": true
+    },
+    {
+      "name": "english detail no horizontal overflow",
+      "ok": true,
+      "sw": 1440,
+      "cw": 1440
+    },
+    {
+      "name": "english search box fits",
+      "ok": true,
+      "box": {
+        "x": 24,
+        "y": 164,
+        "width": 879.828125,
+        "height": 40,
+        "top": 164,
+        "right": 903.828125,
+        "bottom": 204,
+        "left": 24
+      },
+      "input": {
+        "x": 24,
+        "y": 164,
+        "width": 743.296875,
+        "height": 40,
+        "top": 164,
+        "right": 767.296875,
+        "bottom": 204,
+        "left": 24
+      },
+      "scrollWidth": 880,
+      "clientWidth": 880
+    },
+    {
+      "name": "breadcrumb wraps without horizontal overflow",
+      "ok": true,
+      "sw": 306,
+      "cw": 306,
+      "h": 31,
+      "rect": {
+        "x": 1093,
+        "y": 180,
+        "width": 306,
+        "height": 31,
+        "top": 180,
+        "right": 1399,
+        "bottom": 211,
+        "left": 1093
+      }
+    },
+    {
+      "name": "detail model drawer visible",
+      "ok": true
+    },
+    {
+      "name": "detail drawer fits viewport",
+      "ok": true,
+      "sw": 418,
+      "cw": 418,
+      "h": 1000,
+      "wh": 1000
+    }
+  ],
+  "errors": []
+}

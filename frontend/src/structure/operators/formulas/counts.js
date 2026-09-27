@@ -264,6 +264,34 @@ export function attentionResidualCounts({ tokens, hidden, candidates, bytesPerEl
 }
 
 /**
+ * Kimi-K3 reference implementation snapshot write:
+ * `torch.cat([block_residual, prefix_sum.unsqueeze(1)], dim=1)`.
+ *
+ * The bank is a dense [tokens, snapshots, hidden] tensor.  A write reads the
+ * previous bank plus the new prefix and writes the expanded bank.  This is
+ * the reference-path traffic; allocator reuse or a backend-specific aliasing
+ * optimization is deliberately outside this count.
+ */
+export function attentionResidualSnapshotCounts({
+  tokens, hidden, snapshots, previousSnapshots = snapshots - 1, bytesPerElement,
+}) {
+  if (![tokens, hidden, snapshots, previousSnapshots, bytesPerElement].every(Number.isFinite)
+    || tokens < 0 || hidden < 1 || snapshots < 1 || previousSnapshots < 0
+    || snapshots !== previousSnapshots + 1) return null;
+  const bankElements = tokens * hidden;
+  return {
+    matrix: 0,
+    vector: 0,
+    sfu: 0,
+    bytes: {
+      weights: 0,
+      actIn: bankElements * (previousSnapshots + 1) * bytesPerElement,
+      actOut: bankElements * snapshots * bytesPerElement,
+    },
+  };
+}
+
+/**
  * F6 旋转位置编码。A3：sin/cos 查表，sfu ≈ 0。每维对 4 乘 2 加 = 3 flop/元素。
  * `ropeDims` = **每 token 被旋转的元素总数**（跨全部 query 头与 kv 头求和，
  * 含 partial_rotary_factor），不是单头的 head_dim。
@@ -504,6 +532,43 @@ export function embedGatherCounts({ tokens, hidden, bytesPerElement }) {
     vector: 0,
     sfu: 0,
     bytes: { weights: 0, actIn: tokens * hidden * bytesPerElement, actOut: tokens * hidden * bytesPerElement },
+  };
+}
+
+/**
+ * F1b 多模态融合。融合本身没有 GEMM 或参数，但会读取文本 embedding
+ * 与投影后的视觉特征，并写回 post-fusion language sequence。
+ *
+ * 视觉 token 数、视觉输出宽度和文本 sequence 都来自当前 workload/config，
+ * 因此这里不再把视觉模型的 prefill 搬运量留成 unknown。原始图像像素的
+ * decode 外部输入不属于 fusion 节点；视觉塔的 patch embedding 已单独计价。
+ */
+export function multimodalFusionCounts({
+  batch = 1,
+  sequence = 1,
+  visionTokens = 1,
+  hidden,
+  visionHidden = hidden,
+  bytesPerElement,
+  phase = "prefill",
+} = {}) {
+  if (phase === "decode") {
+    return {
+      matrix: 0, vector: 0, sfu: 0,
+      bytes: { weights: 0, actIn: 0, actOut: 0 },
+    };
+  }
+  if (![batch, sequence, visionTokens, hidden, visionHidden, bytesPerElement]
+    .every(value => Number.isFinite(value) && value > 0)) return null;
+  return {
+    matrix: 0,
+    vector: 0,
+    sfu: 0,
+    bytes: {
+      weights: 0,
+      actIn: batch * (sequence * hidden + visionTokens * visionHidden) * bytesPerElement,
+      actOut: batch * sequence * hidden * bytesPerElement,
+    },
   };
 }
 

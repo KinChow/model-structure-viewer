@@ -5,7 +5,7 @@
 // （fused），这是家族知识而非字段判据 —— 判定权归 archs 配方（P3 单源化），
 // 本文件只消费该布尔值。archs/ 与 config/ 同为结构栈最底层（见
 // __tests__/layering.test.js）。
-import { archRecipe } from "../archs/index.js";
+import { archRecipe, recipeVisionInternalMerger } from "../archs/index.js";
 
 export const LAYER_KEYS = ["num_hidden_layers", "num_layers", "n_layer", "n_layers"];
 const HIDDEN_KEYS = ["hidden_size", "dim", "d_model"];
@@ -183,6 +183,24 @@ export function normalizeConfig(config) {
   // 用配置字段而非早先的「仅某配方」（会漏带视觉的其它 compress_ratios 模型）或「任意视觉」（会误扩到无压缩比的 MoE）。
   const hasCompressRatios = Array.isArray(textConfig?.compress_ratios) || Array.isArray(config?.compress_ratios);
   const routerBiasVl = routerCorrectionBias && hasVision && hasCompressRatios;
+  const hasVisionProjector = Boolean(nestedVisionConfig)
+    || (hasVision && (visionConfig?.hidden_size ?? 0) !== hiddenSize);
+  const visionOutputSize = visionConfig
+    ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"])
+      ?? firstNumber(visionConfig, ["vt_hidden_size", "mm_hidden_size"])
+      ?? firstNumber(visionConfig, HIDDEN_KEYS)
+    : undefined;
+  // The fusion node consumes the output of the external projector when one is
+  // present. Internal vision mergers already emit the language-side width.
+  // Keeping this width explicit prevents Kimi/MiniMax/DeepSeek projector
+  // outputs from being charged at the raw vision-tower width.
+  const visionFusionInputSize = hasVision
+    ? (recipeVisionInternalMerger(config)
+      ? (visionOutputSize ?? hiddenSize)
+      : hasVisionProjector
+        ? hiddenSize
+        : (visionOutputSize ?? hiddenSize))
+    : undefined;
 
   return {
     raw: config,
@@ -195,8 +213,7 @@ export function normalizeConfig(config) {
     // vision 配置（顶层 vision_*，如 DeepSeek V4 Flash Vision）没有嵌套
     // vision_config，此前一律判成「无投影器」，结构树里整层缺失（权重字节
     // 恒等式因此差 visionOutput·hidden = 4,194,304，2026-09-09 逐层归因抓出）。
-    hasVisionProjector: Boolean(nestedVisionConfig)
-      || (hasVision && (visionConfig?.hidden_size ?? 0) !== hiddenSize),
+    hasVisionProjector,
     layers,
     visionLayers,
     hiddenSize,
@@ -316,9 +333,8 @@ export function normalizeConfig(config) {
     moeIntermediateSize: pick(MOE_INTERMEDIATE_KEYS),
     vocabSize: pick(VOCAB_KEYS),
     visionHiddenSize: visionConfig ? firstNumber(visionConfig, [...HIDDEN_KEYS, "vt_hidden_size"]) : undefined,
-    visionOutputSize: visionConfig
-      ? firstNumber(visionConfig, ["out_hidden_size", "vision_hidden_size"]) ?? firstNumber(visionConfig, ["vt_hidden_size", "mm_hidden_size"]) ?? firstNumber(visionConfig, HIDDEN_KEYS)
-      : undefined,
+    visionOutputSize,
+    visionFusionInputSize,
     visionAttentionHeads: visionConfig ? firstNumber(visionConfig, ["num_heads", "num_attention_heads", "vt_num_attention_heads"]) : undefined,
     // M8-V2：Kimi 系 vision 塔的 qkv 宽独立于 hidden（qkv_hidden_size=1536 vs
     // vt_hidden_size=1024），注意力头维 = qkv_hidden_size/heads，不能用 hidden/heads。

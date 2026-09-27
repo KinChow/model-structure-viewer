@@ -1687,7 +1687,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_dispatch` | moe | 0 | 0 | 0 | ✓ | 一 | 45/60 | 1036 | 2620 | block_sparse_moe · mlp |
 | `topk` | moe | 0 | ✓ | ✓ | ✓ | 一 | 45/60 | 1026 | 2605 | block_sparse_moe · mlp |
 | `moe_add` | moe | 0 | ✓ | 0 | ✓ | 一 | 44/60 | 1034 | 2558 | block_sparse_moe · mlp |
-| `multimodal_fusion` | memory | 0 | 0 | 0 | unknown | 二 | 39/60 | 39 | 39 | root |
+| `multimodal_fusion` | memory | 0 | 0 | 0 | ✓ | 二 | 39/60 | 39 | 39 | root |
 | `split` | memory | 0 | 0 | 0 | 0 | 一 | 39/60 | 695 | 790 | self_attn |
 | `vision_activation` | activation | 0 | ✓ | ✓ | ✓ | 一 | 39/60 | 76 | 954 | aligner · merger · mlp · multi_modal_projector 等 6 |
 | `attention_qkv_split` | memory | 0 | 0 | 0 | 0 | 二 | 37/60 | 37 | 961 | attn · blocks |
@@ -1723,7 +1723,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `qsa_sparse_attention` | attention | ✓ | ✓ | ✓ | ✓ | 二 | 2/60 | 26 | 24 | self_attn |
 | `vision_downsample` | gemm | ✓ | ✓ | 0 | ✓ | ? | 2/60 | 2 | 2 | visual |
 | `attention_residual` | elementwise | ✓ | ✓ | ✓ | ✓ | ? | 1/60 | 187 | 187 | layers · root |
-| `attn_res_snapshot` | memory | 0 | 0 | 0 | unknown | ? | 1/60 | 8 | 8 | layers |
+| `attn_res_snapshot` | memory | 0 | 0 | 0 | ✓ | ? | 1/60 | 8 | 8 | layers |
 | `dsv4_indexer` | attention | ✓ | ✓ | 0 | ✓ | 二 | 1/60 | 9 | 8 | self_attn |
 | `engram_gate` | elementwise | 0 | ✓ | ✓ | ✓ | 二 | 1/60 | 2 | 2 | engram |
 | `mla_output_gate` | attention | 0 | ✓ | ✓ | ✓ | 二 | 1/60 | 24 | 24 | self_attn |
@@ -1751,7 +1751,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_combine` | 0.000e+0 | 0.00% | 3.284e+10 | 0.05% |
 | `moe_dispatch` | 0.000e+0 | 0.00% | 3.284e+10 | 0.05% |
 
-合计：matrix 3.3454e+14 MACs · bytes unknown；已知部分 6.0959e+13，上表百分比仅以已知部分为分母（仅列前 15 名）
+合计：matrix 3.3454e+14 MACs · bytes 6.0960e+13（仅列前 15 名）
 
 ## 算力/访存占比（decode，T=1 S=4096，59 模型实例加权求和）
 
@@ -1773,7 +1773,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `qsa_sparse_attention` | 6.040e+8 | 0.04% | 1.109e+8 | 0.00% |
 | `causal_conv1d` | 6.763e+7 | 0.00% | 4.058e+8 | 0.01% |
 
-合计：matrix 1.6106e+12 MACs · bytes unknown；已知部分 2.9436e+12，上表百分比仅以已知部分为分母（仅列前 15 名）
+合计：matrix 1.6106e+12 MACs · bytes 2.9436e+12（仅列前 15 名）
 
 ## 注册表 ↔ 触发面对账（生成物）
 
@@ -2017,6 +2017,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `attention_output_gate` | decode | 7/6 | 0 | 1.229e+4 | 2.458e+4 | 0 | 2.458e+4 | 2.458e+4 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 1.769e+6 | 0 | 3.539e+6 | 7.078e+6 | 3.539e+6 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 5.374e+6 | 4.194e+6 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 4.194e+6 | 4.194e+6 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 2.048e+3 | 2.048e+3 | 0.00 | memory | — | — | — |
 | `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 8.847e+5 | 8.847e+5 | 0.00 | memory | — | — | — |
@@ -2025,8 +2027,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `attention_qkv_split` | decode | 1/12 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | prefill | 19/63 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | decode | 19/63 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 6/18 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | decode | 6/18 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | prefill | 7/6 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2072,6 +2072,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `swiglu` | decode | 21/40 | 0 | 4.096e+4 | 4.096e+4 | 0 | 8.192e+4 | 4.096e+4 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
 | `topk` | prefill | 21/40 | 0 | 2.154e+7 | 6.554e+5 | 0 | 4.194e+7 | 3.932e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 21/40 | 0 | 1.052e+4 | 3.200e+2 | 0 | 2.048e+4 | 1.920e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.075e+7 | 8.389e+6 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 2.654e+6 | 0 | 5.308e+6 | 1.062e+7 | 5.308e+6 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 8.389e+6 | 8.389e+6 | 0.00 | memory | — | — | — |
@@ -2082,8 +2084,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `attention_qkv_split` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | prefill | 27/124 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | decode | 27/124 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 10/30 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | decode | 10/30 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | prefill | 11/10 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2244,6 +2244,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `swiglu` | decode | 2/61 | 0 | 2.826e+5 | 2.826e+5 | 0 | 5.652e+5 | 2.826e+5 | 0.00 | memory | 计算✓ 字节✓ | 7.373e+4 | 0 |
 | `topk` | prefill | 1/60 | 0 | 4.805e+7 | 9.830e+5 | 0 | 9.437e+7 | 5.898e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 1/60 | 0 | 2.346e+4 | 4.800e+2 | 0 | 4.608e+4 | 2.880e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 4.404e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.936e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 1.434e+4 | 1.434e+4 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 4.719e+6 | 0 | 9.437e+6 | 1.887e+7 | 9.437e+6 | 0.00 | memory | — | — | — |
@@ -2254,8 +2256,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `identity` | decode | 8/145 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `mla_kv_split` | prefill | 2/61 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `mla_kv_split` | decode | 2/61 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 
 ### S07 · deepseek-ai/DeepSeek-V3.1
 
@@ -2344,6 +2344,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `topk` | decode | 23/42 | 0 | 1.239e+4 | 3.360e+2 | 0 | 2.419e+4 | 2.016e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `mhc_contract` | prefill | 1/1 | 0 | 8.389e+6 | 0 | 0 | 3.355e+7 | 1.678e+7 | 0.00 | memory | — | — | — |
 | `mhc_contract` | decode | 1/1 | 0 | 4.096e+3 | 0 | 0 | 1.638e+4 | 8.192e+3 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.887e+7 | 1.678e+7 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.678e+7 | 1.678e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 8.192e+3 | 8.192e+3 | 0.00 | memory | — | — | — |
 | `vision_activation` | prefill | 1/1 | 0 | 2.097e+6 | 2.097e+6 | 0 | 4.194e+6 | 2.097e+6 | 0.00 | memory | — | — | — |
@@ -2354,8 +2356,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `identity` | decode | 7/75 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `mla_kv_split` | prefill | 12/11 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `mla_kv_split` | decode | 12/11 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 
 ### S09 · MiniMaxAI/MiniMax-M3
 
@@ -2389,14 +2389,14 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `swiglu` | decode | 3/60 | 0 | 4.239e+5 | 4.239e+5 | 0 | 8.479e+5 | 4.239e+5 | 0.00 | memory | 计算✓ 字节✓ | 1.229e+4 | 0 |
 | `moe_dispatch` | prefill | 2/57 | 0 | 0 | 0 | 0 | 1.434e+9 | 5.738e+9 | 0.00 | memory | — | — | — |
 | `moe_dispatch` | decode | 2/57 | 0 | 0 | 0 | 0 | 7.004e+5 | 2.802e+6 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 8.887e+7 | 2.517e+7 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `topk` | prefill | 2/57 | 0 | 1.529e+7 | 4.669e+5 | 0 | 2.988e+7 | 2.802e+6 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 2/57 | 0 | 7.467e+3 | 2.280e+2 | 0 | 1.459e+4 | 1.368e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `embedding` | prefill | 2/1 | 0 | 0 | 0 | 0 | 2.517e+7 | 2.517e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 2/1 | 0 | 0 | 0 | 0 | 1.229e+4 | 1.229e+4 | 0.00 | memory | — | — | — |
 | `identity` | prefill | 11/223 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | decode | 11/223 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | prefill | 3/60 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | decode | 3/60 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 
@@ -2495,6 +2495,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `topk` | decode | 27/48 | 0 | 2.501e+4 | 4.800e+2 | 0 | 4.915e+4 | 2.880e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `embedding` | prefill | 2/2 | 0 | 0 | 0 | 0 | 2.097e+7 | 2.097e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 2/2 | 0 | 0 | 0 | 0 | 1.024e+4 | 1.024e+4 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.343e+7 | 1.049e+7 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 2.654e+6 | 0 | 5.308e+6 | 1.062e+7 | 5.308e+6 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `vision_merge` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.327e+6 | 1.327e+6 | 0.00 | memory | — | — | — |
@@ -2503,8 +2505,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `attention_qkv_split` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | prefill | 35/133 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | decode | 35/133 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | prefill | 14/36 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `qwen_qkvz_split` | decode | 14/36 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | prefill | 13/12 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
@@ -2591,6 +2591,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `topk` | decode | 43/40 | 0 | 1.044e+4 | 2.400e+2 | 0 | 2.048e+4 | 1.440e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
 | `mhc_contract` | prefill | 2/1 | 0 | 8.389e+6 | 0 | 0 | 3.355e+7 | 1.678e+7 | 0.00 | memory | — | — | — |
 | `mhc_contract` | decode | 2/1 | 0 | 4.096e+3 | 0 | 0 | 1.638e+4 | 8.192e+3 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 1.992e+7 | 1.678e+7 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 2/1 | 0 | 0 | 0 | 0 | 1.678e+7 | 1.678e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 2/1 | 0 | 0 | 0 | 0 | 8.192e+3 | 8.192e+3 | 0.00 | memory | — | — | — |
 | `vision_activation` | prefill | 1/1 | 0 | 3.146e+6 | 3.146e+6 | 0 | 6.291e+6 | 3.146e+6 | 0.00 | memory | — | — | — |
@@ -2601,8 +2603,6 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `attention_qkv_split` | decode | 1/32 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | prefill | 4/66 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | decode | 4/66 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | prefill | 45/43 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `split` | decode | 45/43 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 
@@ -2665,6 +2665,8 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `rmsnorm` | decode | 331/383 | 0 | 6.877e+6 | 3.270e+2 | 3.439e+6 | 3.439e+6 | 3.439e+6 | 0.00 | memory | 计算✓ 字节✓ | 5.735e+4 | 0 |
 | `gated_rmsnorm` | prefill | 69/69 | 0 | 8.682e+9 | 3.473e+9 | 1.766e+4 | 6.946e+9 | 3.473e+9 | 0.00 | memory | 计算✓ 字节✓ | 1.175e+8 | 0 |
 | `gated_rmsnorm` | decode | 69/69 | 0 | 4.239e+6 | 1.696e+6 | 1.766e+4 | 3.391e+6 | 1.696e+6 | 0.00 | memory | 计算✓ 字节✓ | 5.735e+4 | 0 |
+| `attn_res_snapshot` | prefill | 8/8 | 0 | 0 | 0 | 0 | 5.989e+9 | 5.989e+9 | 0.00 | memory | — | — | — |
+| `attn_res_snapshot` | decode | 8/8 | 0 | 0 | 0 | 0 | 2.925e+6 | 2.925e+6 | 0.00 | memory | — | — | — |
 | `moe_add` | prefill | 92/92 | 0 | 1.351e+9 | 0 | 0 | 5.402e+9 | 2.701e+9 | 0.00 | memory | — | — | — |
 | `moe_add` | decode | 92/92 | 0 | 6.595e+5 | 0 | 0 | 2.638e+6 | 1.319e+6 | 0.00 | memory | — | — | — |
 | `situ_glu` | prefill | 93/93 | 0 | 7.361e+9 | 4.907e+9 | 0 | 4.907e+9 | 2.454e+9 | 0.00 | memory | 计算✓ 字节✓ | 0 | 0 |
@@ -2679,20 +2681,18 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 | `moe_dispatch` | decode | 92/92 | 0 | 0 | 0 | 0 | 6.595e+5 | 1.055e+7 | 0.00 | memory | — | — | — |
 | `topk` | prefill | 92/92 | 0 | 1.716e+8 | 3.015e+6 | 0 | 3.376e+8 | 1.809e+7 | 0.00 | memory | 计算✓ 字节✓ | 8.192e+3 | 0 |
 | `topk` | decode | 92/92 | 0 | 8.381e+4 | 1.472e+3 | 0 | 1.649e+5 | 8.832e+3 | 0.00 | memory | 计算✓ 字节✓ | 4.000e+0 | 0 |
+| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | 4.404e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
+| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `embedding` | prefill | 1/1 | 0 | 0 | 0 | 0 | 2.936e+7 | 2.936e+7 | 0.00 | memory | — | — | — |
 | `embedding` | decode | 1/1 | 0 | 0 | 0 | 0 | 1.434e+4 | 1.434e+4 | 0.00 | memory | — | — | — |
 | `vision_position` | prefill | 1/1 | 0 | 4.194e+6 | 0 | 8.389e+6 | 1.678e+7 | 8.389e+6 | 0.00 | memory | — | — | — |
 | `vision_position` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | prefill | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `attention_qkv_split` | decode | 1/27 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `attn_res_snapshot` | prefill | 8/8 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `attn_res_snapshot` | decode | 8/8 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
 | `identity` | prefill | 285/363 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `identity` | decode | 285/363 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `mla_kv_split` | prefill | 24/24 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 | `mla_kv_split` | decode | 24/24 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
-| `multimodal_fusion` | prefill | 1/1 | 0 | 0 | 0 | 0 | null | null | — | unknown | — | — | — |
-| `multimodal_fusion` | decode | 1/1 | 0 | 0 | 0 | 0 | 0 | 0 | — | matrix | — | — | — |
 
 ### S16 · MiniMaxAI/MiniMax-M2.7
 

@@ -28,7 +28,7 @@ const UNIT_PROBE = {
   tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false,
   gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false,
   copy: false, part: "scores", selected: 1, batch: 1, sequence: 1, keyHeads: 1, valueHeads: 1,
-  convKernelSize: 1,
+  convKernelSize: 1, snapshots: 1, previousSnapshots: 0,
 };
 // 复合节点 ctx 是嵌套结构，单元探针不适用（与 counts.test.js 同一豁免集）；标「分解」，
 // 三分量以「复合」示意，符号分解见「复合节点」表。

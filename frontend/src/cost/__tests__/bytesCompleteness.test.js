@@ -24,9 +24,10 @@ const VIEW_OPS = new Set(["split", "mla_kv_split", "qwen_qkvz_split", "attention
 // 未建模登记（照 identity REGISTERED 惯例）：新算子接入时允许临时登记，
 // 必须写明跟踪位置并尽快补齐。2026-09-08 方案 A 落地后此前登记的
 // qsa_attention / dsv4_swa / dsv4_compressed 已全部补齐清空。
-// Fusion has known zero arithmetic/weights but unknown prefill movement unless
-// image occupancy and materialization are supplied. Unknown is not free.
-const PENDING_UNMODELED = new Set(["multimodal_fusion", "attn_res_snapshot"]);
+// Multimodal fusion and the Kimi-K3 reference-path AttnRes snapshot write are
+// modeled from their declared workload/state shapes. Keep this set empty:
+// newly introduced unknown memory traffic must fail the ratchet.
+const PENDING_UNMODELED = new Set();
 
 test("bytes 完整性：全部 leaf 算子的访存分量不得全零（view 豁免除外）", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));

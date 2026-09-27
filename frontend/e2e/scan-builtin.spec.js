@@ -65,6 +65,7 @@ test("全量内置模型展示层巡检：结论条与成本数据可正确展�
     await page.getByRole("button", { name: "EN / 中" }).click();
 
     const anomalies = [];
+    const expectedUnknown = null;
     const bad = (s) => s == null || /nan|undefined|null/i.test(s) || s.trim() === "";
     const boundZh = zhAnswer["瓶颈"];
     const boundEn = enAnswer["Bound"];
@@ -77,7 +78,7 @@ test("全量内置模型展示层巡检：结论条与成本数据可正确展�
     if (bad(memZh)) anomalies.push(`zh per-card VRAM bad: ${JSON.stringify(memZh)}`);
     if (zhCost && /NaN|undefined/.test(zhCost.text)) anomalies.push("cost metrics contain NaN/undefined");
 
-    report.push({ modelId, zhAnswer, enAnswer, zhCost: zhCost && { dataBound: zhCost.dataBound, rooflineLabel: zhCost.rooflineLabel }, enCost: enCost && { dataBound: enCost.dataBound, rooflineLabel: enCost.rooflineLabel }, anomalies });
+    report.push({ modelId, zhAnswer, enAnswer, zhCost: zhCost && { dataBound: zhCost.dataBound, rooflineLabel: zhCost.rooflineLabel }, enCost: enCost && { dataBound: enCost.dataBound, rooflineLabel: enCost.rooflineLabel }, expectedUnknown, anomalies });
 
     await page.getByRole("button", { name: /Model Structure Viewer v/ }).click();
     await expect(page.getByLabel("model id")).toBeVisible();

@@ -23,6 +23,18 @@ const semantics = {
   deepseek_v4: "image_span_overwrite",
 };
 
+test("multimodal fusion uses the language-side projector output width", () => {
+  for (const [modelId, expected] of [
+    ["MiniMaxAI/MiniMax-M3", 6144],
+    ["moonshotai/Kimi-K3", 7168],
+    ["deepseek-ai/DeepSeek-V4.1-Flash", 5120],
+    ["Qwen/Qwen3.8-Flash-Next", 2560],
+  ]) {
+    const config = read(new URL(`${modelId}/config.json`, root));
+    assert.equal(normalizeConfig(config).visionFusionInputSize, expected, modelId);
+  }
+});
+
 for (const loading of ["config", "artifacts"]) {
   test(`39 multimodal entries have independent text/vision branches (${loading})`, () => {
     let checked = 0;
@@ -72,7 +84,8 @@ for (const loading of ["config", "artifacts"]) {
       const prefill = countsForNode(fusion, { config: n, options: { phase: "prefill", batch: 2, sequence: 8 }, bytesPerElement: 2 });
       assert.equal(prefill.matrix, 0);
       assert.equal(prefill.bytes.weights, 0);
-      assert.equal(prefill.bytes.actIn, null, "placeholder occupancy and materialization are not supplied by sequence alone");
+      assert.ok(prefill.bytes.actIn > 0, "fusion input movement is modeled from visual/text workload");
+      assert.ok(prefill.bytes.actOut > 0);
       if (n.modelType === "deepseek_v41") {
         assert.ok(g.edges.some(e => e.relation === "kv-projection"));
         const draft = g.nodes.find(node => node.type === "dspark");
@@ -83,20 +96,20 @@ for (const loading of ["config", "artifacts"]) {
   });
 }
 
-test("fusion unknown traffic survives totals, per-group UI and node lens; compute stays known", () => {
+test("fusion traffic survives totals, per-group UI and node lens; compute stays known", () => {
   const config = read(new URL("Qwen/Qwen3.5-0.8B/config.json", root));
   const s = buildStructureFromConfig(config);
   const n = normalizeConfig(config);
   const cost = aggregateCost({ graph: s.graph, config: n, batch: 1, sequence: 16 });
   assert.equal(cost.computeComplete, true);
   assert.ok(cost.totalMacs > 0);
-  assert.equal(cost.actions.actIn, null);
-  assert.equal(cost.actions.actOut, null);
+  assert.ok(cost.actions.actIn > 0);
+  assert.ok(cost.actions.actOut > 0);
   const memory = actionsByFormulaGroup(cost).find(group => group.group === "memory");
-  assert.equal(memory.actions.bytes.actIn, null);
+  assert.ok(memory.actions.bytes.actIn > 0);
   const fusion = s.graph.nodes.find(node => node.canonical_id === "multimodal_fusion");
   const lens = buildNodeLens(s, { peak_flops: { bf16: 1000 }, memory_bandwidth: 100 });
-  assert.equal(lens.nodes[fusion.id].times.memory, null);
+  assert.ok(lens.nodes[fusion.id].times.memory >= 0);
   assert.equal(lens.nodes[fusion.id].metrics.vramBytes, null);
 });
 

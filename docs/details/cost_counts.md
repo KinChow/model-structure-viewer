@@ -330,7 +330,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | `attention_output_gate` | attention | 仅访存 | 0 | ✓ | ✓ | ✓ |
 | `attention_qkv_split` | memory | 仅搬运 | 0 | 0 | 0 | 0 |
 | `attention_residual` | elementwise | 分解 | 复合 | 复合 | 复合 | 复合 |
-| `attn_res_snapshot` | memory | 仅搬运 | 0 | 0 | 0 | unknown |
+| `attn_res_snapshot` | memory | 仅搬运 | 0 | 0 | 0 | ✓ |
 | `causal_conv1d` | mamba | 计算+访存 | ✓ | 0 | 0 | ✓ |
 | `dsa_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
 | `dsa_kpool_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
@@ -368,7 +368,7 @@ bytes 差额 == 驻留中间量，`__tests__/identities.test.js` 容差 0）。
 | `moe_add` | moe | 仅访存 | 0 | ✓ | 0 | ✓ |
 | `moe_combine` | moe | 仅访存 | 0 | ✓ | 0 | ✓ |
 | `moe_dispatch` | moe | 仅搬运 | 0 | 0 | 0 | ✓ |
-| `multimodal_fusion` | memory | 仅搬运 | 0 | 0 | 0 | unknown |
+| `multimodal_fusion` | memory | 仅搬运 | 0 | 0 | 0 | ✓ |
 | `ple` | — | 分解 | 复合 | 复合 | 复合 | 复合 |
 | `qsa_indexer` | attention | 分解 | 复合 | 复合 | 复合 | 复合 |
 | `qsa_sparse_attention` | attention | 计算+访存 | ✓ | ✓ | ✓ | ✓ |

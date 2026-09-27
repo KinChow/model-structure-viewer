@@ -15,11 +15,13 @@ export function residualBankState(id, normalized, snapshots, write = false) {
   const shape = [-1, -1, snapshots, normalized.hiddenSize];
   return operatorSpec(id, write ? "snapshot bank append" : "snapshot bank reference", write ? "attn_res_snapshot" : "identity", {
     checkpoint_module: false, semantic_role: "attnres_depth_state", snapshot_count: snapshots,
+    previous_snapshot_count: Math.max(0, snapshots - 1),
     snapshot_write: write, state_lifetime: "current forward depth; not autoregressive KV",
     depth_state_elements_per_token: snapshots * normalized.hiddenSize,
-    storage_semantics: "immutable snapshot references", activation_materialization: "unknown",
+    storage_semantics: "dense token-major bank; reference torch.cat append",
+    activation_materialization: write ? "reference_torch_cat" : "reference",
     formula: write ? "bank_out = append(bank_in, prefix_in)" : "bank_out = bank_in",
-    explanation: "Depth-history state version. The diagram records snapshot references, not a mandated allocation or copy implementation.",
+    explanation: "Depth-history state version. The reference implementation appends a dense snapshot with torch.cat; optimized allocator reuse and transient peak are implementation-specific.",
   }, { input: write ? [-1, -1, snapshots - 1, normalized.hiddenSize] : shape, output: shape });
 }
 

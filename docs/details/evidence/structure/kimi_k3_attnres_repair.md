@@ -94,9 +94,11 @@ output writes = T H b
 
 - bank 节点记录 `depth_state_elements_per_token=snapshot_count×H`，寿命为当前 forward 的深度遍历。
 - 不把每一状态版本的逻辑 footprint 相加当成常驻副本。
-- 参考 `torch.cat` 与优化存储的 copy/alias 策略不同；8 个写边界使用独立
-  `attn_res_snapshot` 节点，零参数/零计算，**搬运 actIn/actOut 保留 unknown**。
-- 这使 K3 decode 的总流量也变为 unknown，不能为了“费用有限”强行填零。
+- 参考实现明确使用 `torch.cat([block_residual, prefix_sum.unsqueeze(1)], dim=1)`；
+  8 个写边界使用独立 `attn_res_snapshot` 节点，零参数/零计算，但按
+  `旧 bank + 新 prefix` 读取、扩容 bank 写出计入 `actIn/actOut`。
+- 逻辑 bank 的形状、当前 forward 生命周期和参考路径搬运已知；仅优化实现的
+  allocator 复用、alias/copy 消除和瞬时峰值不计入，不能把整个 snapshot storage 标成 unknown。
 - 无写入层的 bank 只表示同一快照引用，不新增缓存容量。
 
 工作点 batch=1、sequence=16：
@@ -135,7 +137,8 @@ prefill/decode 两相位，使用独立发布循环期望，不从 builder 倒�
 后端 `pytest.log` **184/184**；`docs-final.log`、`build-validated.log`、
 `principles.log` 通过。构建仅保留既有 chunk 大小提示。
 最终 `browser-validated.log` **2/2**，无重试；桌面/移动截图均已查看，
-确认快照及展开解释步骤显示 unknown，而非伪造物化容量。
+确认内部展开解释步骤仍对优化物化峰值显示 unknown，而 reference `torch.cat`
+路径的 snapshot 搬运已经进入成本计算，不再把整条 snapshot 写入标成 unknown。
 
 仍不得外推：
 

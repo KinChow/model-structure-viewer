@@ -8,7 +8,7 @@ import {
   ropeCounts, causalConvCounts, linearAttentionStateCounts, topkCounts,
   moeDispatchCounts, moeCombineCounts, addCounts, hashRouteCounts,
   rearrangeCounts, softmaxCounts, scoredPairs, causalDensity, fusedMoeMlpCounts,
-  dsv4VisibleKeys, dsv4WindowReduceCounts, embedGatherCounts,
+  dsv4VisibleKeys, dsv4WindowReduceCounts, embedGatherCounts, multimodalFusionCounts,
 } from "../counts.js";
 
 const B = 2; // bf16 每元素 2 字节
@@ -98,6 +98,23 @@ test("embedding gather：无 MAC，行拷贝 T·H，不扫全表", () => {
   assert.equal(c.bytes.weights, 0);
   assert.equal(c.bytes.actIn, 3 * 8 * B);
   assert.equal(c.bytes.actOut, 3 * 8 * B);
+});
+
+test("多模态融合：按文本序列与视觉 token 宽度计 prefill 搬运", () => {
+  const c = multimodalFusionCounts({
+    batch: 2, sequence: 8, visionTokens: 4, hidden: 16, visionHidden: 12,
+    bytesPerElement: B, phase: "prefill",
+  });
+  assert.equal(c.matrix, 0);
+  assert.equal(c.bytes.weights, 0);
+  assert.equal(c.bytes.actIn, 2 * (8 * 16 + 4 * 12) * B);
+  assert.equal(c.bytes.actOut, 2 * 8 * 16 * B);
+  const decode = multimodalFusionCounts({
+    batch: 2, sequence: 8, visionTokens: 4, hidden: 16, visionHidden: 12,
+    bytesPerElement: B, phase: "decode",
+  });
+  assert.equal(decode.bytes.actIn, 0);
+  assert.equal(decode.bytes.actOut, 0);
 });
 
 test("F3 rmsnorm：3TH 向量 + T 次 rsqrt；gemma 多 TH；gated 多一路门", () => {
@@ -310,14 +327,17 @@ test("注册表完整性：全部条目终止于 counts（无白名单，§3.1�
     assert.ok(entry, `条目缺失: ${key}`);
     assert.equal(typeof entry.counts, "function", `counts 未接线: ${key}`);
     if (composites.has(key)) continue;
-    const sample = entry.counts({ elements: 1, tokens: 1, hidden: 1, bytesPerElement: 1, width: 1, intermediate: 1, experts: 1, topk: 1, expertHidden: 1, expertIntermediate: 1, keyDim: 1, valueDim: 1, keyTokens: 1, headDim: 1, heads: 1, queryTokens: 1, valueDim2: 1, ropeDims: 1, channels: 1, kernel: 1, tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false, gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false, copy: false, part: "scores", selected: 1, batch: 1, sequence: 1, keyHeads: 1, valueHeads: 1, convKernelSize: 1 });
-    assert.ok(Number.isFinite(sample.matrix), `matrix 非有限: ${key}`);
+    const sample = entry.counts({ elements: 1, tokens: 1, hidden: 1, bytesPerElement: 1, width: 1, intermediate: 1, experts: 1, topk: 1, expertHidden: 1, expertIntermediate: 1, keyDim: 1, valueDim: 1, keyTokens: 1, headDim: 1, heads: 1, queryTokens: 1, valueDim2: 1, ropeDims: 1, channels: 1, kernel: 1, tableRows: 1, logicalShape: [1, 1], inElements: 1, outElements: 1, gateProjection: false, gateProjectionInput: 0, weightOne: false, gated: false, delta: false, normTopkProb: false, copy: false, part: "scores", selected: 1, batch: 1, sequence: 1, keyHeads: 1, valueHeads: 1, convKernelSize: 1, snapshots: 1, previousSnapshots: 0 });
     if (key === "multimodal_fusion") {
-      assert.equal(sample.bytes.actIn, null, "unknown image movement is not zero");
+      assert.ok(sample && Number.isFinite(sample.matrix), `matrix 非有限: ${key}`);
+      assert.ok(Number.isFinite(sample.bytes.actIn));
       assert.equal(entry.counts({ phase: "decode" }).bytes.actIn, 0);
-    } else if (key === "attn_res_snapshot") {
-      assert.equal(sample.bytes.actIn, null, "snapshot storage strategy is unspecified");
-      assert.equal(sample.bytes.actOut, null);
+      continue;
+    }
+    assert.ok(Number.isFinite(sample.matrix), `matrix 非有限: ${key}`);
+    if (key === "attn_res_snapshot") {
+      assert.equal(sample.bytes.actIn, 1);
+      assert.equal(sample.bytes.actOut, 1);
     } else assert.ok(Number.isFinite(sample.bytes.actIn), `bytes 非有限: ${key}`);
   }
 });

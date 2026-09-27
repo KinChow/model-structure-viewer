@@ -8,9 +8,10 @@
 // 每条注明单位换算与 A1-A7 全局假设引用（docs/details/cost_counts.md）。
 import {
   linearCounts, softmaxCounts, rmsnormCounts, gateCounts, swigluCounts, situGluCounts, attentionResidualCounts,
+  attentionResidualSnapshotCounts,
   ropeCounts, causalConvCounts, causalShortConvCounts, linearAttentionStateCounts, topkCounts, moeDispatchCounts,
   moeCombineCounts, addCounts, hashRouteCounts, rearrangeCounts, sinkhornCounts,
-  fusedMoeMlpCounts, embedGatherCounts, matmulPartCounts, sdpaAttentionCounts,
+  fusedMoeMlpCounts, embedGatherCounts, multimodalFusionCounts, matmulPartCounts, sdpaAttentionCounts,
   sparseLeafAttentionCounts, minimaxSparseAttentionCounts, dsv4SwaAttentionCounts,
   dsv4CompressedAttentionCounts, gatedDeltaStateCounts, engramGateCounts,
   dsv4WindowReduceCounts, dsv4PositionBiasCounts, dsv4CompressionRopeCounts,
@@ -37,13 +38,10 @@ export const FORMULAS = {
     // Kimi _merge_input_ids_with_image_features; DeepSeek merge_image_embeddings.
     // docs/details/evidence/structure/multimodal_entry_repair.md
     formula: "H = merge(E(input_ids), visual_features, placeholder_positions)",
-    explanation: "视觉特征在占位位置替换、扩展或写入文本嵌入，不进入 embedding lookup。语言工作负载已包含融合后的序列；无新增GEMM或参数。缺少图像占位数量和物化策略时，prefill搬运流量未知。",
+    explanation: "视觉特征在占位位置替换、扩展或写入文本嵌入，不进入 embedding lookup。语言工作负载已包含融合后的序列；无新增GEMM或参数。prefill 搬运按 visionTokens、文本序列和投影输出宽度估算；实现中的额外物化或 allocator overhead 不计入。",
     inputs: ["text embeddings", "visual features", "placeholder positions"],
     outputs: ["language hidden sequence"],
-    counts: ({ phase = "prefill" } = {}) => ({
-      matrix: 0, vector: 0, sfu: 0,
-      bytes: { weights: 0, actIn: phase === "decode" ? 0 : null, actOut: phase === "decode" ? 0 : null },
-    }),
+    counts: multimodalFusionCounts,
   },
   linear: {
     title: "Linear",
@@ -458,12 +456,13 @@ export const FORMULAS = {
   attn_res_snapshot: {
     title: "Attention Residual Snapshot Write",
     // ref: Kimi-K3 _forward_attn_residual torch.cat vs report §2.2 block storage.
-    // Layout and reuse strategy are not supplied by config; unknown is not zero.
+    // The logical bank shape and reference-path torch.cat traffic are known;
+    // optimized allocator reuse remains implementation-specific.
     formula: "bank_out = append(bank_in, prefix_in)",
-    explanation: "保存本 block prefix 的深度快照；参考实现 cat 与优化实现的存储策略不同。逻辑状态大小已标明，但具体搬运/物化未知；不是自回归 KV，也没有新权重。",
+    explanation: "按 Kimi-K3 参考实现将 prefix 追加到 dense token-major 深度 bank；搬运按旧 bank + 新 prefix 读取、扩容 bank 写出计算。不是自回归 KV，也不含权重；优化实现的 allocator 复用和瞬时峰值不计入。",
     inputs: ["bank_in", "prefix_in"],
     outputs: ["bank_out"],
-    counts: () => ({ matrix: 0, vector: 0, sfu: 0, bytes: { weights: 0, actIn: null, actOut: null } }),
+    counts: attentionResidualSnapshotCounts,
   },
   attention_residual: {
     title: "Attention Residual",

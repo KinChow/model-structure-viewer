@@ -357,7 +357,13 @@ const FROM_NODE = {
     };
   },
   split: () => ({}),
-  attn_res_snapshot: () => ({}),
+  attn_res_snapshot: ({ node, tokens, bytesPerElement }) => ({
+    tokens,
+    hidden: staticWidth(node?.output_shape) || 0,
+    snapshots: node?.attributes?.snapshot_count,
+    previousSnapshots: node?.attributes?.previous_snapshot_count,
+    bytesPerElement,
+  }),
   swiglu: ({ node, bytesPerElement, tokens }) => ({
     tokens, intermediate: staticWidth(node?.output_shape) || 0, bytesPerElement,
   }),
@@ -437,7 +443,18 @@ const FROM_NODE = {
     tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement,
   }),
   identity: () => ({ copy: false }),
-  multimodal_fusion: ({ phase }) => ({ phase }),
+  multimodal_fusion: ({ config, options, bytesPerElement, phase }) => ({
+    batch: options.batch ?? 1,
+    sequence: options.sequence ?? 1,
+    visionTokens: config?.visionTokens || 1,
+    hidden: config?.hiddenSize,
+    visionHidden: config?.visionFusionInputSize
+      || config?.visionOutputSize
+      || config?.visionHiddenSize
+      || config?.hiddenSize,
+    bytesPerElement,
+    phase,
+  }),
   index_reuse: () => ({ copy: false }),
   moe_add: ({ node, config, bytesPerElement, tokens }) => ({
     tokens, hidden: staticWidth(node?.output_shape) || config?.hiddenSize || 0, bytesPerElement,

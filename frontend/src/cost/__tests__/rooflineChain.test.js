@@ -19,7 +19,8 @@ import { PUBLIC_CHIPS } from "../chips/public.js";
 // 生产入口均未传 actions（五路退化三路）却全绿——"两端都测了，中间没测"。
 // 本测试复刻 CostSummary.jsx 的聚合调用形状，对全部内置模型断言：
 //   1. counts 通道完整（computeComplete 且 actions 非空）
-//   2. 已知计费可分类；图像融合未指定搬运量时必须保留 unknown
+//   2. 视觉模型的融合搬运量按 visionTokens/hidden/sequence 建模后可分类；
+//      Kimi-K3 AttnRes snapshot 按参考 torch.cat 路径计入搬运
 //   3. matrix/memory 两路时间可得
 // P0-4 接通 actions 后，此处追加五路时间断言；P0-5 接入 counts.bytes 后
 // 追加访存侧来自 counts 通道的断言。
@@ -59,18 +60,14 @@ test("all built-in models classify a roofline bound through the aggregate chain"
       },
     }, MACHINE, { dtype: "bf16", efficiency: {} });
 
-    if (normalized.hasVision) {
-      assert.equal(cost.actions.actIn, null);
-      assert.equal(cost.actions.actOut, null);
-      assert.equal(roofline.bound, "unknown", "missing fusion movement must not become a fabricated finite time");
-    } else assert.ok(roofline.bound && roofline.bound !== "unknown", `${entry.model_id}: bound unclassified (missing: ${roofline.missing.join(", ")})`);
+    assert.ok(roofline.bound && roofline.bound !== "unknown",
+      `${entry.model_id}: bound unclassified (missing: ${roofline.missing.join(", ")})`);
     assert.ok(roofline.times.matrix != null, `${entry.model_id}: matrix time missing`);
     // vector/sfu 计数来自 counts 通道；融合缺少物化信息只使访存未知，
     // 计数为零时时间是精确零，不得再出现 legacy 伪造前的 null
     assert.ok(roofline.times.vector != null, `${entry.model_id}: vector time missing`);
     assert.ok(roofline.times.sfu != null, `${entry.model_id}: sfu time missing`);
-    if (normalized.hasVision) assert.equal(roofline.times.memory, null);
-    else assert.ok(roofline.times.memory != null, `${entry.model_id}: memory time missing`);
+    assert.ok(roofline.times.memory != null, `${entry.model_id}: memory time missing`);
     assert.ok(roofline.times.comm != null, `${entry.model_id}: comm time missing`);
     bounds[roofline.bound] = (bounds[roofline.bound] || 0) + 1;
   }

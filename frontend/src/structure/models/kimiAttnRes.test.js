@@ -86,8 +86,8 @@ test("AttnRes candidate-sensitive cost, skipped first aggregation and capacity o
   assert.ok(children.every(r => r.compute_macs === 0 && r.actions === null), "parent bills computation only once");
   assert.ok(graph.nodes.filter(n => /bank_(in|out)$/.test(n.canonical_id)).every(n => !n.attributes.state_elements && !n.attributes.cache_kv_elements));
   const bankWrite = countsForNode(get("layers.0.bank_out"), env);
-  assert.equal(bankWrite.bytes.actIn, null);
-  assert.equal(bankWrite.bytes.actOut, null);
+  assert.equal(bankWrite.bytes.actIn, 2 * 4 * 2);
+  assert.equal(bankWrite.bytes.actOut, 2 * 4 * 2);
   assert.equal(bankWrite.matrix, 0);
 });
 

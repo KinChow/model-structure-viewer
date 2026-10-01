@@ -89,3 +89,33 @@ test("ELK-only layout routes an expanded internal branch without post-layout mut
   const context = graph.nodes.find((node) => node.path === "root.0.5");
   assert.ok(q.y < context.y);
 });
+
+test("ELK-only layout keeps descendant-to-compound output on the compound side", async () => {
+  const graph = await layoutGraphWithElkOnly(view({
+    id: "model",
+    type: "model",
+    attributes: { dataflow_edges: [["compressor", "attention"]] },
+    children: [
+      {
+        id: "compressor",
+        type: "compressor",
+        attributes: {
+          dataflow_edges: [["kv_norm", "compressor"]],
+        },
+        children: [
+          { id: "kv_norm", type: "normalization", children: [] },
+        ],
+      },
+      { id: "attention", type: "attention", children: [] },
+    ],
+  }, new Set(["root", "root.0"])));
+
+  const compound = graph.containerFrames.find((frame) => frame.id === "root.0");
+  const edge = graph.edges.find((item) => item.source === "root.0.0" && item.target === "root.0");
+  assert.ok(compound && edge?.routePoints?.length >= 2);
+  const target = edge.routePoints.at(-1);
+  assert.ok(target.x >= compound.x + compound.width - 1,
+    "aggregate output should terminate on the compound's east boundary");
+  assert.ok(target.y > compound.y && target.y < compound.y + compound.height,
+    "aggregate output should terminate inside the compound's vertical span");
+});

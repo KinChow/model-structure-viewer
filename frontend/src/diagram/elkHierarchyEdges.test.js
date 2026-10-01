@@ -35,7 +35,7 @@ test("edge to its ancestor terminates on the ancestor border port", () => {
     "edge-0::core", "edge-1::in::root.0.0",
   ]);
   assert.equal(result.partsByOwner.get("root.0")[0].id, "edge-1::core");
-  assert.ok(result.portsByNode.get("root.0.0").some((port) => port.direction === "in"));
+  assert.ok(result.portsByNode.get("root.0.0").some((port) => port.direction === "in" && port.side === "EAST"));
   assert.ok(result.portsByNode.get("root.0").some((port) => port.direction === "out"));
 });
 

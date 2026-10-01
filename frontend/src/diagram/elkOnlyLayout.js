@@ -99,9 +99,11 @@ export async function layoutGraphWithElkOnly(graph) {
 
   const addPorts = (shape, id, parentDirection) => {
     const sides = sidesOf(parentDirection);
-    const bridgePorts = (hierarchy.portsByNode.get(id) || []).map(({ id: bridgeId, direction: bridgeDirection }) => ({
+    const bridgePorts = (hierarchy.portsByNode.get(id) || []).map(({ id: bridgeId, direction: bridgeDirection, side }) => ({
       id: bridgeId,
-      layoutOptions: { "elk.port.side": bridgeDirection === "in" ? sides.in : sides.out },
+      layoutOptions: {
+        "elk.port.side": side || (bridgeDirection === "in" ? sides.in : sides.out),
+      },
     }));
     shape.ports = [
       { id: portId(id, "in"), layoutOptions: { "elk.port.side": sides.in } },

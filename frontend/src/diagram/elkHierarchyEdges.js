@@ -36,10 +36,10 @@ export function buildElkHierarchyEdges(graph, options = {}) {
     list.push(segment);
     partsByOwner.set(owner, list);
   };
-  const port = (node, edgeId, direction) => {
+  const port = (node, edgeId, direction, options = {}) => {
     const id = `${node}::bridge::${edgeId}::${direction}`;
     const list = portsByNode.get(node) || [];
-    list.push({ id, direction });
+    list.push({ id, direction, side: options.side || null });
     portsByNode.set(node, list);
     return id;
   };
@@ -50,6 +50,7 @@ export function buildElkHierarchyEdges(graph, options = {}) {
     const outgoing = [];
     const incoming = [];
     let sourcePath = edge.source;
+    const sourceIsDescendant = sourcePath !== ancestor;
     let sourceRef = sourcePath === ancestor
       ? port(ancestor, edge.id, "out")
       : `${sourcePath}::out`;
@@ -64,8 +65,15 @@ export function buildElkHierarchyEdges(graph, options = {}) {
       sourcePath = owner;
     }
     let targetPath = edge.target;
+    // A descendant-to-ancestor edge is the compound's aggregate result. It is
+    // not an ordinary input to the compound: attaching it to the ancestor's
+    // NORTH port makes the route leave the frame through its top border and
+    // often creates a misleading outer loop. Keep the Graph IR endpoint
+    // unchanged, but give the layout a dedicated output-side boundary port.
     let targetRef = targetPath === ancestor
-      ? port(ancestor, edge.id, "in")
+      ? port(ancestor, edge.id, "in", sourceIsDescendant
+        ? { side: "EAST" }
+        : {})
       : `${targetPath}::in`;
     while (targetPath !== ancestor && (parentByPath.get(targetPath) ?? parentPath(targetPath)) !== ancestor) {
       const owner = parentByPath.get(targetPath) ?? parentPath(targetPath);

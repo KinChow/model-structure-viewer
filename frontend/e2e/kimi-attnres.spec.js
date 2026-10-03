@@ -36,7 +36,10 @@ test("K3 AttnRes depth states, block boundary and final output survive folding",
   }
   await expect(rendered(finalEdge)).toHaveAttribute("d", /^M/);
   const bank = page.locator(`.react-flow__node[data-id="${byCanonical.get("layers.12.bank_out").id}"]`);
-  await expect(bank).toContainText("V -");
+  // AttnRes snapshots use the reference dense token-major torch.cat path.
+  // The node must expose a concrete resident snapshot size; the old `V -`
+  // assertion described the pre-fusion-cost contract and is no longer valid.
+  await expect(bank).toContainText(/V\s+(?!-)\d/);
   const target = byCanonical.get("layers.12.attn_res_mlp");
   const node = page.locator(`.react-flow__node[data-id="frame-${target.id}"]`);
   await node.locator(".rf-group-frame").focus();

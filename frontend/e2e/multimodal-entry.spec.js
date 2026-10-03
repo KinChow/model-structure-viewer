@@ -56,7 +56,11 @@ async function openAndCheck(page, entry, testInfo, deep = false) {
   await assertNoOverlap(embed, vision, `${entry.model_id}: independent branches overlap`);
   await page.locator(".detail-cost-toggle > button").click();
   await expect(page.locator(".cost-summary")).not.toContainText(/NaN|undefined/);
-  await expect(page.locator('.cost-domain-item[data-group="memory"] b')).toHaveText(/未知|unknown/i);
+  // Vision fusion traffic is modeled explicitly from the active vision-token
+  // workload. Keep this as a numeric contract: a missing value would indicate
+  // a regression in multimodalFusionCounts, while the old unknown assertion
+  // described the pre-fusion-cost implementation.
+  await expect(page.locator('.cost-domain-item[data-group="memory"] b')).toHaveText(/\d/);
   await page.screenshot({ path: testInfo.outputPath(`${entry.model_id.replaceAll("/", "__")}-overview.png`) });
   if (deep) {
     const search = page.getByPlaceholder("搜索节点名称 / 类型 / class...");
@@ -126,6 +130,11 @@ test("desktop Kimi-K3 V2 projector ends at post-norm", async ({ page }, testInfo
   test.skip(testInfo.project.name !== "desktop-chrome");
   test.setTimeout(150_000);
   await openAndCheck(page, entries.find(entry => entry.model_id === "moonshotai/Kimi-K3"), testInfo, true);
+  // MXFP4 U8 headers contain packed storage elements; the model summary must
+  // expose logical parameters separately instead of calling 1.50T storage
+  // units the model's parameter count.
+  await expect(page.locator(".diagnostics-meta").first()).toContainText("2.78 T params");
+  await expect(page.locator(".diagnostics-meta").first()).toContainText("packed storage");
 });
 
 for (const entry of families) {

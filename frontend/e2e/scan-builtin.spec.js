@@ -19,8 +19,13 @@ test("全量内置模型展示层巡检：结论条与成本数据可正确展�
   test.setTimeout(900_000);
   page.setDefaultTimeout(12_000);
 
+  // Catalog is loaded by the app after the initial shell render. Wait for the
+  // complete built-in list instead of racing the first React commit (a cold
+  // Vite/browser start can otherwise observe an empty datalist and produce a
+  // false failure before the actual scan begins).
+  await expect(page.locator("datalist#builtin-models option")).toHaveCount(60, { timeout: 60_000 });
   const modelIds = await page.locator("datalist#builtin-models option").evaluateAll((options) => options.map((o) => o.value));
-  expect(modelIds.length).toBeGreaterThan(0);
+  expect(modelIds).toHaveLength(60);
 
   const readAnswerBar = async () => {
     const items = page.locator(".detail-answer-bar .ab-item");

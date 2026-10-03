@@ -18,7 +18,7 @@ for (const language of ["zh", "en"]) {
     await page.getByLabel("model id").fill("deepseek-ai/DeepSeek-V3.1");
     await page.getByRole("button", { name: english ? "Open model" : "打开模型", exact: true }).click();
     await expect(page.locator(".detail-page")).toBeVisible();
-    await expect(page.locator(".diagnostics-meta")).toContainText(english ? "tensors" : "张量");
+    await expect(page.locator(".diagnostics-meta").first()).toContainText(english ? "tensors" : "张量");
     await expect(page.locator("body")).not.toContainText(forbiddenUi);
     await page.getByRole("button", { name: english ? "Model options" : "模型选项", exact: true }).click();
     const options = page.getByRole("dialog", { name: english ? "Model options" : "模型选项", exact: true });
@@ -35,6 +35,23 @@ for (const language of ["zh", "en"]) {
 }
 
 const remoteConfig = { model_type: "qwen3", architectures: ["Qwen3ForCausalLM"], num_hidden_layers: 1, hidden_size: 64, num_attention_heads: 4, num_key_value_heads: 2, intermediate_size: 128, vocab_size: 256 };
+
+test("量化 checkpoint 参数摘要区分逻辑参数与 packed storage", async ({ page }) => {
+  await page.route(/https:\/\/(?:www\.)?(?:huggingface\.co|modelscope\.cn)\//, (route) => route.abort());
+  for (const [model, logical, storage, preview] of [
+    ["Qwen/Qwen3.5-27B-GPTQ-Int4", "27.78 G params", "12.96 G", "27.8B params"],
+    ["moonshotai/Kimi-K2.5", "1.03 T params", "170.74 G", "1026.9B params"],
+  ]) {
+    await page.goto("/");
+    await page.getByLabel("model id").fill(model);
+    await page.getByRole("button", { name: "打开模型", exact: true }).click();
+    await expect(page.locator(".detail-page")).toBeVisible();
+    const diagnostics = page.locator(".diagnostics-panel");
+    await expect(diagnostics).toContainText(logical);
+    await expect(diagnostics).toContainText(`packed storage 单元 ${storage}`);
+    await expect(page.locator(".summary-disclosure")).toContainText(preview);
+  }
+});
 
 for (const language of ["zh", "en"]) {
   test(`远程读取与搜索直连，失败不回退 (${language})`, async ({ page }) => {

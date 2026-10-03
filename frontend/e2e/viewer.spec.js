@@ -31,7 +31,7 @@ test("内置模型以 React Flow 图打开并保留成本交互", async ({ page 
   if (page.viewportSize().width <= 640) await expect(page.locator(".react-flow__minimap")).toBeHidden();
   else await expect(page.locator(".react-flow__minimap")).toBeVisible();
   await expect(page.getByRole("button", { name: "用 Transformers 校验" })).toHaveCount(0);
-  await expect(page.locator(".diagnostics-meta")).toContainText("张量");
+  await expect(page.locator(".diagnostics-meta").first()).toContainText("张量");
 
   // W6-2（§2.2）：evidence 数据契约上 DOM。顶层主干（embed→decoder→norm→lm_head）
   // 是真实顺序数据流，声明为 declared 实线边（无草稿模型也统一实线，见

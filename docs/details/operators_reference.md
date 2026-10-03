@@ -45,8 +45,12 @@
 
 ## 0. 总览表
 
+> 本文前半段的人工逐算子注解和历史触发面冻结于 2026-09-09，覆盖当时的
+> 59 个模型；当前 catalog 已有 60 个模型。当前全量触发面、节点/实例和占比
+> 以文末生成段及 `npm run docs:check` 为准，不用本段历史分母推断当前覆盖率。
+
 总览表（算子 × matrix/vector/sfu/bytes 形状 × 来源 × 触发模型/节点/实例 × 出现槽位）
-已由生成器产出，见下方机器段「[总览表（生成物）](#总览表生成物-48-个算子--59-个模型)」——
+已由生成器产出，见下方机器段「总览表（生成物）」——
 探针逐 op 实测运行时形状，本节不再手写（2026-09-10 P0-A：手写版触发数与算子名
 已过期，且 causal_conv1d 单源化后 G2 双轨差清零，`0\*` 标记随之退役）。
 
@@ -56,7 +60,7 @@
 - `二` = 二等 modeling 对照（引用 `models/<org>/<id>/` 内入库源码证据）；
 - `三` = 三等分解声明（由 index.js counts 组合，复合节点见分解台账）。
 
-探针口径结论：59 模型共发现 **41 种 leaf 键** = 40 条 registry operatorId（49 条中
+历史探针口径结论：59 模型共发现 **41 种 leaf 键** = 40 条 registry operatorId（49 条中
 部分为零触发通用槽位或复合内部分解项）+ 1 个结构节点 `embedding`。prefill（T=128）
 与 decode（T=1、S=4096）两相位 unknown 叶均为 **0**。2026-09-09 复跑触发探针与
 冻结的 `trigger-map.json` 双向 0 差异（41 键 × 59 模型）。
@@ -73,11 +77,11 @@ node scripts/gen-operators-reference.mjs --check   # 只比对，diff 非空退�
 node scripts/gen-operators-reference.mjs --json    # 探针原始数据打到 stdout（不落文件、不进 golden）
 ```
 
-`--json` 的结构：`overview`（47 算子 × 59 模型的触发面 + 三分量非零面 + 占比原始值）·
+`--json` 的结构：`overview`（按当前 catalog 全量模型的触发面 + 三分量非零面 + 占比原始值）·
 `classes`（16 结构类 × 逐算子 × 两相位的三分量 / bytes 三分量 / AI / bound / 模块恒等式结果）·
 `chip`（bound 判定用的参考芯片）· `overviewPhases` / `classPhases`（两段各自的工作点）。
 
-管线（与生成器同源）：`models/catalog.json` 全部 59 模型：config → `normalizeConfig`
+管线（与生成器同源）：`models/catalog.json` 当前全量模型：config → `normalizeConfig`
 → `resolveArchitecture` → `buildNetwork` → `createStructureIr` → `materializeModelStructure`
 → 逐叶 `countsForNode(node, { config, options, path, bytesPerElement: 2 })`，
 逐叶收集 `attributes.operator_id`（`type==='embedding'` 记为结构节点 `embedding`）。
@@ -86,7 +90,7 @@ node scripts/gen-operators-reference.mjs --json    # 探针原始数据打到 st
 
 - **总览表 / 占比表**：prefill `T=128`、decode `T=1, S=4096`。用于触发面与相对占比。
 - **逐结构类明细表**：prefill `T=S=2048`、decode `T=1, S=4096`。bound 是 arithmetic
-  intensity 与 ridge point 的比较结果，`T=128` 下 59 个模型全落 memory，表就失去查错价值；
+  intensity 与 ridge point 的比较结果；历史 `T=128` 下 59 个模型全落 memory，表就失去查错价值；
   这一套与 `modelIdentities.test.js` 的 bound 断言同工作点，表与断言口径一致。
 
 统计口径：
@@ -132,7 +136,7 @@ node scripts/gen-operators-reference.mjs --json    # 探针原始数据打到 st
 
 > **口径分工**：本节是**带注解的人工视图** —— 提供 §4 正文的锚链接、attention kind 归类和
 > 阅读顺序。覆盖面（哪个算子出现在哪些槽位、槽位里的算子序列）以文末**生成段的双向表 A/B**
-> 为准，那两张表由 `node scripts/gen-operators-reference.mjs` 从 59 模型实跑得出，
+> 为准，那两张表由 `node scripts/gen-operators-reference.mjs` 从当前 catalog 全量模型实跑得出，
 > `npm run docs:check` 会守住它不漂移。两处冲突时改本节，不改生成段。
 
 ### 表 A · 算子 → 结构槽位
@@ -223,7 +227,7 @@ node scripts/gen-operators-reference.mjs --json    # 探针原始数据打到 st
 
 ## 4. 结构槽位骨架正文（逐算子）
 
-> 每算子固定模板：**触发面**（trigger-map 实证，引用 = 模型数/59（节点/实例））·
+> 每算子固定模板：**触发面**（trigger-map 实证，引用 = 当前 catalog 模型数（节点/实例））·
 > **matrix / vector / sfu / bytes 三分量** · **单位与换算** · **基础分解** · **实现** ·
 > **来源三级** · **全局假设** · **已知近似/登记** · **运行时 actions 实证** ·
 > **对齐状态**。行号锚定 commit `a4d709a`。
@@ -1731,7 +1735,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 未识别叶子（无 operator_id 且非 embedding）：**0**
 
-## 算力/访存占比（prefill，T=128，59 模型实例加权求和）
+## 算力/访存占比（prefill，T=128，60 模型实例加权求和）
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
@@ -1753,7 +1757,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 合计：matrix 3.3454e+14 MACs · bytes 6.0960e+13（仅列前 15 名）
 
-## 算力/访存占比（decode，T=1 S=4096，59 模型实例加权求和）
+## 算力/访存占比（decode，T=1 S=4096，60 模型实例加权求和）
 
 | 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |
 |---|---|---|---|---|
@@ -1859,7 +1863,7 @@ kvWrite（`extractor.js:453-455`）已按验证结论修复，golden 基线同�
 
 ## 双向表 B（生成物）· 结构槽位 → 算子序列（数据流顺序）
 
-> 序列按子节点声明顺序取，跨 59 模型做「首次出现即追加」的并集 —— 同一槽位不同结构类的算子会依次排在后面。
+> 序列按子节点声明顺序取，跨 60 模型做「首次出现即追加」的并集 —— 同一槽位不同结构类的算子会依次排在后面。
 
 | 结构槽位 | 算子序列 |
 |---|---|

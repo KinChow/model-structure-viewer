@@ -20,7 +20,7 @@
 > 事实源 = `frontend/src/structure/models/index.js` 的 `MODELS`
 >（key=`architectures[0]` 原字符串，对标 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）+
 > `structure/archs/index.js` 的 `ARCH_RECIPES`（类名 / 路径例外）。
-> `catalog 命中` = 59 内置模型的精确计数。
+> `catalog 命中` = 60 个内置模型的精确计数。
 
 ## MODELS 注册表（17 条）
 

@@ -1,5 +1,5 @@
 {
-  "scannedAt": "2026-09-27T01:49:34.832Z",
+  "scannedAt": "2026-10-02T04:29:11.478Z",
   "total": 60,
   "report": [
     {
@@ -1256,23 +1256,23 @@
       "modelId": "moonshotai/Kimi-K3",
       "zhAnswer": {
         "装得下": "不适配",
-        "总显存": "1446.84 GiB / 74.51 GiB",
-        "瓶颈": "算力受限",
+        "总显存": "1454.14 GiB / 74.51 GiB",
+        "瓶颈": "访存受限",
         "需要 GPU": "8 / 8"
       },
       "enAnswer": {
         "Fit": "not fit",
-        "Total VRAM": "1446.84 GiB / 74.51 GiB",
-        "Bound": "Compute-bound",
+        "Total VRAM": "1454.14 GiB / 74.51 GiB",
+        "Bound": "Memory-bound",
         "GPUs": "8 / 8"
       },
       "zhCost": {
-        "dataBound": "matrix",
-        "rooflineLabel": "矩阵"
+        "dataBound": "memory",
+        "rooflineLabel": "访存"
       },
       "enCost": {
-        "dataBound": "matrix",
-        "rooflineLabel": "matrix"
+        "dataBound": "memory",
+        "rooflineLabel": "memory"
       },
       "expectedUnknown": null,
       "anomalies": []

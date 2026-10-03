@@ -1,6 +1,6 @@
 # 模型台账参考（Models Reference）
 
-> **定位**：59 个内置模型的机器台账（清单事实）+ 人工段（解读入口）。
+> **定位**：60 个内置模型的机器台账（清单事实）+ 人工段（解读入口）。
 > 机器段由 `node scripts/gen-model-reference.mjs` 生成，经 `npm --prefix frontend
 > run docs:check` 逐字节守护；带锚注解的人工视图（结构类台账 16 类/22 部件、
 > 按 canonical 分组的模型列表、模型专项说明）住在

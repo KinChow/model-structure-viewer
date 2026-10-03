@@ -16,7 +16,7 @@ Python CLI/API 保留为开发、取证及 Transformers 对账工具；已有 AP
 
 - 中英文 × 桌面/移动端：页面入口、模型选项、Revision、远程加载/搜索成功与失败、旧 local 链接、目录错误、header、导出。
 - 本地目录通过真实 FileChooser 设置测试目录；取消覆盖标准 `cancel` 事件和空 FileList 的处理，不声称自动操作了操作系统取消按钮。
-- 59 个内置模型保留桌面展开、图边和成本回归；移动端保留代表模型及全部纯前端边界用例。MiniMap 在窄屏按现有设计隐藏。
+- 60 个内置模型保留桌面展开、图边和成本回归；成本/图扫描在移动端也覆盖全部 60 个模型，另保留代表模型及全部纯前端边界用例。MiniMap 在窄屏按现有设计隐藏。
 - 前端单元测试、模型验证、生产构建，以及独立 Python 验证工具测试共同检查变化。网络夹具证明浏览器控制流和结果，不代表公网模型源当时可达。
 
 来源规则见 [source_contract.json](details/models/source_contract.json)：`frontend` 定义产品来源；原 `sources`、缓存及错误状态码字段继续约束 Python 工具。

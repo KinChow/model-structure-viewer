@@ -33,7 +33,7 @@ npm --prefix frontend test
 |---|---|---|
 | 2026-09-07 | `npm --prefix frontend run test` | 208/208 pass，0 fail |
 | 2026-09-07 | `.venv/bin/python -m pytest -q` | 148 passed（11.7s） |
-| 2026-09-07 | `npm --prefix frontend run verify:models` | 59 个内置模型全过，`"failed": 0`（离线跑通，不依赖外网） |
+| 2026-09-07 | `npm --prefix frontend run verify:models` | 历史 59 个内置模型全过，`"failed": 0`（离线跑通，不依赖外网） |
 | 2026-09-07 | `npm --prefix frontend run test:e2e` | 9 passed，1 skipped（设计使然：`e2e/viewer.spec.js:66` 将"全量内置模型回归"限定为仅 desktop-chrome） |
 | 2026-09-10 | `npm --prefix frontend test` | 341 pass，0 fail |
 | 2026-09-10 | `.venv/bin/python -m pytest -q` | 169 passed（含 evidence 对账） |
@@ -127,7 +127,7 @@ API 验证必须包含正常请求和错误请求；响应应为合法 JSON，�
 
 ## 7. 浏览器验证
 
-`npm --prefix frontend run test:e2e`（`verify:page` 为兼容别名）会启动隔离 Vite 服务，并在桌面/移动 Chrome 中验证当前 React Flow 页面。全量 59 模型展开回归在桌面运行，移动端覆盖代表模型和全部纯前端边界用例。
+`npm --prefix frontend run test:e2e`（`verify:page` 为兼容别名）会启动隔离 Vite 服务，并在桌面/移动 Chrome 中验证当前 React Flow 页面。全量 60 模型展开回归在桌面运行；`framework-accounting.spec.js` 在桌面和移动端分别扫描全部 60 模型的成本、账本和图可见性。移动端另覆盖代表家族与纯前端边界用例；成本扫描不等同于全量展开验证。
 
 浏览器验收至少覆盖：
 

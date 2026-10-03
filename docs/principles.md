@@ -689,7 +689,8 @@ registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling �
   transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 已接
   **独立算子夹具**（Linear / BMM / 深度可分 Conv1d：msv MAC × 2 == torch FLOPs）；
   不对 catalog 整模型跑 forward（catalog 无权重）。来源解析两套运行时 + 一份
-  `source_contract.json` 是终态，不是债。catalog 旁 `source-ref.json` 58/59 入库；
+  `source_contract.json` 是终态，不是债。当前 catalog 旁 `source-ref.json` 已覆盖
+  60/60；缺席产物节点 `source_ref` 为 null；
   静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
 - **§8.1**：棘轮基线 6（`models/` 按架构拆文件后豁免）。只许下降。
 - **§3.1**：extractor 已收成 `FORMULAS[id].fromNode` + `.counts` 查表

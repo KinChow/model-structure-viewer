@@ -100,7 +100,8 @@ GEMM     counts.matrix  ↔ T4 / flop_registry      MAC；torch FLOP = 2×MAC
 
 - 产品前端纯静态运行，不请求 MSV 后端；验证只属于开发 CLI/API。前后端两套 resolver 运行时不合并。共享契约见 [`details/models/source_contract.json`](details/models/source_contract.json)：键 `repo_id + revision + cache_dir`；来源 `auto|builtin|local|hf|config`；Python `auto` fallback = builtin → local → hf，前端旧 `auto` = builtin → hf；ModelScope 空/`main` → `master`；错误分类 config=400 / not_found=404 / remote=502。前后端测试对这份 JSON。
 - verify triage 继续 fixture（`canonical_path_contract.json` 四桶）。不写 DSL。
-- `source_ref`：58/59 已入库。Kimi-K3 永不 dump / verify。缺席产物节点 `source_ref` 为 null。
+- `source_ref`：当前 60/60 已入库。Kimi-K3 的 source-ref 已由离线 header/source 审计补齐；
+  缺席产物节点 `source_ref` 为 null。
 - schema：`StructureNodeBase` 已抽。Graph 协议字段（`schema_version` / `parent_id` / `order` / `canonical_id`）锁在同一份 `source_contract.json`；后端不当第二份产品结构源。
 
 ### 文档与护栏
@@ -137,7 +138,7 @@ runtime-unknown
 
 下列条目曾写成「未排期缺口」，实现与契约已经对齐，不再当待办：
 
-- **§5 source_ref**：采集 / 绑定 / Inspector 已接通。catalog 58/59 已
+ - **§5 source_ref**：采集 / 绑定 / Inspector 已接通。当前 catalog 60/60 已
   `msv dump-source-ref --source builtin` 入库。Kimi-K3 永不 dump / verify
   （Hub modeling import 拉 `fla` / Triton；transformers 无 `kimi_k3`）。
   绑定脚本 58 模型通过。`verify --graph` 构造通过才算脚本失败；
@@ -195,8 +196,9 @@ config 闭式（`derivedWeights.js`）已删。无 header 时身份测试走锚 
 **共享 layer 家族分派** ✅ 改读配方旗标 / config 字段。
 **1.1 fromNode 只抽 ctx** ✅ `countsForNode` = `fromNode(env)` → `FORMULAS[id].counts(ctx)`；动作向量只在 `counts.js`。
 
-**S3 header `parameterTotal` 入库** ✅ catalog 58/59 有 `header-truth.json`
-（Kimi-K3 跳过）。图声明逻辑元素对 header 逻辑元素（容差 2%）。
+**S3 header `parameterTotal` 入库** ✅ 当前 catalog 59 个有 `header-truth.json`，
+Kimi-K3 使用 `skeleton-truth.json`（packed storage 与 logical parameters 分账）。
+图声明逻辑元素对 header 逻辑元素（容差 2%）。
 量化行按 `parameterCount` dtype 解包（GPTQ I32×8 扣 qzeros、NVFP4 I8×2、跳过 scale 桶）。
 身份图侧：sidecar `mtp_tensor_count`（扫 header 张量名 `mtp.{i}` / 越界 `layers.{n}`，
 对标 vLLM load_weights）>0 才计入投机头；config 空声明不是实际。

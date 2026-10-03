@@ -152,7 +152,7 @@ bash scripts/dev-frontend.sh
 
 ## 已验证支持模型
 
-当前 `models/catalog.json` 中有 59 个内置模型配置，已经全部通过配置组网验证；Playwright 页面验收覆盖桌面和移动 Chrome 的入口、图协议、成本交互和多模态节点：
+当前 `models/catalog.json` 中有 60 个内置模型配置，已经全部通过配置组网验证；Playwright 页面验收覆盖桌面和移动 Chrome 的入口、图协议、成本交互和多模态节点：
 
 - 配置组网验证：读取仓库内置 `config.json`，调用前端 `buildStructureFromConfig`，能够生成带 `summary`、`root` 和子节点的结构。
 - 页面级验证：`npm --prefix frontend run test:e2e`（`verify:page` 为同一 Playwright 入口）检查无 `auto` 可见选项、React Flow 节点/边、成本面板、窄屏无横向溢出，以及 Qwen 多模态视觉塔和投影节点。
@@ -244,7 +244,7 @@ npm run build
 
 部署 `frontend/dist` 到 GitHub Pages 后，`builtin`、`config`、`hf` 和 Hugging Face 搜索可以在没有后端的情况下工作。`local`、后端设置保存、代理 fallback 和 transformers 验证仍需要 API 服务。
 
-仓库的 `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions；部署前会依次执行后端单测、前端单测、59 个内置模型验证、Playwright 页面验收和生产构建。
+仓库的 `.github/workflows/deploy-pages.yml` 使用 GitHub Pages 官方 actions；部署前会依次执行后端单测、前端单测、60 个内置模型验证、Playwright 页面验收和生产构建。
 
 如果站点部署在子路径，例如 `https://kinchow.github.io/model-structure-viewer/`，需要设置 Vite base：
 

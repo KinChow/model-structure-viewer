@@ -20,13 +20,27 @@ export default function DiagnosticsPanel({ structure, language = "zh" }) {
   const model = diagnostics ? diagnosticsModel(diagnostics, { english }) : null;
   const truth = checkpointTruthModel(structure?.source, { english });
   const boundTensors = diagnostics?.graph_bound_tensors ?? diagnostics?.bound_tensors ?? 0;
+  const sourceRef = diagnostics?.source_ref || null;
+  const sourceRefTotal = sourceRef
+    ? (sourceRef.bound || 0) + (sourceRef.unmatched || 0) + (sourceRef.intentional_aggregate || 0)
+    : 0;
+  const sourceRefSummary = sourceRef && sourceRefTotal > 0
+    ? (english
+      ? `Graph source refs: ${sourceRef.bound}/${sourceRefTotal} nodes bound · ${sourceRef.unmatched || 0} unmatched · ${sourceRef.generated_operator || 0} generated operators · ${sourceRef.intentional_aggregate || 0} aggregate containers intentionally unbound`
+      : `图节点源码引用：${sourceRef.bound}/${sourceRefTotal} 个节点已绑定 · ${sourceRef.unmatched || 0} 个未匹配 · ${sourceRef.generated_operator || 0} 个生成算子 · ${sourceRef.intentional_aggregate || 0} 个聚合容器按设计不绑定`)
+    : null;
+  const storageSuffix = Number.isFinite(diagnostics?.storage_parameter_total)
+    ? (english
+      ? ` · packed storage elements ${formatQuantity(diagnostics.storage_parameter_total)}`
+      : ` · packed storage 单元 ${formatQuantity(diagnostics.storage_parameter_total)}`)
+    : "";
   const tensorSummary = diagnostics?.total_tensors == null
     ? null
     : boundTensors > 0
       ? (english ? `Bound ${boundTensors} / ${diagnostics.total_tensors} tensors` : `已绑定 ${boundTensors} / ${diagnostics.total_tensors} 张量`)
       : (english ? `Aggregate header truth: ${diagnostics.total_tensors} tensors` : `聚合 header 真值：${diagnostics.total_tensors} 张量`);
   const hasDiagnostics = Boolean(model && (model.banner || model.gapCount || model.ambiguousCount || model.unsupportedCount || model.warningCount || truth.show));
-  if (!hasDiagnostics && !truth.show && !tensorSummary) return null;
+  if (!hasDiagnostics && !truth.show && !tensorSummary && !sourceRefSummary) return null;
 
   return <section className="diagnostics-panel" aria-label={english ? "Diagnostics" : "诊断"}>
     {model?.unsupportedCount > 0 && <div className="diagnostics-banner diagnostics-banner-error" data-unsupported="1">{english ? "Unsupported structure" : "不支持的结构"}：{model.unsupported.map((entry) => diagText(entry, language)).join(" ")}</div>}
@@ -35,6 +49,7 @@ export default function DiagnosticsPanel({ structure, language = "zh" }) {
     {model?.warningCount > 0 && <details className="diagnostics-group diagnostics-group-warn"><summary>{english ? `Structure warnings (${model.warningCount})` : `结构告警（${model.warningCount}）`}</summary><ul>{model.warnings.map((entry) => <li key={entry.code}>{entry.code}: {diagText(entry, language)}</li>)}</ul></details>}
     {model?.gapCount > 0 && <details className="diagnostics-group"><summary>{english ? `Checkpoint modules not declared by template (${model.gapCount})` : `checkpoint 有而模板未声明的模块（${model.gapCount}）`}</summary><ul>{model.gaps.slice(0, 50).map((gap) => <li key={gap}>{gap}</li>)}</ul>{model.gaps.length > 50 && <p className="diagnostics-more">{english ? `…and ${model.gaps.length - 50} more` : `…另有 ${model.gaps.length - 50} 项`}</p>}</details>}
     {model?.ambiguousCount > 0 && <details className="diagnostics-group diagnostics-group-error"><summary>{english ? `Ambiguous truth bindings (${model.ambiguousCount})` : `真值绑定歧义（${model.ambiguousCount}）——绑定已放弃，需检查映射表`}</summary><ul>{model.ambiguous.slice(0, 50).map((entry, index) => <li key={`${entry.template}.${index}`}>{entry.template} ⇐ {entry.candidates?.join(", ")}</li>)}</ul></details>}
-    {tensorSummary && <p className="diagnostics-meta">{tensorSummary}{Number.isFinite(diagnostics.parameter_total) ? ` · ${formatQuantity(diagnostics.parameter_total)} params` : ""}</p>}
+    {tensorSummary && <p className="diagnostics-meta">{tensorSummary}{Number.isFinite(diagnostics.parameter_total) ? ` · ${formatQuantity(diagnostics.parameter_total)} params` : ""}{storageSuffix}</p>}
+    {sourceRefSummary && <p className="diagnostics-meta" data-source-ref-summary="1">{sourceRefSummary}</p>}
   </section>;
 }

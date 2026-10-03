@@ -57,3 +57,29 @@ test("deployment recommendation memory shares the Cost accounting entry point", 
   assert.deepEqual(memory.memory, cost.memory);
   assert.equal(memory.weightSource, cost.weightSource);
 });
+
+test("logical parameter total is separate from packed storage count", () => {
+  const graph = toGraph({
+    id: "packed",
+    type: "operator",
+    attributes: { weightMatrices: [{ class: "tp", out: 4, in: 4, count: 1, matrices: 1 }] },
+    children: [],
+  });
+  const result = aggregateCost({
+    graph,
+    config: {},
+    parameterCount: { U8: 16 },
+    logicalParameterTotal: 32,
+    sequence: 1,
+  });
+  assert.equal(result.memory.weightBytes, 16);
+  const logicalOverride = aggregateCost({
+    graph,
+    config: {},
+    parameterCount: { U8: 16 },
+    logicalParameterTotal: 32,
+    weightBytesPerParameter: 2,
+    sequence: 1,
+  });
+  assert.equal(logicalOverride.memory.weightBytes, 64);
+});

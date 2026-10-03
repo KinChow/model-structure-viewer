@@ -19,7 +19,13 @@ function SummaryChips({ structure, sourceLabel, language = "zh" }) {
     : null;
   const derivedParameters = derivedCandidate > 0 ? derivedCandidate : null;
   const parameterTotal = summary.parameters_total ?? derivedParameters;
-  const paramsTitle = dtypeBreakdown(summary.parameters_by_dtype) || (derivedParameters != null ? (language === "en" ? "summed from graph weightMatrices" : "由图上 weightMatrices 汇总") : undefined);
+  const packedStorage = Number.isFinite(summary.parameters_storage_total)
+    && summary.parameters_storage_total !== parameterTotal
+    ? `packed storage ${formatCount(summary.parameters_storage_total)}`
+    : null;
+  const paramsTitle = [dtypeBreakdown(summary.parameters_by_logical_dtype || summary.parameters_by_dtype), packedStorage]
+    .filter(Boolean).join(" · ")
+    || (derivedParameters != null ? (language === "en" ? "summed from graph weightMatrices" : "由图上 weightMatrices 汇总") : undefined);
   const modelId = structure?.source?.model_id || "";
   const provider = modelId.includes("/") ? modelId.split("/")[0] : null;
   const english = language === "en";

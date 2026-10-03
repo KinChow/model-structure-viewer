@@ -1,7 +1,7 @@
 // quantBytes 的手算单测：三种量化方案的权重/scale 字节 + 路径排除语义。
 import assert from "node:assert/strict";
 import test from "node:test";
-import { quantLinearWeightBytes, isQuantizedPath, quantizationConfigOf, logicalElementsFromHeader } from "../quantBytes.js";
+import { quantLinearWeightBytes, isQuantizedPath, quantizationConfigOf, logicalElementsFromHeader, logicalParameterTotalFromHeader, logicalParameterSummaryFromTensors } from "../quantBytes.js";
 
 test("fp8 块量化：权重 1B/元素 + scale（ue8m0 1B/块，默认 fp32 4B/块）", () => {
   // [8192, 7168]，块 [128,128]：scale = 64×56 块
@@ -142,6 +142,87 @@ test("logicalElementsFromHeader：compressed-tensors I32×8，BF16 里扣 scale"
 test("logicalElementsFromHeader：缺 parameterCount 或空桶 → null", () => {
   assert.equal(logicalElementsFromHeader({}, { quant_method: "fp8" }), null);
   assert.equal(logicalElementsFromHeader({ parameterCount: {} }, { quant_method: "gptq" }), null);
+});
+
+test("logicalParameterTotalFromHeader：量化摘要区分逻辑参数与 packed storage", () => {
+  const header = {
+    parameterTotal: 12_959_937_264,
+    parameterCount: { BF16: 10_668_659_184, F32: 8_448, I32: 2_157_576_192, F16: 133_693_440 },
+  };
+  const quant = { quant_method: "gptq", bits: 4, group_size: 128 };
+  assert.equal(logicalParameterTotalFromHeader(header, quant), 27_795_583_728);
+  assert.equal(logicalParameterTotalFromHeader({ parameterTotal: 10, logicalParameterTotal: 20 }, quant), 20);
+  assert.equal(logicalParameterTotalFromHeader({ parameterTotal: 10 }, null), 10);
+});
+
+test("tensor-role summary excludes GPTQ auxiliary tensors", () => {
+  const tensors = [
+    { name: "model.layers.0.qweight", dtype: "I32", shape: [8, 16] },
+    { name: "model.layers.0.qzeros", dtype: "I32", shape: [8, 1] },
+    { name: "model.layers.0.g_idx", dtype: "I32", shape: [16] },
+    { name: "model.layers.0.scales", dtype: "F16", shape: [8, 1] },
+    { name: "model.embed_tokens.weight", dtype: "BF16", shape: [32, 16] },
+  ];
+  const summary = logicalParameterSummaryFromTensors(tensors, { quant_method: "gptq", bits: 4, group_size: 128 });
+  assert.deepEqual(summary, {
+    total: 8 * 16 * 8 + 32 * 16,
+    logicalParameterCount: { GPTQ: 8 * 16 * 8, BF16: 32 * 16 },
+  });
+});
+
+test("tensor-role summary excludes compressed-tensors metadata", () => {
+  const tensors = [
+    { name: "layers.0.weight_packed", dtype: "I32", shape: [8, 16] },
+    { name: "layers.0.weight_scale", dtype: "BF16", shape: [8, 1] },
+    { name: "layers.0.weight_shape", dtype: "I32", shape: [2] },
+    { name: "lm_head.weight", dtype: "BF16", shape: [32, 16] },
+  ];
+  const summary = logicalParameterSummaryFromTensors(tensors, {
+    quant_method: "compressed-tensors",
+    config_groups: { group_0: { weights: { num_bits: 4, type: "int", strategy: "group", group_size: 32, symmetric: true } } },
+  });
+  assert.deepEqual(summary, {
+    total: 8 * 16 * 8 + 32 * 16,
+    logicalParameterCount: { PACKED: 8 * 16 * 8, BF16: 32 * 16 },
+  });
+});
+
+test("tensor-role summary decodes native MXFP4 U8 packing as two values per unit", () => {
+  const tensors = [
+    { name: "layers.0.weight_packed", dtype: "U8", shape: [8, 16] },
+    { name: "layers.0.weight_scale", dtype: "U8", shape: [8, 1] },
+  ];
+  const summary = logicalParameterSummaryFromTensors(tensors, {
+    quant_method: "compressed-tensors",
+    format: "mxfp4-pack-quantized",
+    config_groups: { group_0: { weights: { num_bits: 4, type: "float", strategy: "group", group_size: 32, symmetric: true } } },
+  });
+  assert.deepEqual(summary, {
+    total: 8 * 16 * 2,
+    logicalParameterCount: { MXFP4: 8 * 16 * 2 },
+  });
+});
+
+test("tensor-role summary decodes FP8-family scale roles and packed FP4 expert weights", () => {
+  const fp8 = logicalParameterSummaryFromTensors([
+    { name: "layers.0.weight", dtype: "F8_E4M3", shape: [8, 16] },
+    { name: "layers.0.weight_scale_inv", dtype: "F32", shape: [8, 1] },
+    { name: "layers.0.bias", dtype: "BF16", shape: [8] },
+  ], { quant_method: "fp8" });
+  assert.deepEqual(fp8, {
+    total: 8 * 16 + 8,
+    logicalParameterCount: { F8_E4M3: 8 * 16, BF16: 8 },
+  });
+
+  const dsv4 = logicalParameterSummaryFromTensors([
+    { name: "layers.0.expert.weight", dtype: "I8", shape: [8, 16] },
+    { name: "layers.0.expert.scale", dtype: "F8_E8M0", shape: [8, 1] },
+    { name: "layers.0.attn.weight", dtype: "F8_E4M3", shape: [4, 4] },
+  ], { quant_method: "fp8" });
+  assert.deepEqual(dsv4, {
+    total: 8 * 16 * 2 + 4 * 4,
+    logicalParameterCount: { PACKED_FP4: 8 * 16 * 2, F8_E4M3: 4 * 4 },
+  });
 });
 
 test("quantizationConfigOf：顶层 / raw 嵌套 / text_config 嵌套（normalized 的 raw.text_config 同样命中）", () => {

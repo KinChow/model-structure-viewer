@@ -114,6 +114,9 @@ textarea {
 .cost-domain-breakdown { margin: 0 0 9px; align-items: center; }
 .cost-breakdown span, .cost-metrics span, .cost-domain-breakdown span { display: inline-flex; gap: 6px; padding: 6px 9px; background: #f4f8fb; border: 1px solid #dce5ed; border-radius: 5px; color: #405365; font-size: 12px; }
 .cost-breakdown b, .cost-metrics b, .cost-domain-breakdown b { color: #1e4f72; }
+.cost-confidence { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.cost-confidence span { display: inline-flex; gap: 5px; align-items: center; padding: 5px 8px; border: 1px solid #dce5ed; border-radius: 5px; background: #f4f8fb; color: #526678; font-size: 11px; }
+.cost-confidence b { color: #1e4f72; }
 .cost-domain-breakdown .cost-domain-label { background: transparent; border: none; padding: 6px 2px; color: #6b7a8b; font-weight: 600; }
 .fit { color: #2f7b42 !important; }.no-fit { color: #a22d2d !important; }
 .cost-assumptions { margin-top: 9px; color: #778797; font-size: 11px; }
@@ -1567,6 +1570,8 @@ label {
 .cost-check input { width: auto; }
 .cost-breakdown span, .cost-metrics span, .cost-stages span, .cost-domain-breakdown span { border-color: #2b3949; background: #121923; color: #9ba8b8; }
 .cost-breakdown b, .cost-metrics b, .cost-stages b, .cost-domain-breakdown b { color: #e3ebf3; }
+.cost-confidence span { border-color: #2b3949; background: #121923; color: #9ba8b8; }
+.cost-confidence b { color: #e3ebf3; }
 .pd-summary-modern { margin-top: 10px; padding: 8px 9px; border: 1px solid #5b482e; border-radius: 5px; background: #211b14; color: #d8b57a; font-size: 10px; }
 .pd-summary-modern b { color: #f0c985; }
 .detail-page.theme-light .cost-summary-modern { color: #334150; }
@@ -1577,6 +1582,8 @@ label {
 .detail-page.theme-light .cost-config-label, .detail-page.theme-light .cost-config-control { color: #657386; }
 .detail-page.theme-light .cost-config-control select { border-color: #dce3eb; background: #f6f8fa; color: #364555; }
 .detail-page.theme-light .cost-breakdown span, .detail-page.theme-light .cost-metrics span, .detail-page.theme-light .cost-stages span, .detail-page.theme-light .cost-domain-breakdown span { border-color: #dce3eb; background: #f6f8fa; color: #526172; }
+.detail-page.theme-light .cost-confidence span { border-color: #dce3eb; background: #f6f8fa; color: #526172; }
+.detail-page.theme-light .cost-confidence b { color: #1e4f72; }
 .detail-page .manual-chip { position: relative; }
 .detail-page .manual-chip-form { left: 0; right: auto; top: 34px; z-index: 20; max-height: min(520px, calc(100vh - 180px)); overflow: auto; background: #151c26; border-color: #344154; color: #dce5ee; }
 .manual-chip-backdrop.theme-light .manual-chip-form { background: #fff; border-color: #dce3eb; color: #19212c; }

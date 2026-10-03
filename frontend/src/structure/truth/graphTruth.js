@@ -305,6 +305,8 @@ export function appendGraphGaps(graph, skeleton, usedTruthIds) {
 export function enrichGraphWithTruth(graph, truth, {
   hasBuilder, modelName, architecture, truthPathAliases = [],
 }) {
+  const logicalParameterTotal = truth?.logicalParameterTotal ?? truth?.parameterTotal ?? null;
+  const storageParameterTotal = truth?.parameterTotal ?? null;
   const truthAggregatePaths = [...new Set((graph?.nodes || [])
     .map((node) => node.attributes?.truth_path_prefix)
     .filter(Boolean))];
@@ -325,7 +327,12 @@ export function enrichGraphWithTruth(graph, truth, {
       }
       return {
         graph: truthGraph,
-        diagnostics: { strategy: "skeleton-truth-file", total_tensors: truth.tensor_count ?? null, parameter_total: truth.parameterTotal ?? null },
+        diagnostics: {
+          strategy: "skeleton-truth-file",
+          total_tensors: truth.tensor_count ?? null,
+          parameter_total: logicalParameterTotal,
+          storage_parameter_total: storageParameterTotal !== logicalParameterTotal ? storageParameterTotal : null,
+        },
       };
     }
     const bound = bindTruthToGraph(graph, truthGraph, { truthPathAliases });
@@ -336,20 +343,23 @@ export function enrichGraphWithTruth(graph, truth, {
         strategy: "template+truth-file",
         bound_tensors: bound.diagnostics.graph_bound_tensors,
         total_tensors: truth.tensor_count ?? null,
+        parameter_total: logicalParameterTotal,
+        storage_parameter_total: storageParameterTotal !== logicalParameterTotal ? storageParameterTotal : null,
         template_gaps: bound.diagnostics.graph_truth_gaps,
         ambiguous_truth_matches: bound.diagnostics.graph_ambiguous_truth_matches,
       },
     };
   }
   if (!truth || !Array.isArray(truth.tensors) || truth.tensors.length === 0) {
-    if (Number.isFinite(truth?.parameterTotal) && truth.parameterTotal > 0) {
+    if (Number.isFinite(logicalParameterTotal) && logicalParameterTotal > 0) {
       // S3：只有总量、没有逐张量。图仍是模板（或空网络），不改骨架。
       return {
         graph,
         diagnostics: {
           strategy: hasBuilder ? "template+header-truth" : "header-truth",
           total_tensors: truth.tensor_count ?? null,
-          parameter_total: truth.parameterTotal,
+          parameter_total: logicalParameterTotal,
+          storage_parameter_total: storageParameterTotal !== logicalParameterTotal ? storageParameterTotal : null,
         },
       };
     }
@@ -369,7 +379,12 @@ export function enrichGraphWithTruth(graph, truth, {
     }
     return {
       graph: truthGraph,
-      diagnostics: { strategy: "skeleton-truth", total_tensors: truth.tensors.length, parameter_total: truth.parameterTotal ?? null },
+      diagnostics: {
+        strategy: "skeleton-truth",
+        total_tensors: truth.tensors.length,
+        parameter_total: logicalParameterTotal,
+        storage_parameter_total: storageParameterTotal !== logicalParameterTotal ? storageParameterTotal : null,
+      },
     };
   }
   const bound = bindTruthToGraph(graph, truthGraph, { truthPathAliases });
@@ -380,6 +395,8 @@ export function enrichGraphWithTruth(graph, truth, {
       strategy: "template+truth",
       bound_tensors: bound.diagnostics.graph_bound_tensors,
       total_tensors: truth.tensors.length,
+      parameter_total: logicalParameterTotal,
+      storage_parameter_total: storageParameterTotal !== logicalParameterTotal ? storageParameterTotal : null,
       template_gaps: bound.diagnostics.graph_truth_gaps,
       ambiguous_truth_matches: bound.diagnostics.graph_ambiguous_truth_matches,
     },

@@ -114,18 +114,35 @@ function pickRow(node, index) {
 
 export function bindSourceRefToGraph(graph, catalog, { runtimeVersion } = {}) {
   if (!graph?.nodes || !catalog?.modules) {
-    return { graph, diagnostics: { bound: 0, unmatched: 0, transformers_version: catalog?.transformers_version || null } };
+    return {
+      graph,
+      diagnostics: {
+        bound: 0,
+        unmatched: 0,
+        intentional_aggregate: 0,
+        generated_operator: 0,
+        unmatched_by_type: {},
+        transformers_version: catalog?.transformers_version || null,
+      },
+    };
   }
   const index = moduleIndex(catalog);
   let bound = 0;
   let unmatched = 0;
+  let intentionalAggregate = 0;
+  let generatedOperator = 0;
+  const unmatchedByType = {};
   const nodes = graph.nodes.map((node) => {
     if (AGGREGATE_TYPES.has(node.type)) {
+      intentionalAggregate += 1;
       return { ...node, source_ref: null };
     }
     const row = pickRow(node, index);
     if (!row?.source_ref) {
       unmatched += 1;
+      if (node.type === "operator") generatedOperator += 1;
+      const type = node.type || "unknown";
+      unmatchedByType[type] = (unmatchedByType[type] || 0) + 1;
       return { ...node, source_ref: null };
     }
     bound += 1;
@@ -139,6 +156,9 @@ export function bindSourceRefToGraph(graph, catalog, { runtimeVersion } = {}) {
     diagnostics: {
       bound,
       unmatched,
+      intentional_aggregate: intentionalAggregate,
+      generated_operator: generatedOperator,
+      unmatched_by_type: unmatchedByType,
       transformers_version: catalog.transformers_version || null,
     },
   };

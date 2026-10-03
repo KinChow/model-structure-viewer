@@ -1,4 +1,4 @@
-// W3-C 基线库：59 模型 normalizeConfig 输出哈希 + 方案字段快照。
+// W3-C 基线库：历史 59 模型 normalizeConfig 输出哈希 + 方案字段快照。
 // 哈希用于"删除字段后其余逐字节不变"的机械审阅；
 // 方案字段快照是调度函数搬迁的 parity oracle（搬迁前后值必须相等）。
 import { createHash } from "node:crypto";

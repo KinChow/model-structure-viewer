@@ -4,6 +4,11 @@ import { enrichGraphWithTruth } from "../truth/graphTruth.js";
 import { bindSourceRefToGraph } from "../source_ref/bindSourceRef.js";
 import { checkpointPathAliases } from "../archs/index.js";
 import { galleryAlignmentForGraph } from "../galleryAlignment.js";
+import {
+  logicalParameterSummaryFromTensors,
+  logicalParameterTotalFromHeader,
+  quantizationConfigOf,
+} from "../../cost/quantBytes.js";
 
 function structureNodeFromSpec(spec) {
   if (spec.kind === "operator") {
@@ -51,7 +56,23 @@ function structureNodeFromSpec(spec) {
 
 export function materializeModelStructure(ir) {
   const { network, normalized, resolved, options = {}, diagnostics = {} } = ir;
-  const truth = options.truth;
+  const rawTruth = options.truth;
+  const quant = quantizationConfigOf(normalized);
+  const logicalRoleSummary = rawTruth
+    ? logicalParameterSummaryFromTensors(rawTruth.tensors, quant)
+    : null;
+  const logicalParameterTotal = rawTruth
+    ? logicalParameterTotalFromHeader(rawTruth, quant)
+    : null;
+  const truth = rawTruth && (logicalParameterTotal != null || logicalRoleSummary)
+    ? {
+        ...rawTruth,
+        ...(logicalParameterTotal != null ? { logicalParameterTotal } : {}),
+        ...(logicalRoleSummary && !rawTruth.logicalParameterCount
+          ? { logicalParameterCount: logicalRoleSummary.logicalParameterCount }
+          : {}),
+      }
+    : rawTruth;
 
   const hasBuilder = hasModelArchitecture(resolved?.architecture);
   const truthDiagnostics = truth ? { strategy: "graph-truth" } : { strategy: "no-truth" };
@@ -109,9 +130,12 @@ export function materializeModelStructure(ir) {
       n_routed_experts: normalized.experts,
       num_experts_per_tok: normalized.expertsPerToken,
       max_position_embeddings: normalized.contextLength,
-      // 真值：模型级精确参数量（@huggingface/hub 计算）
-      parameters_total: truth?.parameterTotal ?? null,
+      // 真值：逻辑模型参数量；packed checkpoint 的 storage-elements
+      // 单独保留，避免把 U8 weight_packed 误展示为参数量。
+      parameters_total: truth?.logicalParameterTotal ?? truth?.parameterTotal ?? null,
       parameters_by_dtype: truth?.parameterCount ?? null,
+      parameters_by_logical_dtype: truth?.logicalParameterCount ?? null,
+      parameters_storage_total: truth?.parameterTotal ?? null,
       gallery_alignment: galleryAlignmentForGraph(graph, resolved.architecture || normalized.architecture),
     },
     source: {

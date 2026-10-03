@@ -342,6 +342,50 @@ test("Kimi-K3 vision tower follows the published MoonViT checkpoint layout", () 
   assert.equal(halfRow("mm_projector.proj.0").actions.matrix, 512 * 4096 * 4096);
 });
 
+test("Kimi-K3 offline skeleton truth closes packed weight bytes and preserves logical operator shapes", () => {
+  const config = read(new URL("moonshotai/Kimi-K3/config.json", root));
+  const truth = read(new URL("moonshotai/Kimi-K3/skeleton-truth.json", root));
+  assert.ok(truth?.skeleton, "Kimi-K3 skeleton truth must be present");
+  assert.equal(truth.tensor_count, 497220);
+  assert.equal(truth.parameterTotal, 1503647073024);
+  assert.equal(truth.logicalParameterTotal, 2779931837184);
+  const structure = buildStructureFromArtifacts({
+    modelId: "moonshotai/Kimi-K3",
+    config,
+    checkpointTruth: truth,
+  });
+  assert.equal(structure.summary.strategy, "template+truth-file");
+  assert.equal(structure.summary.parameters_total, truth.logicalParameterTotal);
+  assert.equal(structure.summary.parameters_storage_total, truth.parameterTotal);
+  assert.equal(structure.summary.parameters_by_logical_dtype.MXFP4, 2722740830208);
+  assert.equal(structure.source.diagnostics.total_tensors, truth.tensor_count);
+  const normalized = normalizeConfig(config);
+  const cost = aggregateCost({
+    graph: structure.graph,
+    config: normalized,
+    parameterCount: structure.summary.parameters_by_dtype,
+    sequence: 2048,
+  });
+  // The packed resident weight bytes must agree with the index metadata total,
+  // while MACs come from checkpoint logical shapes rather than packed storage.
+  assert.equal(cost.memory.weightBytes, 1560860324864);
+  assert.equal(cost.totalMacs, 332126150983680);
+  assert.equal(cost.computeComplete, true);
+});
+
+test("Kimi-K2.5 compressed-tensors header decodes logical params from packed I32 storage", () => {
+  const config = read(new URL("moonshotai/Kimi-K2.5/config.json", root));
+  const truth = read(new URL("moonshotai/Kimi-K2.5/header-truth.json", root));
+  const structure = buildStructureFromArtifacts({
+    modelId: "moonshotai/Kimi-K2.5",
+    config,
+    checkpointTruth: truth,
+  });
+  assert.equal(structure.summary.parameters_storage_total, 170738182128);
+  assert.equal(structure.summary.parameters_total, 1026879376368);
+  assert.equal(structure.source.diagnostics.storage_parameter_total, 170738182128);
+});
+
 for (const variant of ["Qwen3.8-27B", "Qwen3.8-Flash-Next", "Qwen3.5-122B-A10B"]) {
   test(`${variant} vision tower follows the published visual.blocks layout`, () => {
     const modelId = `Qwen/${variant}`;

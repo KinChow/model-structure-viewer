@@ -61,3 +61,43 @@ test("computeDtypes.tf32 与扁平 matrixTf32 同口径（aggregate 生产形状
   assert.equal(fromBucket.times.matrix, expected);
   assert.equal(fromBucket.times.matrix, fromFlat.times.matrix);
 });
+
+test("TF32 与 BF16 的效率下降均只会增大耗时（混合和纯 TF32）", () => {
+  for (const tf32 of [400, 1000]) {
+    let previous = 0;
+    for (const eta of [1, 0.7, 0.5]) {
+      const { times } = classifyRoofline({
+        actions: {
+          matrix: 1000, computeDtypes: { tf32 }, vector: 0, sfu: 0,
+          bytes: { weights: 0, actIn: 0, actOut: 0 },
+        },
+      }, CHIP, { efficiency: { flops: eta } });
+      const expected = (1000 - tf32) / (312e12 * eta / 2) + tf32 / (156e12 * eta / 2);
+      assert.equal(times.matrix, expected);
+      assert.ok(times.matrix > previous);
+      previous = times.matrix;
+    }
+  }
+});
+
+test("无效 TF32 子桶不产生负时间，诚实退化为 unknown", () => {
+  const missingTotal = classifyRoofline({
+    actions: {
+      matrix: null, matrixTf32: 1, vector: 0, sfu: 0,
+      bytes: { weights: 0, actIn: 0, actOut: 0 },
+    },
+  }, CHIP, { efficiency: { flops: 1 } });
+  assert.equal(missingTotal.times.matrix, null);
+  assert.equal(missingTotal.bound, "unknown");
+  assert.ok(missingTotal.missing.includes("matrix"));
+
+  const oversizedBucket = classifyRoofline({
+    actions: {
+      matrix: 10, matrixTf32: 11, vector: 0, sfu: 0,
+      bytes: { weights: 0, actIn: 0, actOut: 0 },
+    },
+  }, CHIP, { efficiency: { flops: 1 } });
+  assert.equal(oversizedBucket.times.matrix, null);
+  assert.equal(oversizedBucket.bound, "unknown");
+  assert.ok(oversizedBucket.missing.includes("matrix"));
+});

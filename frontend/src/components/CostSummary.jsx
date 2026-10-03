@@ -236,7 +236,7 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
         disaggregationMode: mode === "pd" ? targetPhase : "null",
       }
       : {};
-    return aggregateCost({ graph: structure.graph, config, parameterCount: structure.summary?.parameters_by_dtype, phase: targetPhase, batch: targetLoad.batch, sequence: targetLoad.sequence, kvBytes: kvElementBytes, visionTokens: targetLoad.visionTokens ?? 1024, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode), frameworkProfile, speculative });
+    return aggregateCost({ graph: structure.graph, config, parameterCount: structure.summary?.parameters_by_dtype, logicalParameterTotal: structure.summary?.parameters_total, phase: targetPhase, batch: targetLoad.batch, sequence: targetLoad.sequence, kvBytes: kvElementBytes, visionTokens: targetLoad.visionTokens ?? 1024, weightBytesPerParameter: weightMode === "actual" ? undefined : Number(weightMode), frameworkProfile, speculative });
   };
   const phaseCosts = useMemo(() => ({ prefill: costFor("prefill"), decode: costFor("decode") }), [structure, config, loads, mode, kvElementBytes, weightMode, frameworkProfile, speculativeDraftTokens, speculativeMaxRequests]);
   const cost = phaseCosts[phase];
@@ -389,6 +389,11 @@ export default function CostSummary({ structure, chips = PUBLIC_CHIPS, onAddChip
     {domainBreakdown.length > 0 && <div className="cost-domain-breakdown" aria-label={t(language, "cost.byDomain")}><span className="cost-domain-label">{t(language, "cost.byDomain")}</span>{domainBreakdown.map((entry) => <span key={entry.group} className="cost-domain-item" data-group={entry.group}>{t(language, `cost.domain.${entry.group}`)} <b>{(entry.pct * 100).toFixed(entry.pct >= 0.1 ? 0 : 1)}%</b></span>)}</div>}
     {stageRoofline.length > 0 && <div className="cost-stage-roofline" aria-label={t(language, "cost.stageRoofline")} title={t(language, "cost.stageRooflineHelp")}><span className="cost-domain-label">{t(language, "cost.stageRoofline")}</span>{stageRoofline.map((entry) => <span key={entry.group} className="cost-domain-item" data-group={entry.group}>{t(language, `cost.domain.${entry.group}`)} <b>{entry.seconds != null ? formatSeconds(entry.seconds) : t(language, "cost.unknown")}</b>{entry.bound !== "unknown" ? ` · ${entry.bound}` : ""}</span>)}</div>}
     {mode === "pd" && pd?.ok && <div className="pd-summary-modern"><b>{t(language, "cost.pdTransfer")}</b><span>{formatBytes(pd.aggregateBytes)} total · {formatBytes(pd.perDecodeRankBytes + (pd.perDecodeRankStateBytes || 0))} / Decode rank</span><span>{t(language, pd.linkSourceCode)}{pd.linkBandwidth ? ` · ${formatRate(pd.linkBandwidth)}` : ""}{pd.transferSeconds != null ? ` · ≈${pd.transferSeconds >= 1 ? pd.transferSeconds.toFixed(2) + " s" : (pd.transferSeconds * 1000).toFixed(1) + " ms"}` : ""}</span><span>Prefill {text.fit} {fitText(pdFit?.prefill?.fit, language)} · Decode {text.fit} {fitText(pdFit?.decode?.fit, language)}</span></div>}
+    <div className="cost-confidence" data-confidence-runtime={accounting.evidence.unknownFields.length > 0 ? "unknown" : "not-validated"}>
+        <span><b>{english ? "Confidence" : "可信度"}</b> {cost.computeComplete ? (english ? "formula-complete" : "公式完整") : (english ? "formula-gaps" : "公式有缺项")}</span>
+        <span>{cost.weightSource === "checkpoint" || structure.summary?.strategy?.includes("truth") ? (english ? "checkpoint-backed" : "checkpoint 支撑") : (english ? "config/graph-derived" : "config/图推导")}</span>
+        <span>{accounting.evidence.unknownFields.length > 0 ? (english ? "runtime-unknown" : "runtime-unknown") : (english ? "runtime not validated" : "runtime 未验证")}</span>
+    </div>
     <div className="cost-assumptions">
         <span>{accounting.framework === "neutral" ? "neutral · config-faithful" : `${accounting.framework} · runtime profile`}. </span>
         <span title={accounting.evidence.unknownFields.join(", ")}>{unknownFieldsText

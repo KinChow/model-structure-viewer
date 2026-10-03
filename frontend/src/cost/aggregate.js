@@ -50,7 +50,7 @@ function quantizedMatrixBytes(graph, quant) {
 }
 
 /** 仅供部署默认策略使用的内存入口；与 Cost 复用同一份驻留账本。 */
-export function aggregateModelMemory({ graph, config, parameterCount, batch = 1, sequence = 1,
+export function aggregateModelMemory({ graph, config, parameterCount, logicalParameterTotal, batch = 1, sequence = 1,
   kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral", speculative = {} } = {}) {
   const hasParameterCount = parameterCount && Object.keys(parameterCount).length > 0;
   const shapedWeights = graphShapedWeightBytes(graph);
@@ -59,9 +59,12 @@ export function aggregateModelMemory({ graph, config, parameterCount, batch = 1,
   const naturalWeightBytes = hasParameterCount
     ? Object.entries(parameterCount).reduce((sum, [dtype, count]) => sum + count * bytesPerDtype(dtype), 0)
     : shapedWeights > 0 ? shapedWeights : quantCapacityBytes(graph, declared, quant, config);
-  const parameterTotal = hasParameterCount
+  const storageParameterTotal = hasParameterCount
     ? Object.values(parameterCount).reduce((sum, count) => sum + count, 0)
     : declared.elements;
+  const parameterTotal = Number.isFinite(logicalParameterTotal) && logicalParameterTotal > 0
+    ? logicalParameterTotal
+    : storageParameterTotal;
   const hasWeightOverride = typeof weightBytesPerParameter === "number" && weightBytesPerParameter > 0;
   const weightBytes = hasWeightOverride ? parameterTotal * weightBytesPerParameter : naturalWeightBytes;
   const memory = memoryBreakdown({
@@ -74,10 +77,10 @@ export function aggregateModelMemory({ graph, config, parameterCount, batch = 1,
   };
 }
 
-export function aggregateCost({ graph, config, parameterCount, batch = 1, sequence = 1, phase = "prefill", visionTokens,
+export function aggregateCost({ graph, config, parameterCount, logicalParameterTotal, batch = 1, sequence = 1, phase = "prefill", visionTokens,
   kvBytes = 2, weightBytesPerParameter, frameworkProfile = "neutral", speculative = {} } = {}) {
   const { memory, weightSource } = aggregateModelMemory({
-    graph, config, parameterCount, batch, sequence, kvBytes, weightBytesPerParameter, frameworkProfile, speculative,
+    graph, config, parameterCount, logicalParameterTotal, batch, sequence, kvBytes, weightBytesPerParameter, frameworkProfile, speculative,
   });
   const nodes = computeNodeCosts(graph, config, { batch, sequence, phase, visionTokens: visionTokens ?? undefined, frameworkProfile });
   const unknownComputePaths = nodes

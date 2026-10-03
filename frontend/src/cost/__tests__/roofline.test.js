@@ -135,3 +135,29 @@ test("KV/index 读取是 actIn 的诊断子集，roofline 不重复计入", () =
   assert.equal(result.times.memory, 175 / 70);
   assert.equal(result.arithmeticIntensity, 2 / 175);
 });
+
+test("正工作量缺少对应费率时不得伪造确定瓶颈", () => {
+  const cases = [
+    ["matrix", "peak_flops.bf16", { memory_bandwidth: 100 }],
+    ["vector", "vector_flops", { memory_bandwidth: 100, peak_flops: { bf16: 1000 } }],
+    ["sfu", "sfu_ops", { memory_bandwidth: 100, peak_flops: { bf16: 1000 } }],
+  ];
+  for (const [unit, missing, chip] of cases) {
+    const result = classifyRoofline({
+      actions: { matrix: 0, vector: 0, sfu: 0, [unit]: 1000,
+        bytes: { weights: 100, actIn: 0, actOut: 0 } },
+    }, chip);
+    assert.equal(result.bound, "unknown", unit);
+    assert.equal(result.times[unit], null);
+    assert.ok(result.missing.includes(missing));
+  }
+});
+
+test("已知零工作量不要求未使用单元的费率", () => {
+  const result = classifyRoofline({
+    actions: { matrix: 0, vector: 0, sfu: 0, bytes: { weights: 100, actIn: 0, actOut: 0 } },
+  }, { memory_bandwidth: 100 });
+  assert.equal(result.bound, "memory");
+  assert.deepEqual(result.missing, []);
+  for (const key of ["matrix", "vector", "sfu", "comm"]) assert.equal(result.times[key], 0);
+});

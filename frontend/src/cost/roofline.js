@@ -81,10 +81,12 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
 
   const missing = [];
   const time = (quantity, rate, keys) => {
-    if (quantity == null) {
+    if (quantity == null || typeof quantity !== "number" || !Number.isFinite(quantity) || quantity < 0) {
       missing.push(keys.quantity);
       return null;
     }
+    // 已知零工作量不依赖硬件费率；缺少闲置单元规格不能制造 unknown。
+    if (quantity === 0) return 0;
     if (!positive(rate)) {
       if (positive(quantity)) missing.push(keys.rate);
       return null;
@@ -98,13 +100,25 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
   // 不是数量未知，不得制造伪 missing 阻断 bound 分类。
   let matrixTime;
   if (actions.matrixTf32 > 0 && positive(chip?.peak_flops?.tf32)) {
-    const restTime = time(
-      (actions.matrix ?? 0) - actions.matrixTf32,
-      rates.matrixPerSecond,
-      { quantity: "matrix", rate: `peak_flops.${dtype}` },
-    );
-    const tf32Time = (actions.matrixTf32 * eta.flops) / (chip.peak_flops.tf32 / 2);
-    matrixTime = restTime == null ? null : restTime + tf32Time;
+    // TF32 是 matrix 的子桶；不接受缺少总量或子桶大于总量的输入，
+    // 否则会把无效元数据变成负的 BF16 时间并污染 bound。
+    if (typeof actions.matrix !== "number"
+      || !Number.isFinite(actions.matrix)
+      || actions.matrix < actions.matrixTf32) {
+      missing.push("matrix");
+      matrixTime = null;
+    } else {
+      const restTime = time(
+        actions.matrix - actions.matrixTf32,
+        rates.matrixPerSecond,
+        { quantity: "matrix", rate: `peak_flops.${dtype}` },
+      );
+      // 与 BF16 路同一公式：工作量 / (峰值 × 效率)。
+      // 来源：NVIDIA Nsight Compute Profiling Guide, Roofline Charts；
+      // 有效吞吐随效率下降，耗时只能增大，不能把效率乘到工作量上。
+      const tf32Time = actions.matrixTf32 / ((chip.peak_flops.tf32 * eta.flops) / 2);
+      matrixTime = restTime == null ? null : restTime + tf32Time;
+    }
   } else {
     matrixTime = time(actions.matrix, rates.matrixPerSecond, { quantity: "matrix", rate: `peak_flops.${dtype}` });
   }
@@ -129,7 +143,7 @@ export function classifyRoofline(cost = {}, chip = {}, options = {}) {
   // bound 可分类的条件（§3.3/§4.4）：算力侧三单元全已知（null 阻断——
   // 数量未知不得伪造分类；已知零参与 max 但不主导）；访存/通信侧仅在
   // 有量时要求时间可得。任一条件不满足 → unknown。
-  const computeSideComplete = actions.matrix != null && actions.vector != null && actions.sfu != null;
+  const computeSideComplete = matrixTime != null && vectorTime != null && sfuTime != null;
   const memorySideComplete = bytesMoved === 0 || memoryTime != null;
   const commSideComplete = !positive(commBytes) || commTime != null;
   const anyTimed = candidates.some(([, value]) => value != null);

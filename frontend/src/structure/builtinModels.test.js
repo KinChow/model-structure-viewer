@@ -102,6 +102,28 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
   }
 });
 
+test("all quantized built-ins expose an explicit logical/storage parameter ledger", () => {
+  const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "models/catalog.json"), "utf8"));
+  let quantized = 0;
+  for (const entry of catalog.models) {
+    const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "models", entry.config_path), "utf8"));
+    const quant = config.quantization_config
+      ?? config.raw?.quantization_config
+      ?? config.text_config?.quantization_config
+      ?? config.raw?.text_config?.quantization_config;
+    if (!quant) continue;
+    quantized += 1;
+    const truthName = entry.model_id === "moonshotai/Kimi-K3" ? "skeleton-truth.json" : "header-truth.json";
+    const truthPath = path.join(repoRoot, "models", path.dirname(entry.config_path), truthName);
+    const truth = JSON.parse(fs.readFileSync(truthPath, "utf8"));
+    assert.ok(Number.isFinite(truth.parameterTotal) && truth.parameterTotal > 0, `${entry.model_id}: missing packed storage total`);
+    assert.ok(Number.isFinite(truth.logicalParameterTotal) && truth.logicalParameterTotal > 0, `${entry.model_id}: missing logical parameter total`);
+    assert.ok(["tensor-role", "dtype-fallback"].includes(truth.logicalParameterSource) || truth.parameterTotalKind === "storage-elements",
+      `${entry.model_id}: logical ledger source is not disclosed`);
+  }
+  assert.equal(quantized, 35);
+});
+
 // P4 守卫：MoE 分组受限 top-k 与上游 config 的 n_group/topk_group 保持一致。
 // 锁住 grouped_topk 建模——防止"折叠 builder + 漏建区分字段"重新出现（如 K2.5 vs V3）。
 test("grouped top-k routing conforms to upstream n_group/topk_group", () => {

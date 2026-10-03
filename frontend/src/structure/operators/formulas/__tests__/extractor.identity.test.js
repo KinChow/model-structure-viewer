@@ -15,7 +15,7 @@ import { normalizeConfig } from "../../../config/normalize.js";
 import { graphRoot } from "../../../graph/selectors.js";
 import { attentionScheduleOf } from "../../../layers/schedule.js";
 import { scoredPairs, dsv4VisibleKeys } from "../counts.js";
-import { logicalElementsFromHeader, quantizationConfigOf } from "../../../../cost/quantBytes.js";
+import { logicalParameterTotalFromHeader, quantizationConfigOf } from "../../../../cost/quantBytes.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../..");
 const T = 128;
@@ -237,7 +237,7 @@ const HEADER_TOLERANCE = 0.02;
 const HEADER_REGISTERED = {};
 
 function isQuantizedConfig(config) {
-  return Boolean(config?.quantization_config || config?.text_config?.quantization_config);
+  return Boolean(quantizationConfigOf(config));
 }
 
 test("S3 图声明对 header（有 sidecar 才断言）", async () => {
@@ -257,7 +257,7 @@ test("S3 图声明对 header（有 sidecar 才断言）", async () => {
     const structure = buildStructureFromConfig(config, { modelId: entry.model_id, source: "header-truth-identity" });
     const quantized = isQuantizedConfig(config);
     const expected = quantized
-      ? logicalElementsFromHeader(header, quantizationConfigOf(config))
+      ? logicalParameterTotalFromHeader(header, quantizationConfigOf(config))
       : header.parameterTotal;
     const { declared, includeMtp } = declaredElementsForHeader(structure.graph, header);
     const ratio = expected > 0 ? declared / expected : null;

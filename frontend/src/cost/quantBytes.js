@@ -103,14 +103,17 @@ function pathCandidates(path) {
  * I32 = 8 个 int4；NVFP4 一个 I8 = 2 个 fp4；scale / qzeros 也占 numel）。
  * 图声明 `weightMatrices` 是逻辑 out×in，两边直接相除会差 0.7–1.8 倍。
  *
- * 解包只看 dtype 桶 + quant_method 的 bits/group_size，不读逐张量 shape
- *（S3 sidecar 故意不落张量表）。scale 桶（F8_E8M0 / U8）不计逻辑元素；
+ * 有逐张量 header 时优先按 `logicalParameterSummaryFromTensors` 解码；
+ * 只有轻量 sidecar 没有张量表时，才回退到 dtype 桶 + quant_method 的
+ * bits/group_size 近似。fallback 中 scale 桶（F8_E8M0 / U8）不计逻辑元素；
  * GPTQ 的 F16 scale 不计，并从 I32×8 里扣掉约等于 qzeros 的那份；
  * compressed-tensors 的 scale 进了 BF16，按 packed/group_size 扣。
  *
  * 未知方案或缺少 parameterCount → null（调用方不要拿 packing 打恒等）。
  */
 export function logicalElementsFromHeader(header, quant) {
+  const fromTensors = logicalParameterSummaryFromTensors(header?.tensors, quant);
+  if (fromTensors) return fromTensors.total;
   const counts = header?.parameterCount;
   if (!counts || typeof counts !== "object") return null;
   const method = quant?.quant_method;
@@ -143,6 +146,83 @@ export function logicalElementsFromHeader(header, quant) {
     if (groupSize > 0 && packedLogical > 0) logical -= packedLogical / groupSize;
   }
   return logical > 0 ? logical : null;
+}
+
+/**
+ * Decode logical parameters from tensor roles when the safetensors header is
+ * available. Dtype buckets alone cannot distinguish GPTQ `qweight` from
+ * auxiliary `qzeros`/`g_idx`, compressed-tensors `weight_packed` from
+ * `weight_shape`, or FP8-family weights from their scale tensors. Those
+ * metadata tensors must not inflate model parameters.
+ */
+export function logicalParameterSummaryFromTensors(tensors, quant) {
+  if (!Array.isArray(tensors) || tensors.length === 0 || !quant) return null;
+  const method = quant.quant_method;
+  if (!["gptq", "compressed-tensors", "fp8", "mxfp8"].includes(method)) return null;
+  const bits = packedWeightBits(quant);
+  const factor = 32 / bits;
+  let total = 0;
+  const logicalParameterCount = {};
+  const add = (dtype, value) => {
+    if (!(value > 0)) return;
+    total += value;
+    const key = String(dtype || "UNKNOWN").toUpperCase();
+    logicalParameterCount[key] = (logicalParameterCount[key] || 0) + value;
+  };
+  for (const tensor of tensors) {
+    const name = String(tensor?.name || "");
+    const suffix = name.split(".").at(-1);
+    const shape = Array.isArray(tensor?.shape) ? tensor.shape : null;
+    if (!shape || shape.some((dim) => !Number.isFinite(dim) || dim < 0)) continue;
+    const elements = shape.reduce((product, dim) => product * dim, 1);
+    if (!(elements > 0)) continue;
+    if (method === "gptq") {
+      if (suffix === "qweight") add("GPTQ", elements * factor);
+      else if (suffix === "qzeros" || suffix === "g_idx" || suffix === "scales") continue;
+      else add(tensor.dtype, elements);
+    } else if (method === "compressed-tensors") {
+      if (suffix === "weight_packed") {
+        // compressed-tensors int4 uses I32 containers (8 values/unit), while
+        // native MXFP4 uses U8 containers (2 values/unit). The config's
+        // num_bits alone cannot distinguish these storage units.
+        const dtype = String(tensor.dtype || "").toUpperCase();
+        const packedFactor = dtype === "U8" ? 2 : factor;
+        const logicalDtype = dtype === "U8" ? "MXFP4" : "PACKED";
+        add(logicalDtype, elements * packedFactor);
+      }
+      else if (suffix === "weight_scale" || suffix === "weight_shape") continue;
+      else add(tensor.dtype, elements);
+    } else {
+      const dtype = String(tensor.dtype || "").toUpperCase();
+      // FP8-family checkpoints store block scales either as E8M0/U8 tensors
+      // or as `weight_scale_inv` tensors in BF16/F32. DeepSeek V4 FP8-family
+      // checkpoints additionally use I8 `weight` tensors for packed FP4 experts.
+      if (dtype === "F8_E8M0" || (method === "mxfp8" && dtype === "U8")) continue;
+      if (/(?:^|\.)weight_scale_inv$/.test(name)) continue;
+      if (dtype === "I8" && suffix === "weight") add("PACKED_FP4", elements * 2);
+      else add(tensor.dtype, elements);
+    }
+  }
+  return total > 0 ? { total, logicalParameterCount } : null;
+}
+
+/**
+ * 返回 UI/what-if 使用的逻辑参数量。
+ *
+ * safetensors 的 parameterTotal 是 storage numel；GPTQ I32、NVFP4 I8、
+ * MXFP4 U8 以及对应 scale 桶不能直接作为模型参数量展示。显式 sidecar
+ * logicalParameterTotal 优先；普通量化 header 按 quant config 解包，失败时
+ * 保守回退 storage total，并由诊断层继续展示 packed storage。
+ */
+export function logicalParameterTotalFromHeader(header, quant) {
+  if (Number.isFinite(header?.logicalParameterTotal) && header.logicalParameterTotal > 0) {
+    return header.logicalParameterTotal;
+  }
+  const fromTensors = logicalParameterSummaryFromTensors(header?.tensors, quant);
+  if (fromTensors) return fromTensors.total;
+  if (!Number.isFinite(header?.parameterTotal) || header.parameterTotal <= 0) return null;
+  if (!quant) return header.parameterTotal;
+  return logicalElementsFromHeader(header, quant) ?? header.parameterTotal;
 }
 
 function packedWeightBits(quant) {

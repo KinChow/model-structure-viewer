@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // gen-operators-reference.mjs —— 生成 docs/details/operators_reference.md 的机器段。
 //
-// 背景（W6）：这张表原先 1500+ 行全手写，59 模型 x 40+ 算子的触发面数字靠人工
+// 背景（W6）：这张表原先 1500+ 行全手写，catalog 全量模型 x 40+ 算子的触发面数字靠人工
 // 维护，必然与代码漂移——用户看到的「漏洞百出」有一部分就是这么来的。
 // 现在机器段由本脚本从注册表 + 探针生成，人工段（已知近似、对齐勾选）单独维护。
 //
@@ -82,7 +82,7 @@ function walkOrdered(node, visit) {
 /**
  * 结构槽位 = 叶子 id 去掉层号与叶名后的路径，例如
  * `layers.0.self_attn.q_proj` -> `layers.self_attn`、`mtp.layer.mlp.up_proj` -> `mtp.layer.mlp`。
- * 这样同一槽位在 59 模型 / 所有层之间可以合并统计。
+ * 这样同一槽位在 catalog 全量模型 / 所有层之间可以合并统计。
  */
 function slotPathOf(node) {
   const segments = String(node?.id || "").split(".");
@@ -93,7 +93,7 @@ function slotPathOf(node) {
 
 // 逐结构类明细段的工作点。**prefill 用 T=S=2048，不是 128** —— bound 是
 // arithmetic intensity 与 ridge point 的比较结果，T 太小时连投影类都会落在访存侧
-//（实测 T=128 下 59 个模型全 memory，表就失去查错价值）。与
+//（2026-09-09 实测 T=128 下当时 59 个模型全 memory，表就失去查错价值）。与
 // modelIdentities.test.js 的 BOUND_PHASES 同一工作点，表与断言口径一致。
 const CLASS_PHASES = [
   { name: "prefill", tokens: 2048, sequence: 2048 },
@@ -252,7 +252,7 @@ function collect() {
           ? null : (a.bytes?.weights || 0) + a.bytes.actIn + a.bytes.actOut;
         if (moved == null) row.unknownBytes = true;
         if (moved > 0) row.nonzero.bytes = true;
-        // 占比段：按实例数加权累计（乘 multiplier），跨 59 模型求和
+        // 占比段：按实例数加权累计（乘 multiplier），跨 catalog 全量模型求和
         row.matrix[ph.name] += (a.matrix || 0) * multiplier;
         row.bytes[ph.name] = row.bytes[ph.name] == null || moved == null ? null : row.bytes[ph.name] + moved * multiplier;
       }
@@ -318,7 +318,7 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
       .filter((x) => x.m > 0 || x.b > 0)
       .sort((a, b) => (b.m + b.b) - (a.m + a.b))
       .slice(0, 15);
-    out.push(`## 算力/访存占比（${phase}，${phase === "prefill" ? "T=128" : "T=1 S=4096"}，59 模型实例加权求和）`);
+    out.push(`## 算力/访存占比（${phase}，${phase === "prefill" ? "T=128" : "T=1 S=4096"}，${total} 模型实例加权求和）`);
     out.push("");
     out.push("| 算子 | matrix (MACs) | matrix 占比 | bytes | bytes 占比 |");
     out.push("|---|---|---|---|---|");
@@ -363,7 +363,7 @@ function render({ stats, total, unknownLeaves, opSlots, slotOps }) {
   out.push("");
   out.push("## 双向表 B（生成物）· 结构槽位 → 算子序列（数据流顺序）");
   out.push("");
-  out.push("> 序列按子节点声明顺序取，跨 59 模型做「首次出现即追加」的并集 —— 同一槽位不同结构类的算子会依次排在后面。");
+  out.push(`> 序列按子节点声明顺序取，跨 ${total} 模型做「首次出现即追加」的并集 —— 同一槽位不同结构类的算子会依次排在后面。`);
   out.push("");
   out.push("| 结构槽位 | 算子序列 |");
   out.push("|---|---|");

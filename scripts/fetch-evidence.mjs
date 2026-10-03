@@ -53,9 +53,11 @@ if (probe) {
 
 // ---- --headers：离线 checkpoint 真值（N2-2）----
 if (process.argv.includes("--headers")) {
-  const indexPath = path.join(outDir, "model.safetensors.index.json");
-  if (!fs.existsSync(indexPath)) {
-    console.error(`✗ 需要 ${indexPath}（先常规取证一次）`);
+  const indexName = ["model.safetensors.index.json", "index.json"]
+    .find((name) => fs.existsSync(path.join(outDir, name)));
+  const indexPath = indexName ? path.join(outDir, indexName) : null;
+  if (!indexPath || !fs.existsSync(indexPath)) {
+    console.error(`✗ 需要 model.safetensors.index.json 或 index.json（先常规取证一次）`);
     process.exit(1);
   }
   const weightMap = JSON.parse(fs.readFileSync(indexPath, "utf8")).weight_map || {};
@@ -67,9 +69,22 @@ if (process.argv.includes("--headers")) {
   const shardHeaders = new Map();
   async function shardHeader(shard) {
     if (shardHeaders.has(shard)) return shardHeaders.get(shard);
-    const url = HF(shard);
-    // 单次大额 Range：头部通常 < 8MB；超限时按实际头长二次精取
-    let res = await fetch(url, { headers: { Range: "bytes=0-8388607" } });
+    // 单次大额 Range：头部通常 < 8MB；超限时按实际头长二次精取。
+    // HF 直连在开发网段可能失败，镜像是同一 revision 的只读 fallback；
+    // 不把 endpoint 失败误报成“没有 checkpoint truth”。
+    let res;
+    let url;
+    for (const candidate of [HF(shard), MIRROR(shard)]) {
+      try {
+        const response = await fetch(candidate, { headers: { Range: "bytes=0-8388607" } });
+        if (response.ok && response.status === 206) {
+          res = response;
+          url = candidate;
+          break;
+        }
+      } catch { /* try the mirror */ }
+    }
+    if (!res) throw new Error("HF and hf-mirror range requests failed");
     if (!res.ok || res.status !== 206) throw new Error(`HTTP ${res.status}`);
     const buf = new Uint8Array(await res.arrayBuffer());
     if (buf.length < 8) throw new Error("range response too short");
@@ -115,12 +130,35 @@ if (process.argv.includes("--headers")) {
     expertPaths.filter((item) => item.layer === maxExpertLayer).map((item) => item.prefix),
   )];
   const skeleton = buildSkeleton(tensors, { preserveExpandedTruthPaths });
-  const parameterTotal = tensors.reduce((sum, t) => sum + t.shape.reduce((a, b) => a * b, 1), 0);
+  const numel = (shape) => shape.reduce((a, b) => a * b, 1);
+  const parameterCount = {};
+  const logicalParameterCount = {};
+  for (const tensor of tensors) {
+    const raw = numel(tensor.shape);
+    const dtype = String(tensor.dtype || "unknown").toUpperCase();
+    parameterCount[dtype] = (parameterCount[dtype] || 0) + raw;
+    // Kimi-K3 原生 MXFP4 checkpoint 的每个 U8 `weight_packed` 单元包含两个
+    // 4-bit 权重，分块 scale 另存为 `weight_scale`。因此 header numel 是存储
+    // 单元而不是逻辑参数量；两个账本必须显式保留，展示层不能把 packed storage
+    // 重新标成逻辑参数。
+    const packedWeight = dtype === "U8" && /(?:^|\.)weight_packed$/.test(tensor.name);
+    const scaleTensor = dtype === "U8" && /(?:^|\.)weight_scale$/.test(tensor.name);
+    if (scaleTensor) continue;
+    const logicalDtype = packedWeight ? "MXFP4" : dtype;
+    const logical = packedWeight ? raw * 2 : raw;
+    logicalParameterCount[logicalDtype] = (logicalParameterCount[logicalDtype] || 0) + logical;
+  }
+  const parameterTotal = Object.values(parameterCount).reduce((sum, count) => sum + count, 0);
+  const logicalParameterTotal = Object.values(logicalParameterCount).reduce((sum, count) => sum + count, 0);
   fs.writeFileSync(path.join(outDir, "skeleton-truth.json"), JSON.stringify({
     generated: "safetensors headers (fetch-evidence --headers)",
     source: `https://huggingface.co/${orgId}/`,
     tensor_count: tensors.length,
     parameterTotal,
+    parameterCount,
+    logicalParameterTotal,
+    logicalParameterCount,
+    parameterTotalKind: logicalParameterTotal !== parameterTotal ? "storage-elements" : "logical-elements",
     skeleton,
   }, null, 1));
   console.log(`✓ skeleton-truth.json：${tensors.length} 张量 → 折叠节点（参数 ${parameterTotal.toLocaleString("en-US")}）`);

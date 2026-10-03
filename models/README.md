@@ -46,8 +46,8 @@ done
 echo "TOTAL match=$match diff=$diff missing=$missing"   # 期望 diff=0 missing=0
 ```
 
-> 最近一次全量核对（59 模型）结果：`match=59 diff=0 missing=0`，即全部本地
-> config 与 HF 原件逐字段零差异，无自写配置。新增模型接入后应重跑上面脚本。
+> 历史全量核对（当时目录为 59 模型）结果：`match=59 diff=0 missing=0`。
+> 该记录不证明当前 60 模型目录与远端 main 仍逐字段一致；新增或更新模型后需重跑上面脚本。
 >
 > 例外：`modeling_*.py` / `configuration_*.py` 等自定义源码同样是 HF 原件取证
 > （见「变更纪律 3b」`scripts/fetch-evidence.mjs`），只做只读证据，不改写。
@@ -60,7 +60,19 @@ node scripts/fetch-header-truth.mjs --model=Qwen/Qwen3.5-0.8B
 node scripts/fetch-header-truth.mjs              # catalog 全量，跳过 Kimi-K3
 ```
 
-已有文件默认跳过；加 `--overwrite` 才重拉。Kimi-K3 不做 dump / verify。
+已有文件默认跳过；加 `--overwrite` 才重拉。量化 checkpoint 的 sidecar
+还会保存按张量角色解码的逻辑参数摘要；这比只按 dtype 分桶更准确，因为
+GPTQ 的 `qzeros` / `g_idx` / `scales` 与 compressed-tensors 的
+`weight_scale` / `weight_shape` 都是辅助存储，不是模型参数。Kimi-K3 使用
+`skeleton-truth.json`，因为其原生 MXFP4 checkpoint 的 `U8 weight_packed`
+是存储单元而不是逻辑参数。相关文件同时保存：
+
+- `parameterTotal` / `parameterCount`：header 存储单元；
+- `logicalParameterTotal` / `logicalParameterCount`：按 tensor role 解码的逻辑
+  参数量；MXFP4 的每个 packed U8 含两个 FP4 权重，并排除 `weight_scale`；
+  GPTQ / compressed-tensors 同样排除各自辅助张量。
+
+展示层使用逻辑参数量，成本 actual weight bytes 使用存储单元；两者不可混用。
 
 `catalog.json` 是前端静态部署使用的模型索引。新增或删除模型后，在仓库根目录执行：
 

@@ -14,6 +14,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchCheckpointTruth, mtpTensorCount } from "../frontend/src/cost/weights.js";
+import {
+  logicalParameterSummaryFromTensors,
+  logicalParameterTotalFromHeader,
+  quantizationConfigOf,
+} from "../frontend/src/cost/quantBytes.js";
 import { firstNumber, LAYER_KEYS } from "../frontend/src/structure/config/normalize.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -94,12 +99,16 @@ async function processEntry(entry) {
   try {
     const truth = await fetchHeader(modelId);
     let hiddenLayers;
+    let config;
     try {
-      const config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
+      config = JSON.parse(await fs.readFile(path.join(repoRoot, "models", entry.config_path), "utf8"));
       hiddenLayers = firstNumber(config, LAYER_KEYS) ?? firstNumber(config.text_config, LAYER_KEYS);
     } catch {
       hiddenLayers = undefined;
     }
+    const quant = quantizationConfigOf(config);
+    const logicalRoleSummary = logicalParameterSummaryFromTensors(truth.tensors, quant);
+    const logicalParameterTotal = logicalParameterTotalFromHeader(truth, quant);
     const payload = {
       generated: "safetensors header (fetch-header-truth)",
       source: `https://huggingface.co/${modelId}/`,
@@ -109,6 +118,11 @@ async function processEntry(entry) {
       mtp_tensor_count: mtpTensorCount(truth.tensors, { hiddenLayers }),
       parameterTotal: truth.parameterTotal,
       parameterCount: truth.parameterCount || null,
+      logicalParameterTotal,
+      logicalParameterCount: logicalRoleSummary?.logicalParameterCount || null,
+      logicalParameterSource: logicalRoleSummary
+        ? "tensor-role"
+        : (quant ? "dtype-fallback" : "storage-equals-logical"),
     };
     await fs.mkdir(path.dirname(dest), { recursive: true });
     await fs.writeFile(dest, `${JSON.stringify(payload, null, 2)}\n`);

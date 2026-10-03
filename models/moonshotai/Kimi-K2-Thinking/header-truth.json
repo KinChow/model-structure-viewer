@@ -10,5 +10,12 @@
     "BF16": 43431131776,
     "I32": 126835891200,
     "F32": 23040
-  }
+  },
+  "logicalParameterTotal": 1026408240256,
+  "logicalParameterCount": {
+    "BF16": 11722193536,
+    "PACKED": 1014686023680,
+    "F32": 23040
+  },
+  "logicalParameterSource": "tensor-role"
 }

@@ -11,5 +11,12 @@
     "F32": 4800,
     "I32": 4105175040,
     "F16": 251658240
-  }
+  },
+  "logicalParameterTotal": 35951822704,
+  "logicalParameterCount": {
+    "BF16": 3739563184,
+    "F32": 4800,
+    "GPTQ": 32212254720
+  },
+  "logicalParameterSource": "tensor-role"
 }

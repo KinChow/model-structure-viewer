@@ -10,5 +10,12 @@
     "BF16": 2058286064,
     "F32": 6912,
     "F8_E4M3": 123035713536
-  }
+  },
+  "logicalParameterTotal": 125086497008,
+  "logicalParameterCount": {
+    "BF16": 2050776560,
+    "F32": 6912,
+    "F8_E4M3": 123035713536
+  },
+  "logicalParameterSource": "tensor-role"
 }

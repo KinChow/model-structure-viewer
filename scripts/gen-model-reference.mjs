@@ -10,7 +10,7 @@
 // 逐字节比对），把两张台账收进「跑一把就能复现」的生成器。
 //
 // 事实源（本脚本不复制任何清单，只读取并渲染）：
-//   - models/catalog.json（59 模型：model_id / model_type / architectures / release_time）
+//   - models/catalog.json（catalog 全量模型：model_id / model_type / architectures / release_time）
 //   - frontend/src/structure/config/normalize.js + registry/resolveArchitecture.js
 //     （与 frontend/src/structure/builtinModels.test.js 同一条运行时链路）
 //   - frontend/src/cost/memory.js 的 graphWeightCapacity（walk 图声明，与 UI 同口径）
@@ -112,7 +112,7 @@ function collectModels() {
   };
 }
 
-/** docs/models_reference.md 的机器段（59 模型台账表 + 按 architectures[0] 汇总）。 */
+/** docs/models_reference.md 的机器段（catalog 全量模型台账 + 按 architectures[0] 汇总）。 */
 function renderModels({ rows, total, architectureCounts, manifestCount }) {
   const out = [];
   out.push(MODELS_BEGIN);
@@ -147,7 +147,7 @@ function renderModels({ rows, total, architectureCounts, manifestCount }) {
 }
 
 /** docs/architectures_reference.md 的机器段（MODELS 注册表 + 配方表）。 */
-function renderArchitectures({ arch0Counts }) {
+function renderArchitectures({ arch0Counts, total }) {
   const out = [];
   out.push(ARCH_BEGIN);
   out.push("");
@@ -155,7 +155,7 @@ function renderArchitectures({ arch0Counts }) {
   out.push("> 事实源 = `frontend/src/structure/models/index.js` 的 `MODELS`");
   out.push(">（key=`architectures[0]` 原字符串，对标 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）+");
   out.push("> `structure/archs/index.js` 的 `ARCH_RECIPES`（类名 / 路径例外）。");
-  out.push("> `catalog 命中` = 59 内置模型的精确计数。");
+  out.push(`> \`catalog 命中\` = ${total} 个内置模型的精确计数。`);
   out.push("");
   const registered = Object.keys(MODELS);
   out.push(`## MODELS 注册表（${registered.length} 条）`);

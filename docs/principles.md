@@ -1,10 +1,8 @@
 # 开发原则
 
-本文档是 msv 的**强制约束**。优先级：本文档 > `architecture.md` / `ui_interaction.md` / `details/*`。
-与代码冲突时视为代码缺陷，改代码或走 §10 例外登记；不得静默偏离。
+本文档规定 msv 的**强制约束**。优先级：本文档 > `architecture.md` / `ui_interaction.md` / `details/*`。代码与本文档冲突时，视为代码缺陷：应修改代码，或按 §10 登记例外，不得静默偏离。
 
-每条原则：**陈述**（应然）→ **判据**（怎么算违反）→ **检查**（怎么发现违反）。
-过程叙事、行号考古、已清账历史不进本文；实现债只登记在 §10。
+每条原则按 **陈述**（应遵守什么）→ **判据**（如何判定违反）→ **检查**（如何发现违反）组织。本文不记录开发过程、历史行号追溯和已解决事项；实现债务只在 §10 登记。
 
 ---
 
@@ -12,49 +10,38 @@
 
 msv 只做五件事：
 
-1. **零权重下载**拿到完整可动画结构图
+1. **零权重下载**：不下载权重，获得完整、支持动画的结构图
 2. **"放得下吗"**：显存分解、逐卡 fit、并行投影、多芯片（含国产芯片）
 3. **transformers 校验**：结构与真实框架对齐
-4. **算子级可解释**：算子做什么、代价多大、瓶颈在算力/带宽/通信
+4. **算子级可解释**：说明算子做什么、代价多大，以及瓶颈在算力、带宽还是通信
 5. **轻量**：静态可部署，前端不装 torch
 
-**判据**：任何新能力必须能明确映射到其中一支，否则是越界，不做。
+**判据**：任何新能力都必须明确对应其中一项，否则视为越界，不做。
 
-**明确不做**（提出即驳回，需要时指向 [Vidur](https://github.com/microsoft/vidur)）：
-plan 搜索 / 推荐最优配置、**服务指标**（TTFT / TPOT / 吞吐，含排队与调度）、
-与实测对齐的校准闭环、训练内存规划（优化器状态/梯度/激活重算）、
-运行时 trace、前端装 torch、调度与批处理动态、脉冲回放式动画。
+**明确不做**（提出即驳回，需要时指向 [Vidur](https://github.com/microsoft/vidur)）：plan 搜索 / 推荐最优配置、**服务指标**（TTFT / TPOT / 吞吐，含排队与调度）、与实测对齐的校准闭环、训练内存规划（优化器状态/梯度/激活重算）、运行时 trace、前端装 torch、调度与批处理动态、脉冲回放式动画。
 
-roofline 瓶颈分类与各路**理论时间下界**属于支柱④，不是服务指标。
-数字必须标明"估计 / 下界"，不得叫 TTFT / TPOT / 吞吐。
+roofline 瓶颈分类与各路**理论时间下界**属于支柱④，不是服务指标。数字必须标明"估计 / 下界"，不得叫 TTFT / TPOT / 吞吐。
 
-**检查**：PR 描述必须写明本次改动服务哪一支。写不出来的先讨论范围，不写代码。
+**检查**：PR 描述必须写明本次改动服务哪一支柱。无法说明时，先讨论范围，不写代码。
 
 ---
 
 ## 2. 结构原则：节点即图，递归至算子
 
-结构图来自**已适配的 modeling**，查找键是精确表：主键 `config.architectures[0]`
-（vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）。
-命中则该架构的组装函数读自己的字段、组 Module 树；未命中则 `unsupported`，
-空网络走完管线，**禁止**编造完整图。运行时不做结构推断。
-Graph IR 是这棵 Module 树的数据结构（节点 = module/layer/算子叶，边 = 声明的数据流）。
+结构图来自**已适配的 modeling**，通过精确表查找，主键为 `config.architectures[0]`（参照 vLLM `_TEXT_GENERATION_MODELS` / SGLang `_ModelRegistry.models`）。命中时，由该架构的组装函数读取对应字段，构建 Module 树；未命中时返回 `unsupported`，以空网络完成管线，**禁止**编造完整图。运行时不做结构推断。
+
+Graph IR 是这棵 Module 树的数据结构：节点对应 module、layer 或算子叶，边表示声明的数据流。
 
 ### 2.1 节点**可以**含图；含图的节点**必须显式声明边**
 
-模型由节点组成，节点内部可以是一张图，递归向下直到叶子对应算子。
-"可以"是关键——参照 MLIR（`operations may have regions`）与 Model Explorer
-（layer 可展开），普遍递归是能力而非义务。
+模型由节点组成，节点内部可以是一张图，递归向下直到叶子对应算子。这里的“可以”表示支持递归展开，而不是要求所有节点都包含子图；参照 MLIR（`operations may have regions`）与 Model Explorer（layer 可展开）。
 
 **判据**：
-- 构造了 `children` 且子节点之间存在真实数据流的模块，**必须**在 attributes 里
-  声明 `dataflow_edges`。
-- **禁止**新增任何依赖**显示名**（`node.name`）推断拓扑的代码。
-  `materializeStructureGraph.js` 中残留的 `legacySemanticEdges` 已不可达，
-  不得复活、不得参照其写法扩展。
 
-**检查**：新增 layer builder 的测试必须断言其 `dataflow_edges` 非空，或显式标注
-该模块为顺序执行（见 2.2）。
+- 构造了 `children` 且子节点之间存在真实数据流的模块，**必须**在 attributes 里声明 `dataflow_edges`。
+- **禁止**新增任何依赖**显示名**（`node.name`）推断拓扑的代码。`materializeStructureGraph.js` 中残留的 `legacySemanticEdges` 已不可达，不得恢复调用，也不得参照其写法扩展。
+
+**检查**：新增 layer builder 的测试必须断言其 `dataflow_edges` 非空，或显式标注该模块为顺序执行（见 2.2）。
 
 ### 2.2 每条边必须携带来源等级 `evidence`，且 UI 必须能区分
 
@@ -67,46 +54,36 @@ Graph IR 是这棵 Module 树的数据结构（节点 = module/layer/算子叶�
 | `module-order` | 仅由兄弟节点顺序推断 | 弱假设 |
 
 **判据**：
-- 边的 `evidence` **不得为空**。
-- UI **必须**对非 `declared` 的边做视觉区分（虚线/弱化/hover 提示），
-  **禁止**把推断边画成与声明边完全一致的样子。
 
-**检查**：`materializeStructureGraph` 的测试断言所有输出边均带 `evidence`；
-diagram 层测试断言 `module-order` 边的样式与 `declared` 不同。
+- 边的 `evidence` **不得为空**。
+- UI **必须**对非 `declared` 的边做视觉区分（虚线/弱化/hover 提示），**禁止**把推断边画成与声明边完全一致的样子。
+
+**检查**：`materializeStructureGraph` 的测试断言所有输出边均带 `evidence`；diagram 层测试断言 `module-order` 边的样式与 `declared` 不同。
 
 ### 2.3 算子是终结节点；融合核默认可折叠
 
-叶子节点对应模型算子，算子**不再含图**。融合核是可折叠的父节点：展开后看到的是
-同一拓扑的细节（matmul / softmax / …），不是第二套结构。
+叶子节点对应模型算子，算子**不再含图**。融合核是可折叠的父节点：展开后看到的是同一拓扑的细节（matmul / softmax / …），不是第二套结构。
 
-**默认视图跟计费主语走**（主语规则见 §2.4）：有融合 `counts` 的核默认折叠显示，
-展开才看到原子叶。无融合 `counts` 的容器（MLP、整个 Attention 模块、Decoder Layer）
-仍显示子节点。
+**默认视图与计费主语一致**（主语规则见 §2.4）：有融合 `counts` 的核默认折叠显示，展开后才显示原子叶。无融合 `counts` 的容器（MLP、整个 Attention 模块、Decoder Layer）仍显示子节点。
 
-当前适用折叠的核：
+当前各核的折叠规则：
 
-- **SDPA 核**默认显示一个 `sdpa_attention` 节点，展开才看到 scores / softmax / context。
-  MLA 模块仍显示压缩链；只有打分三段收进这个核。
+- **SDPA 核**默认显示一个 `sdpa_attention` 节点，展开才看到 scores / softmax / context。MLA 模块仍显示压缩链；只有打分三段收进这个核。
 - `fused_moe_mlp`、KDA `state_update`、稀疏主注意力已经是单叶核，无需再折一层。
 
-算子的实现差异（vLLM / SGLang 的 fused kernel 名）写进 `attributes.implementation`，
-**不得**为同一语义因框架不同拆出多个节点。
+算子的实现差异（vLLM / SGLang 的 fused kernel 名）写入 `attributes.implementation`，**不得**因框架不同，将同一语义拆成多个节点。
 
 **判据**：出现"同一个数学操作因为框架实现不同而产生两个节点"即违反。
 
 ### 2.4 计费主语：父有 counts 才用父，否则用叶子
 
-**禁止父子同时进总量。**
+**禁止将父节点和子节点的成本同时计入总量。**
 
-- 节点**自己有 `counts` 且有子节点** → 融合主语。总量用该节点的计算量
-  （`counts.matrix` 等）和访存量（`counts.bytes`：actIn + weights + actOut）。
-  子孙公式只解释，不进账。
-- 否则 → 落到有 `counts` 的叶子；无 `counts` 的容器只聚合。
-- 不是「永远用父节点」。MLP 父无 counts、四叶有 → 主语是叶子。
-  只有父声明了融合 `counts`，才改用父。
+- 节点**自身有 `counts` 且有子节点**时，以该节点为融合计费主语。总量使用该节点的计算量（`counts.matrix` 等）和访存量（`counts.bytes`：actIn + weights + actOut）。子孙节点的公式只用于解释，不计入总量。
+- 否则，使用有 `counts` 的叶子；无 `counts` 的容器只负责聚合。
+- 这不等于「永远用父节点」。例如，MLP 父节点没有 counts、四个叶子有 counts 时，计费主语是叶子。只有父节点声明了融合 `counts`，才改用父节点。
 
-**哪些节点该有融合 counts**：对齐 vLLM / SGLang / TensorRT-LLM 的 **kernel 边界**，
-不是 nn.Module 类名。
+**哪些节点该有融合 counts**：对齐 vLLM / SGLang / TensorRT-LLM 的 **kernel 边界**，不是 nn.Module 类名。
 
 | 该有融合 counts 的节点 | 三家对应 | 融合掉什么 |
 |---|---|---|
@@ -115,24 +92,17 @@ diagram 层测试断言 `module-order` 边的样式与 `declared` 不同。
 | KDA / GDN 状态更新 | chunked KDA kernel | 递推状态在片上 |
 | 稀疏主注意力（QSA / DSA / MSA / DSV4 的选中位置核） | 各家 sparse / flash MLA backend | 与 SDPA 同理，S 由 indexer 决定 |
 
-**不做 fused add+RMSNorm 图节点。** vLLM 的融合发生在**下一层**
-`input_layernorm(hidden, residual)`：本层返回未加的 `(hidden, residual)`，
-下一层入口才 fused_add_rms_norm。这是跨 decoder layer 的边；ONNX / Gallery
-没有把这种跨层 kernel 画成同级单节点的成熟方案。层内 `post_attention_layernorm`
-虽与 attention 残差同层，单独融一半会和 skip 汇合点、层边界不一致。
-**⊕ 与 RMSNorm 保持两叶**；kernel 名可写在 `implementation`，不占计费主语。
+**不建立 fused add+RMSNorm 图节点。** vLLM 的融合发生在**下一层**的 `input_layernorm(hidden, residual)`：本层返回尚未相加的 `(hidden, residual)`，下一层入口才执行 fused_add_rms_norm。这是跨 decoder layer 的边；ONNX / Gallery 没有把这种跨层 kernel 画成同级单节点的成熟方案。
 
-**不该**给整个 Attention 模块、整个 MoE 模块、整个 Decoder Layer 挂融合 counts：
-q/k/v/o 投影、router GEMM、RoPE、indexer 在三家里都是独立 kernel。
+层内 `post_attention_layernorm` 虽与 attention 残差同层，但只融合这一部分，会与 skip 汇合点和层边界不一致。因此，**⊕ 与 RMSNorm 保持两个叶子节点**；kernel 名可写在 `implementation`，不作为计费主语。
 
-**检查**：同一子树不得既把父 `counts` 又把子 `counts` 加进模型总量。
-聚合测试覆盖「父有 counts 时子树不进账」和「父无 counts 时叶子相加」。
+**不该**给整个 Attention 模块、整个 MoE 模块、整个 Decoder Layer 挂融合 counts：q/k/v/o 投影、router GEMM、RoPE、indexer 在三家里都是独立 kernel。
+
+**检查**：同一子树不得既把父 `counts` 又把子 `counts` 加进模型总量。聚合测试覆盖「父有 counts 时子树不进账」和「父无 counts 时叶子相加」。
 
 ### 2.5 残差是层内同级 skip，不是跨层边
 
-残差在 **Decoder Layer 这一层的同级图**里完成，不需要"从父模块入口伸进子模块之后"
-的跨层 IR。对标 LLM Architecture Gallery（PreNorm → Attention → ⊕，另有一条从层入口
-主干绕到 ⊕ 的 skip）；展开 Attention / FFN 只展示父模块内部细节，**不含**那条 skip。
+残差在 **Decoder Layer 这一层的同级图**里完成，不需要"从父模块入口伸进子模块之后"的跨层 IR。对标 LLM Architecture Gallery（PreNorm → Attention → ⊕，另有一条从层入口主干绕到 ⊕ 的 skip）；展开 Attention / FFN 只展示父模块内部细节，**不含**那条 skip。
 
 ```text
 layer_in ──► PreNorm ──► Attention ──► ⊕ ──► PreNorm ──► FFN ──► ⊕
@@ -145,16 +115,15 @@ layer_in ──► PreNorm ──► Attention ──► ⊕ ──► PreNorm �
 - 主路 = 主干 → PreNorm → 子层 → ⊕；两条边在 ⊕ 汇合
 - 展开子模块时看不到 skip
 
-modelmap 主图把残差藏在兄弟顺序链里、micro-view 只在子层后塞一个顺序 `⊕`，
-**不作为本工具的残差画法**。
+modelmap 主图把残差藏在兄弟顺序链里、micro-view 只在子层后塞一个顺序 `⊕`，**不作为本工具的残差画法**。
 
 **判据**：
+
 - Decoder Layer 必须同时有主路边和 skip 边；只有顺序 `residual_add`、没有 skip，即未完成。
 - **禁止**把 skip 的源写成 Attention / FFN 的输出（那是普通数据流，不是残差）。
 - **禁止**把残差画成跨父子层级的边。
 
-**检查**：decoder layer 的 `dataflow_edges` 含 `layer_in/prev_add → residual_add`；
-展开后的 attention 子图断言不含该 skip。
+**检查**：decoder layer 的 `dataflow_edges` 含 `layer_in/prev_add → residual_add`；展开后的 attention 子图断言不含该 skip。
 
 ---
 
@@ -162,22 +131,17 @@ modelmap 主图把残差藏在兄弟顺序链里、micro-view 只在子层后塞
 
 ### 3.1 公式表是算子的**唯一注册点**，条目产出**动作向量**
 
-计价机制照抄 PyTorch `FlopCounterMode` / onnx-tool：
+计价机制沿用 PyTorch `FlopCounterMode` / onnx-tool：
 
 ```text
 边上传入张量 shape → 节点公式只吃本节点 in/out/weight shape → 产出 counts
 ```
 
-换 B/S = 重新传播运行时维，不改公式。并行投影的除法规则写在
-[`details/parallel_protocol.md`](details/parallel_protocol.md)
-（GQA KV `/ min(TP, kv_heads)`、MLA 不切、DP-attention 复制）。
-Accelergy 仍是「次数 × 芯片单价」（§3.4）的参考。
-**禁止**再维护一套 `config + layer schedule → 整层 Σ` 的旁路。
-容量与算力同一主语：walk 图。
-**不再参考 llm-analysis**（整层闭式、`get_memory_*_per_gpu`、效率因子出处均不引用）。
+改变 B/S 时，只重新传播运行时维度，不改公式。并行投影的除法规则见 [`details/parallel_protocol.md`](details/parallel_protocol.md)（GQA KV `/ min(TP, kv_heads)`、MLA 不切、DP-attention 复制）。Accelergy 仍是「次数 × 芯片单价」（§3.4）的参考。
 
-本仓在 FlopCounterMode 之上**有意多计**：flop_counter 只数矩阵系 FLOPs，softmax/norm
-贡献 0。注册条目产出四维动作向量（Accelergy Action Counts 形态）：
+容量与算力使用同一计费主语，均通过遍历图计算。**禁止**再维护一套 `config + layer schedule → 整层 Σ` 的旁路。**不再参考 llm-analysis**（整层闭式、`get_memory_*_per_gpu`、效率因子出处均不引用）。
+
+本仓库在 FlopCounterMode 的基础上**有意扩展统计范围**：flop_counter 只统计矩阵系 FLOPs，softmax / norm 贡献为 0。注册条目产出四维动作向量（Accelergy Action Counts 形态）：
 
 ```js
 // frontend/src/structure/operators/formulas/index.js
@@ -195,43 +159,29 @@ softmax: {
 }
 ```
 
-softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假设，§2.4）；
-未融合的多遍读放大不建模，实现差异进 `implementation`。
+softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假设，§2.4）；未融合的多遍读放大不建模，实现差异进 `implementation`。
 
-**条目三分类**：计算+访存（matrix>0）/ 仅访存（matrix=0，vector/sfu/bytes 非零）/
-分解声明（counts 写成已知 op 的组合，分解假设显式标注）。
-**不存在"未实现"类**：每条必须终止于 counts；null 唯一来源是芯片缺字段（§7 降级），
-那是硬件信息问题，不是实现缺口。
+**条目分三类**：计算+访存（matrix>0）/ 仅访存（matrix=0，vector/sfu/bytes 非零）/ 分解声明（counts 写成已知 op 的组合，显式标注分解假设）。
+
+**不存在"未实现"类**：每条最终都必须得到 counts；null 唯一来源是芯片缺少字段（§7 降级），这是硬件信息缺失，不是实现缺口。
 
 **约定**：
-- `counts` 入参**只含结构化 shape 参数**，拿不到 `node` 与显示名（§3.2 在结构上不可违反）。
-- **静态维 vs 运行时维**：hidden / heads / intermediate / kv_lora 等来自适配 + config，
-  与负载无关，决定权重 shape。B / S（及由其派生的 KV 长度）来自用户负载。
-  数据流**只改运行时维**；换 batch 不得改参数量。
-- `matrix` 存 MACs；aten 公式是 FLOPs（含 2×），抄公式时显式换算并注明。
-  `vector` 存 flop，`sfu` 存操作次数——单位不同，逐条注明。
-- `bytes` 是**每次前向的 compulsory traffic**（权重读一遍 + 输入 + 输出）。
-  默认无 phase 分支：decode 的 memory-bound 由 seq=1 自然涌现
-  （activations 与 matrix 变小、weights 不变）。必须分相位的例外登记在
-  `details/cost_counts.md`，不在此处另立一套。
 
-**判据**：新增算子时，若需要在 `formulas/index.js` **之外**再改一处分派逻辑
-才能让成本生效，即违反。
+- `counts` 入参**只含结构化 shape 参数**，拿不到 `node` 与显示名（§3.2 在结构上不可违反）。
+- **静态维 vs 运行时维**：hidden / heads / intermediate / kv_lora 等来自适配 + config，与负载无关，决定权重 shape。B / S（及由其派生的 KV 长度）来自用户负载。数据流**只改运行时维**；换 batch 不得改参数量。
+- `matrix` 存 MACs；aten 公式是 FLOPs（含 2×），引用公式时须显式换算并注明。`vector` 存 flop，`sfu` 存操作次数；单位不同，须逐条注明。
+- `bytes` 是**每次前向的 compulsory traffic**（权重读一遍 + 输入 + 输出）。默认无 phase 分支：seq=1 时，activations 与 matrix 变小、weights 不变，自然体现 decode 的 memory-bound 特征。必须区分相位的例外登记在 `details/cost_counts.md`，不在此处另设一套规则。
+
+**判据**：新增算子时，若需要在 `formulas/index.js` **之外**再改一处分派逻辑才能让成本生效，即违反。
 
 **检查**：
+
 - CI 断言每个条目三选一（counts / 纯 traffic / 分解声明），无白名单；
-- **整模型恒等式作为 matrix 维度的外部 oracle**：对每个内置模型，
-  counts 聚合的 matrix FLOPs ≈ `2 × 该相位实际读取的权重元素 × tokens`
-  （dense = 图上非 embed 权重；MoE = 该相位 `counts.bytes.weights` 对应的触达份）
-  ——训练 6ND / 推理 2ND 的标准 invariant。期望侧走叶子 counts / checkpoint /
-  `weightMatrices`，**禁止**用 config 闭式当期望。
-  decode 场景补充恒等式：seq=1 时 traffic ≈ 该相位权重字节数（强度 ~1-2，memory-bound）。
+- **整模型恒等式作为 matrix 维度的外部 oracle**：对每个内置模型，counts 聚合的 matrix FLOPs ≈ `2 × 该相位实际读取的权重元素 × tokens`（dense = 图上非 embed 权重；MoE = 该相位 `counts.bytes.weights` 对应的触达份）——训练 6ND / 推理 2ND 的标准 invariant。期望侧走叶子 counts / checkpoint / `weightMatrices`，**禁止**用 config 闭式当期望。decode 场景补充恒等式：seq=1 时 traffic ≈ 该相位权重字节数（强度 ~1-2，memory-bound）。
 
 ### 3.2 禁止显示名参与任何数值计算
 
-**判据**：`cost/` 下出现对 `node.name` 的正则或字符串匹配用于选择公式、
-判断分支或计算数值，即违反。分派只允许基于 `type`、`attributes.operator_id`
-和结构化 attributes。
+**判据**：`cost/` 下出现对 `node.name` 的正则或字符串匹配用于选择公式、判断分支或计算数值，即违反。分派只允许基于 `type`、`attributes.operator_id` 和结构化 attributes。
 
 **理由**：改一个中文/英文显示名就静默改变成本结果，且无任何测试会拦住。
 
@@ -239,26 +189,19 @@ softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假�
 
 ### 3.3 `null` 与 `0` 必须区分——且按单元区分
 
-`matrix = 0` 是**精确陈述**："该算子不使用矩阵单元"（softmax / norm / rope）——
-它的 vector / sfu / bytes 通常非零，不得因 matrix 为 0 而宣称"无成本"。
-任一单元 `null` 表示"未实现或无法确定"。
+`matrix = 0` 是**精确陈述**："该算子不使用矩阵单元"（softmax / norm / rope）——它的 vector / sfu / bytes 通常非零，不得因 matrix 为 0 而宣称"无成本"。任一单元 `null` 表示"未实现或无法确定"。
 
-**判据**：把未实现当成 0 计入总量即违反——它会让不完整的总量看起来像完整的。
-把"matrix 为 0"渲染成"零成本"同样违反。
+**判据**：把未实现当成 0 计入总量即违反——它会让不完整的总量看起来像完整的。把"matrix 为 0"渲染成"零成本"同样违反。
 
-**检查**：汇总条必须展示"N 个算子成本未覆盖"（按单元缺失分别计数），
-`aggregate.js` 的 null 传播有单测。
+**检查**：汇总条必须展示"N 个算子成本未覆盖"（按单元缺失分别计数），`aggregate.js` 的 null 传播有单测。
 
 ### 3.4 "做多少事"与"每件事多贵"必须分离
 
-参照 Accelergy 的 **ERT（单位动作代价，只跟硬件有关）× Action Counts
-（动作次数，只跟模型和负载有关）**。
+参照 Accelergy 的 **ERT（单位动作代价，只跟硬件有关）× Action Counts（动作次数，只跟模型和负载有关）**。
 
-**判据**：芯片参数（算力、带宽、互联）出现在 action counts 的计算路径里即违反。
-换一张卡只应触发"表乘法"，不应触发结构遍历与 MAC 重算。
+**判据**：芯片参数（算力、带宽、互联）出现在 action counts 的计算路径里即违反。换一张卡只应触发"表乘法"，不应触发结构遍历与 MAC 重算。
 
-**理由**：msv 的核心卖点是"换卡后瓶颈移到哪"，这正是 ERT 变、counts 不变。
-两者纠缠会让多芯片对比变成 N 次全量重算。
+**理由**：msv 的核心用途是判断“换卡后瓶颈移到哪”。换卡时 ERT 改变、counts 不变；两者混在一起，会让多芯片对比变成 N 次全量重算。
 
 ### 3.5 每个公式实现处必须写来源注释
 
@@ -270,11 +213,9 @@ softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假�
 
 ### 3.6 不追精度，但守量级正确
 
-成本模块是**理论分析**，不是仿真。效率因子给文献默认值 + UI 可调 + 明示假设，
-然后停手；不做实测校准闭环。
+成本模块用于**理论分析**，不是仿真。效率因子使用文献默认值，允许在 UI 中调整，并明确标注假设；范围到此为止，不做实测校准闭环。
 
-**但要区分"准确"与"正确"**：倍数级错误会**改变结论本身**，那是 bug 不是精度问题，
-必须有单测。已知三类高频错误各须有单测：
+**要区分"准确"与"正确"**：倍数级错误会**改变结论本身**，属于 bug，不是精度问题，必须用单测覆盖。以下三类高频错误各须有单测：
 
 - GQA：`kv_per_card = kv / min(TP, num_kv_heads)`，**不是** `/ TP`
 - **MLA 的 KV 无法按 TP 切分**（单个压缩 latent，无头维度）→ TP 下全量复制
@@ -284,7 +225,7 @@ softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假�
 
 ### 3.7 算力按单元分：矩阵 / 向量 / SFU，瓶颈取多路 max
 
-算力不是一种资源。逐算子模型必须区分：
+算力并非单一资源，逐算子模型必须区分以下单元：
 
 | 单元 | 内容 | 芯片字段 | 吞吐特征 |
 |---|---|---|---|
@@ -293,35 +234,21 @@ softmax / 打分核按**融合单遍**计（logits 读 1 遍，属 SDPA 核假�
 | SFU | `exp`/`rsqrt`/`sin`/除法（操作次数） | `sfu_ops` | 16/SM/clk（CUDA guide）；官方比值 × fp32 rate 推导，source 标注 |
 | 访存 | compulsory bytes | `memory_bandwidth` | — |
 
-**时间模型**：单算子时间 = `max(矩阵, 向量, SFU, 访存, 通信)` 各路除以对应 rate
-（§3.4 的 ERT ⋈ counts）。瓶颈分类随之细化为五类。
+**时间模型**：单算子时间 = `max(矩阵, 向量, SFU, 访存, 通信)` 各路除以对应 rate（§3.4 的 ERT ⋈ counts）。瓶颈分类随之细化为五类。
 
-**跨芯片分化有公开数据支撑**：NVIDIA 向量：矩阵 ≈ 1:4~1:8（CUDA guide），
-昇腾 910A/B/C ≈ **1:32 ~ 1:128**（Cube FP16 256/294.9/378.9 vs Vector FP32 2/9.2/11.8
-TFLOPS，arXiv 2607.20120）。同一 RMSNorm/softmax 在两类芯片上会落进不同瓶颈类
-——这正是多芯片对比要暴露的东西。昇腾无独立 SFU（超越函数在向量单元执行），
-`sfu_ops` 缺失时可选 per-chip 单元映射（sfu→vector rate，语义映射非估算）。
+**跨芯片分化有公开数据支撑**：NVIDIA 向量：矩阵 ≈ 1:4~1:8（CUDA guide），昇腾 910A/B/C ≈ **1:32 ~ 1:128**（Cube FP16 256/294.9/378.9 vs Vector FP32 2/9.2/11.8 TFLOPS，arXiv 2607.20120）。同一 RMSNorm/softmax 在两类芯片上会落进不同瓶颈类——这正是多芯片对比要暴露的东西。昇腾无独立 SFU（超越函数在向量单元执行），`sfu_ops` 缺失时可选 per-chip 单元映射（sfu→vector rate，语义映射非估算）。
 
-**规约**：reduce = N−1 次向量加法 + 访存（读 N 写 ~0），
-强度 ≈ 1 flop / 4~8 byte，**在 roofline 分类里几乎必然落 memory-bound**——
-不发明"规约单元"，分类交给模型算出来。
+**规约**：reduce = N−1 次向量加法 + 访存（读 N 写 ~0），强度 ≈ 1 flop / 4~8 byte，**在 roofline 分类里几乎必然落 memory-bound**——不发明"规约单元"，分类交给模型算出来。
 
-**效率因子**：矩阵沿用 `η_flops=0.7`（算子成本 大 GEMM 实测 211 TFLOP/s≈0.7×312 地板，97%，坐实）；
-`η_hbm=0.7`（算子成本 尺寸扫描校准：A100 memory-bound 逐元素实测可达带宽 0.44–0.57，0.9 偏乐观，
-取 0.7 为跨厂商可辩护的可达 HBM 比例且保持下界——有效地板 1427GB/s>实测最好点 1170GB/s）；
-向量/SFU 初始 `η=1.0`（从不 bound，校准无收益）。三者均为下界语义 + UI/芯片可覆盖假设 + 明示假设
-（§3.6）；只按在机证据校准**默认值**（量级口径），不做逐点拟合。证据
-`details/evidence/cost/roofline_size_sweep.md`。
+**效率因子**：矩阵沿用 `η_flops=0.7`（算子成本 大 GEMM 实测 211 TFLOP/s≈0.7×312 地板，97%，坐实）；`η_hbm=0.7`（算子成本 尺寸扫描校准：A100 memory-bound 逐元素实测可达带宽 0.44–0.57，0.9 偏乐观，取 0.7 为跨厂商可辩护的可达 HBM 比例且保持下界——有效地板 1427GB/s>实测最好点 1170GB/s）；向量/SFU 初始 `η=1.0`（从不 bound，校准无收益）。三者均为下界语义 + UI/芯片可覆盖假设 + 明示假设（§3.6）；只按在机证据校准**默认值**（量级口径），不做逐点拟合。证据 `details/evidence/cost/roofline_size_sweep.md`。
 
-**缺项降级（§7）**：芯片缺 `sfu_ops` / `vector_flops` → 对应单元的时间不可判，
-`coverage.js` 关闭相应能力门控，绝不估算。
+**缺项降级（§7）**：芯片缺 `sfu_ops` / `vector_flops` → 对应单元的时间不可判，`coverage.js` 关闭相应能力门控，绝不估算。
 
 ### 3.8 容量与前向流量分开；容量只 walk 图
 
-cost 只认三类输入：**图**、**负载**（B/S/phase/visionTokens）、**并行计划**
-（TP/PP/EP，与组网 schedule 无关）。没有第四类「config 闭式模型」。
+cost 只认三类输入：**图**、**负载**（B/S/phase/visionTokens）、**并行计划**（TP/PP/EP，与组网 schedule 无关）。没有第四类「config 闭式模型」。
 
-四类数字都从 walk 出（计费主语同 §2.4，`× repeat`）：
+以下四类数值均通过遍历图得到（计费主语同 §2.4，`× repeat`）：
 
 | 数字 | 怎么加 | 对标 |
 |---|---|---|
@@ -330,41 +257,27 @@ cost 只认三类输入：**图**、**负载**（B/S/phase/visionTokens）、**�
 | KV **容量** | attention 叶声明的每 token cache 元素 × repeat × B × S | vLLM `AttentionSpec` 挂在该层模块上 |
 | KDA **态容量** | linear 叶声明的 request state 元素 × repeat × B | vLLM `MambaStateShapeCalculator.kda_state_shape` |
 
-**容量 ≠ 这次 forward 读了多少。** `counts.bytes.kvRead` 是 decode 读 cache；
-sparse / DSA 读的是 budget，存的是全长（indexer 还要扫全 S）。把 `kvRead` 当
-容量会系统性低估「放得下吗」。
+**容量不等于本次 forward 的读取量。** `counts.bytes.kvRead` 表示 decode 读取 cache 的流量；sparse / DSA 读取的是 budget 范围，存储的却是全长（indexer 还要扫描全 S）。把 `kvRead` 当成容量，会系统性低估「放得下吗」所需的显存。
 
-KV / KDA 容量必须是节点上的**数值声明**（对标 vLLM spec），不是展示用 shape 字符串，
-也不是 `plan.attentionSchedule[i]`。组网时 kind 已经写在层上，声明跟 kind 一起产出。
+KV / KDA 容量必须是节点上的**数值声明**（对标 vLLM spec），不是展示用 shape 字符串，也不是 `plan.attentionSchedule[i]`。组网时 kind 已经写在层上，声明跟 kind 一起产出。
 
-哈希路由 `tid2eid` 是 buffer 不是参数（Megatron-Bridge）。容量要么写在
-hash_router 叶上，要么是 `num_hash_layers × vocab × k` 的字段直译——**不是**
-layer schedule 闭式。
+哈希路由 `tid2eid` 是 buffer 不是参数（Megatron-Bridge）。容量要么写在 hash_router 叶上，要么是 `num_hash_layers × vocab × k` 的字段直译——**不是** layer schedule 闭式。
 
-无图（unsupported 空网络）→ 参数量 / KV 空，不编造。checkpoint 在 → Params
-用 header；不在 → Σ 图。
+无图（unsupported 空网络）→ 参数量 / KV 空，不编造。checkpoint 在 → Params 用 header；不在 → Σ 图。
 
 **判据**：
+
 - `cost/` **禁止** import 组网调度函数当容量输入。
 - `cost/` **禁止** 生产调用 config 闭式算容量。
-- 新增 KV/KDA 变体必须在对应叶上声明容量字段，不得在 `memory.js` 加
-  `if (schedule[i] === ...)` 分支。
+- 新增 KV/KDA 变体必须在对应叶上声明容量字段，不得在 `memory.js` 加 `if (schedule[i] === ...)` 分支。
 
-**逐卡 fit 比较的是投影后的每卡驻留，不是未分片总量。**
-`memoryBreakdown.totalBytes` 是整模型理论合计（Total VRAM）。
-Fit / card 只比 `projectPlan` / `projectPdFit` 最紧 stage 的每卡字节和 `chip.memory_bytes`。
-拓扑（卡数够不够）走独立状态，不折进 Fit。节点 Cost Lens 的 VRAM 是
-「已切分的子树权重 + 本节点 dataflow 边界」，不是 Σ 子节点激活。
-Activation workspace / CUDA runtime / comm scratch 无法从配置得到，
-不计进 Total VRAM / Fit（runtime-unknown），不提供手填旋钮。
+**逐卡 fit 比较的是投影后的每卡驻留，不是未分片总量。** `memoryBreakdown.totalBytes` 是整模型理论合计（Total VRAM）。Fit / card 只比较 `projectPlan` / `projectPdFit` 中最紧 stage 的每卡字节数与 `chip.memory_bytes`。拓扑（卡数是否足够）使用独立状态，不计入 Fit。
 
-**检查**：`cost/` 生产文件对调度函数 / 闭式容量的 import 为零。
-CostSummary 的 Fit 断言不得读 `cost.memory.totalBytes`。
+节点 Cost Lens 的 VRAM 是「已切分的子树权重 + 本节点 dataflow 边界」，不是子节点激活的总和。Activation workspace / CUDA runtime / comm scratch 无法从配置得到，不计入 Total VRAM / Fit（runtime-unknown），也不提供手动填写的选项。
 
-组网仍可读 `layer_types` / `first_k_dense_replace`（那是
-`nn.Module.__init__(layer_idx)`，对标 vLLM）。那是组网私有 helper
-（`layerScheduleOf` / `attentionScheduleOf` / `indexerScheduleOf`），**不 export
-给 cost**。不存在八字段 plan 产品对象。
+**检查**：`cost/` 生产文件对调度函数 / 闭式容量的 import 为零。CostSummary 的 Fit 断言不得读 `cost.memory.totalBytes`。
+
+组网仍可读取 `layer_types` / `first_k_dense_replace`（对应 `nn.Module.__init__(layer_idx)`，参照 vLLM）。相关 helper（`layerScheduleOf` / `attentionScheduleOf` / `indexerScheduleOf`）仅供组网内部使用，**不向 cost 导出**。不存在八字段 plan 产品对象。
 
 ---
 
@@ -374,8 +287,7 @@ CostSummary 的 Fit 断言不得读 `cost.memory.totalBytes`。
 
 - 模型级参数量：`@huggingface/hub` 的 `parameterTotal`
 - 节点级：safetensors header range read（单分片约 9KB）→ 逐张量 dtype/shape
-- 参数量换算**必须**用 `@huggingface/hub` 的 `parseSafetensorsMetadata`，
-  **禁止手写**（子字节量化打包宽度、bitsandbytes 前缀、exponent-only dtype 等边界手写必错）
+- 参数量换算**必须**用 `@huggingface/hub` 的 `parseSafetensorsMetadata`，**禁止手写**（子字节量化打包宽度、bitsandbytes 前缀、exponent-only dtype 等边界手写必错）
 
 **建树可以自己写**（`truth/skeleton.js`，trie 无边界问题），**换算不可以**。这两件事不要混。
 
@@ -387,109 +299,79 @@ CostSummary 的 Fit 断言不得读 `cost.memory.totalBytes`。
 
 ### 4.3 适配产物的形态：两张表 + 一份代码
 
-结构的**骨架来自适配**（人工 / agent 对照该模型的 modeling 文件组织关系），
-不来自 config 推导，也不来自 checkpoint 自动推断。运行时**不做结构推断**。
+结构的**骨架来自适配**（人工 / agent 对照该模型的 modeling 文件组织关系），不来自 config 推导，也不来自 checkpoint 自动推断。运行时**不做结构推断**。
 
 语义标准分三层，互不替代：
 
 1. **数学定义**——counts 的真正标准，与实现无关。
-2. **该模型的 modeling 文件**（版本锚定）——语义分解与执行顺序的规范参考实现。
-   多数 checkpoint 里没有 model.py，按来源阶梯取源（排序 = 与所读 config 的契约契合度
-   + 可锚定性 + 「作者 > 转述者」）：
+2. **该模型的 modeling 文件**（版本锚定）——语义分解与执行顺序的规范参考实现。多数 checkpoint 里没有 model.py，按来源阶梯取源（排序 = 与所读 config 的契约契合度 + 可锚定性 + 「作者 > 转述者」）：
    - ① checkpoint 自带的 `modeling_*.py`（`config.auto_map` 指向的 remote code）
    - ② transformers 库内 `modeling_<arch>.py`（首选锚 `transformers_version`，catalog 可覆盖）
    - ③ 原始发布仓库（裸 commit 锚定；与 HF config 的字段映射入档）
    - ④ 都没有时，才允许用 vLLM / SGLang 的模型实现，必须标引擎 + 版本
    - ⑤ 仍没有 → 未适配（§4.5），不出语义结构
-   任意两级发现语义冲突：记入 diagnostics，人工裁决后登记，**不得静默选一**。
-   `models/` 已 vendored 内置模型的 modeling 文件（覆盖 ①）。版本漂移的发现机制
-   = 旁路 B `source_ref` 再生的 diff 分级（`class_name` 变化即上游重构告警）。
-3. **vLLM / SGLang 的 kernel 实现**——只提供 `implementation` 与 §2.4 融合边界，
-   **不得反过来删掉 modeling 里的语义节点**。有 modeling 文件时，引擎融合不是语义标准。
+
+   任意两级发现语义冲突：记入 diagnostics，人工裁决后登记，**不得静默选一**。`models/` 已 vendored 内置模型的 modeling 文件（覆盖 ①）。版本漂移的发现机制 = 旁路 B `source_ref` 再生的 diff 分级（`class_name` 变化即上游重构告警）。
+
+3. **vLLM / SGLang 的 kernel 实现**——只提供 `implementation` 与 §2.4 融合边界，**不得反过来删掉 modeling 里的语义节点**。有 modeling 文件时，引擎融合不是语义标准。
 
 形态照抄成熟方案，分两层：
 
 **层 1｜checkpoint 路径绑定**
-图节点身份 = HF `_modules` 路径。checkpoint 张量绑到含参叶子：剥
-`model.` / `language_model.` 根包装后路径相等即命中。文本栈 id 是 `layers`
-（MiniMax-M3 文本塔是 `language_model`）；视觉塔 id 是该架构 HF 属性名
-（Qwen/GLM `visual`，Kimi/M3 `vision_tower`）。不经角色表、不做子串猜测。
-末段同义（`o_proj`/`out_proj`）极少见时，写在该 `architectures[0]`
-的候选列表里，不建全局角色枚举。
-vLLM / SGLang 没有全局 `MODEL_TENSOR`；llama.cpp 的角色表是给 GGUF 第三套名字用的，
-msv 两端都是 HF 路径，不抄那一层。
+
+图节点身份 = HF `_modules` 路径。checkpoint 张量绑到含参叶子：剥 `model.` / `language_model.` 根包装后路径相等即命中。文本栈 id 是 `layers`（MiniMax-M3 文本塔是 `language_model`）；视觉塔 id 是该架构 HF 属性名（Qwen/GLM `visual`，Kimi/M3 `vision_tower`）。不经角色表、不做子串猜测。末段同义（`o_proj`/`out_proj`）极少见时，写在该 `architectures[0]` 的候选列表里，不建全局角色枚举。vLLM / SGLang 没有全局 `MODEL_TENSOR`；llama.cpp 的角色表是给 GGUF 第三套名字用的，msv 两端都是 HF 路径，不抄那一层。
 
 **层 2｜图构建（代码，每 `architectures[0]` 一份）**
-对齐 llama.cpp `src/models/<arch>.cpp`、transformers `modeling_*.py`、vLLM `models/*.py`。
-负责执行顺序、无参算子插入、条件分支。共享组件在 `layers/`，算子信息在注册表。
 
-**查找键**：运行时用精确表，不用子串猜。主键 `config.architectures[0]`
-（vLLM `_MODELS` 形态）。命中 → 该架构的组装函数 + config 数字实例化；
-未命中 → `unsupported`，不编造完整图。
+对齐 llama.cpp `src/models/<arch>.cpp`、transformers `modeling_*.py`、vLLM `models/*.py`。负责执行顺序、无参算子插入、条件分支。共享组件在 `layers/`，算子信息在注册表。
 
-**组件选型是一级概念，家族不是。** 现在的模型都是 transformer，变化只在组件选型
-（attention / norm / FFN / 位置编码 / 附加结构），不同家族会采用同一组件。
-新增模型应当是"选已有共享 layer + 读 config"；只有发明新组件方案才写新代码。
-家族名 / `model_type` 子串不允许出现在组网分派里。
+**查找键**：运行时用精确表，不用子串猜。主键 `config.architectures[0]`（vLLM `_MODELS` 形态）。命中 → 该架构的组装函数 + config 数字实例化；未命中 → `unsupported`，不编造完整图。
+
+**组件选型是一级概念，家族不是。** 现在的模型都是 transformer，变化只在组件选型（attention / norm / FFN / 位置编码 / 附加结构），不同家族会采用同一组件。新增模型应当是"选已有共享 layer + 读 config"；只有发明新组件方案才写新代码。家族名 / `model_type` 子串不允许出现在组网分派里。
 
 **判据**：
-- 适配产物里出现"为了得到参数量 / shape 而写的公式分支"即违反——那些必须来自真值（§4.1）。
-- checkpoint 名与结构节点的对应**按路径相等**（只剥 HF 根包装），
-  **禁止**运行时用路径归一化做别名猜测。
-- **禁止**把组网改成纯 JSON/YAML 数据文件。图构建含条件分支（MoE/dense 交替、
-  `layer_types` 调度、逐层 `compress_ratio`、PLE/MHC 存在性、有无 bias），
-  纯数据表达必然要发明 mini-DSL，那是自研且更难维护。
-  llama.cpp / transformers / vLLM / TensorRT-LLM 无一例外用代码表达图构建。
 
-**检查**：新增 arch 时，registry 一行 + 一份组装函数；共享 layer / 算子注册表
-只在发明新组件时才改。三者之外不得再有该 arch 的分支。
+- 适配产物里出现"为了得到参数量 / shape 而写的公式分支"即违反——那些必须来自真值（§4.1）。
+- checkpoint 名与结构节点的对应**按路径相等**（只剥 HF 根包装），**禁止**运行时用路径归一化做别名猜测。
+- **禁止**把组网改成纯 JSON/YAML 数据文件。图构建含条件分支（MoE/dense 交替、`layer_types` 调度、逐层 `compress_ratio`、PLE/MHC 存在性、有无 bias），纯数据表达必然要发明 mini-DSL，那是自研且更难维护。llama.cpp / transformers / vLLM / TensorRT-LLM 无一例外用代码表达图构建。
+
+**检查**：新增 arch 时，registry 一行 + 一份组装函数；共享 layer / 算子注册表只在发明新组件时才改。三者之外不得再有该 arch 的分支。
 
 ### 4.4 真值缺失或冲突必须可见，禁止静默丢弃
 
-`graphTruth.bindTruthToGraph` 在同一路径匹配到多个候选时会放弃绑定并记入
-`ambiguous_truth_matches`；`template_gaps` 记录 trie 里有而适配产物未声明的含参模块。
+`graphTruth.bindTruthToGraph` 在同一路径匹配到多个候选时会放弃绑定并记入 `ambiguous_truth_matches`；`template_gaps` 记录 trie 里有而适配产物未声明的含参模块。
 
-**判据**：这两类信号**必须**在 UI 上可见。只写进 diagnostics 而 UI 不展示，
-等于真值静默缺失——用户看到的是一个"看起来完整"的错结构。
+**判据**：这两类信号**必须**在 UI 上可见。只写进 diagnostics 而 UI 不展示，等于真值静默缺失——用户看到的是一个"看起来完整"的错结构。
 
 层 2 落地后，`ambiguous` 应降为 0（因为对应关系是声明的）；仍出现即说明映射表写错。
 
 ### 4.5 适配状态决定能给出什么，禁止伪造
 
-trie（safetensors header）只做两件事：**给已适配模型提供精确数值**、
-**给未适配模型提供一个诚实的层级视图**。它不提供骨架、不提供顺序、不提供无参算子。
+trie（safetensors header）只做两件事：**给已适配模型提供精确数值**、**给未适配模型提供一个诚实的层级视图**。它不提供骨架、不提供顺序、不提供无参算子。
 
 | | 有 safetensors header | 无 header |
 |---|---|---|
 | **已适配** | 适配产物骨架 + trie 真值（完整） | 适配产物骨架 + config 推导数值，标 `value_source=derived` |
 | **未适配** | 仅 trie 层级与数值，**明确标注"未适配、无语义"** | **不出结构图**，提示需要适配 |
 
-"无 header"不是边缘场景：`cost/weights.js` 已把"无 safetensors / gated / 网络"
-列为预期情况；`models/` 内置 catalog **只有 config.json，零 safetensors**；
-GGUF / `pytorch_model.bin` / `.pth` / MLX 格式模型永远读不到 safetensors header。
+"无 header"不是边缘场景：`cost/weights.js` 已把"无 safetensors / gated / 网络" 列为预期情况；`models/` 内置 catalog **只有 config.json，零 safetensors**；GGUF / `pytorch_model.bin` / `.pth` / MLX 格式模型永远读不到 safetensors header。
 
-**判据**：**禁止**用 generic 兜底给未适配模型编造一个看起来完整的结构图。
-未适配就显式说未适配。
+**判据**：**禁止**用 generic 兜底给未适配模型编造一个看起来完整的结构图。未适配就显式说未适配。
 
 ### 4.6 路径绑定必须可对账
 
-绑上的 tensor 名（剥根包装后）必须等于图节点模块路径，或该 arch 显式候选列表中的一项。
-对不上即绑定错误。这比"看图对不对"可靠，是路径绑定的质量闸门。
+绑上的 tensor 名（剥根包装后）必须等于图节点模块路径，或该 arch 显式候选列表中的一项。对不上即绑定错误。这比"看图对不对"可靠，是路径绑定的质量闸门。
 
 ### 4.7 config 只供数，方案由组网决定
 
 config 解读包含两种性质不同的工作，归属不同：
 
-- **字段归一**（别名吸收、默认值）：合法的独立层，对应 transformers 的 `Config` 类。
-  终态是一个瘦的 config 视图。
-- **方案解读**（attention 用哪个方案、逐层怎么调度、归一化用哪种 norm）：
-  这是**骨架决策**，属于组网（builder / 配方表），**禁止**在 config 归一层预先决定。
-  transformers 的分工即如此：`Config` 类管字段，`modeling_*.py` 的 `__init__` 管决定。
+- **字段归一**（别名吸收、默认值）：合法的独立层，对应 transformers 的 `Config` 类。终态是一个瘦的 config 视图。
+- **方案解读**（attention 用哪个方案、逐层怎么调度、归一化用哪种 norm）：这是**骨架决策**，属于组网（builder / 配方表），**禁止**在 config 归一层预先决定。transformers 的分工即如此：`Config` 类管字段，`modeling_*.py` 的 `__init__` 管决定。
 
 **判据**：config 归一层出现家族条件分支、或输出"selected scheme"类字段即违反。
 
-**检查**：config 视图的输出对象不含方案类字段；逐层调度只在组网入口被消费，
-不进入 `cost/`（§3.8）。
+**检查**：config 视图的输出对象不含方案类字段；逐层调度只在组网入口被消费，不进入 `cost/`（§3.8）。
 
 ---
 
@@ -520,23 +402,20 @@ line = inspect.getsourcelines(cls)[1]
 # 用 (包目录, github repo, f"v{__version__}") 前缀匹配，拼 blob 永久链接
 ```
 
-**这必须在有框架实例的进程里做** —— `inspect` 需要真实的类对象。
-因此这是**后端唯一不可替代的能力之一**（见 §6.1），前端拿不到。
+**这必须在有框架实例的进程里做** —— `inspect` 需要真实的类对象。因此这是**后端唯一不可替代的能力之一**（见 §6.1），前端拿不到。
 
 ### 5.3 `source_ref` 是**离线产物**，静态部署也要能用
 
-后端把 `(module_path, class_name, source_ref, has_params)` 生成为随 catalog 发布的
-静态 JSON（与 `models/` 下的内置 config 同级）。
+后端把 `(module_path, class_name, source_ref, has_params)` 生成为随 catalog 发布的静态 JSON（与 `models/` 下的内置 config 同级）。
 
 **判据**：把 `source_ref` 做成"必须在线调后端才有"的能力即违反支柱⑤。
 
-**字段必须按腐坏速度分成两半**：
+**字段按变化速度分成两类**：
 
 - **稳定部分**（跨版本几乎不变，是持久 key）：`framework` / `module_path` / `class_name` / `file`
 - **易腐部分**（绑在一起，缺一不可）：`line` / `version`
 
-`version` 与当前 transformers 不一致时，**降级为不带 `#L` 的文件链接 + 标注行号来源版本**，
-而不是给出一个可能错位的锚点。这让"产物没重新生成"的后果从**错误行号**降为**少一个精确锚点**。
+`version` 与当前 transformers 不一致时，**降级为不带 `#L` 的文件链接 + 标注行号来源版本**，而不是给出一个可能错位的锚点。这让"产物没重新生成"的后果从**错误行号**降为**少一个精确锚点**。
 
 **产物再生的自动化**：CI 在 `pyproject.toml` 的 transformers 版本变化时重跑生成，并对 diff 分级——
 
@@ -546,8 +425,7 @@ line = inspect.getsourcelines(cls)[1]
 | `file` 变（模型被移动或重构） | 标记待确认 |
 | `class_name` 变或消失 | **必须人工确认**——上游重构了该模型，适配产物可能也要跟改 |
 
-第三类是免费的上游变更告警：transformers 拆了某个模型的类，在版本升级时立刻暴露，
-而不是等用户报"结构不对"。
+第三类可以直接暴露上游变更：transformers 拆分某个模型的类后，版本升级会立即显示问题，而不是等用户报告“结构不对”。
 
 ### 5.4 定位失败时留空，禁止编造
 
@@ -576,9 +454,7 @@ line = inspect.getsourcelines(cls)[1]
 
 `normalizeConfig → resolveArchitecture → buildNetwork → truth merge → IR`。
 
-**判据**：**禁止后端再产出第二份 `ModelStructure` IR**。校验只需要扁平列表
-`[(module_path, class_name, source_ref, has_params)]`，不需要 IR。
-"后端也建 IR"是前后端全部重复的来源。
+**判据**：**禁止后端再产出第二份 `ModelStructure` IR**。校验只需要扁平列表 `[(module_path, class_name, source_ref, has_params)]`，不需要 IR。“后端也建 IR”会造成前后端重复。
 
 ### 6.3 校验的定义是**对比**，不是"能不能建起来"
 
@@ -587,45 +463,40 @@ line = inspect.getsourcelines(cls)[1]
 对比分两层：
 
 **结构对账（必须）**
+
 - `from_config` 能否在 meta 设备建起来
 - 模块路径（先做路径规范化，再 diff）
 - class 名（transformers `nn.Module` 类名 ↔ msv 节点类/角色）
 - shape（比静态维；B/T 用 -1，不用运行时 batch）
 
 **定量抽查（只对比 torch 给得出的数）**
+
 - 矩阵系计算量：msv `counts.matrix` ↔ `FlopCounterMode` / `flop_registry` 覆盖的 mm/bmm/conv/SDPA
 - 参数字节：meta `numel × dtype` ↔ msv 权重字节
 
 **明确不对账**
+
 - 算子公式文本（torch 没有公式字段）
 - softmax / rmsnorm / rope / topk 等 flop_counter 记 0 的算子
 - 激活流量、vector/sfu（msv 增量，用恒等式自洽，不冒充 torch）
 
-**判据**：校验能力必须有 UI 入口。没有入口的支柱等于没做。
-把 torch 给不出的量写成必须 diff 项即违反。
+**判据**：校验能力必须有 UI 入口。没有入口的支柱等于没做。把 torch 给不出的量写成必须 diff 项即违反。
 
 ### 6.4 来源解析策略只有一份契约
 
-endpoint fallback、revision 默认值、auto 降级顺序、错误分类锁在
-[`details/models/source_contract.json`](details/models/source_contract.json)。
-前后端两套运行时（静态前端直连 Hub + Python 磁盘缓存）不合并；实现必须对这份 JSON。
+endpoint fallback、revision 默认值、auto 降级顺序、错误分类锁在 [`details/models/source_contract.json`](details/models/source_contract.json)。前后端两套运行时（静态前端直连 Hub + Python 磁盘缓存）不合并；实现必须对这份 JSON。
 
-**判据**：实现与契约 JSON 不一致即违反。再写第三套路由即违反。
-把两套运行时强行合成一份也违反（Pages 静态部署与本地 cache 不是同一产品形态）。
+**判据**：实现与契约 JSON 不一致即违反。再写第三套路由即违反。把两套运行时强行合成一份也违反（Pages 静态部署与本地 cache 不是同一产品形态）。
 
 ---
 
 ## 7. 芯片数据合规
 
-1. **公开规格入库**（`cost/chips/public.js`）：每条**必带 `source` URL + `confidence`**
-   （official / vendor-marketing / community），**支持字段级覆盖**。无 source 不合入。
-2. **非公开规格走用户配置**（`chips.local.json`，gitignore）：仓库只提供 schema +
-   加载器 + 示例；示例**必须**用 `example-chip` + 明显虚构的占位数字，
-   **禁止**写"某卡示例：显存约 XX GB"（会被当真实规格传播）。
-3. **缺项按字段降级**，不按卡：缺 `memory_bandwidth` → 仍可 fit/max_context，
-   仅禁用 roofline；缺 `memory_bytes` → 仅出相对占比。
+1. **公开规格入库**（`cost/chips/public.js`）：每条**必带 `source` URL + `confidence`**（official / vendor-marketing / community），**支持字段级覆盖**。无 source 不合入。
+2. **非公开规格走用户配置**（`chips.local.json`，gitignore）：仓库只提供 schema + 加载器 + 示例；示例**必须**用 `example-chip` + 明显虚构的占位数字，**禁止**写"某卡示例：显存约 XX GB"（会被当真实规格传播）。
+3. **缺项按字段降级**，不按卡：缺 `memory_bandwidth` → 仍可 fit/max_context，仅禁用 roofline；缺 `memory_bytes` → 仅出相对占比。
 
-**判据**：**绝不用估计值填空**。写第一行芯片数据前先建/改 `chips/coverage.js`。
+**判据**：不使用估计值填空。写入第一条芯片数据前，先建立或修改 `chips/coverage.js`。
 
 ---
 
@@ -633,19 +504,15 @@ endpoint fallback、revision 默认值、auto 降级顺序、错误分类锁在
 
 ### 8.1 新增模型只允许"选配方 + 填数字"
 
-真正的目标是共享组件：新增模型 = 选已有 layer + 读 config；只有发明新组件方案
-才写新代码。"家族名硬编码的非测试文件数"是它的**可测量代理指标**，不是目标本身——
-registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling 文件名里。
+真正的目标是共享组件：新增模型 = 选已有 layer + 读 config；只有发明新组件方案才写新代码。"家族名硬编码的非测试文件数"是它的**可测量代理指标**，不是目标本身——registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling 文件名里。
 
-**判据**：家族名文件数**不得增加**。当前基线为 **6**（相对更早完整 pattern 的 16；
-`models/` 按 `architectures[0]` 拆文件后豁免），机械清单与豁免见 `scripts/check_principles.sh`。
+**判据**：家族名文件数**不得增加**。当前基线为 **6**（早期完整 pattern 为 16；`models/` 按 `architectures[0]` 拆文件后豁免），机械清单与豁免见 `scripts/check_principles.sh`。
 
 **检查**：CI 统计家族名出现的**非测试文件数**，只允许下降。
 
 ### 8.2 禁止嵌套三元链
 
-新增分派一律用查表。`layers/attention.js` 曾用两条平行的多分支嵌套三元
-（children 与 declaredEdges 条件集不一致，必然漂移），是反例，不得再引入。
+新增分派一律用查表。`layers/attention.js` 曾用两条平行的多分支嵌套三元（children 与 declaredEdges 条件集不一致，必然漂移），是反例，不得再引入。
 
 ---
 
@@ -680,29 +547,18 @@ registry 以 `architectures[0]` 为键后，家族名只应出现在 modeling �
 
 ## 10. 例外登记
 
-确需偏离本文档时，在 `implementation_plan.md` 中登记：**违反哪条、为什么、
-何时收口、收口的判据**。未登记的偏离视为缺陷。已清账以 Git / `CHANGELOG.md` 为准，不在本文堆积。
+确需偏离本文档时，在 `implementation_plan.md` 中登记：**违反哪条、为什么、何时收口、收口的判据**。未登记的偏离视为缺陷。已清账以 Git / `CHANGELOG.md` 为准，不在本文堆积。
 
 **已闭合**（不再当偏离；细节以代码与 `implementation_plan.md` 终态为准）：
 
-- **§6.3 / §6.4**：前端 DiagnosticsPanel 有校验入口。失败分三类：后端不可达 /
-  transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 已接
-  **独立算子夹具**（Linear / BMM / 深度可分 Conv1d：msv MAC × 2 == torch FLOPs）；
-  不对 catalog 整模型跑 forward（catalog 无权重）。来源解析两套运行时 + 一份
-  `source_contract.json` 是终态，不是债。当前 catalog 旁 `source-ref.json` 已覆盖
-  60/60；缺席产物节点 `source_ref` 为 null；
-  静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
+- **§6.3 / §6.4**：前端 DiagnosticsPanel 有校验入口。失败分三类：后端不可达 / transformers 构造失败 / 结构不一致（未对账 ≠ 失败）。FlopCounterMode 已接**独立算子夹具**（Linear / BMM / 深度可分 Conv1d：msv MAC × 2 == torch FLOPs）；不对 catalog 整模型跑 forward（catalog 无权重）。来源解析两套运行时 + 一份 `source_contract.json` 是终态，不是债。当前 catalog 旁 `source-ref.json` 已覆盖 60/60；缺席产物节点 `source_ref` 为 null；静态部署在产物缺席时节点 `source_ref` 为 null，不编造链接。
 - **§8.1**：棘轮基线 6（`models/` 按架构拆文件后豁免）。只许下降。
-- **§3.1**：extractor 已收成 `FORMULAS[id].fromNode` + `.counts` 查表
-  （flop_registry）。护栏 §3.1b = switch case 0。
-- **§3.8**：生产链已切到图 walk（叶声明 KV/KDA/buffer、`graphWeightCapacity`、
-  MTP `repeat=0` 走 `residentRepeat`）。config 闭式已删；身份测试期望侧 walk 图。
-- **不再参考 llm-analysis**（2026-09-14）：整层闭式、`get_memory_*_per_gpu`、
-  效率因子出处均不引用。并行除法规则的住址是 `details/parallel_protocol.md`；
-  效率默认值是 UI 可调假设（§3.6）。外部参考表见 `details/modules.md` §8。
+- **§3.1**：extractor 已收成 `FORMULAS[id].fromNode` + `.counts` 查表（flop_registry）。护栏 §3.1b = switch case 0。
+- **§3.8**：生产链已切到图 walk（叶声明 KV/KDA/buffer、`graphWeightCapacity`、MTP `repeat=0` 走 `residentRepeat`）。config 闭式已删；身份测试期望侧 walk 图。
+- **不再参考 llm-analysis**（2026-09-14）：整层闭式、`get_memory_*_per_gpu`、效率因子出处均不引用。并行除法规则记录在 `details/parallel_protocol.md`；效率默认值是 UI 可调假设（§3.6）。外部参考表见 `details/modules.md` §8。
 
-**触发池**（触发未到不动工；住址 `implementation_plan.md`）：
+**待触发事项**（触发前不动工；记录在 `implementation_plan.md`）：
 
-- 家族知识 5 住址收口（接新模型家族）
-- §7 国产芯片条目（有公开来源的字段）
+- 家族知识 5 的记录收口（接入新模型家族）
+- §7 国产芯片条目（仅限有公开来源的字段）
 - §2.5 back-edge（展示需求）

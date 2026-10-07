@@ -69,7 +69,7 @@ function DetailHeader({ structure, sourceLabel, language, onLanguageChange, onTh
       <button className="detail-brand" type="button" onClick={onBack}>Model Structure Viewer <span className="detail-version">v{frontendPackage.version}</span></button>
       <div className="detail-model-id" title={id}>{id}</div>
       <div className="detail-header-actions">
-        <button type="button" onClick={() => onLanguageChange(english ? "zh" : "en")}>{english ? "EN / 中" : "中 / EN"}</button>
+        <button type="button" data-testid="language-toggle" onClick={() => onLanguageChange(english ? "zh" : "en")}>{english ? "EN / 中" : "中 / EN"}</button>
         <button type="button" title={themeAction} aria-label={themeAction} onClick={onThemeChange}>{theme === "dark" ? (english ? "Dark" : "深色") : (english ? "Light" : "浅色")}</button>
         <button type="button" onClick={onSettings}>{english ? "Model options" : "模型选项"}</button>
       </div>

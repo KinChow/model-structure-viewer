@@ -16,6 +16,8 @@ test("Kimi-K3 published MoonViT path renders in Chrome", async ({ page }, testIn
   await page.getByRole("button", { name: "打开模型", exact: true }).click();
   await expect(page.locator(".detail-model-id")).toContainText(modelId);
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await expect(page.locator(".react-flow-diagram"))
+    .toHaveAttribute("data-layout-ready", "true", { timeout: 60_000 });
   for (const id of [
     "vision_tower.patch_embed.proj",
     "vision_tower.patch_embed.pos_emb",

@@ -14,6 +14,8 @@ test("K3 dense/shared/routed SiTU mechanisms and costs render", async ({ page },
   await page.getByRole("button", { name: "打开模型", exact: true }).click();
   await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2", { timeout: 30000 });
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await expect(page.locator(".react-flow-diagram"))
+    .toHaveAttribute("data-layout-ready", "true", { timeout: 60_000 });
   for (const id of ids.slice(0, 2)) {
     for (const from of ["gate_proj", "up_proj"]) {
       const source = id.replace(/situ_glu$/, from);
@@ -49,6 +51,8 @@ test("K3 dense/shared/routed SiTU mechanisms and costs render", async ({ page },
   await page.getByRole("button", { name: "收起全部", exact: true }).click();
   await expect(shared).toHaveCount(0);
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await expect(page.locator(".react-flow-diagram"))
+    .toHaveAttribute("data-layout-ready", "true", { timeout: 60_000 });
   await expect(shared).toHaveCount(1, { timeout: 30000 });
   const search = page.getByPlaceholder("搜索节点名称 / 类型 / class...");
   await search.fill("SiTU-GLU");
@@ -56,7 +60,7 @@ test("K3 dense/shared/routed SiTU mechanisms and costs render", async ({ page },
   await search.fill("");
   await shared.locator(".rf-model-node").focus();
   await page.keyboard.press("Enter");
-  await page.getByRole("button", { name: "中 / EN" }).click();
+  await page.getByTestId("language-toggle").click();
   await expect(page.locator(".formula-section")).toContainText("hyperparameters, not trainable weights");
   await page.locator(".detail-cost-toggle > button").click();
   await expect(page.locator(".cost-summary")).toContainText("MACs / forward");

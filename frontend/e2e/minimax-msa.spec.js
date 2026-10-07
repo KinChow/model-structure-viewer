@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -18,6 +18,7 @@ for (const variant of ["MiniMax-M3", "MiniMax-M3-MXFP8"]) {
     await page.getByRole("button", { name: "打开模型", exact: true }).click();
     await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2", { timeout: 30000 });
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     const indexer = graph.nodes.find(n => n.attributes?.operator_id === "minimax_sparse_indexer");
     const sparse = graph.nodes.find(n => n.attributes?.operator_id === "minimax_sparse_attention");
     for (const node of [indexer, sparse]) {

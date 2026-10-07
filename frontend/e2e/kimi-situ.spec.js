@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -49,6 +49,7 @@ test("K3 dense/shared/routed SiTU mechanisms and costs render", async ({ page },
   await page.locator(".react-flow-diagram").scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("kimi-situ-shared.png") });
   await page.getByRole("button", { name: "收起全部", exact: true }).click();
+  await waitForLayout(page);
   await expect(shared).toHaveCount(0);
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
   await expect(page.locator(".react-flow-diagram"))

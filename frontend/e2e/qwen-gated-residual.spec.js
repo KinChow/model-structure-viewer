@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 for (const variant of ["Qwen3.8-Flash-Next", "Qwen3.8-Flash-Next-FP8"]) {
@@ -17,6 +17,7 @@ for (const variant of ["Qwen3.8-Flash-Next", "Qwen3.8-Flash-Next-FP8"]) {
     await page.getByRole("button", { name: "打开模型", exact: true }).click();
     await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2", { timeout: 30000 });
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     for (const [from, to] of [
       ["layers.0.attn_hyper_connection.write_gate", "layers.0.attn_residual_add"],
       ["layers.0.mlp_hyper_connection.write_gate", "layers.0.ffn_residual_add"],
@@ -35,8 +36,10 @@ for (const variant of ["Qwen3.8-Flash-Next", "Qwen3.8-Flash-Next-FP8"]) {
     await expect(page.locator(".formula-section")).toContainText("block_output");
     await page.screenshot({ path: testInfo.outputPath("gr-write.png") });
     await page.getByRole("button", { name: "收起全部", exact: true }).click();
+    await waitForLayout(page);
     await expect(card).toHaveCount(0);
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     await expect(card).toHaveCount(1, { timeout: 30000 });
     const search = page.getByPlaceholder("搜索节点名称 / 类型 / class...");
     await search.fill("Gated Residual final read");

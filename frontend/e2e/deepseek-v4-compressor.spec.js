@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -26,6 +26,7 @@ for (const variant of variants) {
     await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
     const before = await page.locator(".react-flow__edge").count();
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     const compressor = graph.nodes.find(n =>
       /layers\.(?:(?:encoder|decoder)\.)?\d+\.self_attn\.compressor$/.test(n.canonical_id || "")
       && (variant.includes("V4.1") || n.attributes?.compress_ratio === 4));
@@ -54,6 +55,7 @@ for (const variant of variants) {
     await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(before);
     await page.screenshot({ path: testInfo.outputPath("compressor-expanded.png") });
     await page.getByRole("button", { name: "收起全部", exact: true }).click();
+    await waitForLayout(page);
     await page.locator(".detail-cost-toggle > button").click();
     await expect(page.locator(".cost-summary")).toContainText("MACs / forward");
     await page.getByRole("button", { name: "中 / EN" }).click();

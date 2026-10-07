@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 
 // One representative from each built-in model_type. This is intentionally a
 // mobile-only smoke matrix: it checks the rendered product path, not just the
@@ -42,8 +42,10 @@ test("mobile Chrome renders every built-in architecture family", async ({ page }
       const expand = page.getByRole("button", { name: "展开全部", exact: true });
       if (await expand.count()) {
         await expand.click();
+        await waitForLayout(page);
         await expect(page.locator(".react-flow__node").first()).toBeVisible();
         await page.getByRole("button", { name: "收起全部", exact: true }).click();
+        await waitForLayout(page);
       }
 
       const costToggle = page.locator(".detail-cost-toggle > button");

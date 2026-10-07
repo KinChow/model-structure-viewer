@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
 for (const variant of ["MiniMax-M3", "MiniMax-M3-MXFP8"]) {
@@ -18,6 +18,7 @@ for (const variant of ["MiniMax-M3", "MiniMax-M3-MXFP8"]) {
     await page.getByRole("button", { name: "打开模型", exact: true }).click();
     await expect(page.locator(".detail-model-id")).toContainText(modelId);
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     for (const id of [
       "vision_tower.embeddings.proj", "vision_tower.pre_layrnorm",
       "vision_tower.layers.0.self_attn.q_proj",

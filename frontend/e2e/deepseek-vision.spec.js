@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
 const root = new URL("../../models/", import.meta.url);
@@ -20,6 +20,7 @@ for (const model of ["DeepSeek-V4-Flash-Vision-Exp", "DeepSeek-V4.1-Flash"]) {
     await expect(page.locator(".detail-model-id")).toContainText(modelId);
     await expect(page.locator(`.react-flow__node[data-id="${node("vision").id}"]`)).toBeVisible();
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     for (const id of ["vision.patch_embed.proj", "vision.blocks.0.attn.rope",
       "vision.blocks.0.mlp.w1", "vision.blocks.0.mlp.w2", "vision.norm"]) {
       await expect(page.locator(`.react-flow__node[data-id="${node(id).id}"]`)).toHaveCount(1);

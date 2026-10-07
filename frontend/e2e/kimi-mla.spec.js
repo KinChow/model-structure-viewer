@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -16,6 +16,7 @@ test("K3 NoPE, gate fan-in and vision 2D RoPE render in the production view", as
   await page.getByRole("button", { name: "打开模型", exact: true }).click();
   await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2", { timeout: 30000 });
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await waitForLayout(page);
   const pairs = [
     [`${prefix}.g_proj`, `${prefix}.output_gate`],
     [`${prefix}.sdpa`, `${prefix}.output_gate`],
@@ -56,8 +57,10 @@ test("K3 NoPE, gate fan-in and vision 2D RoPE render in the production view", as
   await page.locator(".react-flow-diagram").scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("kimi-mla-gate.png") });
   await page.getByRole("button", { name: "收起全部", exact: true }).click();
+  await waitForLayout(page);
   await expect(gate).toHaveCount(0);
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await waitForLayout(page);
   await checkEdges();
   const search = page.getByPlaceholder("搜索节点名称 / 类型 / class...");
   await search.fill("MLA gate projection");

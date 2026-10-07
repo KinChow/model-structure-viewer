@@ -22,3 +22,11 @@ export const test = base.extend({
 });
 
 export { expect };
+
+// ELK layout is published asynchronously after the visible expand/collapse
+// action.  Waiting on the actual readiness marker avoids asserting against
+// the previous graph during slow CI runs.
+export async function waitForLayout(page, timeout = 60_000) {
+  await expect(page.locator(".react-flow-diagram"))
+    .toHaveAttribute("data-layout-ready", "true", { timeout });
+}

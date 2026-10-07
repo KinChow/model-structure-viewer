@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -35,6 +35,7 @@ for (const modelId of models) {
     await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
     const before = await page.locator(".react-flow__edge").count();
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     for (const [from, to] of pairs) {
       const edge = graph.edges.find(e => e.source_canonical_id === from && e.target_canonical_id === to);
       expect(edge, `${from} -> ${to}`).toBeTruthy();
@@ -48,6 +49,7 @@ for (const modelId of models) {
     }
     await page.screenshot({ path: testInfo.outputPath("dsa-physical-indexer.png") });
     await page.getByRole("button", { name: "收起全部", exact: true }).click();
+    await waitForLayout(page);
     await page.locator(".detail-cost-toggle > button").click();
     await expect(page.locator(".cost-summary")).toContainText("MACs / forward");
     await page.getByRole("button", { name: "中 / EN" }).click();

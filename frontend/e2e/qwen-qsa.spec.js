@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -18,6 +18,7 @@ for (const modelId of ["Qwen/Qwen3.8-Flash-Next", "Qwen/Qwen3.8-Flash-Next-FP8"]
     await page.getByRole("button", { name: "打开模型", exact: true }).click();
     await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2", { timeout: 30000 });
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     const pairs = [
       ["indexer.key_block_mean_pool", "indexer.k_layernorm"],
       ["indexer.k_layernorm", "indexer.k_rope"],
@@ -64,8 +65,10 @@ for (const modelId of ["Qwen/Qwen3.8-Flash-Next", "Qwen/Qwen3.8-Flash-Next-FP8"]
     }).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("qsa-pool-focus.png") });
     await page.getByRole("button", { name: "收起全部", exact: true }).click();
+    await waitForLayout(page);
     await expect(pool).toHaveCount(0);
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     await expect(pool).toHaveCount(1, { timeout: 30000 });
     await page.getByRole("button", { name: "中 / EN" }).click();
     await expect(page.locator(".react-flow__edge title").filter({ hasText: "visible tail" }).first()).toHaveCount(1);
@@ -102,6 +105,7 @@ test("local header binding does not render a bound tensor again as a checkpoint 
   await (await choosing).setFiles(dir);
   await expect(page.locator(".detail-page")).toBeVisible({ timeout: 30000 });
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await waitForLayout(page);
   await expect(page.locator(".rf-node-title").filter({ hasText: "index query zero-centered RMSNorm" }).first()).toHaveCount(1);
   await page.locator(".detail-aux-actions").getByRole("button", { name: "导出", exact: true }).click();
   const panel = page.locator(".export-panel");

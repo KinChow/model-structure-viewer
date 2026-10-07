@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
 for (const variant of ["Qwen3.8-27B", "Qwen3.8-Flash-Next"]) {
@@ -17,6 +17,7 @@ for (const variant of ["Qwen3.8-27B", "Qwen3.8-Flash-Next"]) {
     await page.getByRole("button", { name: "打开模型", exact: true }).click();
     await expect(page.locator(".detail-model-id")).toContainText(modelId);
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     for (const id of [
       "visual.patch_embed.proj",
       "visual.pos_embed",

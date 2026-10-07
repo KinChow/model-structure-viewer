@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -17,6 +17,7 @@ test("K3 AttnRes depth states, block boundary and final output survive folding",
   const finalEdge = edgeOf("layers.92.bank_out", "output_attn_residual");
   await expect(rendered(finalEdge)).toHaveAttribute("d", /^M/, { timeout: 30000 });
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await waitForLayout(page);
   const pairs = [
     ["layers.11.bank_out", "layers.12.bank_in"],
     ["layers.11.prefix_out", "layers.12.layer_in"],
@@ -56,9 +57,11 @@ test("K3 AttnRes depth states, block boundary and final output survive folding",
   await page.locator(".react-flow-diagram").scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("attnres-block-boundary.png") });
   await page.getByRole("button", { name: "收起全部", exact: true }).click();
+  await waitForLayout(page);
   await expect(node).toHaveCount(0);
   await expect(rendered(finalEdge)).toHaveAttribute("d", /^M/, { timeout: 30000 });
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await waitForLayout(page);
   await expect(node).toHaveCount(1, { timeout: 60000 });
   const search = page.getByPlaceholder("搜索节点名称 / 类型 / class...");
   await search.fill("Output Attention Residual");

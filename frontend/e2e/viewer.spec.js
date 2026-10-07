@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import { readFileSync } from "node:fs";
 import { buildStructureFromConfig } from "../src/structure/buildStructure.js";
 
@@ -60,6 +60,7 @@ test("多模态模型图包含视觉塔和视觉投影路径", async ({ page }) 
   const vision = page.locator(".react-flow__node").filter({ hasText: "Vision Tower" }).first();
   await expect(vision).toBeVisible();
   await vision.getByRole('button', {name: '展开', exact: true}).click();
+  await waitForLayout(page);
   await expect(page.locator(".react-flow__node").filter({ hasText: "Vision Merger" })).toBeVisible();
 });
 
@@ -99,6 +100,7 @@ test("每个内置模型都能展开父节点并保持可计算图", async ({ pa
       const before = await page.locator(".react-flow__edge").count();
       await fitCanvas();
       await expand.click();
+      await waitForLayout(page);
       await expect(page.locator(".react-flow__node").filter({ hasText: /\(DecoderLayer\)/ }).first()).toBeVisible();
       await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThanOrEqual(before);
     }
@@ -136,13 +138,17 @@ test("父节点详情提供子模块和 Shape", async ({ page }) => {
   await page.getByRole("button", { name: "打开模型" }).click();
   const decoder = page.locator(".rf-node-content").filter({ hasText: "Decoder Layers" }).first();
   await decoder.getByRole("button", { name: "展开", exact: true }).click();
+  await waitForLayout(page);
   const edgesAfterDecoder = await page.locator(".react-flow__edge").count();
   await page.locator(".rf-node-content").filter({ hasText: /\(DecoderLayer\)/ }).first().getByRole("button", { name: "展开", exact: true }).click();
+  await waitForLayout(page);
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(edgesAfterDecoder);
   await page.locator(".rf-node-content").filter({ hasText: "GQA Attention" }).first().getByRole("button", { name: "展开", exact: true }).click();
+  await waitForLayout(page);
   await expect(page.locator(".rf-node-content").filter({ hasText: "SDPA attention" }).first()).toBeVisible();
   await expect(page.locator(".rf-node-content").filter({ hasText: "attention scores" })).toHaveCount(0);
   await page.locator(".rf-node-content").filter({ hasText: "SDPA attention" }).first().getByRole("button", { name: "展开", exact: true }).click();
+  await waitForLayout(page);
   await expect(page.locator(".rf-node-content").filter({ hasText: "attention scores" }).first()).toBeVisible();
 
   // 展开到算子层后，builder 声明的 dataflow 边（declared）在场且与推断边类名互异

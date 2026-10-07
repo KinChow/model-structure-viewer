@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, test, waitForLayout } from "./fixtures.js";
 import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
@@ -21,13 +21,16 @@ for (const model of ["Qwen/Qwen3.5-0.8B", "Qwen/Qwen3.8-Flash-Next"]) {
     expect(labels.has("z") || labels.has("gate")).toBeTruthy();
     const before = await page.locator(".react-flow__edge").count();
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThanOrEqual(before);
     const titles = page.locator(".react-flow__edge title");
     for (const label of labels) await expect(titles.filter({ hasText: label }).first()).toContainText(label);
     await page.screenshot({ path: testInfo.outputPath("expanded-gate-inputs.png") });
     await page.getByRole("button", { name: "收起全部", exact: true }).click();
+    await waitForLayout(page);
     await expect.poll(() => page.locator(".react-flow__edge").count()).toBeLessThanOrEqual(before);
     await page.getByRole("button", { name: "展开全部", exact: true }).click();
+    await waitForLayout(page);
     for (const label of labels) await expect(page.locator(".react-flow__edge title").filter({ hasText: label }).first()).toContainText(label);
     await page.getByRole("button", { name: "中 / EN" }).click();
     for (const label of labels) await expect(page.locator(".react-flow__edge title").filter({ hasText: label }).first()).toContainText(label);
@@ -53,6 +56,7 @@ test("GLM IndexShare cross-layer top-k relation is rendered: zai-org/GLM-5.2", a
   await page.getByRole("button", { name: "打开模型", exact: true }).click();
   await expect(page.locator(".react-flow-diagram")).toHaveAttribute("data-graph-version", "2");
   await page.getByRole("button", { name: "展开全部", exact: true }).click();
+  await waitForLayout(page);
   await expect.poll(() => page.locator(".react-flow__edge").count()).toBeGreaterThan(0);
   await expect(page.locator(".react-flow__edge title").filter({ hasText: "IndexShare" }).first())
     .toContainText("IndexShare");

@@ -37,6 +37,7 @@ test("all built-in models have modules, formulas, and finite cost inputs", () =>
     const canonicalIds = structure.graph.nodes.map((node) => node.canonical_id);
     assert.equal(new Set(canonicalIds).size, canonicalIds.length, `${entry.model_id}: duplicate canonical graph ids`);
     assert.ok(structure.graph.edges.every((edge) => edge.source_canonical_id && edge.target_canonical_id), `${entry.model_id}: graph edge missing canonical endpoints`);
+    assert.ok(structure.graph.edges.every((edge) => "relation" in edge && "label" in edge), `${entry.model_id}: graph edge missing optional protocol fields`);
     const topLevel = childrenOf(structure.graph, structure.graph.root_id);
     assert.ok(topLevel.length > 0, `${entry.model_id}: empty module graph`);
     if (normalized.hasVision) {

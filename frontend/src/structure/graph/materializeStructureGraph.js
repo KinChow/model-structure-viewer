@@ -105,6 +105,10 @@ export function materializeStructureGraph(root, { modelId = root?.id || root?.na
       const targetNode = items.find((item) => item.path === edge.target)?.node;
       return {
         ...edge,
+        // Graph Protocol v2 keeps optional relation metadata explicit so the
+        // frontend and Pydantic serializers expose the same edge shape.
+        relation: edge.relation ?? null,
+        label: edge.label ?? null,
         source_canonical_id: sourceNode?.id || edge.source,
         target_canonical_id: targetNode?.id || edge.target,
       };

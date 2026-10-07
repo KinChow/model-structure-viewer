@@ -450,11 +450,15 @@ line = inspect.getsourcelines(cls)[1]
 
 **判据**：后端新增能力时若前端能做，就放前端。
 
-### 6.2 前端是唯一的结构主路径
+### 6.2 前端是唯一的产品结构主路径
 
 `normalizeConfig → resolveArchitecture → buildNetwork → truth merge → IR`。
 
-**判据**：**禁止后端再产出第二份 `ModelStructure` IR**。校验只需要扁平列表 `[(module_path, class_name, source_ref, has_params)]`，不需要 IR。“后端也建 IR”会造成前后端重复。
+**判据**：前端是网页产品唯一的结构主路径，后端不得成为网页运行时的第二个
+`ModelStructure` 事实源，也不得要求前后端双向合并。后端可以为 CLI/API 的
+`inspect` 和取证保留一份独立的 Graph Protocol v2 或扁平 module evidence；它是
+Transformers oracle 产物，不是产品 Graph 的替代品，也不改变网页的静态运行边界。
+“后端也建一份产品 IR”会造成前后端重复；“后端独立取证”不属于该违规项。
 
 ### 6.3 校验的定义是**对比**，不是"能不能建起来"
 
@@ -538,7 +542,8 @@ endpoint fallback、revision 默认值、auto 降级顺序、错误分类锁在 
 - [ ] 未适配模型未被伪造成完整结构（§4.5）
 - [ ] 路径绑定有对账测试（§4.6）
 - [ ] `source_ref` 无法确定时留空而非编造（§5.4）
-- [ ] 后端未新增第二份 IR 产出（§6.2）
+- [ ] 后端未新增第二份**产品** IR 产出；若保留 inspect Graph，已标明为
+  oracle/取证产物且不成为网页运行时依赖（§6.2）
 - [ ] 芯片数据带 `source` + `confidence`（§7）
 - [ ] 家族名硬编码文件数未增加（§8.1）
 - [ ] 未引入嵌套三元分派（§8.2）

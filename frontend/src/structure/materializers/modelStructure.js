@@ -54,6 +54,18 @@ function structureNodeFromSpec(spec) {
   };
 }
 
+function normalizeGraphEdges(graph) {
+  if (!graph?.edges) return graph;
+  return {
+    ...graph,
+    edges: graph.edges.map((edge) => ({
+      ...edge,
+      relation: edge.relation ?? null,
+      label: edge.label ?? null,
+    })),
+  };
+}
+
 export function materializeModelStructure(ir) {
   const { network, normalized, resolved, options = {}, diagnostics = {} } = ir;
   const rawTruth = options.truth;
@@ -103,7 +115,7 @@ export function materializeModelStructure(ir) {
     architecture: resolved?.architecture,
     truthPathAliases: checkpointPathAliases(normalized),
   });
-  graph = graphTruth.graph;
+  graph = normalizeGraphEdges(graphTruth.graph);
   const sourceRefBound = bindSourceRefToGraph(graph, options.sourceRef);
   graph = sourceRefBound.graph;
   mergedDiagnostics = {

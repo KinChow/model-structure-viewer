@@ -33,6 +33,9 @@
       "value_source", "tensor_names"
     ],
     "graph_node_extra": ["canonical_id", "module_id", "parent_id", "order"],
-    "edge_fields": ["id", "source", "target", "source_canonical_id", "target_canonical_id", "kind", "evidence"]
+    "edge_fields": [
+      "id", "source", "target", "source_canonical_id", "target_canonical_id",
+      "kind", "evidence", "relation", "label"
+    ]
   }
 }

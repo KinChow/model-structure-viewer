@@ -655,16 +655,21 @@ const mainFlow = data?.evidence === "module-order" || data?.evidence === "semant
 > （与 principles.md §6.1/§6.3 原始设计一致）。"降级"方向作废；本旁路的
 > 有效剩余范围收窄为 source_ref 采集与 /api/verify 的对齐强化（W6 前再对齐）。
 
-## 旁路 B（原"后端降级"）+ source_ref（与 W1–W6 无依赖，可并行）
+## 旁路 B（原"后端降级"）+ source_ref（已被 2026-09-08 裁决覆盖）
+
+以下条目是裁决前的历史草案，不再作为实施指令。当前实现保留
+`/api/structure` / CLI `inspect`，但它们只生成开发和取证用的独立 Graph，不进入
+网页运行时，也不成为产品结构事实源。
 
 - **范围**
-  1. 后端职责收缩为产出 `[(module_path, class_name, source_ref, has_params)]`；
+  1. 保留后端作为 Transformers oracle；`/api/structure` / CLI `inspect` 的 Graph
+     只用于开发、取证和问题定位；
   2. `source_ref` 采集照抄 modelmap `src/modelmap/annotate.py:116-134`
      （`inspect.getsourcefile` + `getsourcelines`[1] + 包根前缀匹配 + 版本锚定 blob 链接）；
-  3. 产物写成随 catalog 发布的静态 JSON，静态部署可用（§5.3）；
-  4. `/api/verify` 改为差异报告（仅 transformers 有 / 仅 msv 有 / 类名不符）并**加 UI 入口**；
-  5. 下线 `/api/structure` 与后端 IR 产出；删 `graph.py`/`fold.py`/`semantics.py`/`keys.py`/
-     `summary.py` 中仅为产出 IR 而存在的部分。
+  3. source-ref 产物随 catalog 发布，静态部署可用（§5.3）；
+  4. `/api/verify` 返回差异报告（仅 transformers 有 / 仅 msv 有 / 类名不符）并保留
+     CLI/API 入口；
+  5. 后端独立 Graph 不得被网页消费；前端仍只消费自己的 `ModelStructure.graph`。
 - **入口**：`src/model_structure_viewer/{verification,structure,api}.py`、新增产物生成脚本
 - **依赖**：无（可与 W1 并行）
 - **验收**：`pytest`；`msv verify --model <id>` 输出三类差异列表；

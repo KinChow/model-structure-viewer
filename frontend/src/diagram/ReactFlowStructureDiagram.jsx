@@ -247,6 +247,11 @@ function ReactFlowCanvas({ graph, props }) {
   const lastModelKey = useRef(null);
   const lastFocusedPath = useRef(null);
   const lastFocusedSignature = useRef(null);
+  // 大模型（如 K3 4000+ 节点）下，选中/高亮会让整个 nodes 数组重建。若每个节点的
+  // data 都是新引用，ReactFlow 会把全部自定义节点重渲一遍（选一个节点 → O(N) 重排/重绘）。
+  // 这里按 path 缓存 data 对象：仅当该节点的实际输入变化时才重建引用，否则复用。
+  // 选中态只改变顶层 node.selected（2 个节点），data 引用稳定 → ReactFlow 只重渲受影响节点。
+  const nodeDataCacheRef = useRef(new Map());
   useEffect(() => {
     if (!props.scrollSync?.group || !props.scrollSyncId) return undefined;
     const entry = { setViewport: (viewport) => setViewport(viewport, { duration: 0 }) };
@@ -267,6 +272,18 @@ function ReactFlowCanvas({ graph, props }) {
   const nodes = useMemo(() => {
     const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
     const frameByPath = new Map(graph.containerFrames.map((frame) => [frame.id, frame]));
+    // data 引用稳定化：输入签名未变就复用上一帧的 data 对象（见上方 ref 注释）。
+    const dataCache = nodeDataCacheRef.current;
+    const seen = new Set();
+    const stableData = (key, signature, build) => {
+      const prev = dataCache.get(key);
+      const reuse = prev && prev.signature.length === signature.length
+        && prev.signature.every((value, index) => value === signature[index]);
+      const entry = reuse ? prev : { signature, data: build() };
+      dataCache.set(key, entry);
+      seen.add(key);
+      return entry.data;
+    };
     const nearestFrame = (path) => {
       let current = parentPath(path);
       while (current) {
@@ -291,7 +308,11 @@ function ReactFlowCanvas({ graph, props }) {
         height: frame.height,
         measured: { width: frame.width, height: frame.height },
         style: { width: frame.width, height: frame.height },
-        data: { ...frame, node: nodeByPath.get(frame.id), english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup },
+        data: stableData(
+          `frame-${frame.id}`,
+          [frame, nodeByPath.get(frame.id), props.english, props.showGroupToggle, selectNode, props.onToggleGroup],
+          () => ({ ...frame, node: nodeByPath.get(frame.id), english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup }),
+        ),
         selected: props.selectedPath === frame.id,
         selectable: true,
         draggable: false,
@@ -312,7 +333,11 @@ function ReactFlowCanvas({ graph, props }) {
         height: nodeHeight,
         measured: { width: node.width, height: nodeHeight },
         style: { width: node.width, height: nodeHeight },
-        data: { node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, nodeLens: props.nodeLens, activeLenses: props.activeLenses, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths },
+        data: stableData(
+          node.path,
+          [node, props.english, props.showGroupToggle, selectNode, props.onToggleGroup, props.nodeLens?.[node.path], props.activeLenses, matched, props.searchActive, props.comparisonPaths],
+          () => ({ node, english: props.english, showGroupToggle: props.showGroupToggle, onSelect: selectNode, onToggle: props.onToggleGroup, nodeLens: props.nodeLens, activeLenses: props.activeLenses, matched, searchActive: props.searchActive, comparisonPaths: props.comparisonPaths }),
+        ),
         selected: props.selectedPath === node.path,
         draggable: false,
         // 叶/模块瓷砖必须绘制在数据流边之上，否则边会压在瓷砖前面（frame 用负 zIndex
@@ -320,13 +345,19 @@ function ReactFlowCanvas({ graph, props }) {
         zIndex: 1,
       };
     });
+    // 丢弃本帧未出现的缓存键（折叠/切模型后不存在的节点），避免缓存无限增长。
+    for (const key of [...dataCache.keys()]) if (!seen.has(key)) dataCache.delete(key);
     return [...frames, ...modelNodes];
   }, [graph, props.english, props.showGroupToggle, props.onToggleGroup, props.nodeLens, props.activeLenses, props.searchActive, props.comparisonPaths, props.selectedPath, matched, selectNode]);
   const edges = useMemo(() => {
     const framePaths = new Set(graph.containerFrames.map((frame) => frame.id));
     const targetId = (path) => framePaths.has(path) ? `frame-${path}` : path;
+    // 边的样式只需要源节点。此前每条边都做 graph.nodes.find（O(N)），
+    // 整体 O(N·E)：K3 这种 4000+ 节点/边的图里，任一次选中/高亮触发 edges 重建都要
+    // 几十亿次比较，主线程卡死数秒。改为一次性建 path→node 映射，降到 O(E)。
+    const nodeByPath = new Map(graph.nodes.map((node) => [node.path, node]));
     return renderEdges.map((edge) => {
-      const presentation = edgePresentation(edge, graph.nodes.find((n) => n.path === edge.source), { english: props.english });
+      const presentation = edgePresentation(edge, nodeByPath.get(edge.source), { english: props.english });
       return {
         id: edge.id,
         source: targetId(edge.source),

@@ -59,6 +59,19 @@ jobs:
       - run: npm run verify:models
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      # E2E 失败时留存 Playwright 产物（trace / 截图 / error-context），
+      # 否则 CI 只剩一行超时信息、无法定位（本仓库此前多次因此盲查）。
+      # upload-artifact 的 path 相对仓库根目录，不受 defaults working-directory 影响。
+      - name: Upload Playwright artifacts on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            frontend/test-results
+            frontend/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
       - run: npm run build
       # 一次性前置条件（仓库管理员在 GitHub 网页端操作，工作流代码无法代劳）：
       #   Settings → Pages → Build and deployment → Source 选 "GitHub Actions"。

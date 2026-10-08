@@ -41,10 +41,12 @@ function downloadSvg(structure) {
   link.style.display = "none";
   document.body.appendChild(link);
   link.click();
-  requestAnimationFrame(() => {
-    link.remove();
-    URL.revokeObjectURL(url);
-  });
+  link.remove();
+  // 下载是异步写盘。此前在下一帧（~16ms）就 revoke blob URL，在慢速/高负载环境
+  // （如 2 核 CI runner 导出 K3 这种 10MB+ 的 SVG）里浏览器可能还没读完数据源，
+  // 导致下载永不完成——E2E 的 download.saveAs 会一直卡到用例超时。延后回收消除竞态；
+  // blob 读完后短暂的 URL 泄漏可接受，切模型/刷新即释放。
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
   return "ok";
   } catch {
     return "error";

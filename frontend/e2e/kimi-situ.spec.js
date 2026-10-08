@@ -3,7 +3,9 @@ import fs from "node:fs";
 import { buildStructureFromArtifacts } from "../src/structure/buildStructure.js";
 
 test("K3 dense/shared/routed SiTU mechanisms and costs render", async ({ page }, testInfo) => {
-  test.setTimeout(180000);
+  // 与 AttnRes 同属 K3（4000+ 节点）重交互用例：全展开两次 + 多次选中 + 缩放循环 + 导出，
+  // 在 2 核 CI runner 上单次 ELK 布局与选中重渲染耗时偏高。对齐重类用例预算，给足余量。
+  test.setTimeout(240000);
   const raw = JSON.parse(fs.readFileSync(new URL("../../models/moonshotai/Kimi-K3/config.json", import.meta.url)));
   const { graph } = buildStructureFromArtifacts({ config: raw, modelId: "moonshotai/Kimi-K3" });
   const nodes = new Map(graph.nodes.map(n => [n.canonical_id, n]));
